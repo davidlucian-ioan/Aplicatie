@@ -1,1 +1,26 @@
+Biblia aplicației
 
+1. Viziunea aplicației
+
+Aplicația este un asistent inteligent pentru organizarea, documentarea și administrarea oricărui domeniu sau colecții de informații.
+
+Nu este construită pentru un singur domeniu. Poate fi folosită pentru plante, acvarii, animale, obiecte, proiecte, colecții sau orice alt domeniu definit de utilizator.
+
+Principiul central
+
+Utilizatorul își exprimă natural intenția, în special prin voce.
+
+Aplicația:
+
+1. înțelege intenția;
+2. construiește contextul relevant;
+3. extrage informația;
+4. validează;
+5. actualizează istoricul;
+6. răspunde scurt.
+
+Datele structurate pot fi ulterior filtrate, corelate, comparate, analizate și reprezentate grafic.
+
+Principiu fundamental
+
+Aplicația este un asistent personal cu memorie, nu doar un jurnal sau un chatbot.
