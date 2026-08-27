@@ -358,3 +358,90 @@ Regula scenariilor
 Orice decizie arhitecturală importantă trebuie testată prin unul sau mai multe scenarii reale.
 
 Dacă o decizie nu poate susține scenariile relevante fără excepții artificiale, decizia trebuie reevaluată.
+
+## S-021 — Vânzare din populație anonimă
+
+B3 conține 10 Fancy:
+
+- 3 indivizi identificați;
+- 7 anonimi.
+
+Input:
+
+„Am vândut 5 Fancy.”
+
+Rezultat:
+
+- 5 anonimi sunt marcați ca vânduți;
+- 2 anonimi rămân activi;
+- cei 3 indivizi identificați nu sunt afectați.
+
+---
+
+## S-022 — Vânzare cu individ identificat prin atribute
+
+Input:
+
+„Am vândut femela Boa Like cu Spider Legs.”
+
+Sistemul caută indivizii care corespund atributelor.
+
+Dacă există o singură candidată, aceasta este identificată automat.
+
+Dacă există mai multe candidate, sistemul folosește celelalte atribute disponibile pentru eliminare.
+
+Dacă ambiguitatea persistă, pune o singură întrebare.
+
+---
+
+## S-023 — Vânzare mixtă
+
+Input:
+
+„Am vândut femela Boa Like și încă 4 Fancy.”
+
+Evenimentul reprezintă o singură intenție și poate conține mai multe operații interne.
+
+- individul identificat este vândut;
+- cantitatea rămasă este consumată din anonimi;
+- toate efectele sunt aplicate atomic.
+
+---
+
+## S-024 — Vânzare care depășește cantitatea disponibilă
+
+Dacă B3 are doar 3 Fancy activi:
+
+„Am vândut 5 Fancy.”
+
+Operația este respinsă integral.
+
+Sistemul nu permite sold negativ și nu aplică parțial vânzarea.
+
+---
+
+## S-025 — Conflict de locație
+
+FT-001 este în B8.
+
+Input:
+
+„Am vândut 5 Fancy din B3, inclusiv FT-001.”
+
+Motorul detectează conflictul dintre locația cunoscută și afirmația utilizatorului.
+
+Operația nu este executată până la clarificare.
+
+---
+
+## S-026 — Rafinare ulterioară
+
+Inițial:
+
+Fancy → B3 → 5
+
+Ulterior:
+
+„Femela Boa Like cu Spider Legs este unul dintre Fancy din B3.”
+
+Sistemul poate rafina datele existente și identifica individul fără să rescrie istoricul inițial.
