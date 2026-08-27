@@ -174,3 +174,87 @@ Audit
 Istoricul modificărilor efectuate asupra datelor și configurației.
 
 Trebuie să permită identificarea sursei, momentului și naturii modificării.
+
+
+## Grup / Populație
+
+O reprezentare a unui grup de entități de același tip, care poate exista fără identificarea individuală a membrilor.
+
+Exemplu:
+
+Fancy → B3 → 5
+
+Un grup poate fi ulterior rafinat prin identificarea unor indivizi.
+
+---
+
+## Cantitate anonimă
+
+Cantitatea unei populații pentru care membrii individuali nu sunt identificați.
+
+Exemplu:
+
+Fancy → B3 → 5 anonimi
+
+Cantitatea anonimă poate fi consumată prin operații precum vânzare, transfer sau pierdere.
+
+---
+
+## Dispoziție
+
+Starea unei cantități sau entități în raport cu deținerea sau disponibilitatea.
+
+Exemple:
+
+- activ;
+- vândut;
+- donat;
+- decedat;
+- pierdut;
+- returnat.
+
+Lista este extensibilă.
+
+---
+
+## Certainty
+
+Gradul de certitudine al informației în lumea reală.
+
+Este diferit de confidence-ul AI-ului.
+
+O informație poate fi păstrată ca incertă fără a fi transformată într-o valoare exactă.
+
+---
+
+## Confidence
+
+Gradul de încredere al AI-ului în interpretarea unei intenții sau informații.
+
+Este folosit în procesul de decizie și validare și nu reprezintă automat adevărul evenimentului.
+
+---
+
+## Eveniment compus
+
+Un eveniment logic rezultat dintr-o singură intenție a utilizatorului și care poate conține mai multe operații interne.
+
+Exemplu:
+
+„Mută femela Boa Like și încă 4 Fancy în B8.”
+
+---
+
+## Proiecție
+
+Reprezentarea derivată a stării curente.
+
+Exemple:
+
+- sold pe locație;
+- cantitate activă;
+- cost derivat;
+- statistici;
+- agregări.
+
+Proiecția nu este sursa primară a adevărului.
