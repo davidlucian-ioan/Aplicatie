@@ -216,3 +216,63 @@ Plantă → se află în → Seră
 Mașină → se află în → Garaj
 
 fără modificarea motorului.
+
+## Granularitate progresivă
+
+Modelul permite pornirea de la informații agregate și rafinarea ulterioară.
+
+Exemplu inițial:
+
+Fancy → B3 → activ → 5
+
+Dacă ulterior sunt identificați indivizi, aceștia pot fi asociați populației existente.
+
+Sistemul nu creează indivizi fictivi doar pentru a satisface modelul.
+
+---
+
+## Cantitate anonimă și indivizi identificați
+
+O populație poate conține simultan:
+
+- indivizi identificați;
+- cantitate anonimă.
+
+Exemplu:
+
+Fancy:
+- FT-001
+- FT-002
+- 7 anonimi
+
+Operațiile cantitative pot afecta simultan indivizi identificați și cantitate anonimă.
+
+---
+
+## Regula de selecție
+
+La o operație cantitativă:
+
+1. identificările explicite ale utilizatorului au prioritate;
+2. cantitatea rămasă se consumă din cantitatea anonimă;
+3. dacă aceasta nu este suficientă, sistemul încearcă identificarea prin atribute;
+4. dacă ambiguitatea rămâne, cere clarificarea minimă.
+
+---
+
+## Locație și dispoziție
+
+Starea unei populații într-o locație poate fi reprezentată printr-o proiecție de tip:
+
+**Entitate/Populație + Locație + Dispoziție + Cantitate**
+
+Exemplu:
+
+B3 → Fancy → activ → 5
+
+Un eveniment de vânzare poate produce:
+
+B3 → Fancy → activ → -2  
+B3 → Fancy → vândut → +2
+
+Aceste valori sunt derivate din evenimente.
