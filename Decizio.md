@@ -781,7 +781,27 @@ Corecția nu distruge adevărul istoric.
 
 ## D-044 — Corecții prin evenimente noi
 
-**Categorie:** Date / Audit  
-**Status:** Înghețată
+Categorie: Date / Audit
+Status: Înghețată
 
-O greșeală nu este eliminată prin rescrierea ist
+O greșeală nu este eliminată prin rescrierea istoricului. Corectarea unei informații se realizează printr-un eveniment nou, legat explicit de evenimentul sau informația corectată.
+
+Principii:
+
+1. Istoric imuabil conceptual. Evenimentele originale nu se șterg și nu se rescriu pentru a ascunde o greșeală. Istoricul trebuie să permită reconstruirea succesiunii operațiunilor și a corecțiilor.
+
+2. Legătura dintre corecție și original. Evenimentul de corecție referă explicit evenimentul corectat și identifică modificările efectuate. Motivul corecției poate fi înregistrat atunci când este disponibil.
+
+3. Proiecții actualizate. Tabelele de proiecții reflectă starea curentă rezultată după aplicarea evenimentelor și a corecțiilor. Valorile utilizate pentru calcule trebuie să fie coerente cu istoricul validat.
+
+4. Relații explicite. Legăturile dintre evenimente, entități, relații și proiecții trebuie să permită identificarea efectelor unei corecții și a datelor care trebuie recalculate.
+
+5. Corectarea efectelor. O corecție trebuie să repare toate efectele relevante ale informației greșite asupra proiecțiilor, fără să elimine efectele corecte ale altor operațiuni. Operațiile compuse trebuie să respecte atomicitatea definită în D-018.
+
+6. Separarea corecției de schimbarea reală. Corectarea unei înregistrări istorice greșite este diferită de înregistrarea unui eveniment nou care descrie o schimbare reală produsă ulterior.
+
+7. Reconstruirea proiecțiilor. Proiecțiile trebuie să poată fi reconstruite din istoricul evenimentelor și al corecțiilor. Rezultatul reconstruirii trebuie să fie echivalent cu starea obținută prin procesarea normală a evenimentelor.
+
+8. Audit complet. Sistemul păstrează evenimentul original, corecția, legătura dintre ele și momentul înregistrării corecției. Istoricul trebuie să permită explicarea stării curente și a modului în care aceasta a fost obținută.
+
+Motorul determină efectele corecției și actualizează proiecțiile afectate. Interfața și AI-ul nu modifică direct istoricul sau proiecțiile.
