@@ -1,0 +1,69 @@
+name: Import Collector v0.7 source bundle
+
+on:
+  push:
+    branches:
+      - feature/collector-v11-v0.7-source
+    paths:
+      - Collector-MVP-v11-CONTINUARE-v0.7.zip
+
+permissions:
+  contents: write
+
+jobs:
+  extract-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/collector-v11-v0.7-source
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Extract source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f Collector-MVP-v11-CONTINUARE-v0.7.zip
+          rm -rf "$RUNNER_TEMP/collector-v11-source"
+          mkdir -p "$RUNNER_TEMP/collector-v11-source" collector-v11
+          unzip -q Collector-MVP-v11-CONTINUARE-v0.7.zip -d "$RUNNER_TEMP/collector-v11-source"
+          test -d "$RUNNER_TEMP/collector-v11-source/Collector-MVP-v11"
+          rsync -a \
+            --exclude='Decizio.md' \
+            --exclude='Dictionar.md' \
+            --exclude='Model-conceptual.md' \
+            --exclude='Scenarii.md' \
+            "$RUNNER_TEMP/collector-v11-source/Collector-MVP-v11/" collector-v11/
+          cat > collector-v11/README.md <<'EOF'
+# Collector MVP v11
+
+Aplicația executabilă Collector v11. Documentele canonice de produs și decizii sunt în rădăcina repository-ului.
+
+## Pornire Windows
+Dublu-click pe `Porneste-Collector.bat`, apoi deschide `http://localhost:8000/index-server.html`. Lasă fereastra serverului deschisă.
+
+## Teste
+Necesită Node.js 18+. Rulează `npm test` din acest folder.
+
+Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile reale în afara intervalului se pot înregistra cu avertisment. AI Foundation folosește un provider mock; nu există încă provider AI real conectat.
+EOF
+
+      - name: Run complete automated test suite
+        working-directory: collector-v11
+        run: npm test
+
+      - name: Commit extracted source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add collector-v11
+          git commit -m "feat: import Collector MVP v11 source v0.7"
+          git push origin HEAD:feature/collector-v11-v0.7-source
