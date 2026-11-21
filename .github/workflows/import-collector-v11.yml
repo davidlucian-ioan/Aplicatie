@@ -42,19 +42,19 @@ jobs:
             --exclude='Model-conceptual.md' \
             --exclude='Scenarii.md' \
             "$RUNNER_TEMP/collector-v11-source/Collector-MVP-v11/" collector-v11/
-          cat > collector-v11/README.md <<'EOF'
-# Collector MVP v11
-
-Aplicația executabilă Collector v11. Documentele canonice de produs și decizii sunt în rădăcina repository-ului.
-
-## Pornire Windows
-Dublu-click pe `Porneste-Collector.bat`, apoi deschide `http://localhost:8000/index-server.html`. Lasă fereastra serverului deschisă.
-
-## Teste
-Necesită Node.js 18+. Rulează `npm test` din acest folder.
-
-Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile reale în afara intervalului se pot înregistra cu avertisment. AI Foundation folosește un provider mock; nu există încă provider AI real conectat.
-EOF
+          cat > collector-v11/README.md <<'README_EOF'
+          # Collector MVP v11
+          
+          Aplicatia executabila Collector v11. Documentele canonice de produs si decizii sunt in radacina repository-ului.
+          
+          ## Pornire Windows
+          Dublu-click pe Porneste-Collector.bat, apoi deschide http://localhost:8000/index-server.html. Lasa fereastra serverului deschisa.
+          
+          ## Teste
+          Necesita Node.js 18+. Ruleaza npm test din acest folder.
+          
+          Limitele min/max ale atributelor sunt intervale recomandate: masuratorile reale in afara intervalului se pot inregistra cu avertisment. AI Foundation foloseste un provider mock; nu exista inca provider AI real conectat.
+          README_EOF
 
       - name: Run complete automated test suite
         working-directory: collector-v11
