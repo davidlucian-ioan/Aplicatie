@@ -1,0 +1,21 @@
+const E=require('./engine.js');
+const assert=require('node:assert/strict');
+const id=(x)=>x;
+let db=E.emptyState();
+function add(event){db=E.commit(db,event).db;}
+add({id:'e1',timestamp:'2026-11-10T10:00:00.000Z',operations:[{operation:'entity.create',target:'tank1',data:{name:'B1',type:'location'}},{operation:'attribute.define',data:{name:'pH',type:'number',nature:'dynamic',historyEnabled:true}}]});
+add({id:'m1',timestamp:'2026-11-10T11:00:00.000Z',operations:[{operation:'attribute.set',target:'tank1',data:{name:'pH',value:6.4}}]});
+add({id:'m2',timestamp:'2026-11-12T11:00:00.000Z',operations:[{operation:'attribute.set',target:'tank1',data:{name:'pH',value:6.8}}]});
+add({id:'c1',timestamp:'2026-11-15T11:00:00.000Z',type:'attribute.value_corrected',operations:[{operation:'attribute.correct',target:'tank1',data:{name:'pH',value:6.5,correctsEventId:'m1'}}]});
+assert.equal(db.entities.find(x=>x.id==='tank1').attributes.pH,6.8);
+assert.equal(db.events.find(x=>x.id==='m1').operations[0].data.value,6.4,'original event must remain unchanged');
+assert.deepEqual(db.entities.find(x=>x.id==='tank1').attributeHistory.pH.map(x=>x.value),[6.5,6.8]);
+assert.equal(db.entities.find(x=>x.id==='tank1').attributeHistory.pH.length,2,'correction must not create a third measurement');
+add({id:'c2',timestamp:'2026-11-16T11:00:00.000Z',type:'attribute.value_corrected',operations:[{operation:'attribute.correct',target:'tank1',data:{name:'pH',value:6.6,correctsEventId:'m1'}}]});
+assert.equal(db.entities.find(x=>x.id==='tank1').attributes.pH,6.8);
+assert.deepEqual(db.entities.find(x=>x.id==='tank1').attributeHistory.pH.map(x=>x.value),[6.6,6.8]);
+const replay=E.replay(db.events,db.attributes);
+assert.equal(replay.entities.find(x=>x.id==='tank1').attributes.pH,6.8);
+assert.deepEqual(replay.entities.find(x=>x.id==='tank1').attributeHistory.pH.map(x=>x.value),[6.6,6.8]);
+assert.equal(replay.meta.replayWarnings?.length||0,0);
+console.log('PASS: historical measurement correction, repeated correction, current value, and replay equivalence');

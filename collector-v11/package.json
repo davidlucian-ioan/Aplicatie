@@ -1,0 +1,10 @@
+{
+  "name": "collector-mvp",
+  "version": "0.11.1-ai-foundation.2",
+  "private": true,
+  "description": "Collector MVP with an isolated AI Foundation scaffold",
+  "scripts": {
+    "test": "node --test test-*.js"
+  },
+  "engines": { "node": ">=18" }
+}
