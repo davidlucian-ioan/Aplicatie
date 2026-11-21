@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const app=fs.readFileSync(require('node:path').join(__dirname,'app.js'),'utf8');
+assert.match(app,/function validateAttribute\(def,value\)[\s\S]*?warnings\.push/,'numeric bounds must produce warnings');
+assert.match(app,/function confirmAttributeWarnings\(def,value\)[\s\S]*?continui\?/i,'out-of-range values must be confirmable');
+assert.doesNotMatch(app,/throw Error\(`„\$\{def\.name\}” este sub minimul/,'minimum must not hard-block real measurements');
+assert.doesNotMatch(app,/throw Error\(`„\$\{def\.name\}” depășește maximul/,'maximum must not hard-block real measurements');
+assert.match(app,/if\(raw\.trim\(\)!==''\|\|def\.required\)/,'empty optional initial value must not be parsed as a required number');
+assert.match(app,/min>max/,'invalid min/max configuration must be rejected');
+assert.equal((app.match(/confirmAttributeWarnings\(def,value\)/g)||[]).length >= 6,true,'entity, relation, event, correction and quick-command paths must surface range warnings');
+assert.match(app,/Limite recomandate:/,'UI must describe min/max as recommended limits');
+console.log('PASS: min/max are advisory warnings, out-of-range measurements can be confirmed, optional initial values may remain empty, invalid bound order is rejected');

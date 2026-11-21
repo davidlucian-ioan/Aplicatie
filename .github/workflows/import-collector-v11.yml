@@ -1,0 +1,75 @@
+name: Import Collector v0.7 source bundle
+
+on:
+  push:
+    branches:
+      - feature/collector-v11-v0.7-source
+    paths:
+      - .github/workflows/import-collector-v11.yml
+      - Collector-MVP-v11-CONTINUARE-v0.7*.zip
+
+permissions:
+  contents: write
+
+jobs:
+  extract-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/collector-v11-v0.7-source
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Extract source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle="$(find . -maxdepth 1 -type f -name 'Collector-MVP-v11-CONTINUARE-v0.7*.zip' -print -quit)"
+          test -n "$bundle"
+          rm -rf "$RUNNER_TEMP/collector-v11-source"
+          mkdir -p "$RUNNER_TEMP/collector-v11-source" collector-v11
+          unzip -q "$bundle" -d "$RUNNER_TEMP/collector-v11-source"
+          test -d "$RUNNER_TEMP/collector-v11-source/Collector-MVP-v11"
+          rsync -a \
+            --exclude='Decizio.md' \
+            --exclude='Dictionar.md' \
+            --exclude='Model-conceptual.md' \
+            --exclude='Scenarii.md' \
+            "$RUNNER_TEMP/collector-v11-source/Collector-MVP-v11/" collector-v11/
+          cat > collector-v11/README.md <<'README_EOF'
+          # Collector MVP v11
+          
+          Aplicatia executabila Collector v11. Documentele canonice de produs si decizii sunt in radacina repository-ului.
+          
+          ## Pornire Windows
+          Dublu-click pe Porneste-Collector.bat, apoi deschide http://localhost:8000/index-server.html. Lasa fereastra serverului deschisa.
+          
+          ## Teste
+          Necesita Node.js 18+. Ruleaza npm test din acest folder.
+          
+          Limitele min/max ale atributelor sunt intervale recomandate: masuratorile reale in afara intervalului se pot inregistra cu avertisment. AI Foundation foloseste un provider mock; nu exista inca provider AI real conectat.
+          README_EOF
+
+      - name: Run complete automated test suite
+        working-directory: collector-v11
+        run: npm test
+
+      - name: Commit extracted source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add collector-v11
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+          else
+            git commit -m "feat: import Collector MVP v11 source v0.7"
+            git push origin HEAD:feature/collector-v11-v0.7-source
+          fi
