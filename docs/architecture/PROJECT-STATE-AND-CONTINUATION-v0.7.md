@@ -4,7 +4,7 @@
 **Data snapshot:** 21 noiembrie 2026  
 **Repository:** davidlucian-ioan/Aplicatie  
 **Default branch:** main  
-**Status GitHub:** punctul de continuare a fost comis în main prin PR #1; integrarea codului v11 este încă deschisă în issue #2.  
+**Status GitHub:** Collector MVP v11 este integrat în `main` prin PR #3 (merge squash, 22 noiembrie 2026). Codul este în `collector-v11/`; GitHub Actions a extras sursa și a confirmat `npm test`: 38/38 teste trecute, 0 eșuate. Commit de integrare: `c1bf7e5d2e9b6fefbfb06e95fa5d92716fef2928`.  
 **Artefacte păstrate:** Library `/Collector/Collector-MVP-v11-CONTINUARE-v0.7.zip` și `/Collector/CONTINUARE-PROIECT.md`.
 
 ## 1. De ce există acest document
@@ -13,9 +13,9 @@ Acest document este punctul unic de reluare a proiectului. La începutul unei co
 
 ## 2. Situația repository-ului constatată
 
-La 21.11.2026, branch-ul main conține încă un MVP timpuriu, cu app.js de aproximativ 6,8 KB și numai paginile Dashboard, Entități, Evenimente, Atribute și Istoric. Repository-ul conține documentele conceptuale și AI Foundation, dar nu conține încă implementarea completă Collector MVP v11.
+Înainte de integrare, `main` conținea un MVP timpuriu. La 22.11.2026, implementarea completă Collector MVP v11 este integrată în `main/collector-v11/`. Folderul include `engine.js`, `app.js`, UI, `ai/`, teste, `package.json`, `index-server.html` și scriptul Windows de pornire. Documentele conceptuale canonice din rădăcină au fost păstrate. README-ul root indică acum folderul aplicației.
 
-Arhiva v0.7 conține implementarea v11 completă (55 fișiere în ZIP, 315.995 bytes de fișiere extrase), cu engine.js, app.js, UI complet, AI Foundation/Core Port, documente și teste. Prin urmare, nu se va afirma că v0.7 este deja integrat în main.
+Arhiva v0.7 a fost încărcată în branch-ul de integrare, extrasă prin GitHub Actions și sursa extrasă a fost comisă în repository. PR #3 a fost verificat și integrat în `main`.
 
 **Decizie de lucru:** integrarea sursei v11 în repository trebuie făcută ca schimbare controlată, păstrând fișierul Biblia și documentele conceptuale existente. Se lucrează prin branch și PR; nu se suprascrie direct main.
 
@@ -39,7 +39,9 @@ Rezultat la 21.11.2026:
 
 Suitele acoperă Core Port browser, preview fără persistare, persistență înainte de publicarea stării, confirmare la operații cu risc, contract/idempotency, parser comenzi, validări de import, corecții, replay legacy și politica intervalelor atributelor.
 
-Acest rezultat este reproductibil pentru arhiva v0.7 verificată. Nu reprezintă încă un CI GitHub pe repository.
+Pe lângă testarea locală, GitHub Actions run #44956048507 a extras arhiva v0.7, a rulat `npm test` în `collector-v11/` și a confirmat: 38 teste, 38 trecute, 0 eșuate, 0 anulate. [Rularea CI](https://github.com/davidlucian-ioan/Aplicatie/actions/runs/44956048507).
+
+Acestea sunt teste automate. Nu substituie validarea manuală a UI-ului în browser.
 
 ## 5. Date operaționale ale utilizatorului — nu se includ în Git
 
@@ -80,13 +82,12 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 
 ## 8. Restanțe — ordinea recomandată
 
-### P0 — issue #2: integrare reală în GitHub
-- Materializează/reutilizează snapshot-ul v0.7 din Library și verifică manifestul complet.
-- Compară sursa v11 cu repository-ul main.
-- Integrează sursa executabilă v11 într-un branch dedicat, păstrând Biblia și documentele conceptuale.
-- Actualizează README root cu pașii reali de instalare/rulare/test.
-- Configurează GitHub Actions pentru `npm test`.
-- Revizuiește diff-ul și verifică faptul că integrarea nu elimină fișiere utile.
+### P0 — integrare în GitHub: închisă prin PR #3
+- Arhiva v0.7 a fost încărcată în branch-ul dedicat.
+- Sursa executabilă v11 a fost extrasă în `collector-v11/`; documentele conceptuale canonice din rădăcină au fost păstrate.
+- README root și workflow-ul GitHub Actions au fost actualizate.
+- PR #3 a fost verificat și integrat în `main`.
+- CI a confirmat 38/38 teste trecute, 0 eșuate.
 
 ### P1 — validare funcțională cu utilizatorul
 - Testează în browser, pe versiunea integrată, comanda de observație sugerată de UI.
@@ -101,12 +102,12 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 
 ## 9. Reguli pentru următoarea sesiune
 
-1. Începe prin a citi acest document și issue #2.
+1. Începe prin a citi acest document și issue #4 (validarea manuală rămasă).
 2. Nu cere utilizatorului să reexplice proiectul sau să refacă pași verificați.
 3. Nu crea o nouă versiune ZIP pentru o modificare mică dacă se poate integra în branch/PR-ul curent.
 4. Nu afirma că un bug este reparat doar pentru că există un test; separă testele automate de validarea manuală în browser.
 5. Nu modifica datele din exportul utilizatorului și nu solicita reimport decât dacă există o justificare tehnică și un backup confirmat.
-6. Nu face commit direct în main pentru integrarea codului v11; propune schimbările prin PR și verifică diff-ul.
+6. Integrarea v11 este deja în `main`; pentru modificări viitoare, lucrează prin branch/PR și verifică diff-ul înainte de merge.
 7. Marchează explicit ce este implementat, ce este testat automat, ce este testat manual și ce este doar planificat.
 
 ## 10. Artifacte de referință
@@ -116,6 +117,8 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 - Audit faza 0: `docs/architecture/AI-FOUNDATION-PHASE0-AUDIT.md`.
 - AI Foundation: `docs/architecture/Collector-AI-Foundation-v0.1.md`.
 - Registrul de decizii: `Decizio.md`.
-- Issue de lucru P0: https://github.com/davidlucian-ioan/Aplicatie/issues/2
+- Issue P0 închis (integrare): https://github.com/davidlucian-ioan/Aplicatie/issues/2
+- Issue curent P1 (validare manuală în browser): https://github.com/davidlucian-ioan/Aplicatie/issues/4
+- PR de integrare: https://github.com/davidlucian-ioan/Aplicatie/pull/3
 
-**Următorul pas implicit:** integrarea codului v11 în repository și rularea CI; nu reluarea analizelor deja închise.
+**Următorul pas implicit:** validarea manuală a fluxurilor din `collector-v11/` conform issue #4. Nu relua importul arhivei, instalarea sau testele automate deja trecute.
