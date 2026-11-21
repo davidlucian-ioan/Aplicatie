@@ -5,7 +5,8 @@ on:
     branches:
       - feature/collector-v11-v0.7-source
     paths:
-      - Collector-MVP-v11-CONTINUARE-v0.7.zip
+      - .github/workflows/import-collector-v11.yml
+      - Collector-MVP-v11-CONTINUARE-v0.7*.zip
 
 permissions:
   contents: write
@@ -29,10 +30,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f Collector-MVP-v11-CONTINUARE-v0.7.zip
+          bundle="$(find . -maxdepth 1 -type f -name 'Collector-MVP-v11-CONTINUARE-v0.7*.zip' -print -quit)"
+          test -n "$bundle"
           rm -rf "$RUNNER_TEMP/collector-v11-source"
           mkdir -p "$RUNNER_TEMP/collector-v11-source" collector-v11
-          unzip -q Collector-MVP-v11-CONTINUARE-v0.7.zip -d "$RUNNER_TEMP/collector-v11-source"
+          unzip -q "$bundle" -d "$RUNNER_TEMP/collector-v11-source"
           test -d "$RUNNER_TEMP/collector-v11-source/Collector-MVP-v11"
           rsync -a \
             --exclude='Decizio.md' \
@@ -65,5 +67,9 @@ EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add collector-v11
-          git commit -m "feat: import Collector MVP v11 source v0.7"
-          git push origin HEAD:feature/collector-v11-v0.7-source
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+          else
+            git commit -m "feat: import Collector MVP v11 source v0.7"
+            git push origin HEAD:feature/collector-v11-v0.7-source
+          fi
