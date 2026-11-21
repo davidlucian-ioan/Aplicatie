@@ -3,20 +3,21 @@
 **Snapshot:** 0.7 consolidat (arhivă testată: Collector-MVP-v11-AI-Foundation-Attribute-Range-Fix-v0.7.zip)  
 **Data snapshot:** 21 noiembrie 2026  
 **Repository:** davidlucian-ioan/Aplicatie  
-**Branch de integrare:** integration/collector-v0.7-consolidated  
-**Status:** document de continuitate; codul v0.7 nu este încă integrat în branch-ul principal.
+**Default branch:** main  
+**Status GitHub:** punctul de continuare a fost comis în main prin PR #1; integrarea codului v11 este încă deschisă în issue #2.  
+**Artefacte păstrate:** Library `/Collector/Collector-MVP-v11-CONTINUARE-v0.7.zip` și `/Collector/CONTINUARE-PROIECT.md`.
 
 ## 1. De ce există acest document
 
-Acest document este punctul unic de reluare a proiectului. La începutul unei conversații noi, citește acest fișier și README-ul arhivei de release înainte de a propune modificări. Nu relua verificări sau instalări deja închise decât dacă există o regresie demonstrată.
+Acest document este punctul unic de reluare a proiectului. La începutul unei conversații noi, citește acest fișier și issue #2 înainte de a propune modificări. Nu relua verificări sau instalări deja închise decât dacă există o regresie demonstrată.
 
 ## 2. Situația repository-ului constatată
 
 La 21.11.2026, branch-ul main conține încă un MVP timpuriu, cu app.js de aproximativ 6,8 KB și numai paginile Dashboard, Entități, Evenimente, Atribute și Istoric. Repository-ul conține documentele conceptuale și AI Foundation, dar nu conține încă implementarea completă Collector MVP v11.
 
-Arhiva locală v0.7 conține implementarea v11 completă (55 fișiere în ZIP, 315.995 bytes de fișiere extrase), cu engine.js, app.js, UI complet, AI Foundation/Core Port, documente și teste. Prin urmare, nu se va afirma că v0.7 este deja integrat în main.
+Arhiva v0.7 conține implementarea v11 completă (55 fișiere în ZIP, 315.995 bytes de fișiere extrase), cu engine.js, app.js, UI complet, AI Foundation/Core Port, documente și teste. Prin urmare, nu se va afirma că v0.7 este deja integrat în main.
 
-**Decizie de lucru:** integrarea sursei v11 în repository trebuie făcută ca schimbare controlată, păstrând documentele și fișierul Biblia existente. Se creează branch și PR; nu se suprascrie direct main.
+**Decizie de lucru:** integrarea sursei v11 în repository trebuie făcută ca schimbare controlată, păstrând fișierul Biblia și documentele conceptuale existente. Se lucrează prin branch și PR; nu se suprascrie direct main.
 
 ## 3. Release v0.7 — ce conține
 
@@ -29,7 +30,7 @@ Arhiva v0.7 include cumulativ:
 
 ## 4. Verificare executată local pe arhiva v0.7
 
-Comandă: npm test  
+Comandă: `npm test`  
 Rezultat la 21.11.2026:
 - 38 teste;
 - 38 trecute;
@@ -79,12 +80,13 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 
 ## 8. Restanțe — ordinea recomandată
 
-### P0 — integrare reală în GitHub
-- Compară sursa v11 din arhiva v0.7 cu repository-ul main.
-- Integrează sursa v11 în repository într-un PR, păstrând Biblia și documentele conceptuale.
-- Actualizează README-ul root pentru a descrie versiunea executabilă reală și pașii de testare.
-- Rulează npm test în GitHub Actions; nu declara CI verde până nu există un run real.
-- Revizuiește diff-ul și verifică faptul că importul nu elimină fișierele/documentele utile din repository.
+### P0 — issue #2: integrare reală în GitHub
+- Materializează/reutilizează snapshot-ul v0.7 din Library și verifică manifestul complet.
+- Compară sursa v11 cu repository-ul main.
+- Integrează sursa executabilă v11 într-un branch dedicat, păstrând Biblia și documentele conceptuale.
+- Actualizează README root cu pașii reali de instalare/rulare/test.
+- Configurează GitHub Actions pentru `npm test`.
+- Revizuiește diff-ul și verifică faptul că integrarea nu elimină fișiere utile.
 
 ### P1 — validare funcțională cu utilizatorul
 - Testează în browser, pe versiunea integrată, comanda de observație sugerată de UI.
@@ -99,19 +101,21 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 
 ## 9. Reguli pentru următoarea sesiune
 
-1. Începe prin a citi acest document și starea PR-ului/branch-ului.
+1. Începe prin a citi acest document și issue #2.
 2. Nu cere utilizatorului să reexplice proiectul sau să refacă pași verificați.
-3. Nu crea o nouă versiune ZIP pentru o modificare mică dacă se poate integra în branch-ul curent.
-4. Nu afirma că un bug este reparat doar pentru că există un test; separă testele automate de verificarea manuală în browser.
+3. Nu crea o nouă versiune ZIP pentru o modificare mică dacă se poate integra în branch/PR-ul curent.
+4. Nu afirma că un bug este reparat doar pentru că există un test; separă testele automate de validarea manuală în browser.
 5. Nu modifica datele din exportul utilizatorului și nu solicita reimport decât dacă există o justificare tehnică și un backup confirmat.
-6. Nu face commit direct în main; propune schimbările prin PR și verifică diff-ul.
+6. Nu face commit direct în main pentru integrarea codului v11; propune schimbările prin PR și verifică diff-ul.
 7. Marchează explicit ce este implementat, ce este testat automat, ce este testat manual și ce este doar planificat.
 
 ## 10. Artifacte de referință
 
-- Release testat: Collector-MVP-v11-AI-Foundation-Attribute-Range-Fix-v0.7.zip (arhivă păstrată separat în Library, folder /Collector).
-- Audit faza 0: docs/architecture/AI-FOUNDATION-PHASE0-AUDIT.md.
-- AI Foundation: docs/architecture/Collector-AI-Foundation-v0.1.md.
-- Registrul de decizii: Decizio.md.
+- Release testat: `Collector-MVP-v11-AI-Foundation-Attribute-Range-Fix-v0.7.zip`.
+- Snapshot continuare arhivat în Library: `/Collector/Collector-MVP-v11-CONTINUARE-v0.7.zip`.
+- Audit faza 0: `docs/architecture/AI-FOUNDATION-PHASE0-AUDIT.md`.
+- AI Foundation: `docs/architecture/Collector-AI-Foundation-v0.1.md`.
+- Registrul de decizii: `Decizio.md`.
+- Issue de lucru P0: https://github.com/davidlucian-ioan/Aplicatie/issues/2
 
-**Următorul pas implicit:** finalizarea integrării sursei v11 în repository și rularea CI; nu reluarea analizelor deja închise.
+**Următorul pas implicit:** integrarea codului v11 în repository și rularea CI; nu reluarea analizelor deja închise.
