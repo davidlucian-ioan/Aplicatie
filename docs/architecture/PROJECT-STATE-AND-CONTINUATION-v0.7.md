@@ -4,7 +4,7 @@
 **Data snapshot:** 21 noiembrie 2026  
 **Repository:** davidlucian-ioan/Aplicatie  
 **Default branch:** main  
-**Status GitHub:** Collector MVP v11 este integrat în `main` prin PR #3 (merge squash, 22 noiembrie 2026). Codul este în `collector-v11/`; GitHub Actions a extras sursa și a confirmat `npm test`: 38/38 teste trecute, 0 eșuate. Commit de integrare: `c1bf7e5d2e9b6fefbfb06e95fa5d92716fef2928`.  
+**Status GitHub:** Collector MVP v11 este integrat în `main` prin PR #3 (merge squash, 22 noiembrie 2026). Codul este în `collector-v11/`; GitHub Actions a extras sursa și a confirmat `npm test`: 38/38 teste trecute, 0 eșuate. Commit de integrare: `c1bf7e5d2e9b6fefbfb06e95fa5d92716fef2928`. Strategia extinsă de testare este documentată în `docs/testing/TEST-STRATEGY-v1.md`; implementarea este urmărită în issue #5.  
 **Artefacte păstrate:** Library `/Collector/Collector-MVP-v11-CONTINUARE-v0.7.zip` și `/Collector/CONTINUARE-PROIECT.md`.
 
 ## 1. De ce există acest document
@@ -100,7 +100,15 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 - Închide gap-urile din auditul Fazei 0: schemă de comandă aliniată la forma reală Core, allowlist, politică de confirmare și teste negative de autorizare.
 - Nu conecta un provider AI real și nu activa write path AI până când aceste criterii nu sunt satisfăcute.
 
-## 9. Reguli pentru următoarea sesiune
+## 9. Strategie și backlog de testare
+
+- Baseline automat actual: `npm test`, 38/38 teste trecute în GitHub Actions.
+- Plan de testare extins: `docs/testing/TEST-STRATEGY-v1.md`.
+- Issue #5: Playwright E2E, property-based/model-based testing cu fast-check, coverage progresiv, mutation/performance tests nocturne.
+- Issue #4 rămâne pentru validarea manuală a fluxurilor în browser; testele automate nu o înlocuiesc.
+- Nu afirma că Playwright, fast-check, coverage sau mutation testing sunt deja instalate. Acestea sunt planificate, nu implementate.
+
+## 10. Reguli pentru următoarea sesiune
 
 1. Începe prin a citi acest document și issue #4 (validarea manuală rămasă).
 2. Nu cere utilizatorului să reexplice proiectul sau să refacă pași verificați.
@@ -110,7 +118,7 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 6. Integrarea v11 este deja în `main`; pentru modificări viitoare, lucrează prin branch/PR și verifică diff-ul înainte de merge.
 7. Marchează explicit ce este implementat, ce este testat automat, ce este testat manual și ce este doar planificat.
 
-## 10. Artifacte de referință
+## 11. Artifacte de referință
 
 - Release testat: `Collector-MVP-v11-AI-Foundation-Attribute-Range-Fix-v0.7.zip`.
 - Snapshot continuare arhivat în Library: `/Collector/Collector-MVP-v11-CONTINUARE-v0.7.zip`.
@@ -119,6 +127,8 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 - Registrul de decizii: `Decizio.md`.
 - Issue P0 închis (integrare): https://github.com/davidlucian-ioan/Aplicatie/issues/2
 - Issue curent P1 (validare manuală în browser): https://github.com/davidlucian-ioan/Aplicatie/issues/4
+- Issue P1 (extindere testare): https://github.com/davidlucian-ioan/Aplicatie/issues/5
+- Strategie de testare: `docs/testing/TEST-STRATEGY-v1.md`.
 - PR de integrare: https://github.com/davidlucian-ioan/Aplicatie/pull/3
 
-**Următorul pas implicit:** validarea manuală a fluxurilor din `collector-v11/` conform issue #4. Nu relua importul arhivei, instalarea sau testele automate deja trecute.
+**Următorul pas implicit:** continuă de la issue #4 pentru validarea manuală; apoi implementează extinderea testării conform issue #5. Nu relua importul arhivei sau testele automate de bază deja trecute.
