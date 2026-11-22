@@ -370,7 +370,7 @@ test('pornirea migrează automat collector_mvp_v1 și nu dublează evenimentele 
     'utf8'
   ));
 
-  await page.evaluate(raw => {
+  await page.addInitScript(raw => {
     localStorage.removeItem('collector_mvp_v2');
     localStorage.setItem('collector_mvp_v1', JSON.stringify(raw));
   }, fixture);
