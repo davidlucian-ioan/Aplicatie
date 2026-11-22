@@ -364,6 +364,58 @@ test('importul unui fixture schema v6 migrează fără a reordona jurnalul', asy
   expect(migrated.warnings).toEqual([]);
 });
 
+test('pornirea migrează automat collector_mvp_v1 și nu dublează evenimentele la a doua pornire', async ({ page }) => {
+  const fixture = JSON.parse(require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'fixtures', 'migrations', 'schema-v6-legacy.json'),
+    'utf8'
+  ));
+
+  await page.evaluate(raw => {
+    localStorage.removeItem('collector_mvp_v2');
+    localStorage.setItem('collector_mvp_v1', JSON.stringify(raw));
+  }, fixture);
+  await page.reload();
+
+  const firstMigration = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return {
+      schemaVersion: db.schemaVersion,
+      name: db.entities.find(entity => entity.id === 'fixture-v6-plant')?.name,
+      pH: db.entities.find(entity => entity.id === 'fixture-v6-plant')?.attributes?.pH,
+      eventIds: db.events.map(event => event.id),
+      lastOperation: db.events.at(-1)?.operations?.[0]?.operation,
+      warnings: db.meta.replayWarnings || [],
+      legacyKeyStillAvailable: Boolean(localStorage.getItem('collector_mvp_v1'))
+    };
+  });
+
+  expect(firstMigration.schemaVersion).toBe(7);
+  expect(firstMigration.name).toBe('Legacy plant renamed');
+  expect(firstMigration.pH).toBe(6.1);
+  expect(firstMigration.eventIds.slice(0, 3)).toEqual([
+    'fixture-v6-create', 'fixture-v6-rename', 'fixture-v6-ph-set'
+  ]);
+  expect(firstMigration.lastOperation).toBe('attribute.define');
+  expect(firstMigration.warnings).toEqual([]);
+  expect(firstMigration.legacyKeyStillAvailable).toBe(true);
+
+  await page.reload();
+  const secondMigration = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return {
+      eventIds: db.events.map(event => event.id),
+      attributeDefinitionEvents: db.events.filter(event =>
+        event.operations?.some(operation => operation.operation === 'attribute.define')
+      ).length,
+      warnings: db.meta.replayWarnings || []
+    };
+  });
+
+  expect(secondMigration.eventIds).toEqual(firstMigration.eventIds);
+  expect(secondMigration.attributeDefinitionEvents).toBe(1);
+  expect(secondMigration.warnings).toEqual([]);
+});
+
 test('importul cu proiecții incompatibile nu înlocuiește datele existente', async ({ page }) => {
   await createEntity(page, 'Date de păstrat', 'generic');
   const before = await page.evaluate(() => {
