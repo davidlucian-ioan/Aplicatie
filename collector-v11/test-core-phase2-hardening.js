@@ -231,6 +231,45 @@ test('replay preserves event order for equal timestamps and rejects duplicate ev
   assert.ok(duplicateIntent.meta.replayWarnings.some(w => /intent|intenție/i.test(w.error)));
 });
 
+test('Replay applies only the first committed event for a duplicated intent key', () => {
+  const base = setupBase();
+  const first = {
+    id: 'replay-intent-first',
+    intentKey: 'same-delivery',
+    type: 'stock.add',
+    timestamp: T1,
+    status: 'committed',
+    operations: [{ operation: 'stock.change', data: {
+      populationId: base.entities.pop, locationId: base.entities.a,
+      quantity: 5, action: 'add', disposition: 'active'
+    } }]
+  };
+  const retry = {
+    ...first,
+    id: 'replay-intent-retry',
+    timestamp: T1,
+    operations: [{ operation: 'stock.change', data: {
+      populationId: base.entities.pop, locationId: base.entities.a,
+      quantity: 7, action: 'add', disposition: 'active'
+    } }]
+  };
+  const replayed = E.replay([...base.db.events, first, retry]);
+  assert.equal(activeBalance(replayed, base.entities.pop, base.entities.a), 5);
+  assert.ok(replayed.meta.replayWarnings.some(w => /intentKey.*duplicată/i.test(w.error)));
+  assert.deepEqual(replayed.events.map(event => event.id).slice(-2), ['replay-intent-first', 'replay-intent-retry']);
+});
+
+test('Replay keeps insertion order for events with identical timestamps', () => {
+  const events = [
+    { id: 'same-time-a', type: 'note', timestamp: T1, status: 'committed', operations: [{ operation: 'event.note', data: { description: 'A' } }] },
+    { id: 'same-time-b', type: 'note', timestamp: T1, status: 'committed', operations: [{ operation: 'event.note', data: { description: 'B' } }] },
+    { id: 'same-time-c', type: 'note', timestamp: T1, status: 'committed', operations: [{ operation: 'event.note', data: { description: 'C' } }] }
+  ];
+  const replayed = E.replay(events);
+  assert.deepEqual(replayed.events.map(event => event.id), ['same-time-a', 'same-time-b', 'same-time-c']);
+  assert.deepEqual(replayed.meta.replayWarnings || [], []);
+});
+
 test('import rejects malformed and duplicate journal identities rather than silently dropping history', () => {
   const base = setupBase();
   const note = commit(base.db, 'import-note', T1, [
