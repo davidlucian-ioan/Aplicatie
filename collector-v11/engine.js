@@ -28,7 +28,7 @@ case 'attribute.correct': {
  row.correctedAt=event.timestamp;
  row.certainty=d.certainty||row.certainty||'certain';
  // Recompute current value from the effective measurement history, not from the correction timestamp.
- const latest=history.reduce((best,item)=>!best||Date.parse(item.at||0)>=Date.parse(best.at||0)?item:best,null);
+ const latest=history[history.length-1]||null;
  if(latest)e.attributes[name]=latest.value;
  return;
 }
