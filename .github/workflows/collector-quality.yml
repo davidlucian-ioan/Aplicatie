@@ -27,6 +27,7 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -73,9 +74,28 @@ jobs:
         working-directory: collector-v11
         run: npx playwright install --with-deps chromium
 
-      - name: Run real-browser end-to-end tests
+      - name: Run real-browser end-to-end tests (Chromium)
         working-directory: collector-v11
         run: npm run test:e2e
+
+      - name: Collect browser UI function coverage (Chromium)
+        working-directory: collector-v11
+        run: npm run test:ui-coverage
+
+      - name: Install Firefox and WebKit (nightly only)
+        if: github.event_name == 'schedule'
+        working-directory: collector-v11
+        run: npx playwright install --with-deps firefox webkit
+
+      - name: Run Firefox and WebKit end-to-end tests (nightly only)
+        if: github.event_name == 'schedule'
+        working-directory: collector-v11
+        run: npm run test:e2e:cross-browser
+
+      - name: Run StrykerJS mutation testing (nightly only)
+        if: github.event_name == 'schedule'
+        working-directory: collector-v11
+        run: npm run test:mutation
 
       - name: Upload test reports and Replay benchmark
         if: always()
@@ -85,6 +105,8 @@ jobs:
           path: |
             collector-v11/test-results/coverage-report.txt
             collector-v11/test-results/replay-benchmark.json
+            collector-v11/test-results/ui-coverage-v8.json
+            collector-v11/test-results/mutation/
             collector-v11/playwright-report/
             collector-v11/test-results/playwright/
           if-no-files-found: ignore
