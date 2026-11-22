@@ -10,7 +10,25 @@ function loadDb(){let raw=null;try{raw=JSON.parse(localStorage.getItem(KEY)||'nu
  // Migrate legacy projections to append-only migration events where the old journal is incomplete.
  for(const ent of raw.entities||[]){if(!events.some(ev=>ev.payload?.entityId===ent.id||ev.operations?.some(o=>(o.target===ent.id||o.entityId===ent.id||o.data?.entityId===ent.id)&&['create','entity.create'].includes(o.operation)))){const ev={id:id(),type:'migration.entity_imported',timestamp:ent.createdAt||E.now(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name,type:ent.type},operations:[{target:ent.id,operation:'entity.create',data:{name:ent.name,type:ent.type}}]};if(!known.has(ev.id)){events.push(ev);known.add(ev.id)}}}
  let state=E.replay(events,attrs);for(const ent of raw.entities||[]){const projected=state.entities.find(x=>x.id===ent.id);if(!projected)continue;for(const [name,value] of Object.entries(ent.attributes||{})){if(JSON.stringify(projected.attributes?.[name])!==JSON.stringify(value)){const ev={id:id(),type:'migration.attribute_imported',timestamp:E.now(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,attribute:name,value},operations:[{target:ent.id,operation:'attribute.set',data:{name,value,certainty:'certain'}}]};events.push(ev);state=E.replay(events,attrs)}}}
- state.events=events;state.attributes=attrs;state.schemaVersion=7;state.meta={...state.meta,...raw.meta,replayWarnings:state.meta.replayWarnings||[]};persistRaw(state);return state;}
+ // Legacy attribute definitions used to live only in the projection. Promote them
+ // to migration events so the upgraded schema can be rebuilt from its journal alone.
+ const journalAttributeNames=new Set();
+ for(const event of events)for(const operation of event.operations||[]){
+  if(operation?.operation==='attribute.define'&&typeof operation.data?.name==='string')journalAttributeNames.add(operation.data.name.toLocaleLowerCase());
+ }
+ for(const definition of attrs){
+  const name=String(definition?.name||'').trim();
+  if(!name||journalAttributeNames.has(name.toLocaleLowerCase()))continue;
+  const parsedCreatedAt=typeof definition.createdAt==='string'?Date.parse(definition.createdAt):NaN;
+  const createdAt=Number.isFinite(parsedCreatedAt)?new Date(parsedCreatedAt).toISOString():E.now();
+  const definitionId=typeof definition.id==='string'&&definition.id.trim()?definition.id:`migration-attribute:${name.toLocaleLowerCase()}`;
+  const data={ownerType:'entity',type:'text',role:'description',nature:'static',identifying:false,required:false,historyEnabled:false,...definition,id:definitionId,name};
+  const migrationEvent={id:id(),type:'migration.attribute_definition_imported',timestamp:createdAt,source:'migration',actor:'system',certainty:'certain',status:'committed',operations:[{operation:'attribute.define',data}]};
+  events.push(migrationEvent);
+  journalAttributeNames.add(name.toLocaleLowerCase());
+  state=E.replay(events,attrs);
+ }
+ state.events=events;state.schemaVersion=7;state.meta={...state.meta,...raw.meta,replayWarnings:state.meta.replayWarnings||[]};persistRaw(state);return state;}
 function persistRaw(x){try{localStorage.setItem(KEY,JSON.stringify(x));return true}catch(err){console.error(err);return false}}
 function ensureAICorePort(){if(aiCorePort)return aiCorePort;const Port=window.CollectorBrowserCorePort;if(!Port)throw Error('Core Port nu a fost încărcat.');aiCorePort=new Port({core:E,store:{getState:()=>db,persistState:async next=>persistRaw(next),publishState:async next=>{db=next;render()}}});return aiCorePort}
 function commit(type,operations,payload={},extra={}){const ev={id:id(),type,timestamp:E.now(),source:extra.source||'user',actor:'local-user',certainty:extra.certainty||'certain',intentKey:extra.intentKey||null,payload,operations};try{const sourceOfTruth=E.replay(db.events,db.attributes);sourceOfTruth.meta={...db.meta,...sourceOfTruth.meta};const result=E.commit(sourceOfTruth,ev);if(result.duplicate){alert('Această intenție a fost deja procesată; nu am aplicat-o a doua oară.');return false}if(!persistRaw(result.db))throw Error('Nu am putut salva datele în browser. Exportă datele și eliberează spațiu.');db=result.db;render();return result.event}catch(err){alert('Operația a fost anulată integral: '+err.message);return false}}
