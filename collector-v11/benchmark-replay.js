@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { performance } = require('node:perf_hooks');
 const E = require('./engine.js');
@@ -10,16 +11,50 @@ const BASE = Date.parse('2026-11-01T00:00:00.000Z');
 const SIZES = [100, 1000, 10000];
 
 function makeEvents(count) {
-  return Array.from({ length: count }, (_, index) => ({
-    id: `replay-benchmark-${index}`,
-    type: 'event.note',
-    timestamp: new Date(BASE + index).toISOString(),
+  const events = [{
+    id: 'benchmark-setup',
+    type: 'benchmark.setup',
+    timestamp: new Date(BASE).toISOString(),
     status: 'committed',
-    operations: [{
-      operation: 'event.note',
-      data: { description: `synthetic event ${index}` }
-    }]
-  }));
+    operations: [
+      { operation: 'entity.create', target: 'benchmark-population', data: { name: 'Synthetic population', type: 'population' } },
+      { operation: 'entity.create', target: 'benchmark-location', data: { name: 'Synthetic location', type: 'location' } }
+    ]
+  }];
+
+  for (let index = 1; index < count; index++) {
+    const timestamp = new Date(BASE + index).toISOString();
+    if (index % 4 === 0) {
+      events.push({
+        id: `benchmark-stock-${index}`,
+        type: 'benchmark.stock',
+        timestamp,
+        status: 'committed',
+        operations: [{
+          operation: 'stock.change',
+          data: {
+            populationId: 'benchmark-population',
+            locationId: 'benchmark-location',
+            quantity: 1,
+            action: 'add',
+            disposition: 'active'
+          }
+        }]
+      });
+    } else {
+      events.push({
+        id: `benchmark-note-${index}`,
+        type: 'benchmark.note',
+        timestamp,
+        status: 'committed',
+        operations: [{
+          operation: 'event.note',
+          data: { description: `synthetic event ${index}` }
+        }]
+      });
+    }
+  }
+  return events;
 }
 
 function median(values) {
@@ -33,8 +68,7 @@ for (const count of SIZES) {
   const samplesMs = [];
   const iterations = count >= 10000 ? 3 : 5;
 
-  // One unmeasured warm-up reduces first-call/JIT noise.
-  E.replay(events);
+  E.replay(events); // warm-up
 
   for (let iteration = 0; iteration < iterations; iteration++) {
     const started = performance.now();
@@ -42,6 +76,10 @@ for (const count of SIZES) {
     const elapsed = performance.now() - started;
     assert.equal(replayed.events.length, count);
     assert.deepEqual(replayed.meta.replayWarnings || [], []);
+    const activeQuantity = E.balances(replayed)
+      .filter(row => row.populationId === 'benchmark-population' && row.disposition === 'active')
+      .reduce((sum, row) => sum + row.quantity, 0);
+    assert.equal(activeQuantity, Math.floor((count - 1) / 4));
     samplesMs.push(Number(elapsed.toFixed(3)));
   }
 
@@ -56,11 +94,14 @@ for (const count of SIZES) {
 }
 
 const report = {
-  benchmark: 'Collector Core Replay',
+  benchmark: 'Collector Core Replay — mixed entity, note and stock events',
   schemaVersion: 7,
   node: process.version,
+  platform: os.platform(),
+  arch: os.arch(),
+  cpu: os.cpus()[0]?.model || 'unknown',
   measuredAt: new Date().toISOString(),
-  methodology: 'synthetic committed event.note records; one warm-up; median of repeated runs; no absolute pass/fail threshold',
+  methodology: 'synthetic setup + 75% event.note + 25% stock.add; one warm-up; median of repeated runs; assertions verify replay integrity and expected stock; no absolute pass/fail threshold',
   results
 };
 const json = JSON.stringify(report, null, 2);
