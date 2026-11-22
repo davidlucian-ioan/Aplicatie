@@ -360,7 +360,7 @@ test('importul unui fixture schema v6 migrează fără a reordona jurnalul', asy
   expect(migrated.schemaVersion).toBe(7);
   expect(migrated.name).toBe('Legacy plant renamed');
   expect(migrated.pH).toBe(6.1);
-  expect(migrated.eventIds).toEqual(['fixture-v6-create', 'fixture-v6-rename', 'fixture-v6-ph-set']);
+  expect(migrated.eventIds).toEqual(['fixture-v6-create', 'fixture-v6-rename', 'fixture-v6-ph-set', 'migration:attribute-definition:fixture-v6-ph-definition']);
   expect(migrated.warnings).toEqual([]);
 });
 
