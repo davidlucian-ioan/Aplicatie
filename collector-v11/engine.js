@@ -97,7 +97,51 @@ function validateImport(raw){
  const nonCommitted=candidate.events.filter(e=>e.status!=='committed');
  if(nonCommitted.length)throw Error(`Import blocat: jurnalul conține ${nonCommitted.length} evenimente care nu sunt confirmate.`);
  // Schema v7 keeps attribute definitions in the event journal. Older exports may
- // carry the definitions only as a legacy projection, so retain that seed on migration.
+ // carry definitions only in the projection; migrate those definitions into explicit events
+ // so a second export/import does not lose them.
+ if(sourceSchemaVersion<7){
+  const latestValidTimestamp=[...candidate.events].reverse().find(event=>validTimestamp(event.timestamp))?.timestamp||now();
+  const normalizedNames=new Set();
+  candidate.attributes=candidate.attributes.map((definition,index)=>{
+   if(!definition||typeof definition!=='object'||Array.isArray(definition))throw Error(`Import blocat: definiția atributului de la poziția ${index+1} este invalidă.`);
+   const name=String(definition.name||'').trim();
+   if(!name)throw Error(`Import blocat: definiția atributului de la poziția ${index+1} nu are nume.`);
+   const key=name.toLocaleLowerCase();
+   if(normalizedNames.has(key))throw Error(`Import blocat: definiția atributului „${name}” este duplicată.`);
+   normalizedNames.add(key);
+   const createdAt=validTimestamp(definition.createdAt)?definition.createdAt:latestValidTimestamp;
+   return {
+    ownerType:'entity',type:'text',role:'description',nature:'static',
+    identifying:false,required:false,historyEnabled:false,
+    ...definition,
+    id:typeof definition.id==='string'&&definition.id.trim()?definition.id:`legacy-attribute:${key}`,
+    name,createdAt
+   };
+  });
+  const journalDefinitions=new Set();
+  for(const event of candidate.events)for(const operation of event.operations||[]){
+   if(operation?.operation==='attribute.define'&&typeof operation.data?.name==='string')journalDefinitions.add(operation.data.name.toLocaleLowerCase());
+  }
+  for(const definition of candidate.attributes){
+   if(journalDefinitions.has(definition.name.toLocaleLowerCase()))continue;
+   const data={...definition};
+   delete data.createdAt;
+   let eventId=`migration:attribute-definition:${definition.id}`;
+   let suffix=1;
+   while(ids.has(eventId))eventId=`migration:attribute-definition:${definition.id}:${suffix++}`;
+   ids.add(eventId);
+   candidate.events.push({
+    id:eventId,
+    type:'migration.attribute_definition_imported',
+    timestamp:definition.createdAt,
+    source:'migration',
+    actor:'system',
+    certainty:'certain',
+    status:'committed',
+    operations:[{operation:'attribute.define',data}]
+   });
+  }
+ }
  const replayAttributeDefs=sourceSchemaVersion>=7?[]:candidate.attributes;
  const rebuilt=replay(candidate.events,replayAttributeDefs);
  const warnings=rebuilt.meta.replayWarnings||[];
