@@ -16,6 +16,8 @@ Necesită Node.js 18 sau mai nou. Din `collector-v11/` rulează:
 npm test
 ```
 
+Strategia extinsă de testare (teste bazate pe secvențe, Playwright, coverage și verificări nocturne) este documentată în [TEST-STRATEGY-v1.md](docs/testing/TEST-STRATEGY-v1.md). Implementarea acestor niveluri este urmărită în [issue #5](https://github.com/davidlucian-ioan/Aplicatie/issues/5).
+
 ## Arhitectură și decizii
 
 - [Registrul deciziilor D-001–D-044](Decizio.md)
