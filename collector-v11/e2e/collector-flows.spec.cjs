@@ -251,6 +251,119 @@ test('numele cu markup HTML sunt afișate ca text și nu execută scripturi', as
   expect(await page.evaluate(() => window.__collectorXssExecuted)).toBe(false);
 });
 
+test('operațiile locale continuă offline și sunt persistate după reconectare', async ({ page, context }) => {
+  await createEntity(page, 'Entitate inițială offline', 'generic');
+  await context.setOffline(true);
+
+  await createEntity(page, 'Entitate creată fără rețea', 'plant');
+  const offlineState = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return {
+      names: db.entities.map(entity => entity.name),
+      eventCount: db.events.length,
+      saved: db.entities.some(entity => entity.name === 'Entitate creată fără rețea')
+    };
+  });
+
+  expect(offlineState.saved).toBe(true);
+  expect(offlineState.names).toContain('Entitate inițială offline');
+  expect(offlineState.eventCount).toBeGreaterThan(0);
+
+  await context.setOffline(false);
+  await page.reload();
+  const restored = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return db.entities.map(entity => entity.name);
+  });
+  expect(restored).toContain('Entitate inițială offline');
+  expect(restored).toContain('Entitate creată fără rețea');
+});
+
+test('un eșec de localStorage anulează atomic operația și nu o include în commit-ul următor', async ({ page }) => {
+  await createEntity(page, 'Entitate salvată înainte de eroare', 'generic');
+  const before = await page.evaluate(() => localStorage.getItem('collector_mvp_v2'));
+
+  await page.evaluate(() => {
+    window.__collectorOriginalStorageSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'collector_mvp_v2') {
+        throw new DOMException('Quota exceeded by E2E test', 'QuotaExceededError');
+      }
+      return window.__collectorOriginalStorageSetItem.call(this, key, value);
+    };
+  });
+
+  const dialogs = [];
+  page.once('dialog', async dialog => {
+    dialogs.push(dialog.message());
+    await dialog.accept();
+  });
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Entitate care nu trebuie salvată');
+  await page.locator('#newType').fill('generic');
+  await page.locator('#modal button.primary').click();
+
+  expect(dialogs).toHaveLength(1);
+  expect(dialogs[0]).toContain('Nu am putut salva datele');
+  expect(await page.evaluate(() => localStorage.getItem('collector_mvp_v2'))).toBe(before);
+
+  await page.evaluate(() => {
+    Storage.prototype.setItem = window.__collectorOriginalStorageSetItem;
+    delete window.__collectorOriginalStorageSetItem;
+    closeModal();
+  });
+
+  await createEntity(page, 'Entitate salvată după recuperare', 'generic');
+  await page.reload();
+  const names = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return db.entities.map(entity => entity.name);
+  });
+  expect(names).toContain('Entitate salvată înainte de eroare');
+  expect(names).toContain('Entitate salvată după recuperare');
+  expect(names).not.toContain('Entitate care nu trebuie salvată');
+});
+
+test('importul unui fixture schema v6 migrează fără a reordona jurnalul', async ({ page }) => {
+  const fixture = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'fixtures', 'migrations', 'schema-v6-legacy.json')
+  );
+  const dialogs = [];
+  page.on('dialog', async dialog => {
+    dialogs.push(dialog.message());
+    await dialog.accept();
+  });
+
+  await page.locator('.nav[data-page="audit"]').click();
+  await page.locator('#importFile').setInputFiles({
+    name: 'schema-v6-legacy.json',
+    mimeType: 'application/json',
+    buffer: fixture
+  });
+  await expect.poll(() => dialogs.length).toBe(2);
+  expect(dialogs[0]).toContain('Jurnal valid');
+  expect(dialogs[1]).toContain('Import reușit');
+
+  await page.reload();
+  const migrated = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return {
+      schemaVersion: db.schemaVersion,
+      name: db.entities.find(entity => entity.id === 'fixture-v6-plant')?.name,
+      pH: db.entities.find(entity => entity.id === 'fixture-v6-plant')?.attributes?.pH,
+      eventIds: db.events.map(event => event.id),
+      warnings: db.meta.replayWarnings || []
+    };
+  });
+
+  expect(migrated.schemaVersion).toBe(7);
+  expect(migrated.name).toBe('Legacy plant renamed');
+  expect(migrated.pH).toBe(6.1);
+  expect(migrated.eventIds).toEqual(['fixture-v6-create', 'fixture-v6-rename', 'fixture-v6-ph-set']);
+  expect(migrated.warnings).toEqual([]);
+});
+
 test('importul cu proiecții incompatibile nu înlocuiește datele existente', async ({ page }) => {
   await createEntity(page, 'Date de păstrat', 'generic');
   const before = await page.evaluate(() => {
