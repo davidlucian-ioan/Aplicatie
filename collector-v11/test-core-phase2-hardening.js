@@ -69,6 +69,34 @@ test('a repeated idempotency key is deduplicated from the journal even if the ca
   assert.equal(retry.event.id, 'first-intent');
 });
 
+test('stale idempotency metadata cannot block a key that is absent from the event journal', () => {
+  const base = setupBase();
+  const staleCache = E.normDb({
+    ...base.db,
+    meta: { ...base.db.meta, processedIntentKeys: ['phantom-intent'] }
+  });
+  const result = commit(staleCache, 'phantom-intent-event', T1, [
+    { operation: 'event.note', data: { description: 'not in the journal before this event' } }
+  ], { intentKey: 'phantom-intent' });
+  assert.equal(result.duplicate, false);
+  assert.equal(result.db.events.at(-1).intentKey, 'phantom-intent');
+});
+
+test('event attribute projections survive export validation despite generated projection IDs', () => {
+  const base = setupBase();
+  const source = commit(base.db, 'event-attribute-source', T1, [
+    { operation: 'event.note', data: { description: 'calibration' } }
+  ]);
+  const attributed = commit(source.db, 'event-attribute-value', T2, [
+    { operation: 'event.attribute.set', data: {
+      eventId: 'event-attribute-source', name: 'operatorNote', value: 'measured manually'
+    } }
+  ]);
+  const imported = E.validateImport(JSON.parse(JSON.stringify(attributed.db)));
+  assert.equal(imported.eventAttributes.length, 1);
+  assert.equal(imported.eventAttributes[0].value, 'measured manually');
+});
+
 test('a later rename with the same value and timestamp is not undone by correcting the earlier rename', () => {
   const base = setupBase();
   const first = commit(base.db, 'rename-1', T1, [
@@ -240,6 +268,12 @@ test('schema-version 7 import verifies attribute definitions against the event j
   assert.throws(() => E.validateImport(tampered), /attributes|atribut|proiecția/i);
 });
 
-test('normDb always normalizes eventAttributes to an array', () => {
-  assert.deepEqual(E.normDb({ eventAttributes: null }).eventAttributes, []);
+test('normDb normalizes all collection and metadata cache arrays', () => {
+  const normalized = E.normDb({
+    eventAttributes: null,
+    meta: { processedIntentKeys: null, replayWarnings: null }
+  });
+  assert.deepEqual(normalized.eventAttributes, []);
+  assert.deepEqual(normalized.meta.processedIntentKeys, []);
+  assert.deepEqual(normalized.meta.replayWarnings, []);
 });
