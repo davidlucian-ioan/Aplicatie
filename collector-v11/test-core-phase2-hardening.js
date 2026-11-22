@@ -215,6 +215,56 @@ test('stock.reverse cannot apply a second compensation to an event already rever
   assert.equal(activeBalance(laterAddition.db, base.entities.pop, base.entities.a), 8);
 });
 
+test('Replay uses append order as the source-of-truth when clock timestamps are out of order', () => {
+  const base = setupBase();
+  const created = commit(base.db, 'append-create', T2, [
+    { operation: 'entity.create', target: 'append-order-entity', data: { name: 'Original', type: 'generic' } }
+  ]);
+  const renamed = commit(created.db, 'append-rename', T1, [
+    { operation: 'entity.rename', target: 'append-order-entity', data: { name: 'Renamed' } }
+  ]);
+  const replayed = E.replay(renamed.db.events);
+  assert.equal(replayed.entities.find(entity => entity.id === 'append-order-entity').name, 'Renamed');
+  assert.deepEqual(replayed.meta.replayWarnings || [], []);
+});
+
+test('commit rejects an explicitly malformed event timestamp', () => {
+  const base = setupBase();
+  assert.throws(() => E.commit(base.db, {
+    id: 'bad-timestamp',
+    timestamp: 'yesterday-ish',
+    operations: [{ operation: 'event.note', data: { description: 'must reject' } }]
+  }), /timestamp ISO valid/);
+});
+
+test('Replay warns and skips projection effects for an event with an invalid timestamp', () => {
+  const base = setupBase();
+  const invalid = {
+    id: 'invalid-time-event',
+    type: 'entity.create',
+    timestamp: 'not-a-date',
+    status: 'committed',
+    operations: [{ operation: 'entity.create', target: 'invalid-time-entity', data: { name: 'Invalid', type: 'generic' } }]
+  };
+  const replayed = E.replay([...base.db.events, invalid]);
+  assert.equal(replayed.entities.some(entity => entity.id === 'invalid-time-entity'), false);
+  assert.ok(replayed.meta.replayWarnings.some(w => w.eventId === 'invalid-time-event' && /timestamp/i.test(w.error)));
+});
+
+test('import rejects a future schema version instead of silently downgrading it', () => {
+  const base = setupBase();
+  const future = JSON.parse(JSON.stringify(base.db));
+  future.schemaVersion = 8;
+  assert.throws(() => E.validateImport(future), /mai nouă decât versiunea suportată/);
+});
+
+test('import rejects malformed projection collections rather than silently normalizing them to empty', () => {
+  const base = setupBase();
+  const malformed = JSON.parse(JSON.stringify(base.db));
+  malformed.stock = { quantity: 99 };
+  assert.throws(() => E.validateImport(malformed), /stock.*trebuie să fie o listă/);
+});
+
 test('replay preserves event order for equal timestamps and rejects duplicate event IDs or intent keys', () => {
   const base = setupBase();
   const events = [
