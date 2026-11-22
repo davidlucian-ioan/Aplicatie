@@ -103,9 +103,9 @@ test('commit requires non-empty text event IDs and intent keys', () => {
   for (const id of [0, 42, '', '  ']) {
     assert.throws(() => E.commit(base.db, { id, timestamp: T1, operations: operation }), /ID text valid/);
   }
-  for (const intentKey of ['', '  ', 42, {}]) {
+  for (const [index, intentKey] of ['', '  ', 42, {}].entries()) {
     assert.throws(() => E.commit(base.db, {
-      id: 'intent-invalid-' + String(intentKey),
+      id: 'intent-invalid-' + index,
       intentKey,
       timestamp: T1,
       operations: operation
@@ -134,7 +134,7 @@ test('Replay skips projection effects for malformed event IDs and intent keys wi
   assert.equal(replayed.entities.some(entity => entity.id === 'must-not-exist-id'), false);
   assert.equal(replayed.entities.some(entity => entity.id === 'must-not-exist-intent'), false);
   assert.ok(replayed.meta.replayWarnings.some(w => /fără ID/i.test(w.error)));
-  assert.ok(replayed.meta.replayWarnings.some(w => /intentKey invalidă/i.test(w.error)));
+  assert.ok(replayed.meta.replayWarnings.some(w => /cheie de intenție.*invalidă/i.test(w.error)));
 });
 
 test('a later rename with the same value and timestamp is not undone by correcting the earlier rename', () => {
