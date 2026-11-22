@@ -166,6 +166,28 @@ test('correcting the same membership relation twice cannot reverse its automatic
   assert.equal(activeBalance(correction.db, base.entities.pop), 4);
 });
 
+
+test('stock.reverse cannot apply a second compensation to an event already reversed', () => {
+  const base = setupBase();
+  const added = commit(base.db, 'reverse-original-add', T1, [{
+    operation: 'stock.change',
+    data: { populationId: base.entities.pop, locationId: base.entities.a, quantity: 5, action: 'add' }
+  }]);
+  const reversed = commit(added.db, 'reverse-once', T2, [{
+    operation: 'stock.reverse', data: { correctsEventId: 'reverse-original-add' }
+  }]);
+  assert.equal(activeBalance(reversed.db, base.entities.pop, base.entities.a), 0);
+
+  const laterAddition = commit(reversed.db, 'reverse-later-add', T2, [{
+    operation: 'stock.change',
+    data: { populationId: base.entities.pop, locationId: base.entities.a, quantity: 8, action: 'add' }
+  }]);
+  assert.throws(() => commit(laterAddition.db, 'reverse-twice', T2, [{
+    operation: 'stock.reverse', data: { correctsEventId: 'reverse-original-add' }
+  }]), /deja corectate/);
+  assert.equal(activeBalance(laterAddition.db, base.entities.pop, base.entities.a), 8);
+});
+
 test('a composed event that fails on its final operation rolls back all prior draft changes', () => {
   fc.assert(fc.property(
     fc.integer({ min: 1, max: 100 }),
@@ -241,7 +263,7 @@ test('generated move chains preserve quantity and correcting the current move re
       );
 
       const replayed = E.replay(corrected.db.events, corrected.db.attributes);
-      assert.deepEqual(E.meta?.replayWarnings || [], []);
+      assert.deepEqual(replayed.meta.replayWarnings || [], []);
       assert.deepEqual(E.balances(replayed), E.balances(corrected.db));
       assert.equal(E.activeLocation(replayed, pop)?.id, previous);
     }
@@ -347,7 +369,7 @@ test('import rejects malformed and duplicate journal identities rather than sile
   const base = setupBase();
   const note = commit(base.db, 'import-note', T1, [
     { operation: 'event.note', data: { description: 'historical note' } }
-  ]).db;
+  ], { intentKey: 'history-note-key' }).db;
 
   const missingId = E.normDb({ ...note, events: [...note.events, {
     type: 'legacy.note', timestamp: T2, status: 'committed',
