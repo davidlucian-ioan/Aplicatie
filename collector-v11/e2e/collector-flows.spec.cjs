@@ -152,6 +152,105 @@ test('preview anulat nu persistă evenimentul', async ({ page }) => {
   expect(after).toBe(before);
 });
 
+
+test('Replay din interfață reconstruiește proiecțiile fără avertismente', async ({ page }) => {
+  await createLocation(page, 'Replay B1');
+  const locationId = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return db.entities.find(entity => entity.name === 'Replay B1')?.id;
+  });
+  await createPopulation(page, 'Replay Fancy', 9, locationId);
+
+  const before = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return {
+      eventCount: db.events.length,
+      entityCount: db.entities.length,
+      balances: window.CollectorEngine.balances(db)
+    };
+  });
+
+  await page.locator('.nav[data-page="audit"]').click();
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  await expect(page.locator('#modalContent pre')).toContainText('"warnings": []');
+  await expect(page.locator('#modalContent pre')).toContainText('"events":');
+
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+
+  const after = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return {
+      eventCount: db.events.length,
+      entityCount: db.entities.length,
+      balances: window.CollectorEngine.balances(db),
+      warnings: db.meta.replayWarnings || []
+    };
+  });
+  expect(after.eventCount).toBe(before.eventCount);
+  expect(after.entityCount).toBe(before.entityCount);
+  expect(after.balances).toEqual(before.balances);
+  expect(after.warnings).toEqual([]);
+});
+
+test('backup JSON valid poate fi exportat și restaurat fără datele adăugate ulterior', async ({ page }) => {
+  await createEntity(page, 'Entitate backup originală', 'plant');
+  await page.locator('.nav[data-page="audit"]').click();
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export JSON' }).click()
+  ]);
+  const backupPath = await download.path();
+  expect(backupPath).toBeTruthy();
+  const backupBuffer = await require('node:fs/promises').readFile(backupPath);
+
+  await createEntity(page, 'Entitate adăugată după backup', 'plant');
+  const currentCount = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.length);
+  expect(currentCount).toBe(2);
+
+  const dialogMessages = [];
+  page.on('dialog', async dialog => {
+    dialogMessages.push(dialog.message());
+    await dialog.accept();
+  });
+  await page.locator('.nav[data-page="audit"]').click();
+  await page.locator('#importFile').setInputFiles({
+    name: 'collector-backup-e2e.json',
+    mimeType: 'application/json',
+    buffer: backupBuffer
+  });
+  await expect.poll(() => dialogMessages.length).toBe(2);
+  expect(dialogMessages[0]).toContain('Jurnal valid');
+  expect(dialogMessages[1]).toContain('Import reușit');
+
+  const restored = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return db.entities.map(entity => entity.name);
+  });
+  expect(restored).toContain('Entitate backup originală');
+  expect(restored).not.toContain('Entitate adăugată după backup');
+  expect(restored).toHaveLength(1);
+});
+
+test('numele cu markup HTML sunt afișate ca text și nu execută scripturi', async ({ page }) => {
+  await page.evaluate(() => { window.__collectorXssExecuted = false; });
+  const maliciousName = '<img src=x onerror="window.__collectorXssExecuted=true">';
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill(maliciousName);
+  await page.locator('#newType').fill('generic');
+  await page.locator('#modal button.primary').click();
+
+  await expect(page.locator('#entityList')).toContainText(maliciousName);
+  await expect(page.locator('#entityList img')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__collectorXssExecuted)).toBe(false);
+
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditList')).toContainText(maliciousName);
+  expect(await page.evaluate(() => window.__collectorXssExecuted)).toBe(false);
+});
+
 test('importul cu proiecții incompatibile nu înlocuiește datele existente', async ({ page }) => {
   await createEntity(page, 'Date de păstrat', 'generic');
   const before = await page.evaluate(() => {

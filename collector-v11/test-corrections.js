@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const E=require('./engine.js');
 let db=E.emptyState();let tick=Date.parse('2026-11-01T00:00:00Z');
-function add(type,operations,payload={}){const ev={id:E.uid(),type,timestamp:new Date(tick++*1000).toISOString(),source:'test',actor:'tester',status:'committed',operations,payload};db=E.commit(db,ev).db;return ev;}
+function add(type,operations,payload={}){const ev={id:E.uid(),type,timestamp:new Date(tick++).toISOString(),source:'test',actor:'tester',status:'committed',operations,payload};db=E.commit(db,ev).db;return ev;}
 function correction(original,operations){return add('event.correction',operations,{correctsEventId:original.id});}
 function balance(pid,lid,disp='active'){return E.balances(db).find(x=>x.populationId===pid&&x.locationId===lid&&x.disposition===disp)?.quantity||0;}
 
@@ -83,7 +83,7 @@ assert.ok(db.events.some(e=>e.payload?.correctsEventId===move.id),'correction li
 
 // Unsafe/invalid correction must roll back atomically.
 const before=JSON.stringify(db);
-assert.throws(()=>E.commit(db,{id:E.uid(),type:'bad-correction',timestamp:new Date(tick++*1000).toISOString(),operations:[{operation:'relation.move.correct',data:{correctsEventId:'missing'}}]}),/nu există/);
+assert.throws(()=>E.commit(db,{id:E.uid(),type:'bad-correction',timestamp:new Date(tick++).toISOString(),operations:[{operation:'relation.move.correct',data:{correctsEventId:'missing'}}]}),/nu există/);
 assert.equal(JSON.stringify(db),before);
 
 // D-044 compound correction: stock + finance + attribute are corrected atomically;

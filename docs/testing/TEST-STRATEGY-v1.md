@@ -1,17 +1,17 @@
 # Collector — strategie de testare v1
 
-**Bază:** codul integrat în `main/collector-v11/`, snapshot v0.7  
-**Baseline CI verificat:** 38/38 teste trecute în GitHub Actions, run #44956048507  
+**Bază:** Collector MVP v11, cu hardening Core faza 2 în branch `feature/core-phase2-hardening`  
+**CI Core faza 2:** 61/61 teste Node, 2/2 suite property-stock, 4/4 suite property-Core și 7/7 teste Playwright trecute, run #45032382805  
 **Scop:** protejarea regulilor Core, a jurnalului de evenimente, a importului și a interfeței pe măsură ce aplicația evoluează.
 
 ## 1. Situația actuală
 
 - Testele automate rulează cu Node.js Test Runner: `npm test` → `node --test test-*.js`.
-- Sunt 38 de teste raportate cu succes în CI.
+- CI actual raportează 61 teste Node, două suite property-based pentru stoc, patru suite property-based pentru Core și șapte fluxuri E2E Chromium.
 - Există teste pentru Core Port, orchestrator, parser, corecții, replay legacy, import și politica intervalelor de atribute.
 - Unele fișiere de test folosesc verificări `assert` executate ca scripturi, nu cazuri `node:test` separate. Pentru raportare mai precisă, acestea pot fi convertite treptat în cazuri denumite.
 - `test-ai-ui-wiring.js` verifică integrarea statică a scripturilor; nu pornește un browser real.
-- În `main` sunt incluse dependențele fixate `@playwright/test` 1.65.1 și `fast-check` 4.11.0; lockfile-ul npm este comis. Comenzile disponibile sunt `test:properties`, `test:e2e` și `test:all`.
+- Branch-ul de hardening păstrează dependențele fixate `@playwright/test` 1.65.1 și `fast-check` 4.11.0 și extinde comenzile cu `test:core-properties`, `test:coverage` și `benchmark:replay`. Node 22 este versiunea CI și versiunea documentată pentru testare.
 
 ## 2. Cele patru niveluri recomandate
 
@@ -24,7 +24,7 @@ Păstrăm Node.js Test Runner și adăugăm cazuri denumite, deterministe.
 - Același `intentKey` trimis cu ID diferit nu dublează evenimentul.
 - Eveniment fără ID, fără operații sau cu operație necunoscută este respins.
 - O comandă cu mai multe operații, în care ultima e invalidă, nu lasă efectele primelor operații în stare.
-- Ordinea evenimentelor și timestamp-urile egale nu produc o stare diferită între commit și replay.
+- Ordinea din jurnalul append-only este ordinea autoritativă pentru Replay; timestamp-ul este metadată temporală și nu reordonează evenimentele. Timestamp-urile invalide sunt respinse la commit și raportate la Replay.
 - Replay repetat produce aceeași proiecție semantică.
 
 **Stoc, populații și relații**
@@ -54,7 +54,7 @@ Păstrăm Node.js Test Runner și adăugăm cazuri denumite, deterministe.
 
 Aceasta este metoda suplimentară cu cea mai mare valoare pentru Core-ul event-sourced.
 
-Folosim `fast-check` pentru a genera secvențe reproductibile de operații valide și invalide. Testul din `property-stock-sequences.test.js` generează adăugări, vânzări și mutări între B1 și B2; după fiecare pas verifică soldurile, atomicitatea operațiilor respinse, echivalența Replay și siguranța `validateImport`. Un test separat verifică idempotency pentru aceeași intenție.
+Folosim `fast-check` în două suite. `property-stock-sequences.test.js` generează adăugări, vânzări și mutări între B1 și B2. `property-core-sequences.test.js` generează lanțuri de mutări, corecții cu vânzări ulterioare, cicluri de ierarhie și operații compuse atomice. Suitele verifică invarianta după fiecare comandă și păstrează seed/path pentru reproducere.
 
 **Proprietăți obligatorii**
 1. **Replay equivalence:** starea obținută prin aplicarea evenimentelor și starea reconstruită din jurnal sunt echivalente semantic.
@@ -69,18 +69,18 @@ Generatorul folosește ID-uri și timestamp-uri deterministe. `fast-check` rapor
 
 ### Nivel C — teste reale în browser cu Playwright
 
-Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fiecare caz și un server static Node local pe portul 4173. Nu folosesc browserul sau localStorage-ul personal. Patru fluxuri E2E rulează la fiecare PR.
+Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fiecare caz și un server static Node local pe portul 4173. Nu folosesc browserul sau localStorage-ul personal. Șapte fluxuri E2E rulează la fiecare PR.
 
 **Fluxuri E2E implementate și confirmate în CI**
 - Creează locațiile B1 și B2, populația Fancy, mută 3 exemplare, vinde 2, apoi reîncarcă pagina și verifică soldurile și dispoziția `sold`.
 - Configurează intervalul pH 5.5–6.5, salvează valoarea reală 5.2 cu avertisment, confirmă și verifică persistența după refresh.
 - Anulează un preview și verifică faptul că jurnalul nu crește.
-- Încearcă importul unui JSON cu proiecții incompatibile și verifică faptul că datele existente rămân intacte.
+- Replay prin interfață și reconstruirea proiecțiilor fără avertismente.
+- Export + import valid end-to-end și verificarea că datele adăugate după backup dispar după restaurare.
+- Protecția UI față de markup HTML/script în nume și descrieri.
+- Import invalid fără înlocuirea datelor existente.
 
 **Fluxuri rămase pentru etape ulterioare**
-- Replay prin interfață și comparație completă cu jurnalul.
-- Export + import valid end-to-end.
-- Protecția UI față de HTML/script în nume și descrieri.
 - Operații offline și recuperarea după eșecul localStorage.
 
 **Implementare**
@@ -93,27 +93,26 @@ Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fie
 
 ### Nivel D — coverage, mutații și performanță
 
-- **Coverage:** generează raport line/branch/function. Mai întâi măsoară baseline-ul actual; nu impune din prima un prag arbitrar. Apoi fixează praguri pentru Core, import și Core Port și ridică-le gradual.
-- **Mutation testing:** StrykerJS modifică intenționat condiții precum verificarea soldului, idempotency și avertismentele de interval. Un test bun trebuie să detecteze aceste mutații. Rulează inițial nocturn, apoi pentru modulele critice.
-- **Performance:** testează replay pentru 100, 1.000 și 10.000 evenimente, cu seturi deterministe. Înregistrează timpul și memoria înainte de a impune limite; urmărește regresiile în timp.
+- **Coverage:** baseline Node actual: 96,09% line, 85,77% branch și 96,70% functions; `engine.js`: 96,85% line, 90,63% branch și 96,08% functions. Important: raportul Node instrumentează `engine.js`, modulele AI încărcate și suitele Node; nu instrumentează `app.js` în browser. Nu este un procent de acoperire al întregii aplicații. Nu există încă prag blocant.
+- **Mutation testing:** StrykerJS nu este instalat încă. Urmează să fie configurat pentru verificările de sold, idempotency, corecții și intervale.
+- **Performance:** benchmark-ul Replay folosește evenimente sintetice mixte (setup + 75% note + 25% stock.add), o încălzire și mediana mai multor execuții. Rularea CI din 22.11.2026 a măsurat 0,497 ms pentru 100 evenimente, 2,951 ms pentru 1.000 și 14,831 ms pentru 10.000 pe runner-ul GitHub Linux x64 / Node 22.23.5 (run PR #45032382805). Aceste valori sunt un baseline pe runner, nu o garanție de performanță și nu au prag absolut.
 - **Migrare:** păstrează fixtures JSON anonimizate pentru versiunile de schemă suportate. Fiecare versiune nouă trebuie să demonstreze upgrade fără pierderi și import sigur.
 
 ## 3. Structura CI recomandată
 
 | Când | Ce rulează | Scop |
 |---|---|---|
-| Fiecare Pull Request | `npm test` + 250 secvențe `fast-check` + Playwright Chromium | blochează regresiile înainte de merge |
-| Nocturn | 2.500 secvențe `fast-check` + Playwright Chromium | caută secvențe și diferențe greu de prins rapid |
+| Fiecare Pull Request | `npm test` + 250 secvențe stock + 150 secvențe Core + coverage informativ + benchmark Replay + Playwright Chromium | blochează regresiile înainte de merge și arhivează baseline-ul |
+| Nocturn | 2.500 secvențe stock + 1.500 secvențe Core + Playwright Chromium | caută secvențe și diferențe greu de prins rapid |
 | Înainte de release | coverage review + mutation testing pentru Core + test de backup/migrare | verifică rezistența și siguranța datelor |
 
 Nicio etapă nu trebuie să folosească exportul operațional personal al utilizatorului. Testele folosesc exclusiv date sintetice și profile de browser izolate.
 
 ## 4. Ordinea de implementare
 
-1. **Închisă prin PR #6:** Playwright Chromium, patru fluxuri E2E, `fast-check` pentru secvențe stoc/replay, workflow CI, lockfile și instrucțiuni locale.
-2. Extinde proprietățile pentru corecții, relații, atomicitate compusă și migrare.
-3. Adaugă raport coverage și baseline fără prag blocant; stabilește praguri după măsurare.
-4. Adaugă mutation testing, Firefox/WebKit și teste de performanță/migrare.
+1. **Faza 1 închisă prin PR #6:** Playwright Chromium, patru fluxuri E2E și primele proprietăți stock/replay.
+2. **Faza 2 implementată pe branch `feature/core-phase2-hardening`:** corecții după ordinea jurnalului, idempotency derivat din jurnal, validare strictă import/timestamp/schema, teste pentru relații și mutări, șapte fluxuri E2E, coverage informativ și benchmark Replay. Așteaptă PR și integrarea după CI verde.
+3. Rămân: mutation testing, Firefox/WebKit, teste de migrare mai extinse și benchmark-uri pentru scenarii de domeniu/volume mai mari.
 
 ## 5. Ce nu trebuie confundat
 
@@ -125,11 +124,10 @@ Nicio etapă nu trebuie să folosească exportul operațional personal al utiliz
 
 ## 6. Starea implementării
 
-- **Baseline existent:** 38/38 teste automate, confirmate de CI înaintea acestei extinderi.
-- **Integrat în `main` prin PR #6:** dependențele fixate `@playwright/test` 1.65.1 și `fast-check` 4.11.0; un fișier property-based pentru secvențe stock/replay; patru teste Playwright; server local de test; workflow GitHub Actions; lockfile, comenzi npm și instrucțiuni.
-- **CI extins și verificat verde:** la PR rulează testele vechi, 250 secvențe generate și cele patru teste E2E Chromium; nocturn rulează 2.500 secvențe și E2E Chromium. Rularea de PR #45017768617 a trecut toate etapele.
-- **Rezultate confirmate:** 38/38 teste existente, 2/2 teste property-based și 4/4 fluxuri Playwright trecute. Testul property-based principal execută 250 de secvențe la PR; noaptea sunt programate 2.500.
-- **Nu sunt implementate încă:** coverage, mutation testing, Firefox/WebKit, testele extinse de migrare și performanță.
-- Validarea manuală a interfeței rămâne separată în issue #4.
-
-PR #6 este integrat în `main`: https://github.com/davidlucian-ioan/Aplicatie/pull/6. Commit de integrare: `9ad92b61d0ab1de9a3e1f93a30da626c97544ebe`.
+- **Faza 1 integrată în `main` prin PR #6.** Dependențe fixate `@playwright/test` 1.65.1 și `fast-check` 4.11.0.
+- **Faza 2, branch `feature/core-phase2-hardening`:** teste Core Node 61/61; property-stock 2/2; property-Core 4/4; Playwright Chromium 7/7. CI verde pe capul branch-ului și al PR-ului la run #45032382805.
+- **Coverage Node pe `engine.js`:** 96,85% line, 91,46% branch, 96,08% functions. Modulele AI au rezultate separate: `core-port.js` 81,70% line / 75,00% branch, `contracts.js` 75,61% / 44,83%, `core-port-browser.js` 86,27% / 54,55%. Raportul global „all files” include și fișierele de test, deci nu este un indicator de producție. `app.js` din browser nu este instrumentat de coverage-ul Node.
+- **Replay benchmark:** 100 = 0,482 ms; 1.000 = 2,781 ms; 10.000 = 15,117 ms în runner Linux x64 / Node 22.23.5 (rulare CI #45032048342). Nu există prag blocant.
+- **Hardening Core:** Replay respectă ordinea din jurnal, nu sortează după timestamp; corecțiile de nume/atribute/relații folosesc ordinea de aplicare; ID/intentKey sunt deduplicate din jurnal; timestamp-urile commit/replay sunt validate; importul respinge viitoare schema versions, IDs/intentKeys duplicate, colecții malformate și drift de proiecții; migrarea v6 păstrează definițiile vechi de atribute.
+- **Nu sunt implementate încă:** mutation testing, Firefox/WebKit, coverage E2E pentru UI, teste offline și migrare extinsă.
+- Validarea manuală din issue #4 rămâne separată și nu este considerată făcută doar pentru că E2E este verde.
