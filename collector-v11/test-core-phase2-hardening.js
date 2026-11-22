@@ -113,6 +113,29 @@ test('a later rename with the same value and timestamp is not undone by correcti
   assert.equal(E.replay(corrected.db.events).entities.find(entity => entity.id === base.entities.item).name, 'Renamed');
 });
 
+test('correcting an older measurement does not replace a later journal write when timestamps are out of order', () => {
+  const base = setupBase();
+  const definition = commit(base.db, 'attribute-schema', T0, [
+    { operation: 'attribute.define', data: { name: 'pH', type: 'number', nature: 'dynamic', role: 'measurement', historyEnabled: true } }
+  ]);
+  const entityId = base.entities.item;
+  const firstMeasurement = commit(definition.db, 'measurement-first', T2, [
+    { operation: 'attribute.set', target: entityId, data: { name: 'pH', value: 6.4, forceHistory: true } }
+  ]);
+  const secondMeasurement = commit(firstMeasurement.db, 'measurement-second', T1, [
+    { operation: 'attribute.set', target: entityId, data: { name: 'pH', value: 6.8, forceHistory: true } }
+  ]);
+  const corrected = commit(secondMeasurement.db, 'measurement-correction', '2026-11-01T13:00:00.000Z', [
+    { operation: 'attribute.correct', target: entityId, data: {
+      name: 'pH', value: 6.5, correctsEventId: 'measurement-first'
+    } }
+  ]);
+  assert.equal(corrected.db.entities.find(entity => entity.id === entityId).attributes.pH, 6.8);
+  const replayed = E.replay(corrected.db.events, corrected.db.attributes);
+  assert.equal(replayed.entities.find(entity => entity.id === entityId).attributes.pH, 6.8);
+  assert.deepEqual(replayed.meta.replayWarnings || [], []);
+});
+
 test('a later relation close with the same timestamp cannot be undone by correcting the first close', () => {
   const base = setupBase();
   const relationCreated = commit(base.db, 'relation-created', T0, [
