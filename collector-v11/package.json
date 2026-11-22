@@ -6,11 +6,14 @@
   "scripts": {
     "test": "node --test test-*.js",
     "test:properties": "node --test property-stock-sequences.test.js",
-    "test:e2e": "playwright test",
-    "test:all": "npm test && npm run test:properties && npm run test:core-properties && npm run test:coverage && npm run benchmark:replay && npm run test:e2e",
+    "test:e2e": "playwright test --project=chromium",
+    "test:all": "npm test && npm run test:properties && npm run test:core-properties && npm run test:coverage && npm run benchmark:replay && npm run test:e2e && npm run test:ui-coverage",
     "test:core-properties": "node --test property-core-sequences.test.js",
     "test:coverage": "node --experimental-test-coverage --test test-*.js property-*.test.js",
-    "benchmark:replay": "node benchmark-replay.js"
+    "benchmark:replay": "node benchmark-replay.js",
+    "test:e2e:cross-browser": "playwright test --project=firefox --project=webkit",
+    "test:ui-coverage": "node e2e/ui-coverage.cjs",
+    "test:mutation": "npx --yes @stryker-mutator/core@10.1.1 run"
   },
   "engines": {
     "node": ">=22"
