@@ -4,6 +4,7 @@
 const clone=x=>JSON.parse(JSON.stringify(x));
 const uid=()=>globalThis.crypto?.randomUUID?.()||('id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));
 const now=()=>new Date().toISOString();
+const validTimestamp=value=>{if(typeof value!=='string')return false;const match=value.match(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$/);if(!match||!Number.isFinite(Date.parse(value)))return false;const [,y,m,d,h,min,s]=match.map((x,i)=>i===0||x===undefined?x:Number(x));const days=new Date(Date.UTC(y,m,0)).getUTCDate();return m>=1&&m<=12&&d>=1&&d<=days&&h<=23&&min<=59&&s<=59;};
 const emptyState=()=>({entities:[],attributes:[],relations:[],events:[],stock:[],finance:[],eventAttributes:[],schemaVersion:7,meta:{lastActivityAt:now(),activeContext:null,processedIntentKeys:[],replayWarnings:[]}});
 function normDb(raw){const db={...emptyState(),...(raw||{})};for(const k of ['entities','attributes','relations','events','stock','finance','eventAttributes'])if(!Array.isArray(db[k]))db[k]=[];db.meta={...emptyState().meta,...(db.meta||{})};if(!Array.isArray(db.meta.processedIntentKeys))db.meta.processedIntentKeys=[];if(!Array.isArray(db.meta.replayWarnings))db.meta.replayWarnings=[];return db;}
 function targetId(op){return op.entityId||op.target||op.data?.entityId||null}
@@ -65,7 +66,7 @@ case 'event.invalidate': {const targetEventId=String(d.correctsEventId||'');if(!
 case 'event.note': return;
 default: throw Error('Operație necunoscută: '+op.operation);
 }}
-function commit(dbInput,event){const db=normDb(dbInput);if(!event||!event.id)throw Error('Evenimentul trebuie să aibă ID.');const duplicateId=db.events.find(e=>e.id===event.id);if(duplicateId)return {db,duplicate:true,event:duplicateId};const duplicateIntent=event.intentKey?db.events.find(e=>e.intentKey===event.intentKey):null;if(duplicateIntent)return {db,duplicate:true,event:duplicateIntent};const ev={timestamp:now(),source:'user',actor:'local-user',certainty:'certain',operations:[],...clone(event),status:'committed'};if(typeof ev.timestamp!=='string'||!Number.isFinite(Date.parse(ev.timestamp)))throw Error('Evenimentul trebuie să aibă un timestamp ISO valid.');if(!Array.isArray(ev.operations)||!ev.operations.length)throw Error('Evenimentul trebuie să conțină cel puțin o operație.');const draft=clone(db);for(const op of ev.operations)applyOperation(draft,op,ev);draft.events.push(ev);if(ev.intentKey)draft.meta.processedIntentKeys.push(ev.intentKey);draft.meta.lastActivityAt=ev.timestamp;draft.meta.activeContext={...(draft.meta.activeContext||{}),lastActivityAt:ev.timestamp};return {db:draft,event:ev,duplicate:false};}
+function commit(dbInput,event){const db=normDb(dbInput);if(!event||!event.id)throw Error('Evenimentul trebuie să aibă ID.');const duplicateId=db.events.find(e=>e.id===event.id);if(duplicateId)return {db,duplicate:true,event:duplicateId};const duplicateIntent=event.intentKey?db.events.find(e=>e.intentKey===event.intentKey):null;if(duplicateIntent)return {db,duplicate:true,event:duplicateIntent};const ev={timestamp:now(),source:'user',actor:'local-user',certainty:'certain',operations:[],...clone(event),status:'committed'};if(!validTimestamp(ev.timestamp))throw Error('Evenimentul trebuie să aibă un timestamp ISO valid.');if(!Array.isArray(ev.operations)||!ev.operations.length)throw Error('Evenimentul trebuie să conțină cel puțin o operație.');const draft=clone(db);for(const op of ev.operations)applyOperation(draft,op,ev);draft.events.push(ev);if(ev.intentKey)draft.meta.processedIntentKeys.push(ev.intentKey);draft.meta.lastActivityAt=ev.timestamp;draft.meta.activeContext={...(draft.meta.activeContext||{}),lastActivityAt:ev.timestamp};return {db:draft,event:ev,duplicate:false};}
 function replay(events,attributeDefs=[]){let s=emptyState();s.attributes=clone(attributeDefs);const seenIds=new Set(),seenIntentKeys=new Set();const ordered=(events||[]).filter(e=>e&&e.status==='committed');for(const ev of ordered){if(!ev.id){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:null,error:'Eveniment fără ID în jurnal.'});continue;}if(seenIds.has(ev.id)){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'ID de eveniment duplicat în jurnal.'});continue;}seenIds.add(ev.id);if(ev.intentKey){if(seenIntentKeys.has(ev.intentKey)){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Cheie de intenție (intentKey) duplicată în jurnal.'});continue;}seenIntentKeys.add(ev.intentKey);}if(typeof ev.timestamp!=='string'||!Number.isFinite(Date.parse(ev.timestamp))){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Timestamp-ul evenimentului lipsește sau este invalid.'});continue;}try{for(const op of ev.operations||[])applyOperation(s,op,ev);s.events.push(ev);if(ev.intentKey)s.meta.processedIntentKeys.push(ev.intentKey);}catch(err){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:err.message});}}return s;}
 function stableJson(value){
  if(Array.isArray(value))return '['+value.map(stableJson).join(',')+']';
@@ -74,15 +75,15 @@ function stableJson(value){
 }
 function validateImport(raw){
  if(!raw||!Array.isArray(raw.events)||!Array.isArray(raw.entities))throw Error('Fișierul nu pare să conțină date Collector.');
- const sourceSchemaVersion=Number.isInteger(raw.schemaVersion)?raw.schemaVersion:0;
- if(sourceSchemaVersion<0)throw Error('Import blocat: versiunea schemei este invalidă.');
+ const sourceSchemaVersion=raw.schemaVersion===undefined?0:raw.schemaVersion;
+ if(!Number.isInteger(sourceSchemaVersion)||sourceSchemaVersion<0)throw Error('Import blocat: versiunea schemei este invalidă.');
  if(sourceSchemaVersion>7)throw Error(`Import blocat: versiunea schemei ${sourceSchemaVersion} este mai nouă decât versiunea suportată 7.`);
  for(const key of ['attributes','relations','stock','finance','eventAttributes'])if(raw[key]!=null&&!Array.isArray(raw[key]))throw Error(`Import blocat: câmpul „${key}” trebuie să fie o listă.`);
  const candidate=normDb(raw);
  const ids=new Set(),intentKeys=new Set(),normalizedEvents=[];
  for(let index=0;index<candidate.events.length;index++){
   const sourceEvent=candidate.events[index];
-  if(!sourceEvent||typeof sourceEvent!=='object'||Array.isArray(sourceEvent)||typeof sourceEvent.id!=='string'||!sourceEvent.id.trim())throw Error(`Import blocat: evenimentul de la poziția ${index+1} nu are un ID valid.`);
+  if(!sourceEvent||typeof sourceEvent!=='object'||Array.isArray(sourceEvent)||typeof sourceEvent.id!=='string'||!sourceEvent.id.trim()||sourceEvent.id!==sourceEvent.id.trim())throw Error(`Import blocat: evenimentul de la poziția ${index+1} nu are un ID valid.`);
   if(ids.has(sourceEvent.id))throw Error(`Import blocat: ID de eveniment duplicat „${sourceEvent.id}”.`);
   ids.add(sourceEvent.id);
   if(sourceEvent.intentKey){
