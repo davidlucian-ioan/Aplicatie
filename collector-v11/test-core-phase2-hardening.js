@@ -307,6 +307,31 @@ test('schema-version 7 import verifies attribute definitions against the event j
   assert.throws(() => E.validateImport(tampered), /attributes|atribut|proiecția/i);
 });
 
+test('legacy schema 6 retains projection-only attribute definitions during safe migration', () => {
+  const base = setupBase();
+  const legacy = {
+    ...JSON.parse(JSON.stringify(base.db)),
+    schemaVersion: 6,
+    attributes: [{
+      id: 'legacy-attribute-ph',
+      name: 'pH',
+      type: 'number',
+      nature: 'dynamic',
+      role: 'measurement',
+      ownerType: 'entity',
+      required: false,
+      historyEnabled: true,
+      validation: { min: 5.5, max: 6.5 }
+    }]
+  };
+  const migrated = E.validateImport(legacy);
+  assert.equal(migrated.schemaVersion, 7);
+  assert.equal(migrated.attributes.length, 1);
+  assert.equal(migrated.attributes[0].name, 'pH');
+  assert.equal(migrated.attributes[0].validation.max, 6.5);
+  assert.deepEqual(migrated.meta.replayWarnings || [], []);
+});
+
 test('normDb normalizes all collection and metadata cache arrays', () => {
   const normalized = E.normDb({
     eventAttributes: null,
