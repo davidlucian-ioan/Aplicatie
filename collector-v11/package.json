@@ -8,7 +8,9 @@
     "test:properties": "node --test property-stock-sequences.test.js",
     "test:e2e": "playwright test",
     "test:all": "npm test && npm run test:properties && npm run test:core-properties && npm run test:e2e",
-    "test:core-properties": "node --test property-core-sequences.test.js"
+    "test:core-properties": "node --test property-core-sequences.test.js",
+    "test:coverage": "node --experimental-test-coverage --test test-*.js",
+    "benchmark:replay": "node benchmark-replay.js"
   },
   "engines": {
     "node": ">=18"
