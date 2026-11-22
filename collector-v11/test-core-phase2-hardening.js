@@ -314,7 +314,6 @@ test('Replay warns and skips projection effects for an event with an invalid tim
   const dateOnly = { ...invalid, id: 'date-only-event', timestamp: '2026-11-22' };
   const replayed = E.replay([...base.db.events, invalid, dateOnly]);
   assert.equal(replayed.entities.some(entity => entity.id === 'invalid-time-entity'), false);
-  assert.equal(replayed.entities.some(entity => entity.id === 'invalid-time-entity'), false);
   assert.ok(replayed.meta.replayWarnings.some(w => w.eventId === 'invalid-time-event' && /timestamp/i.test(w.error)));
   assert.ok(replayed.meta.replayWarnings.some(w => w.eventId === 'date-only-event' && /timestamp/i.test(w.error)));
 });
