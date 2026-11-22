@@ -2,6 +2,7 @@
 
 **Snapshot:** 0.7 consolidat (arhivă testată: Collector-MVP-v11-AI-Foundation-Attribute-Range-Fix-v0.7.zip)  
 **Data snapshot:** 21 noiembrie 2026  
+**Ultima actualizare de proiect:** 22 noiembrie 2026  
 **Repository:** davidlucian-ioan/Aplicatie  
 **Default branch:** main  
 **Status GitHub:** Collector MVP v11 este integrat în `main` prin PR #3. Faza 1 de testare este integrată prin PR #6. Hardening Core faza 2 este integrat prin PR #7 (merge squash, 22 noiembrie 2026), commit `06aea556956a852c31ed47ff4aa09887ec238460`. GitHub Actions la PR #7 a confirmat 61/61 teste Node, 2/2 suite property-stock, 4/4 suite property-Core și 7/7 teste Playwright Chromium; rularea verde: https://github.com/davidlucian-ioan/Aplicatie/actions/runs/45032860362. Coverage-ul Node și benchmark-ul Replay sunt arhivate ca artifact al aceleiași rulări. Strategia actualizată este în `docs/testing/TEST-STRATEGY-v1.md`.  
@@ -17,7 +18,7 @@ Acest document este punctul unic de reluare a proiectului. La începutul unei co
 
 Arhiva v0.7 a fost încărcată în branch-ul de integrare, extrasă prin GitHub Actions și sursa extrasă a fost comisă în repository. PR #3 a fost verificat și integrat în `main`.
 
-**Decizie de lucru:** integrarea sursei v11 în repository trebuie făcută ca schimbare controlată, păstrând fișierul Biblia și documentele conceptuale existente. Se lucrează prin branch și PR; nu se suprascrie direct main.
+**Integrarea sursei v11:** completată prin PR #3. Biblia și documentele conceptuale canonice au fost păstrate. Modificările ulterioare se fac prin branch și PR; nu se suprascrie direct main.
 
 ## 3. Release v0.7 — ce conține
 
@@ -130,8 +131,11 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 - Registrul de decizii: `Decizio.md`.
 - Issue P0 închis (integrare): https://github.com/davidlucian-ioan/Aplicatie/issues/2
 - Issue curent P1 (validare manuală în browser): https://github.com/davidlucian-ioan/Aplicatie/issues/4
-- Issue P1 (extindere testare): https://github.com/davidlucian-ioan/Aplicatie/issues/5
+- Issue P1 (faza 3 testare: mutation, cross-browser, offline, migrare): https://github.com/davidlucian-ioan/Aplicatie/issues/5
 - Strategie de testare: `docs/testing/TEST-STRATEGY-v1.md`.
-- PR de integrare: https://github.com/davidlucian-ioan/Aplicatie/pull/3
+- PR de integrare v11: https://github.com/davidlucian-ioan/Aplicatie/pull/3
+- PR testare faza 1: https://github.com/davidlucian-ioan/Aplicatie/pull/6
+- PR hardening Core faza 2: https://github.com/davidlucian-ioan/Aplicatie/pull/7
+- Workflow CI: `.github/workflows/collector-quality.yml` — se execută la schimbări în aplicație, documentația root/testing, PR-uri și nocturn.
 
 **Următorul pas implicit:** validează manual fluxurile UI rămase în issue #4. După aceea continuă faza 3 din issue #5: mutation testing, cross-browser, offline și migrare extinsă. Nu relua importul arhivei sau testele de bază deja verificate.
