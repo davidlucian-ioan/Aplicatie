@@ -4,7 +4,7 @@
 **Data snapshot:** 21 noiembrie 2026  
 **Repository:** davidlucian-ioan/Aplicatie  
 **Default branch:** main  
-**Status GitHub:** Collector MVP v11 este integrat în `main` prin PR #3. Extinderea testării este integrată prin PR #6 (merge squash, 22 noiembrie 2026), commit `9ad92b61d0ab1de9a3e1f93a30da626c97544ebe`. GitHub Actions la PR #6 a confirmat 38/38 teste existente, 2/2 teste property-based și 4/4 teste Playwright Chromium; rularea verde: https://github.com/davidlucian-ioan/Aplicatie/actions/runs/45017768617. Strategia este în `docs/testing/TEST-STRATEGY-v1.md`; următoarele extensii de testare rămân urmărite în issue #5.  
+**Status GitHub:** Collector MVP v11 este integrat în `main` prin PR #3. Faza 1 de testare este integrată prin PR #6. Hardening Core faza 2 este integrat prin PR #7 (merge squash, 22 noiembrie 2026), commit `06aea556956a852c31ed47ff4aa09887ec238460`. GitHub Actions la PR #7 a confirmat 61/61 teste Node, 2/2 suite property-stock, 4/4 suite property-Core și 7/7 teste Playwright Chromium; rularea verde: https://github.com/davidlucian-ioan/Aplicatie/actions/runs/45032860362. Coverage-ul Node și benchmark-ul Replay sunt arhivate ca artifact al aceleiași rulări. Strategia actualizată este în `docs/testing/TEST-STRATEGY-v1.md`.  
 **Artefacte păstrate:** Library `/Collector/Collector-MVP-v11-CONTINUARE-v0.7.zip` și `/Collector/CONTINUARE-PROIECT.md`.
 
 ## 1. De ce există acest document
@@ -102,12 +102,14 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 
 ## 9. Strategie și backlog de testare
 
-- CI în `main`: `npm test` — 38/38 teste existente trecute; property-based — 2/2 teste; Playwright Chromium — 4/4 fluxuri E2E.
-- Rularea PR verde: https://github.com/davidlucian-ioan/Aplicatie/actions/runs/45017768617.
-- `@playwright/test` 1.65.1 și `fast-check` 4.11.0 sunt dependențe instalate; lockfile-ul este comis.
-- CI rulează 250 secvențe `fast-check` la fiecare PR și 2.500 într-o rulare nocturnă.
-- Issue #5 urmărește extinderea proprietăților către corecții/relații, coverage, mutation testing, cross-browser și performanță.
-- Issue #4 rămâne pentru validarea manuală a fluxurilor în browser; testele automate nu o înlocuiesc.
+- CI în `main`, verificat prin PR #7: 61/61 teste Node, 2/2 suite property-stock, 4/4 suite property-Core și 7/7 fluxuri Playwright Chromium.
+- Rularea PR verde: https://github.com/davidlucian-ioan/Aplicatie/actions/runs/45032860362.
+- `@playwright/test` 1.65.1 și `fast-check` 4.11.0 sunt dependențe instalate; lockfile-ul este comis și Node 22 este versiunea recomandată.
+- CI rulează 250 secvențe stock + 150 secvențe Core la fiecare PR și 2.500 + 1.500 într-o rulare nocturnă.
+- Coverage Node pentru `engine.js`: 96,85% line, 91,46% branch, 96,08% functions. Coverage-ul Node nu instrumentează `app.js` din browser; nu există încă prag blocant.
+- Benchmark Replay sintetic în PR CI: 100 evenimente = 0,610 ms; 1.000 = 3,791 ms; 10.000 = 13,852 ms pe runner Linux x64 / Node 22.23.5. Sunt măsurători de referință, nu SLA.
+- Issue #5 rămâne deschis numai pentru faza următoare: mutation testing, Firefox/WebKit, teste offline și migrare extinsă.
+- Issue #4 rămâne pentru validarea manuală a aplicației în browser; testele automate nu o înlocuiesc.
 
 ## 10. Reguli pentru următoarea sesiune
 
@@ -132,4 +134,4 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 - Strategie de testare: `docs/testing/TEST-STRATEGY-v1.md`.
 - PR de integrare: https://github.com/davidlucian-ioan/Aplicatie/pull/3
 
-**Următorul pas implicit:** continuă de la issue #4 pentru validarea manuală a aplicației. Apoi extinde suita de teste din issue #5 către corecții, relații, coverage, mutation testing și performanță. Nu relua importul arhivei sau testele de bază deja verificate.
+**Următorul pas implicit:** validează manual fluxurile UI rămase în issue #4. După aceea continuă faza 3 din issue #5: mutation testing, cross-browser, offline și migrare extinsă. Nu relua importul arhivei sau testele de bază deja verificate.
