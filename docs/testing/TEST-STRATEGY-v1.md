@@ -1,7 +1,7 @@
 # Collector — strategie de testare v1
 
 **Bază:** Collector MVP v11, cu hardening Core faza 2 în branch `feature/core-phase2-hardening`  
-**CI Core faza 2:** 61/61 teste Node, 2/2 suite property-stock, 4/4 suite property-Core și 7/7 teste Playwright trecute, run #45032048342  
+**CI Core faza 2:** 61/61 teste Node, 2/2 suite property-stock, 4/4 suite property-Core și 7/7 teste Playwright trecute, run #45032382805  
 **Scop:** protejarea regulilor Core, a jurnalului de evenimente, a importului și a interfeței pe măsură ce aplicația evoluează.
 
 ## 1. Situația actuală
@@ -95,7 +95,7 @@ Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fie
 
 - **Coverage:** baseline Node actual: 96,09% line, 85,77% branch și 96,70% functions; `engine.js`: 96,85% line, 90,63% branch și 96,08% functions. Important: raportul Node instrumentează `engine.js`, modulele AI încărcate și suitele Node; nu instrumentează `app.js` în browser. Nu este un procent de acoperire al întregii aplicații. Nu există încă prag blocant.
 - **Mutation testing:** StrykerJS nu este instalat încă. Urmează să fie configurat pentru verificările de sold, idempotency, corecții și intervale.
-- **Performance:** benchmark-ul Replay folosește evenimente sintetice mixte (setup + 75% note + 25% stock.add), o încălzire și mediana mai multor execuții. Rularea CI din 22.11.2026 a măsurat 0,197 ms pentru 100 evenimente, 2,169 ms pentru 1.000 și 11,595 ms pentru 10.000 pe runner-ul GitHub Linux x64 / Node 22.23.5. Aceste valori sunt un baseline pe runner, nu o garanție de performanță și nu au prag absolut.
+- **Performance:** benchmark-ul Replay folosește evenimente sintetice mixte (setup + 75% note + 25% stock.add), o încălzire și mediana mai multor execuții. Rularea CI din 22.11.2026 a măsurat 0,497 ms pentru 100 evenimente, 2,951 ms pentru 1.000 și 14,831 ms pentru 10.000 pe runner-ul GitHub Linux x64 / Node 22.23.5 (run PR #45032382805). Aceste valori sunt un baseline pe runner, nu o garanție de performanță și nu au prag absolut.
 - **Migrare:** păstrează fixtures JSON anonimizate pentru versiunile de schemă suportate. Fiecare versiune nouă trebuie să demonstreze upgrade fără pierderi și import sigur.
 
 ## 3. Structura CI recomandată
@@ -125,8 +125,8 @@ Nicio etapă nu trebuie să folosească exportul operațional personal al utiliz
 ## 6. Starea implementării
 
 - **Faza 1 integrată în `main` prin PR #6.** Dependențe fixate `@playwright/test` 1.65.1 și `fast-check` 4.11.0.
-- **Faza 2, branch `feature/core-phase2-hardening`:** teste Core Node 61/61; property-stock 2/2; property-Core 4/4; Playwright Chromium 7/7. CI verde pe capul branch-ului la run #45032048342.
-- **Coverage Node pe `engine.js`:** 96,85% line, 91,24% branch, 96,08% functions. Modulele AI au rezultate separate: `core-port.js` 81,70% line / 75,00% branch, `contracts.js` 75,61% / 44,83%, `core-port-browser.js` 86,27% / 54,55%. Raportul global „all files” include și fișierele de test, deci nu este un indicator de producție. `app.js` din browser nu este instrumentat de coverage-ul Node.
+- **Faza 2, branch `feature/core-phase2-hardening`:** teste Core Node 61/61; property-stock 2/2; property-Core 4/4; Playwright Chromium 7/7. CI verde pe capul branch-ului și al PR-ului la run #45032382805.
+- **Coverage Node pe `engine.js`:** 96,85% line, 91,46% branch, 96,08% functions. Modulele AI au rezultate separate: `core-port.js` 81,70% line / 75,00% branch, `contracts.js` 75,61% / 44,83%, `core-port-browser.js` 86,27% / 54,55%. Raportul global „all files” include și fișierele de test, deci nu este un indicator de producție. `app.js` din browser nu este instrumentat de coverage-ul Node.
 - **Replay benchmark:** 100 = 0,482 ms; 1.000 = 2,781 ms; 10.000 = 15,117 ms în runner Linux x64 / Node 22.23.5 (rulare CI #45032048342). Nu există prag blocant.
 - **Hardening Core:** Replay respectă ordinea din jurnal, nu sortează după timestamp; corecțiile de nume/atribute/relații folosesc ordinea de aplicare; ID/intentKey sunt deduplicate din jurnal; timestamp-urile commit/replay sunt validate; importul respinge viitoare schema versions, IDs/intentKeys duplicate, colecții malformate și drift de proiecții; migrarea v6 păstrează definițiile vechi de atribute.
 - **Nu sunt implementate încă:** mutation testing, Firefox/WebKit, coverage E2E pentru UI, teste offline și migrare extinsă.
