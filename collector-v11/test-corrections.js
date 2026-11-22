@@ -83,7 +83,7 @@ assert.ok(db.events.some(e=>e.payload?.correctsEventId===move.id),'correction li
 
 // Unsafe/invalid correction must roll back atomically.
 const before=JSON.stringify(db);
-assert.throws(()=>E.commit(db,{id:E.uid(),type:'bad-correction',timestamp:new Date(tick++*1000).toISOString(),operations:[{operation:'relation.move.correct',data:{correctsEventId:'missing'}}]}),/nu există/);
+assert.throws(()=>E.commit(db,{id:E.uid(),type:'bad-correction',timestamp:new Date(tick++).toISOString(),operations:[{operation:'relation.move.correct',data:{correctsEventId:'missing'}}]}),/nu există/);
 assert.equal(JSON.stringify(db),before);
 
 // D-044 compound correction: stock + finance + attribute are corrected atomically;
