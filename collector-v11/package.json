@@ -13,7 +13,7 @@
     "benchmark:replay": "node benchmark-replay.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1",
