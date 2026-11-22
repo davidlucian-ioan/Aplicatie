@@ -1,7 +1,7 @@
 {
   "testRunner": "command",
   "commandRunner": {
-    "command": "npm test"
+    "command": "npm test && npm run test:properties && npm run test:core-properties"
   },
   "coverageAnalysis": "off",
   "mutate": [
