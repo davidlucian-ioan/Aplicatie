@@ -70,6 +70,7 @@ test('secvențele generate păstrează soldurile, atomicitatea și echivalența 
   const seed = process.env.FC_SEED === undefined ? undefined : Number(process.env.FC_SEED);
   const options = { numRuns, verbose: 2 };
   if (Number.isInteger(seed)) options.seed = seed;
+  if (process.env.FC_PATH) options.path = process.env.FC_PATH;
 
   fc.assert(fc.property(commandSequence, commands => {
     let db = makeFixture();
