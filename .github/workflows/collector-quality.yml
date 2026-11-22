@@ -95,6 +95,9 @@ jobs:
       - name: Run StrykerJS mutation testing (nightly only)
         if: github.event_name == 'schedule' || github.ref_name == 'feature/core-phase3-test-hardening' || github.head_ref == 'feature/core-phase3-test-hardening'
         working-directory: collector-v11
+        env:
+          FC_NUM_RUNS: '50'
+          FC_SEED: '20261122'
         run: npm run test:mutation
 
       - name: Upload test reports and Replay benchmark
