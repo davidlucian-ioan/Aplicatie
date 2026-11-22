@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 7,
+  "entities": [
+    {
+      "id": "fixture-v7-item",
+      "name": "Current item",
+      "type": "generic",
+      "createdAt": "2026-11-02T10:00:00.000Z",
+      "attributes": {},
+      "attributeHistory": {},
+      "status": "active"
+    }
+  ],
+  "attributes": [],
+  "relations": [],
+  "stock": [],
+  "finance": [],
+  "eventAttributes": [],
+  "events": [
+    {
+      "id": "fixture-v7-create",
+      "type": "entity.created",
+      "timestamp": "2026-11-02T10:00:00.000Z",
+      "source": "current-fixture",
+      "actor": "fixture",
+      "certainty": "certain",
+      "status": "committed",
+      "operations": [
+        {
+          "operation": "entity.create",
+          "target": "fixture-v7-item",
+          "data": {
+            "name": "Current item",
+            "type": "generic"
+          }
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "lastActivityAt": "2026-11-02T10:00:00.000Z",
+    "activeContext": null,
+    "processedIntentKeys": [],
+    "replayWarnings": []
+  }
+}
