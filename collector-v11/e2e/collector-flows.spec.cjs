@@ -87,6 +87,7 @@ test('mută și vinde stoc, apoi păstrează soldurile după refresh', async ({ 
   ]);
 
   await page.reload();
+  await page.locator('.nav[data-page="inventory"]').click();
   balances = await readBalances(page, 'Fancy E2E');
   expect(balances).toEqual([
     { location: 'B1', disposition: 'active', quantity: 7 },
