@@ -97,6 +97,46 @@ test('event attribute projections survive export validation despite generated pr
   assert.equal(imported.eventAttributes[0].value, 'measured manually');
 });
 
+test('commit requires non-empty text event IDs and intent keys', () => {
+  const base = setupBase();
+  const operation = [{ operation: 'event.note', data: { description: 'identity validation' } }];
+  for (const id of [0, 42, '', '  ']) {
+    assert.throws(() => E.commit(base.db, { id, timestamp: T1, operations: operation }), /ID text valid/);
+  }
+  for (const intentKey of ['', '  ', 42, {}]) {
+    assert.throws(() => E.commit(base.db, {
+      id: 'intent-invalid-' + String(intentKey),
+      intentKey,
+      timestamp: T1,
+      operations: operation
+    }), /Cheia de intenție/);
+  }
+});
+
+test('Replay skips projection effects for malformed event IDs and intent keys with warnings', () => {
+  const base = setupBase();
+  const malformedId = {
+    id: '  ',
+    type: 'note',
+    timestamp: T1,
+    status: 'committed',
+    operations: [{ operation: 'entity.create', target: 'must-not-exist-id', data: { name: 'Invalid', type: 'generic' } }]
+  };
+  const malformedIntent = {
+    id: 'malformed-intent-event',
+    intentKey: '  ',
+    type: 'note',
+    timestamp: T1,
+    status: 'committed',
+    operations: [{ operation: 'entity.create', target: 'must-not-exist-intent', data: { name: 'Invalid', type: 'generic' } }]
+  };
+  const replayed = E.replay([...base.db.events, malformedId, malformedIntent]);
+  assert.equal(replayed.entities.some(entity => entity.id === 'must-not-exist-id'), false);
+  assert.equal(replayed.entities.some(entity => entity.id === 'must-not-exist-intent'), false);
+  assert.ok(replayed.meta.replayWarnings.some(w => /fără ID/i.test(w.error)));
+  assert.ok(replayed.meta.replayWarnings.some(w => /intentKey invalidă/i.test(w.error)));
+});
+
 test('a later rename with the same value and timestamp is not undone by correcting the earlier rename', () => {
   const base = setupBase();
   const first = commit(base.db, 'rename-1', T1, [
@@ -271,9 +311,12 @@ test('Replay warns and skips projection effects for an event with an invalid tim
     status: 'committed',
     operations: [{ operation: 'entity.create', target: 'invalid-time-entity', data: { name: 'Invalid', type: 'generic' } }]
   };
-  const replayed = E.replay([...base.db.events, invalid]);
+  const dateOnly = { ...invalid, id: 'date-only-event', timestamp: '2026-11-22' };
+  const replayed = E.replay([...base.db.events, invalid, dateOnly]);
+  assert.equal(replayed.entities.some(entity => entity.id === 'invalid-time-entity'), false);
   assert.equal(replayed.entities.some(entity => entity.id === 'invalid-time-entity'), false);
   assert.ok(replayed.meta.replayWarnings.some(w => w.eventId === 'invalid-time-event' && /timestamp/i.test(w.error)));
+  assert.ok(replayed.meta.replayWarnings.some(w => w.eventId === 'date-only-event' && /timestamp/i.test(w.error)));
 });
 
 test('import rejects a future schema version instead of silently downgrading it', () => {
