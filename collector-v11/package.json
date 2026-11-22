@@ -13,7 +13,7 @@
     "benchmark:replay": "node benchmark-replay.js",
     "test:e2e:cross-browser": "playwright test --project=firefox --project=webkit",
     "test:ui-coverage": "node e2e/ui-coverage.cjs",
-    "test:mutation": "npx --yes @stryker-mutator/core@10.1.1 run"
+    "test:mutation": "npx --yes @stryker-mutator/core@10.1.1 run stryker.conf.json"
   },
   "engines": {
     "node": ">=22"
