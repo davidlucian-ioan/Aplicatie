@@ -17,10 +17,13 @@ npm ci
 npx playwright install chromium
 npm test
 npm run test:properties
+npm run test:core-properties
+npm run test:coverage
+npm run benchmark:replay
 npm run test:e2e
 ```
 
-Sau rulează tot setul cu `npm run test:all`. Strategia și implementarea testării sunt documentate în [TEST-STRATEGY-v1.md](docs/testing/TEST-STRATEGY-v1.md) și urmărite în [issue #5](https://github.com/davidlucian-ioan/Aplicatie/issues/5).
+Sau rulează tot setul cu `npm run test:all`. Coverage-ul actual este informativ (fără prag blocant), iar benchmark-ul măsoară Replay la 100, 1.000 și 10.000 de evenimente sintetice. Strategia și implementarea testării sunt documentate în [TEST-STRATEGY-v1.md](docs/testing/TEST-STRATEGY-v1.md) și urmărite în [issue #5](https://github.com/davidlucian-ioan/Aplicatie/issues/5).
 
 ## Arhitectură și decizii
 
