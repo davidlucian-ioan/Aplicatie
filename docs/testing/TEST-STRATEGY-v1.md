@@ -1,13 +1,13 @@
 # Collector — strategie de testare v1
 
 **Bază:** Collector MVP v11, cu hardening Core faza 2 în branch `feature/core-phase2-hardening`  
-**CI Core faza 2:** 59/59 teste Node, 2/2 suite property-stock, 4/4 suite property-Core și 7/7 teste Playwright trecute, run #45031650293  
+**CI Core faza 2:** 61/61 teste Node, 2/2 suite property-stock, 4/4 suite property-Core și 7/7 teste Playwright trecute, run #45032048342  
 **Scop:** protejarea regulilor Core, a jurnalului de evenimente, a importului și a interfeței pe măsură ce aplicația evoluează.
 
 ## 1. Situația actuală
 
 - Testele automate rulează cu Node.js Test Runner: `npm test` → `node --test test-*.js`.
-- CI actual raportează 59 teste Node, două suite property-based pentru stoc, patru suite property-based pentru Core și șapte fluxuri E2E Chromium.
+- CI actual raportează 61 teste Node, două suite property-based pentru stoc, patru suite property-based pentru Core și șapte fluxuri E2E Chromium.
 - Există teste pentru Core Port, orchestrator, parser, corecții, replay legacy, import și politica intervalelor de atribute.
 - Unele fișiere de test folosesc verificări `assert` executate ca scripturi, nu cazuri `node:test` separate. Pentru raportare mai precisă, acestea pot fi convertite treptat în cazuri denumite.
 - `test-ai-ui-wiring.js` verifică integrarea statică a scripturilor; nu pornește un browser real.
@@ -125,9 +125,9 @@ Nicio etapă nu trebuie să folosească exportul operațional personal al utiliz
 ## 6. Starea implementării
 
 - **Faza 1 integrată în `main` prin PR #6.** Dependențe fixate `@playwright/test` 1.65.1 și `fast-check` 4.11.0.
-- **Faza 2, branch `feature/core-phase2-hardening`:** teste Core Node 59/59; property-stock 2/2; property-Core 4/4; Playwright Chromium 7/7. CI verde pe capul branch-ului la run #45031650293.
-- **Coverage Node:** 96,09% line, 85,77% branch, 96,70% functions. Acest raport nu instrumentează `app.js` în browser.
-- **Replay benchmark:** 100 = 0,197 ms; 1.000 = 2,169 ms; 10.000 = 11,595 ms în runner Linux x64 / Node 22.23.5. Nu există prag blocant.
+- **Faza 2, branch `feature/core-phase2-hardening`:** teste Core Node 61/61; property-stock 2/2; property-Core 4/4; Playwright Chromium 7/7. CI verde pe capul branch-ului la run #45032048342.
+- **Coverage Node pe `engine.js`:** 96,85% line, 91,24% branch, 96,08% functions. Modulele AI au rezultate separate: `core-port.js` 81,70% line / 75,00% branch, `contracts.js` 75,61% / 44,83%, `core-port-browser.js` 86,27% / 54,55%. Raportul global „all files” include și fișierele de test, deci nu este un indicator de producție. `app.js` din browser nu este instrumentat de coverage-ul Node.
+- **Replay benchmark:** 100 = 0,482 ms; 1.000 = 2,781 ms; 10.000 = 15,117 ms în runner Linux x64 / Node 22.23.5 (rulare CI #45032048342). Nu există prag blocant.
 - **Hardening Core:** Replay respectă ordinea din jurnal, nu sortează după timestamp; corecțiile de nume/atribute/relații folosesc ordinea de aplicare; ID/intentKey sunt deduplicate din jurnal; timestamp-urile commit/replay sunt validate; importul respinge viitoare schema versions, IDs/intentKeys duplicate, colecții malformate și drift de proiecții; migrarea v6 păstrează definițiile vechi de atribute.
 - **Nu sunt implementate încă:** mutation testing, Firefox/WebKit, coverage E2E pentru UI, teste offline și migrare extinsă.
 - Validarea manuală din issue #4 rămâne separată și nu este considerată făcută doar pentru că E2E este verde.
