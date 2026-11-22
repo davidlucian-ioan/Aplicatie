@@ -7,7 +7,7 @@ on:
       - 'feature/**'
     paths:
       - collector-v11/**
-      - docs/testing/**
+      - docs/**
       - README.md
       - .github/workflows/collector-quality.yml
   pull_request:
@@ -15,7 +15,7 @@ on:
       - main
     paths:
       - collector-v11/**
-      - docs/testing/**
+      - docs/**
       - README.md
       - .github/workflows/collector-quality.yml
   schedule:
