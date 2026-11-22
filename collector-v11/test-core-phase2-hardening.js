@@ -253,11 +253,13 @@ test('Replay uses append order as the source-of-truth when clock timestamps are 
 
 test('commit rejects an explicitly malformed event timestamp', () => {
   const base = setupBase();
-  assert.throws(() => E.commit(base.db, {
-    id: 'bad-timestamp',
-    timestamp: 'yesterday-ish',
-    operations: [{ operation: 'event.note', data: { description: 'must reject' } }]
-  }), /timestamp ISO valid/);
+  for (const timestamp of ['yesterday-ish', '2026-11-22', '2026-02-30T10:00:00.000Z', '2026-11-22T10:00:00']) {
+    assert.throws(() => E.commit(base.db, {
+      id: 'bad-timestamp-' + String(timestamp),
+      timestamp,
+      operations: [{ operation: 'event.note', data: { description: 'must reject' } }]
+    }), /timestamp ISO valid/);
+  }
 });
 
 test('Replay warns and skips projection effects for an event with an invalid timestamp', () => {
@@ -279,6 +281,8 @@ test('import rejects a future schema version instead of silently downgrading it'
   const future = JSON.parse(JSON.stringify(base.db));
   future.schemaVersion = 8;
   assert.throws(() => E.validateImport(future), /mai nouă decât versiunea suportată/);
+  future.schemaVersion = '8';
+  assert.throws(() => E.validateImport(future), /versiunea schemei este invalidă/);
 });
 
 test('import rejects malformed projection collections rather than silently normalizing them to empty', () => {
