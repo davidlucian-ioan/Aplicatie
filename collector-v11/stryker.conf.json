@@ -1,0 +1,30 @@
+{
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "npm test"
+  },
+  "coverageAnalysis": "off",
+  "mutate": [
+    "engine.js"
+  ],
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html",
+    "json"
+  ],
+  "htmlReporter": {
+    "fileName": "test-results/mutation/mutation.html"
+  },
+  "jsonReporter": {
+    "fileName": "test-results/mutation/mutation.json"
+  },
+  "concurrency": 2,
+  "timeoutMS": 15000,
+  "timeoutFactor": 3,
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  }
+}
