@@ -9,6 +9,16 @@ const T0 = '2026-11-01T10:00:00.000Z';
 const T1 = '2026-11-01T11:00:00.000Z';
 const T2 = '2026-11-01T12:00:00.000Z';
 
+function propertyOptions(defaultRuns) {
+  const seed = Number(process.env.FC_SEED ?? 20261122);
+  const options = {
+    numRuns: Number(process.env.FC_NUM_RUNS || defaultRuns),
+    seed
+  };
+  if (process.env.FC_PATH) options.path = process.env.FC_PATH;
+  return options;
+}
+
 function commit(db, id, timestamp, operations, extra = {}) {
   return E.commit(db, {
     id,
@@ -75,7 +85,7 @@ test('a composed event that fails on its final operation rolls back all prior dr
       ]), /Entitatea nu există/);
       assert.equal(JSON.stringify(base.db), before);
     }
-  ), { numRuns: Number(process.env.FC_NUM_RUNS || 150) });
+  ), propertyOptions(150));
 });
 
 test('generated move chains preserve quantity and correcting the current move restores the previous location', () => {
@@ -129,7 +139,7 @@ test('generated move chains preserve quantity and correcting the current move re
       assert.deepEqual(E.balances(replayed), E.balances(corrected.db));
       assert.equal(E.activeLocation(replayed, pop)?.id, previous);
     }
-  ), { numRuns: 100 });
+  ), propertyOptions(100));
 });
 
 test('generated location containment chains reject the closing edge that creates a cycle', () => {
@@ -157,7 +167,7 @@ test('generated location containment chains reject the closing edge that creates
       }]), /cicluri/);
       assert.equal(JSON.stringify(db), before);
     }
-  ), { numRuns: Number(process.env.FC_NUM_RUNS || 150) });
+  ), propertyOptions(150));
 });
 
 test('generated correction chains retain later sales and remain replay-equivalent', () => {
@@ -208,7 +218,7 @@ test('generated correction chains retain later sales and remain replay-equivalen
       assert.deepEqual(replayed.meta.replayWarnings || [], []);
       assert.deepEqual(E.balances(replayed), E.balances(db));
     }
-  ), { numRuns: Number(process.env.FC_NUM_RUNS || 150) });
+  ), propertyOptions(150));
 });
 
 
