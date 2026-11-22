@@ -83,17 +83,17 @@ jobs:
         run: npm run test:ui-coverage
 
       - name: Install Firefox and WebKit (nightly only)
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || github.ref_name == 'feature/core-phase3-test-hardening' || github.head_ref == 'feature/core-phase3-test-hardening'
         working-directory: collector-v11
         run: npx playwright install --with-deps firefox webkit
 
       - name: Run Firefox and WebKit end-to-end tests (nightly only)
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || github.ref_name == 'feature/core-phase3-test-hardening' || github.head_ref == 'feature/core-phase3-test-hardening'
         working-directory: collector-v11
         run: npm run test:e2e:cross-browser
 
       - name: Run StrykerJS mutation testing (nightly only)
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || github.ref_name == 'feature/core-phase3-test-hardening' || github.head_ref == 'feature/core-phase3-test-hardening'
         working-directory: collector-v11
         run: npm run test:mutation
 
