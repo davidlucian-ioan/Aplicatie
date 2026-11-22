@@ -11,7 +11,7 @@
 - Există teste pentru Core Port, orchestrator, parser, corecții, replay legacy, import și politica intervalelor de atribute.
 - Unele fișiere de test folosesc verificări `assert` executate ca scripturi, nu cazuri `node:test` separate. Pentru raportare mai precisă, acestea pot fi convertite treptat în cazuri denumite.
 - `test-ai-ui-wiring.js` verifică integrarea statică a scripturilor; nu pornește un browser real.
-- `package.json` nu are încă dependențe sau comenzi pentru teste E2E, coverage ori teste generate.
+- Pe branch-ul `feature/collector-testing-automation` sunt introduse `@playwright/test` și `fast-check`, plus comenzile `test:properties`, `test:e2e` și `test:all`. Lockfile-ul npm este generat și comis de CI la prima rulare a branch-ului.
 
 ## 2. Cele patru niveluri recomandate
 
@@ -54,7 +54,7 @@ Păstrăm Node.js Test Runner și adăugăm cazuri denumite, deterministe.
 
 Aceasta este metoda suplimentară cu cea mai mare valoare pentru Core-ul event-sourced.
 
-Folosim `fast-check` pentru a genera secvențe reproductibile de operații valide și invalide, cu seed salvat la fiecare rulare. Nu verificăm doar rezultatul unui exemplu; verificăm invarianta după fiecare pas.
+Folosim `fast-check` pentru a genera secvențe reproductibile de operații valide și invalide. Testul inițial din `property-stock-sequences.test.js` generează adăugări, vânzări și mutări între B1 și B2; după fiecare pas verifică soldurile, atomicitatea operațiilor respinse, echivalența Replay și siguranța `validateImport`. Un test separat verifică idempotency pentru aceeași intenție.
 
 **Proprietăți obligatorii**
 1. **Replay equivalence:** starea obținută prin aplicarea evenimentelor și starea reconstruită din jurnal sunt echivalente semantic.
@@ -65,24 +65,23 @@ Folosim `fast-check` pentru a genera secvențe reproductibile de operații valid
 6. **Correction traceability:** fiecare corecție referă un eveniment existent și replay-ul păstrează rezultatul corectat.
 7. **Import safety:** orice import acceptat reproduce proiecțiile; orice import respins lasă datele locale nemodificate.
 
-Generatorul trebuie să creeze ID-uri și timestamp-uri deterministe și să păstreze secvența care a eșuat. La eșec, CI salvează seed-ul și secvența de evenimente ca artifact, pentru reproducere locală.
-
-**Cadru inițial:** 200 secvențe scurte la fiecare Pull Request; 2.000–5.000 secvențe într-o rulare nocturnă. Numărul poate fi ajustat după măsurarea duratei CI.
+Generatorul curent folosește ID-uri și timestamp-uri deterministe. `fast-check` raportează seed-ul și calea secvenței la eșec; acestea pot fi reluate cu `FC_SEED` și `FC_PATH`. CI rulează 250 secvențe la fiecare PR și 2.500 într-o rulare nocturnă.
 
 ### Nivel C — teste reale în browser cu Playwright
 
-Testarea existentă a UI-ului este în principal statică. Playwright ar simula un utilizator într-un Chromium real și ar verifica efectele vizibile și datele persistate.
+Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fiecare caz și un server static Node local pe portul 4173. Nu folosesc browserul sau localStorage-ul personal.
 
-**Fluxuri E2E prioritare**
-- Aplicație nouă: creează entitate, locație și populație; adaugă 5 exemplare; vinde 2; verifică soldul 3.
-- Mutare: transferă cantitatea între două locații; verifică sursa, destinația și istoricul.
-- Atribut: configurează pH 5.5–6.5; salvează 5.2 cu avertisment; reîncarcă pagina și verifică valoarea.
-- Confirmare: previzualizarea sau anularea nu persistă; numai confirmarea produce eveniment.
-- Persistență: refresh-ul paginii nu pierde datele.
-- Replay: proiecțiile reconstruite corespund jurnalului și nu apar avertismente.
-- Backup: exportă JSON, golește contextul de test, importă fișierul și compară starea; un fișier invalid nu înlocuiește datele.
-- Securitate UI: nume și descrieri cu HTML/script sunt afișate ca text, fără execuție.
-- Offline: operațiile locale de bază continuă fără conexiune la internet.
+**Fluxuri E2E implementate în prima etapă**
+- Creează locațiile B1 și B2, populația Fancy, mută 3 exemplare, vinde 2, apoi reîncarcă pagina și verifică soldurile și dispoziția `sold`.
+- Configurează intervalul pH 5.5–6.5, salvează valoarea reală 5.2 cu avertisment, confirmă și verifică persistența după refresh.
+- Anulează un preview și verifică faptul că jurnalul nu crește.
+- Încearcă importul unui JSON cu proiecții incompatibile și verifică faptul că datele existente rămân intacte.
+
+**Fluxuri rămase pentru etape ulterioare**
+- Replay prin interfață și comparație completă cu jurnalul.
+- Export + import valid end-to-end.
+- Protecția UI față de HTML/script în nume și descrieri.
+- Operații offline și recuperarea după eșecul localStorage.
 
 **Implementare**
 - Folosește un context de browser nou pentru fiecare test; nu folosi profilul sau localStorage-ul browserului personal.
@@ -90,7 +89,7 @@ Testarea existentă a UI-ului este în principal statică. Playwright ar simula 
 - Pornește serverul local din CI pe un port dedicat.
 - La eșec, păstrează screenshot, trace și eventual video ca artifact GitHub Actions.
 
-**Cadru inițial:** Chromium la fiecare Pull Request. Firefox și WebKit pot fi adăugate ulterior în rularea nocturnă.
+**Cadru implementat:** Chromium la fiecare Pull Request. Firefox și WebKit rămân pentru etapa următoare.
 
 ### Nivel D — coverage, mutații și performanță
 
@@ -103,19 +102,18 @@ Testarea existentă a UI-ului este în principal statică. Playwright ar simula 
 
 | Când | Ce rulează | Scop |
 |---|---|---|
-| Fiecare Pull Request | teste unitare/contract + property tests scurte + Playwright Chromium | blochează regresiile înainte de merge |
-| Nocturn | property tests extinse + Firefox/WebKit + replay/performance | caută secvențe și diferențe greu de prins rapid |
+| Fiecare Pull Request | `npm test` + 250 secvențe `fast-check` + Playwright Chromium | blochează regresiile înainte de merge |
+| Nocturn | 2.500 secvențe `fast-check` + Playwright Chromium | caută secvențe și diferențe greu de prins rapid |
 | Înainte de release | coverage review + mutation testing pentru Core + test de backup/migrare | verifică rezistența și siguranța datelor |
 
 Nicio etapă nu trebuie să folosească exportul operațional personal al utilizatorului. Testele folosesc exclusiv date sintetice și profile de browser izolate.
 
 ## 4. Ordinea de implementare
 
-1. Păstrează baseline-ul actual de 38/38 și adaugă cazurile unitare de margine cu nume explicite.
-2. Introdu Playwright și 5–8 fluxuri E2E prioritare.
-3. Introdu `fast-check` și proprietățile de replay, atomicitate, idempotency și conservare a stocului.
-4. Adaugă raport coverage și baseline fără prag blocant; stabilește praguri după măsurare.
-5. Adaugă nocturn mutation testing și testele de performanță/migrare.
+1. **În implementare pe branch separat:** Playwright, patru fluxuri E2E, `fast-check` pentru secvențe stoc/replay, workflow CI și lockfile npm.
+2. După confirmarea CI: extinde proprietățile pentru corecții, relații, atomicitate compusă și migrare.
+3. Adaugă raport coverage și baseline fără prag blocant; stabilește praguri după măsurare.
+4. Adaugă nocturn mutation testing și testele de performanță/migrare.
 
 ## 5. Ce nu trebuie confundat
 
@@ -127,4 +125,10 @@ Nicio etapă nu trebuie să folosească exportul operațional personal al utiliz
 
 ## 6. Starea implementării
 
-Aceasta este strategia propusă, nu o declarație că toate instrumentele au fost deja instalate. Baseline-ul verificat rămâne 38/38. Lucrul de implementare este urmărit separat în issue-ul dedicat testării.
+- **Baseline existent:** 38/38 teste automate, confirmate de CI înaintea acestei extinderi.
+- **Adăugat pe branch-ul `feature/collector-testing-automation`:** dependențele exacte `@playwright/test` 1.65.1 și `fast-check` 4.11.0; un test property-based pentru secvențe stock/replay; patru teste Playwright; server local de test; workflow GitHub Actions; comenzi npm și instrucțiuni.
+- **CI extins:** la PR rulează testele vechi, 250 secvențe generate și testele E2E Chromium; nocturn rulează 2.500 secvențe și E2E Chromium.
+- **Încă neconfirmat până la rularea workflow-ului:** rezultatul efectiv al noilor teste și lockfile-ul generat de CI. Nu considera extinderea validată înainte ca noul workflow să fie verde.
+- **Nu sunt implementate în această etapă:** coverage, mutation testing, Firefox/WebKit, testele extinse de migrare și performanță.
+
+Branch-ul este propus prin PR separat; modificările nu sunt încă în `main`.

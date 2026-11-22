@@ -10,13 +10,17 @@ Pe Windows, deschide acel folder și fă dublu-click pe `Porneste-Collector.bat`
 
 ## Teste
 
-Necesită Node.js 18 sau mai nou. Din `collector-v11/` rulează:
+Necesită Node.js 22 sau mai nou. Din `collector-v11/` instalează și rulează testele:
 
 ```bash
+npm ci
+npx playwright install chromium
 npm test
+npm run test:properties
+npm run test:e2e
 ```
 
-Strategia extinsă de testare (teste bazate pe secvențe, Playwright, coverage și verificări nocturne) este documentată în [TEST-STRATEGY-v1.md](docs/testing/TEST-STRATEGY-v1.md). Implementarea acestor niveluri este urmărită în [issue #5](https://github.com/davidlucian-ioan/Aplicatie/issues/5).
+Sau rulează tot setul cu `npm run test:all`. Strategia și implementarea testării sunt documentate în [TEST-STRATEGY-v1.md](docs/testing/TEST-STRATEGY-v1.md) și urmărite în [issue #5](https://github.com/davidlucian-ioan/Aplicatie/issues/5).
 
 ## Arhitectură și decizii
 

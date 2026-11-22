@@ -4,6 +4,7 @@ const titles={dashboard:['Dashboard','Motor generic, jurnal de evenimente și pr
 let db=loadDb(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
+function commandIntentKey(){return `collector-intent:${E.uid()}`}
 function loadDb(){let raw=null;try{raw=JSON.parse(localStorage.getItem(KEY)||'null')}catch{};if(!raw){try{raw=JSON.parse(localStorage.getItem(OLD_KEY)||'null')}catch{}}
  if(!raw)return E.emptyState();let attrs=raw.attributes||[],events=(raw.events||[]).filter(e=>e&&e.id).map(e=>({...e,status:e.status||'committed'}));const known=new Set(events.map(e=>e.id));
  // Migrate legacy projections to append-only migration events where the old journal is incomplete.
