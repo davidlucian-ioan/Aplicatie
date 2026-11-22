@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 6,
+  "entities": [
+    {
+      "id": "fixture-v6-plant",
+      "name": "Legacy plant renamed",
+      "type": "plant",
+      "createdAt": "2026-11-02T10:00:00.000Z",
+      "attributes": {
+        "pH": 6.1
+      },
+      "attributeHistory": {
+        "pH": [
+          {
+            "at": "2026-11-02T08:00:00.000Z",
+            "value": 6.1,
+            "certainty": "certain",
+            "eventId": "fixture-v6-ph-set"
+          }
+        ]
+      },
+      "status": "active",
+      "nameHistory": [
+        {
+          "at": "2026-11-02T09:00:00.000Z",
+          "previous": "Legacy plant",
+          "value": "Legacy plant renamed",
+          "eventId": "fixture-v6-rename"
+        }
+      ]
+    }
+  ],
+  "attributes": [
+    {
+      "id": "fixture-v6-ph-definition",
+      "name": "pH",
+      "ownerType": "entity",
+      "type": "number",
+      "role": "measurement",
+      "nature": "dynamic",
+      "identifying": false,
+      "required": false,
+      "historyEnabled": true,
+      "validation": {
+        "min": 5.5,
+        "max": 6.5
+      },
+      "createdAt": "2026-11-02T10:00:00.000Z"
+    }
+  ],
+  "relations": [],
+  "stock": [],
+  "finance": [],
+  "eventAttributes": [],
+  "events": [
+    {
+      "id": "fixture-v6-create",
+      "type": "entity.created",
+      "timestamp": "2026-11-02T10:00:00.000Z",
+      "source": "legacy-fixture",
+      "actor": "fixture",
+      "certainty": "certain",
+      "status": "committed",
+      "operations": [
+        {
+          "operation": "entity.create",
+          "target": "fixture-v6-plant",
+          "data": {
+            "name": "Legacy plant",
+            "type": "plant"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fixture-v6-rename",
+      "type": "entity.renamed",
+      "timestamp": "2026-11-02T09:00:00.000Z",
+      "source": "legacy-fixture",
+      "actor": "fixture",
+      "certainty": "certain",
+      "status": "committed",
+      "operations": [
+        {
+          "operation": "entity.rename",
+          "target": "fixture-v6-plant",
+          "data": {
+            "name": "Legacy plant renamed"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fixture-v6-ph-set",
+      "type": "attribute.measured",
+      "timestamp": "2026-11-02T08:00:00.000Z",
+      "source": "legacy-fixture",
+      "actor": "fixture",
+      "certainty": "certain",
+      "status": "committed",
+      "operations": [
+        {
+          "operation": "attribute.set",
+          "target": "fixture-v6-plant",
+          "data": {
+            "name": "pH",
+            "value": 6.1,
+            "certainty": "certain"
+          }
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "lastActivityAt": "2026-11-02T08:00:00.000Z",
+    "activeContext": null,
+    "processedIntentKeys": [],
+    "replayWarnings": []
+  }
+}
