@@ -87,7 +87,7 @@ test('finance.record și finance.adjust validează și păstrează totalurile', 
 
   const before = JSON.stringify(s.db);
   assert.throws(() => s.commit('finance-negative', [{ operation: 'finance.record', data: { entityId: 'item', amount: -1, currency: 'RON' } }]), /pozitivă sau zero/);
-  assert.throws(() => s.commit('finance-infinite', [{ operation: 'finance.record', data: { entityId: 'item', amount: Infinity, currency: 'RON' } }]), /pozitivă sau zero/);
+  assert.throws(() => s.commit('finance-infinite', [{ operation: 'finance.record', data: { entityId: 'item', amount: 'Infinity', currency: 'RON' } }]), /pozitivă sau zero/);
   assert.throws(() => s.commit('finance-missing-entity', [{ operation: 'finance.record', data: { entityId: 'missing', amount: 1, currency: 'RON' } }]), /nu există/);
   assert.throws(() => s.commit('finance-zero-adjustment', [{ operation: 'finance.adjust', data: { amount: 0, currency: 'RON' } }]), /nenulă/);
   assert.equal(JSON.stringify(s.db), before);
