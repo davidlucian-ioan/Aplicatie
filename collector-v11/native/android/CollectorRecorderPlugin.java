@@ -283,8 +283,15 @@ public final class CollectorRecorderPlugin extends Plugin {
         if (lastUpdate > 0L && System.currentTimeMillis() - lastUpdate < 8000L) {
             return;
         }
+        long startedAt = state.optLong("startedAtMs", 0L);
+        long pausedDuration = state.optLong("pausedDurationMs", 0L);
+        long pauseStarted = state.optLong("pauseStartedAtMs", 0L);
+        long end = "paused".equals(status) && pauseStarted > 0L ? pauseStarted : System.currentTimeMillis();
         state.remove("error");
         try {
+            if (startedAt > 0L) {
+                state.put("durationMs", Math.max(0L, end - startedAt - pausedDuration));
+            }
             state.put("status", "interrupted");
             state.put("updatedAt", new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(new java.util.Date()));
             state.put("updatedAtMs", System.currentTimeMillis());
