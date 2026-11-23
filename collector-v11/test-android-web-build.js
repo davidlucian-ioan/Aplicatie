@@ -1,11 +1,12 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { access, readFile, rm } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+'use strict';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { access, readFile } = require('node:fs/promises');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+const root = __dirname;
 const output = path.join(root, 'www');
 
 test('Android web bundle is deterministic and includes every local runtime asset', async () => {
@@ -27,6 +28,6 @@ test('Android web bundle is deterministic and includes every local runtime asset
   }
 
   const html = await readFile(path.join(output, 'index.html'), 'utf8');
-  assert.match(html, /audio-store\.js/);
-  assert.match(html, /ai\/core-port-browser\.js/);
+  assert.match(html, /audio-store\\.js/);
+  assert.match(html, /ai\\/core-port-browser\\.js/);
 });
