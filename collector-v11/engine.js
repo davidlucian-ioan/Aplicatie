@@ -150,7 +150,7 @@ function validateImport(raw){
  for(const key of ['entities','attributes','relations','stock','finance','eventAttributes']){
   const stored=Array.isArray(candidate[key])?candidate[key]:[];
   const projected=Array.isArray(rebuilt[key])?rebuilt[key]:[];
-  const stripGeneratedIds=rows=>key==='stock'||key==='eventAttributes'?rows.map(({id,...row})=>row):rows;
+  const stripGeneratedIds=rows=>['stock','finance','eventAttributes'].includes(key)?rows.map(({id,...row})=>row):rows;
   if(stableJson(stripGeneratedIds(stored))!==stableJson(stripGeneratedIds(projected)))throw Error(`Import blocat: proiecția „${key}” nu corespunde jurnalului. Datele locale nu au fost înlocuite.`);
  }
  rebuilt.meta={...candidate.meta,...rebuilt.meta};
