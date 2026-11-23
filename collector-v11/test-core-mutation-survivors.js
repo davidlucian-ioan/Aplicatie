@@ -243,6 +243,23 @@ test('stock.reverse poate inversa un eveniment stock.adjust fără să dubleze c
   assert.equal(balance(s.db), 5);
 });
 
+test('stock.reverse nu dublează o corecție stock.adjust deja legată de evenimentul țintă', () => {
+  const s = setup();
+  s.commit('reverse-adjusted-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('reverse-adjusted-manual-correction', [{
+    operation: 'stock.adjust',
+    data: { correctsEventId: 'reverse-adjusted-seed', changes: [{ populationId: 'population', locationId: 'location-a', quantity: 1 }] }
+  }]);
+  assert.equal(balance(s.db), 6);
+  const before = JSON.stringify(s.db);
+
+  assert.throws(
+    () => s.commit('reverse-adjusted-seed-again', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-adjusted-seed' } }]),
+    /deja corectate/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+});
+
 test('Replay face rollback atomic când stock.reverse ar crea un sold negativ', () => {
   const s = setup();
   s.commit('replay-reverse-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
