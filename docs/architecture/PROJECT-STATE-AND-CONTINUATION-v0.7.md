@@ -155,3 +155,6 @@ PR #23 în lucru: relation.close.correct respinge redeschiderea unei relații a 
 
 
 Benchmark Replay după PR #22 (run #45248706376, Node 22.23.5, Linux x64, AMD EPYC 9V45): 100 evenimente = 0,316 ms (~316k/s); 1.000 = 2,535 ms (~394k/s); 10.000 = 15,866 ms (~630k/s); 50.000 = 82,946 ms (~603k/s), heap delta median 8.964.824 bytes. Mix sintetic cu șase tipuri de operații, mediană din repetări; heap delta este orientativ, nu GC-normalizat. Nu este SLA și trebuie comparat doar pe aceeași platformă/metodologie.
+
+
+PR #25 în lucru: stock.change folosește allowlist pentru acțiunile publice (add, sell, dispose, move_out); move_in rămâne efect ledger intern generat de move_out. Acțiunile necunoscute sunt respinse în loc să fie tratate implicit ca add. Teste de regresie și CI în așteptare.
