@@ -126,6 +126,9 @@ public final class CollectorRecordingService extends Service {
         nextRecorder.setAudioSamplingRate(intent.getIntExtra("sampleRate", 44100));
         nextRecorder.setOutputFile(outputFile.getAbsolutePath());
         recorder = nextRecorder;
+        nextRecorder.setOnErrorListener((source, what, extra) ->
+            failRecording(new IllegalStateException("Eroare MediaRecorder (" + what + ", " + extra + ")."))
+        );
         nextRecorder.prepare();
         nextRecorder.start();
         status = "recording";
@@ -182,6 +185,7 @@ public final class CollectorRecordingService extends Service {
         String finalStatus = "complete";
         String errorMessage = null;
         try {
+            recorder.setOnErrorListener(null);
             recorder.stop();
         } catch (RuntimeException error) {
             finalStatus = "interrupted";
@@ -210,6 +214,7 @@ public final class CollectorRecordingService extends Service {
     private void failRecording(Exception error) {
         String message = error.getMessage() == null ? "Eroare necunoscută la înregistrare." : error.getMessage();
         if (recorder != null) {
+            recorder.setOnErrorListener(null);
             try {
                 recorder.stop();
             } catch (RuntimeException ignored) {
