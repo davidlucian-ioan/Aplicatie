@@ -363,8 +363,9 @@ test('corecțiile de nume și atributele relațiilor resping duplicatele, iar m�
   // Measurement corrections are intentionally repeatable: each correction refines the same historical row.
   s.commit('attribute-correction-second', [{ operation: 'attribute.correct', target: 'item', data: { name: 'height', value: 12, correctsEventId: 'attribute-before-correction' } }]);
   assert.equal(s.db.entities.find(row => row.id === 'item').attributes.height, 12);
-  assert.equal(attributeRow.value, 12);
-  assert.equal(attributeRow.correctedByEventId, 'attribute-correction-second');
+  const correctedAttributeRow = s.db.entities.find(row => row.id === 'item').attributeHistory.height[0];
+  assert.equal(correctedAttributeRow.value, 12);
+  assert.equal(correctedAttributeRow.correctedByEventId, 'attribute-correction-second');
 
   s.commit('correction-relation-create', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'other', type: 'related_to' } }]);
   const relationId = s.db.relations[0].id;
