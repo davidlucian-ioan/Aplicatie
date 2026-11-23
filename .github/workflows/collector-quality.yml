@@ -110,6 +110,7 @@ jobs:
           path: |
             collector-v11/test-results/coverage-report.txt
             collector-v11/test-results/replay-benchmark.json
+            collector-v11/test-results/app-ui-coverage.json
             collector-v11/reports/mutation/
             collector-v11/playwright-report/
             collector-v11/test-results/playwright/
