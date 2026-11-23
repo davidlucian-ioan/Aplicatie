@@ -949,16 +949,26 @@ test('relation.create.correct refuză mutările și păstrează relația și sto
 });
 
 
-test('Replay respinge cantități financiare invalide fără să creeze rânduri de ledger', () => {
+test('Replay respinge tranzacții financiare malformate fără să creeze rânduri de ledger', () => {
   const s = setup();
-  const invalid = {
+  const invalidQuantity = {
     id: 'replay-invalid-finance-quantity',
     type: 'test.finance.record',
     timestamp: new Date(BASE + 100).toISOString(),
     status: 'committed',
     operations: [{ operation: 'finance.record', data: { amount: 10, quantity: -2 } }]
   };
-  const replayed = E.replay([...s.db.events, invalid]);
-  assert.equal(replayed.finance.some(row => row.eventId === invalid.id), false);
-  assert.ok(replayed.meta.replayWarnings.some(row => row.eventId === invalid.id));
+  const invalidReference = {
+    id: 'replay-invalid-finance-reference',
+    type: 'test.finance.adjust',
+    timestamp: new Date(BASE + 101).toISOString(),
+    status: 'committed',
+    operations: [{ operation: 'finance.adjust', data: { amount: -10, correctsEventId: 'missing-finance-event' } }]
+  };
+  const invalidEvents = [invalidQuantity, invalidReference];
+  const replayed = E.replay([...s.db.events, ...invalidEvents]);
+  for (const event of invalidEvents) {
+    assert.equal(replayed.finance.some(row => row.eventId === event.id), false);
+    assert.ok(replayed.meta.replayWarnings.some(row => row.eventId === event.id));
+  }
 });
