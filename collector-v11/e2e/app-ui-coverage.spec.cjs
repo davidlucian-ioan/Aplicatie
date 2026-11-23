@@ -33,7 +33,7 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
   const source = await session.send('Debugger.getScriptSource', { scriptId: appScript.scriptId });
   const coveredRanges = appScript.functions
     .flatMap(fn => fn.ranges)
-    .filter(range => range.count > 0)
+    .filter(range => range.count > 0 && !(range.startOffset === 0 && range.endOffset === source.scriptSource.length))
     .map(range => [range.startOffset, range.endOffset])
     .sort((a, b) => a[0] - b[0]);
 
