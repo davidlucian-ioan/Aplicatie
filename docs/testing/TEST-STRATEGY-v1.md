@@ -150,3 +150,15 @@ Nicio etapă nu trebuie să folosească exportul operațional personal al utiliz
 - **PR #20:** corecția stale este păstrată ca `ignoredCorrectionByEventId`, separat de `voidedByEventId`; un undo ulterior al mutării descendente redeschide corect relația anterioară, iar Replay reproduce locația și soldurile. CI run #45246497191 — success.
 
 Aceste teste și modificări sunt sintetice și nu reprezintă validare manuală a utilizării reale. Baseline-ul Stryker 65,81% precede PR #15–#20; scorul complet trebuie recalculat în următoarea rulare nocturnă înainte de orice comparație.
+
+
+### Stryker triage — `stock.reverse` (raport istoric #45237194442)
+
+Raportul complet de 65,81% a fost generat înainte de PR #15–#21 și înainte de schimbarea din PR #22 care verifică soldurile pe fiecare dispoziție. În snapshot-ul raportului, ramura `stock.reverse` (atunci linia 57) avea 33 mutanți `Survived` și un `Timeout`; acestea nu trebuie prezentate ca supraviețuitori confirmați ai codului actual.
+
+- **Validarea țintei și duplicatele:** mutațiile din verificarea existenței evenimentului, a corecției repetate și a prezenței efectelor sunt acum exercitate de testele pentru ID inexistent, eveniment fără efecte și inversare repetată.
+- **Selecția rândurilor și inversarea ledger-ului:** testele ulterioare acoperă vânzarea, transferul între locații, consumul parțial, categoriile `sold` și `disposed`, precum și rollback-ul când inversarea ar produce un sold negativ. PR #22 a schimbat agregarea de la soldul activ la chei `populationId + locationId + disposition`; mutanții generați pe implementarea veche nu mai sunt direct comparabili.
+- **Cazuri adăugate în PR #29:** eveniment compus cu vânzare + eliminare + transfer, fallback pentru rânduri legacy fără `disposition` și inversarea unui eveniment `stock.adjust` ca eveniment distinct.
+- **Triage cu prioritate mică:** diferența exactă dintre `v < -1e-9` și `v <= -1e-9` privește limita toleranței numerice; trebuie tratată ca decizie explicită de precizie, nu ca defect automat. Mutanții care schimbă numai textul erorii nu justifică teste de comportament suplimentare. Timeout-ul produs de înlocuirea filtrării cu întregul array este un timeout, nu un mutant supraviețuitor.
+
+Nu există încă un scor Stryker complet după PR #22–#29. Workflow-ul PR execută `npm test`, iar pasul full Stryker este sărit în afara rulării nocturne. Nu se revendică un scor nou până la următorul raport complet.
