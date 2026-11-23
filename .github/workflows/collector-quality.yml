@@ -93,12 +93,12 @@ jobs:
         run: npx playwright test --project=webkit
 
       - name: Install StrykerJS for nightly mutation testing
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || github.head_ref == 'test/collector-core-survivors-legacy-ui'
         working-directory: collector-v11
         run: npm install --no-save --no-package-lock @stryker-mutator/core@10.1.1
 
       - name: Run Core mutation testing (nightly baseline)
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || github.head_ref == 'test/collector-core-survivors-legacy-ui'
         working-directory: collector-v11
         run: npx stryker run stryker.config.json
 
