@@ -122,31 +122,31 @@ test('stock.reverse respinge inversarea unei adăugări după vânzare parțial�
   assert.equal(JSON.stringify(s.db), before);
 });
 
-test('stock.reverse respinge inversarea unei eliminări istorice dacă ar face soldul disposed negativ', () => {
+test('stock.reverse respinge inversarea unei vânzări dacă o ajustare ulterioară a epuizat categoria sold', () => {
   const s = setup();
-  s.commit('reverse-dispose-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
-  s.commit('reverse-dispose-first', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 3, action: 'dispose' } }]);
-  s.commit('reverse-dispose-second', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'dispose' } }]);
-  assert.equal(balance(s.db, 'population', 'location-a', 'disposed'), 5);
+  s.commit('reverse-old-sale-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('reverse-old-sale', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'sell' } }]);
+  s.commit('reverse-sold-adjustment', [{ operation: 'stock.adjust', data: { changes: [{ populationId: 'population', locationId: 'location-a', disposition: 'sold', quantity: -2 }] } }]);
+  assert.equal(balance(s.db, 'population', 'location-a', 'sold'), 0);
 
   const before = JSON.stringify(s.db);
   assert.throws(
-    () => s.commit('reverse-dispose-first-correction', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-dispose-first' } }]),
+    () => s.commit('reverse-old-sale-correction', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-old-sale' } }]),
     /sold negativ/
   );
   assert.equal(JSON.stringify(s.db), before);
 });
 
-test('stock.reverse respinge inversarea unei vânzări istorice dacă ar face soldul sold negativ', () => {
+test('stock.reverse respinge inversarea unei eliminări dacă o ajustare ulterioară a epuizat categoria disposed', () => {
   const s = setup();
-  s.commit('reverse-old-sale-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
-  s.commit('reverse-old-sale-first', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 3, action: 'sell' } }]);
-  s.commit('reverse-old-sale-second', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'sell' } }]);
-  assert.equal(balance(s.db, 'population', 'location-a', 'sold'), 5);
+  s.commit('reverse-dispose-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('reverse-dispose', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'dispose' } }]);
+  s.commit('reverse-disposed-adjustment', [{ operation: 'stock.adjust', data: { changes: [{ populationId: 'population', locationId: 'location-a', disposition: 'disposed', quantity: -2 }] } }]);
+  assert.equal(balance(s.db, 'population', 'location-a', 'disposed'), 0);
 
   const before = JSON.stringify(s.db);
   assert.throws(
-    () => s.commit('reverse-old-sale-first-correction', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-old-sale-first' } }]),
+    () => s.commit('reverse-dispose-correction', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-dispose' } }]),
     /sold negativ/
   );
   assert.equal(JSON.stringify(s.db), before);
