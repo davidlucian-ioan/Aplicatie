@@ -185,3 +185,17 @@ PR #29 este înlocuit de PR #32 după integrarea PR #30. PR #32 păstrează guar
 - PR #30 este integrat, iar `main` este la `43c385c7bfcfbe823a462e20c7325e9d48b09695`; CI post-merge a trecut.
 - PR #29 rămâne deschis doar până când PR #32, care conține aceeași corecție pe un branch sincronizat, trece CI complet.
 - Nu există deploy; s-au folosit exclusiv date sintetice.
+
+
+## Actualizare continuare — 23.11.2026 (PR #27–#38)
+
+**Main curent la această actualizare:** `ce2d8d5b1a171c3276de2788ab9e82e307361f47`. CI post-merge pentru PR #37 a trecut (run #45259431332).
+
+- **PR #27 integrat:** `finance.adjust` validează referințele `entityId`; CI PR #45251550928 și verificările post-merge au trecut.
+- **PR #29 nu a fost integrat:** branch-ul vechi a fost închis după ce fixul `event.attribute.correct` a fost mutat pe branch sincronizat în PR #32. PR #32 a trecut CI (#45254003367), a fost integrat în `main` (`2ac1f6ed5a2f5977b2f51f896c14705309c5b4bf`), iar CI post-merge a trecut (#45254408338).
+- **PR #37 integrat:** `relation.create.correct` respinge evenimentele de mutare; acestea trebuie corectate prin `relation.move.correct`, care inversează atât relația, cât și ledger-ul de stoc. Testul acoperă commit și Replay rollback. PR CI #45259027370 și post-merge #45259431332 au trecut. Merge commit: `ce2d8d5b1a171c3276de2788ab9e82e307361f47`.
+- **PR #38 deschis:** validare pentru cantități financiare, referințe de corecție și corecții legate duplicate. Head curent `21540641f4b7aaffcae9f654d067756aa3560a24`; testele Core/property/Replay/benchmark au trecut, dar instalarea Firefox/WebKit și E2E cross-browser sunt încă în desfășurare (run #45259804511). Nu se integrează până la CI complet verde.
+
+**Stryker:** ultimul full-suite rămâne 65,81% (run #45237194442), raport istoric pre-PR #15–#38. Nu există scor complet nou pentru codul curent; testele PR nu rulează full Stryker, care rămâne nocturn. Triage semantic pentru finance, relații, atribute și Replay este în issue #5.
+
+**Următorii pași:** finalizează PR #38 numai după CI complet verde; apoi extinde protecția la redefinirea atributelor deja folosite în proiecțiile entity/relation/event și continuă trierea mutanților pe comportament real. Validarea manuală din issue #4 rămâne restantă; date sintetice, fără provider AI real și fără deploy.
