@@ -409,3 +409,19 @@ test('rebuild refuză jurnalul invalid și păstrează proiecțiile existente', 
   expect(after.names).toContain('Entitate păstrată');
   expect(after.hasInvalidEvent).toBe(true);
 });
+
+
+test('focus-ul nu suprascrie date locale mai noi cu un snapshot vechi din memorie', async ({ page }) => {
+  await createEntity(page, 'Valoare inițială', 'plant');
+  await page.evaluate(() => {
+    const inMemory = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    inMemory.meta.lastActivityAt = '2000-01-01T00:00:00.000Z';
+    // Simulate another tab or an external writer updating the persisted projection.
+    const newer = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    newer.entities[0].name = 'Valoare mai nouă';
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(newer));
+    window.dispatchEvent(new Event('focus'));
+  });
+  const storedName = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities[0].name);
+  expect(storedName).toBe('Valoare mai nouă');
+});
