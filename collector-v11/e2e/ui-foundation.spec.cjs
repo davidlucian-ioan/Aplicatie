@@ -20,6 +20,7 @@ test('mobile navigation opens, selects a section and closes accessibly', async (
   await expect(sidebar).toBeHidden();
   await expect(page.locator('.nav[data-page="entities"]')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('#menuToggle')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#menuToggle')).toBeFocused();
 });
 
 test('global voice action opens assistant and starts microphone capture without committing', async ({ page }) => {
@@ -45,6 +46,7 @@ test('global voice action opens assistant and starts microphone capture without 
   expect(await page.evaluate(() => window.__collectorVoiceStarts)).toBe(1);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
 
+  await expect(page.locator('#voiceButton')).toHaveAttribute('aria-label', 'Oprește dictarea');
   await page.locator('#voiceButton').click();
   await expect(page.locator('#globalVoice')).toContainText('Vorbește');
   await expect(page.locator('#voiceButton')).toContainText('Dictează');
