@@ -168,3 +168,94 @@ test('commit și replay resping timestamp-uri și chei de intenție invalide', (
   assert.equal(replayed.meta.replayWarnings.length, 1);
   assert.equal(replayed.meta.replayWarnings[0].eventId, 'invalid-date');
 });
+
+
+test('relation.close și relation.close.correct păstrează istoricul și resping corecțiile stale', () => {
+  const s = setup();
+  s.commit('relation-lifecycle-create', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'other', type: 'related_to' } }]);
+  const relationId = s.db.relations[0].id;
+
+  s.commit('relation-close-first', [{ operation: 'relation.close', data: { relationId } }]);
+  assert.equal(s.db.relations[0].endedAt, new Date(BASE + 2).toISOString());
+
+  s.commit('relation-close-correct', [{ operation: 'relation.close.correct', data: { relationId, correctsEventId: 'relation-close-first' } }]);
+  assert.equal(s.db.relations[0].endedAt, null);
+  assert.equal(s.db.relations[0].history.at(-1).action, 'reopened_by_correction');
+
+  s.commit('relation-close-second', [{ operation: 'relation.close', data: { relationId } }]);
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('relation-close-stale-correction', [{ operation: 'relation.close.correct', data: { relationId, correctsEventId: 'relation-close-first' } }]),
+    /modificată ulterior/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+});
+
+test('relation.attribute.set și relation.attribute.correct refac numai valoarea curentă vizată', () => {
+  const s = setup();
+  s.commit('relation-attribute-create', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'other', type: 'related_to' } }]);
+  const relationId = s.db.relations[0].id;
+
+  s.commit('relation-attribute-one', [{ operation: 'relation.attribute.set', data: { relationId, name: 'strength', value: 3 } }]);
+  s.commit('relation-attribute-two', [{ operation: 'relation.attribute.set', data: { relationId, name: 'strength', value: 5 } }]);
+  s.commit('relation-attribute-correct-old', [{ operation: 'relation.attribute.correct', data: { relationId, name: 'strength', correctsEventId: 'relation-attribute-one' } }]);
+  assert.equal(s.db.relations[0].attributes.strength, 5);
+
+  s.commit('relation-attribute-correct-latest', [{ operation: 'relation.attribute.correct', data: { relationId, name: 'strength', correctsEventId: 'relation-attribute-two' } }]);
+  assert.equal(s.db.relations[0].attributes.strength, 3);
+});
+
+test('relation.create.correct anulează relația și efectul de membru identificat o singură dată', () => {
+  const s = setup();
+  s.commit('individual-create', [{ operation: 'entity.create', target: 'individual', data: { name: 'Shrimp 1', type: 'individual' } }]);
+  s.commit('population-member', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'individual', type: 'contains' } }]);
+
+  assert.equal(s.db.stock.filter(row => row.eventId === 'population-member' && row.action === 'identified_member').length, 1);
+  assert.equal(E.balances(s.db).reduce((sum, row) => sum + row.quantity, 0), 1);
+
+  s.commit('population-member-correct', [{ operation: 'relation.create.correct', data: { correctsEventId: 'population-member' } }]);
+  assert.ok(s.db.relations[0].endedAt);
+  assert.equal(s.db.relations[0].voidedByEventId, 'population-member-correct');
+  assert.equal(E.balances(s.db).reduce((sum, row) => sum + row.quantity, 0), 0);
+  assert.throws(
+    () => s.commit('population-member-correct-twice', [{ operation: 'relation.create.correct', data: { correctsEventId: 'population-member' } }]),
+    /deja corectată/
+  );
+});
+
+test('relation.move transferă soldul și corectează numai ultima mutare activă', () => {
+  const s = setup();
+  s.commit('population-located-a', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
+  s.commit('population-stock-a', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+
+  s.commit('population-move-b', [{ operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-b' } }]);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
+  assert.equal(balance(s.db), 0);
+  assert.equal(balance(s.db, 'population', 'location-b'), 5);
+
+  s.commit('population-move-b-correct', [{ operation: 'relation.move.correct', data: { correctsEventId: 'population-move-b' } }]);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-a');
+  assert.equal(balance(s.db), 5);
+  assert.equal(balance(s.db, 'population', 'location-b'), 0);
+
+  s.commit('population-move-b-again', [{ operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-b' } }]);
+  s.commit('population-move-back-a', [{ operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-a' } }]);
+  s.commit('population-move-old-correct', [{ operation: 'relation.move.correct', data: { correctsEventId: 'population-move-b-again' } }]);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-a');
+  assert.equal(balance(s.db), 5);
+  assert.equal(balance(s.db, 'population', 'location-b'), 0);
+});
+
+test('relation.create.correct nu poate șterge un membru dacă ar crea sold negativ după vânzare', () => {
+  const s = setup();
+  s.commit('individual-create-for-sale', [{ operation: 'entity.create', target: 'individual', data: { name: 'Shrimp sold', type: 'individual' } }]);
+  s.commit('population-member-for-sale', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'individual', type: 'contains' } }]);
+  s.commit('population-member-sold', [{ operation: 'stock.change', data: { populationId: 'population', quantity: 1, action: 'sell' } }]);
+
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('population-member-sale-correct', [{ operation: 'relation.create.correct', data: { correctsEventId: 'population-member-for-sale' } }]),
+    /sold activ negativ/
+  );
+  assert.equal(JSON.stringify(s.db), before, 'rejected relation correction must roll back relation and stock projections');
+});
