@@ -302,6 +302,7 @@ test('finance.record și finance.adjust validează și păstrează totalurile', 
 
   s.commit('finance-fractional-quantity', [{ operation: 'finance.record', data: { amount: 12, currency: 'EUR', quantity: 0.5 } }]);
   assert.equal(s.db.finance.find(row => row.eventId === 'finance-fractional-quantity').quantity, 0.5);
+  s.commit('finance-note-without-ledger', [{ operation: 'event.note', data: { description: 'not a finance event' } }]);
 
   const before = JSON.stringify(s.db);
   assert.throws(() => s.commit('finance-negative', [{ operation: 'finance.record', data: { entityId: 'item', amount: -1, currency: 'RON' } }]), /pozitivă sau zero/);
@@ -313,7 +314,6 @@ test('finance.record și finance.adjust validează și păstrează totalurile', 
     assert.throws(() => s.commit('finance-record-invalid-quantity-' + index, [{ operation: 'finance.record', data: { amount: 1, quantity } }]), /Cantitatea financiară/);
     assert.throws(() => s.commit('finance-adjust-invalid-quantity-' + index, [{ operation: 'finance.adjust', data: { amount: -1, quantity } }]), /Cantitatea financiară/);
   }
-  s.commit('finance-note-without-ledger', [{ operation: 'event.note', data: { description: 'not a finance event' } }]);
   assert.throws(() => s.commit('finance-adjust-missing-target', [{ operation: 'finance.adjust', data: { amount: -1, correctsEventId: 'missing-finance-event' } }]), /nu există sau nu conține/);
   assert.throws(() => s.commit('finance-adjust-non-finance-target', [{ operation: 'finance.adjust', data: { amount: -1, correctsEventId: 'finance-note-without-ledger' } }]), /nu există sau nu conține/);
   assert.equal(JSON.stringify(s.db), before);
