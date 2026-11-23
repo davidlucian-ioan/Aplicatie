@@ -48,7 +48,8 @@ test('Android manifest patch is idempotent and declares microphone foreground se
     'POST_NOTIFICATIONS',
     'WAKE_LOCK',
   ]) {
-    assert.equal((manifest.match(new RegExp(permission, 'g')) || []).length, 1);
+    const declaration = 'android:name="android.permission.' + permission + '"';
+    assert.equal(manifest.split(declaration).length - 1, 1);
   }
   assert.equal((manifest.match(/AndroidForegroundService/g) || []).length, 1);
   assert.match(manifest, /android:foregroundServiceType="microphone"/);
