@@ -89,12 +89,12 @@ Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fie
 - Pornește serverul local din CI pe un port dedicat.
 - La eșec, păstrează screenshot, trace și eventual video ca artifact GitHub Actions.
 
-**Cadru implementat:** Chromium la fiecare Pull Request și rulare nocturnă. Firefox și WebKit rămân pentru etapa următoare.
+**Cadru implementat în PR #8:** Chromium, Firefox și WebKit la fiecare Pull Request; Chromium rămâne și în rularea nocturnă. Prima matrice cross-browser a trecut 7/7 teste în fiecare browser (run #90).
 
 ### Nivel D — coverage, mutații și performanță
 
 - **Coverage:** raportul Node instrumentează `engine.js`, modulele AI încărcate și suitele Node; nu instrumentează `app.js` în browser. Valorile relevante pentru codul de producție sunt `engine.js`: 96,85% line / 91,46% branch / 96,08% functions; `core-port.js`: 81,70% / 75,00% / 75,00%; `contracts.js`: 75,61% / 44,83% / 100%; `core-port-browser.js`: 86,27% / 54,55% / 91,67%. Agregatul `all files` include fișiere de test și nu este indicator de acoperire a producției. Nu există încă prag blocant.
-- **Mutation testing:** StrykerJS nu este instalat încă. Urmează să fie configurat pentru verificările de sold, idempotency, corecții și intervale.
+- **Mutation testing:** StrykerJS 10.1.1 este configurat pentru rulare nocturnă, fără a modifica dependențele runtime sau lockfile-ul. Configurația inițială mută `engine.js`, folosește `npm test`, produce rapoarte HTML/JSON și păstrează pragul de blocare la 0 până la colectarea baseline-ului. Prima rulare și analiza mutanților supraviețuitori sunt încă în așteptare; nu există încă un scor validat.
 - **Performance:** benchmark-ul Replay folosește evenimente sintetice mixte (setup + 75% note + 25% stock.add), o încălzire și mediana mai multor execuții. Rularea PR finală din 22.11.2026 a măsurat 0,610 ms pentru 100 evenimente, 3,791 ms pentru 1.000 și 13,852 ms pentru 10.000 pe runner-ul GitHub Linux x64 / Node 22.23.5, CPU Xeon Platinum 8573C (run #45032860362). Aceste valori sunt un baseline pe runner, nu o garanție de performanță și nu au prag absolut.
 - **Migrare:** păstrează fixtures JSON anonimizate pentru versiunile de schemă suportate. Fiecare versiune nouă trebuie să demonstreze upgrade fără pierderi și import sigur.
 
@@ -102,8 +102,8 @@ Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fie
 
 | Când | Ce rulează | Scop |
 |---|---|---|
-| Fiecare Pull Request | `npm test` + 250 secvențe stock + 150 secvențe Core + coverage informativ + benchmark Replay + Playwright Chromium | blochează regresiile înainte de merge și arhivează baseline-ul |
-| Nocturn | 2.500 secvențe stock + 1.500 secvențe Core + Playwright Chromium | caută secvențe și diferențe greu de prins rapid |
+| Fiecare Pull Request | `npm test` + 250 secvențe stock + 150 secvențe Core + coverage informativ + benchmark Replay + Playwright Chromium/Firefox/WebKit | blochează regresiile înainte de merge și arhivează baseline-ul |
+| Nocturn | 2.500 secvențe stock + 1.500 secvențe Core + Playwright Chromium + StrykerJS pe `engine.js` | caută secvențe rare și mutații nedetectate de teste |
 | Înainte de release | coverage review + mutation testing pentru Core + test de backup/migrare | verifică rezistența și siguranța datelor |
 
 Nicio etapă nu trebuie să folosească exportul operațional personal al utilizatorului. Testele folosesc exclusiv date sintetice și profile de browser izolate.
@@ -112,7 +112,8 @@ Nicio etapă nu trebuie să folosească exportul operațional personal al utiliz
 
 1. **Faza 1 închisă prin PR #6:** Playwright Chromium, patru fluxuri E2E și primele proprietăți stock/replay.
 2. **Faza 2 integrată în `main` prin PR #7:** corecții după ordinea jurnalului, idempotency derivat din jurnal, validare strictă import/timestamp/schema, teste pentru relații și mutări, șapte fluxuri E2E, coverage informativ și benchmark Replay.
-3. Rămân: mutation testing, Firefox/WebKit, teste de migrare mai extinse și benchmark-uri pentru scenarii de domeniu/volume mai mari.
+3. **PR #8:** Firefox/WebKit la fiecare PR și StrykerJS nocturn configurat. Baseline-ul de mutații se colectează după integrare și prima rulare nocturnă.
+4. Rămân: teste de migrare mai extinse, teste offline și benchmark-uri pentru scenarii de domeniu/volume mai mari.
 
 ## 5. Ce nu trebuie confundat
 
@@ -129,5 +130,5 @@ Nicio etapă nu trebuie să folosească exportul operațional personal al utiliz
 - **Coverage Node pe `engine.js`:** 96,85% line, 91,46% branch, 96,08% functions. Modulele AI au rezultate separate: `core-port.js` 81,70% line / 75,00% branch, `contracts.js` 75,61% / 44,83%, `core-port-browser.js` 86,27% / 54,55%. Raportul global „all files” include și fișierele de test, deci nu este un indicator de producție. `app.js` din browser nu este instrumentat de coverage-ul Node.
 - **Replay benchmark:** 100 = 0,610 ms; 1.000 = 3,791 ms; 10.000 = 13,852 ms în runner Linux x64 / Node 22.23.5, CPU Xeon Platinum 8573C (run PR #45032860362). Nu există prag blocant.
 - **Hardening Core:** Replay respectă ordinea din jurnal, nu sortează după timestamp; corecțiile de nume/atribute/relații folosesc ordinea de aplicare; ID/intentKey sunt deduplicate din jurnal; timestamp-urile commit/replay sunt validate; importul respinge viitoare schema versions, IDs/intentKeys duplicate, colecții malformate și drift de proiecții; migrarea v6 păstrează definițiile vechi de atribute.
-- **Nu sunt implementate încă:** mutation testing, Firefox/WebKit, coverage E2E pentru UI, teste offline și migrare extinsă.
+- **În curs / restanțe:** prima rulare StrykerJS nocturnă și analiza scorului, coverage E2E pentru UI, teste offline și migrare extinsă. Firefox/WebKit sunt configurate în CI; prima execuție este în așteptare.
 - Validarea manuală din issue #4 rămâne separată și nu este considerată făcută doar pentru că E2E este verde.
