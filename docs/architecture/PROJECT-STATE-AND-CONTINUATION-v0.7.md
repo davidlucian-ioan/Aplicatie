@@ -174,7 +174,7 @@ PR #29 în lucru: `event.attribute.correct` respinge corectarea repetată a unei
 
 **PR #30 în lucru — stock.reverse și Stryker:** https://github.com/davidlucian-ioan/Aplicatie/pull/30
 - [ ] Test pentru inversarea atomică a unui eveniment compus care conține vânzare, eliminare și transfer între locații.
-- [ ] Test pentru fallback-ul `disposition: active` la rânduri legacy fără câmpul `disposition`.
+- [ ] Test și fix pentru fallback-ul `disposition: active` la rânduri legacy fără câmpul `disposition`; `balances()` proiectează acum rândurile legacy în categoria activă.
 - [ ] Test pentru inversarea unui eveniment `stock.adjust` ca eveniment distinct și blocarea unei a doua inversări.
 - [ ] Test Replay: dacă `stock.reverse` ar crea un sold negativ, Replay păstrează proiecțiile anterioare și adaugă un warning.
 - [ ] Triage documentat pentru cei 33 de mutanți supraviețuitori și un timeout din raportul istoric #45237194442; raportul precede PR #22 și nu este un scor actual.
@@ -183,4 +183,4 @@ PR #29 în lucru: `event.attribute.correct` respinge corectarea repetată a unei
 **Verificare de integrare:** PR #17–#20 sunt în continuare strămoși ai branch-ului `main` (compare API: `ahead`, `behind_by=0` pentru fiecare merge commit). PR #21 este integrat și CI a trecut (run #45247173561). Ultimul CI `main` verificat pentru SHA `bd359025b7dc48eb09d98beeeacd2fdbc3541860` a trecut (run #45251393000). După integrarea PR #28, `main` este la SHA `265d6da5b28723dc6a2727b8fa22342a74df2a90`, iar CI pentru acest SHA este în desfășurare (run #45251640647). PR #27 este deschis și noua revizie are CI în desfășurare (run #45251550928); PR #29 este deschis, cu CI în desfășurare (run #45251353306).
 
 
-**PR #30 — status CI:** run #45251649873 este în coadă la ultima verificare. Nu integra până când toate joburile nu sunt verzi.
+**PR #30 — status CI:** primele trei rulări au expus o aserțiune legacy care folosea `E.balances()` fără fallback pentru `disposition`; fixul din `balances()` și testul actualizat sunt în branch. Noua rulare CI este în desfășurare. Nu integra până când toate joburile nu sunt verzi.
