@@ -349,11 +349,10 @@ test('startup-ul blochează proiecțiile divergente și reconstruiește numai du
       return originalSetItem.call(this, key, value);
     };
   });
-  const failedSaveDialog = page.waitForEvent('dialog');
+  let failedSaveMessage = '';
+  page.once('dialog', async dialog => { failedSaveMessage = dialog.message(); await dialog.accept(); });
   await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
-  const failedSave = await failedSaveDialog;
-  expect(failedSave.message()).toContain('nu a fost salvată');
-  await failedSave.accept();
+  expect(failedSaveMessage).toContain('nu a fost salvată');
 
   await page.locator('#modalContent button.secondary').click();
   await page.locator('.nav[data-page="entities"]').click();
@@ -363,11 +362,10 @@ test('startup-ul blochează proiecțiile divergente și reconstruiește numai du
 
   await page.locator('.nav[data-page="audit"]').click();
   await page.getByRole('button', { name: 'Verifică replay' }).click();
-  const successDialog = page.waitForEvent('dialog');
+  let successMessage = '';
+  page.once('dialog', async dialog => { successMessage = dialog.message(); await dialog.accept(); });
   await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
-  const success = await successDialog;
-  expect(success.message()).toContain('salvate cu succes');
-  await success.accept();
+  expect(successMessage).toContain('salvate cu succes');
 
   await page.locator('.nav[data-page="entities"]').click();
   await expect(page.locator('#entityList')).toContainText('Entitate din jurnal');
@@ -396,11 +394,10 @@ test('rebuild refuză jurnalul invalid și păstrează proiecțiile existente', 
 
   await page.getByRole('button', { name: 'Verifică replay' }).click();
   await expect(page.locator('#modalContent pre')).toContainText('invalid-startup-replay-event');
-  const blockedDialog = page.waitForEvent('dialog');
+  let blockedMessage = '';
+  page.once('dialog', async dialog => { blockedMessage = dialog.message(); await dialog.accept(); });
   await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
-  const blocked = await blockedDialog;
-  expect(blocked.message()).toContain('Reconstruirea a fost blocată');
-  await blocked.accept();
+  expect(blockedMessage).toContain('Reconstruirea a fost blocată');
 
   const after = await page.evaluate(() => {
     const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
