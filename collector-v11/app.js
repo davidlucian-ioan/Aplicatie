@@ -15,6 +15,7 @@ function loadDb(){
  if(raw===null){const empty=E.emptyState();persistRaw(empty);return empty}
  if(typeof raw!=='object'||Array.isArray(raw))return preserveAndBlock({rawPayload:raw},'Structura datelor locale nu este un obiect valid.');
  if(raw.schemaVersion!==undefined&&(!Number.isInteger(raw.schemaVersion)||raw.schemaVersion>7))return preserveAndBlock(raw,'Versiunea schemei este invalidă sau mai nouă decât versiunea suportată. Datele originale au fost păstrate.');
+ if(raw.schemaVersion!==undefined&&raw.schemaVersion!==6&&raw.schemaVersion!==7)return preserveAndBlock(raw,'Nu există o migrare verificată pentru schema '+raw.schemaVersion+'. Datele originale au fost păstrate în modul numai citire.');
  if(raw.schemaVersion===7){try{const validated=E.validateImport(raw);if(!persistRaw(validated))throw Error('Nu am putut salva starea verificată în localStorage.');return validated}catch(error){const replayed=E.replay(Array.isArray(raw.events)?raw.events:[],[]),warnings=replayed.meta.replayWarnings||[],projectionMatch=String(error?.message||'').match(/^Import blocat: proiecția „([^”]+)” nu corespunde jurnalului/),canRebuild=warnings.length===0&&!!projectionMatch&&projectionMatch[1]!=='attributes';return preserveAndBlock(raw,error,warnings,canRebuild)}}
  for(const key of ['entities','events','attributes','relations','stock','finance','eventAttributes'])if(raw[key]!==undefined&&!Array.isArray(raw[key]))return preserveAndBlock(raw,'Proiecția veche „'+key+'” nu este o listă validă; datele originale au fost păstrate.');
  const attrs=Array.isArray(raw.attributes)?raw.attributes:[],sourceEvents=Array.isArray(raw.events)?raw.events:[];
@@ -31,7 +32,7 @@ function loadDb(){
  for(const ent of (Array.isArray(raw.entities)?raw.entities:[])){
   if(!ent||typeof ent!=='object'||Array.isArray(ent)||typeof ent.id!=='string'||!ent.id.trim())return preserveAndBlock(raw,'O proiecție veche de entitate este invalidă și nu poate fi migrată automat.');
   if(!events.some(ev=>ev.operations?.some(o=>(o.target===ent.id||o.entityId===ent.id||o.data?.entityId===ent.id)&&['create','entity.create'].includes(o.operation)))){
-   const ev={id:id(),type:'migration.entity_imported',timestamp:ent.createdAt||E.now(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name,type:ent.type},operations:[{target:ent.id,operation:'entity.create',data:{name:ent.name,type:ent.type}}]};
+   const ev={id:id(),type:'migration.entity_imported',timestamp:migrationTimestamp(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name,type:ent.type},operations:[{target:ent.id,operation:'entity.create',data:{name:ent.name,type:ent.type}}]};
    if(!known.has(ev.id)){events.push(ev);known.add(ev.id)}
   }
  }
@@ -51,7 +52,7 @@ function loadDb(){
    }
   }
  }
- state.events=events.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));state.schemaVersion=7;state.meta={...state.meta,...raw.meta,replayWarnings:state.meta.replayWarnings||[]};
+ state.events=events;state.schemaVersion=7;state.meta={...state.meta,...raw.meta,replayWarnings:state.meta.replayWarnings||[]};
  if((state.meta.replayWarnings||[]).length)return preserveAndBlock(raw,'Jurnalul vechi conține evenimente care nu pot fi reconstruite.',state.meta.replayWarnings);
  const comparable=rows=>rows.map(row=>{if(!row||typeof row!=='object')return row;const {id,...rest}=row;return rest});
  for(const key of ['relations','stock','finance','eventAttributes']){
