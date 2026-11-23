@@ -434,6 +434,21 @@ test('relation.move transferă soldul și corectează numai ultima mutare activ�
   assert.equal(balance(s.db, 'population', 'location-b'), 0);
 });
 
+test('relation.move.correct nu redeschide relația precedentă dacă crearea ei a fost anulată', () => {
+  const s = setup();
+  s.commit('move-prior-create', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
+  s.commit('move-to-b-after-prior-create', [{ operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-b' } }]);
+  s.commit('void-prior-location-create', [{ operation: 'relation.create.correct', data: { correctsEventId: 'move-prior-create' } }]);
+
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('correct-move-with-voided-previous', [{ operation: 'relation.move.correct', data: { correctsEventId: 'move-to-b-after-prior-create' } }]),
+    /relația precedentă a fost deja anulată/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
+});
+
 test('relation.move.correct marchează corecția și respinge repetarea fără a afecta mutările ulterioare', () => {
   const s = setup();
   s.commit('population-located-a-repeat', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
