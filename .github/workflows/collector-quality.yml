@@ -85,12 +85,12 @@ jobs:
       - name: Run Firefox end-to-end tests
         if: github.event_name == 'schedule' || github.event_name == 'pull_request'
         working-directory: collector-v11
-        run: npx playwright test --browser=firefox
+        run: npx playwright test --project=firefox
 
       - name: Run WebKit end-to-end tests
         if: github.event_name == 'schedule' || github.event_name == 'pull_request'
         working-directory: collector-v11
-        run: npx playwright test --browser=webkit
+        run: npx playwright test --project=webkit
 
       - name: Install StrykerJS for nightly mutation testing
         if: github.event_name == 'schedule'
