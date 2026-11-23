@@ -166,7 +166,7 @@ PR #26 integrat (`8703993a5f7de3997b7ea50aef96c71d4af741bf`): `stock.adjust` val
 PR #27 în lucru: `finance.adjust` validează `entityId` nenul împotriva entităților existente, la fel ca `finance.record`; test de regresie pentru referință lipsă și CI în așteptare.
 
 
-PR #28 în lucru: `event.attribute.set` trim-uiește numele și respinge valorile goale sau formate doar din spații; teste de rollback atomic și CI în așteptare.
+PR #28 integrat (`bc5a60a7097bd2a6832d48a8af7c43aef8734c39`): `event.attribute.set` trim-uiește numele și respinge valorile goale sau formate doar din spații; teste de rollback atomic. CI complet trecut (run #45251169429).
 
 
 PR #29 în lucru: `event.attribute.correct` respinge corectarea repetată a unei înregistrări deja voided și păstrează primul `voidedByEventId`; test de rollback atomic și CI în așteptare.
