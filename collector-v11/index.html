@@ -1,4 +1,51 @@
-<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Collector — MVP v11 corectat</title><link rel="stylesheet" href="style.css"></head><body>
+<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Collector — MVP v11 corectat</title><link rel="stylesheet" href="style.css"><script>
+(function () {
+  'use strict';
+  var errors = [];
+  function report(kind, detail) {
+    var message = String(detail || kind).slice(0, 1800);
+    errors.push({ kind: kind, message: message, at: new Date().toISOString() });
+    var panel = document.getElementById('collectorStartupDiagnostics');
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.id = 'collectorStartupDiagnostics';
+      panel.setAttribute('role', 'alert');
+      panel.style.cssText = 'position:fixed;z-index:2147483647;left:8px;right:8px;top:8px;max-height:45vh;overflow:auto;padding:14px;background:#3b1010;color:#fff;border:2px solid #ff7777;border-radius:10px;font:13px/1.45 monospace;white-space:pre-wrap;box-shadow:0 4px 24px #0008';
+      document.body.appendChild(panel);
+    }
+    panel.textContent = 'COLLECTOR — EROARE LA PORNIRE\\n' + errors.map(function (entry) {
+      return entry.kind + ': ' + entry.message;
+    }).join('\\n\\n') + '\\n\\nTrimite o captură de ecran pentru diagnostic.';
+  }
+  window.__collectorStartupDiagnostics = { errors: errors };
+  window.addEventListener('error', function (event) {
+    var target = event.target;
+    if (target && target !== window && target.tagName === 'SCRIPT') {
+      report('SCRIPT_LOAD', target.src || target.outerHTML);
+      return;
+    }
+    report('JAVASCRIPT', (event.message || 'Eroare JavaScript') + (event.filename ? ' @ ' + event.filename + ':' + event.lineno + ':' + event.colno : '') + (event.error && event.error.stack ? '\\n' + event.error.stack : ''));
+  }, true);
+  window.addEventListener('unhandledrejection', function (event) {
+    var reason = event.reason;
+    report('PROMISE_REJECTION', reason && (reason.stack || reason.message) || reason);
+  });
+  window.addEventListener('load', function () {
+    var required = ['engine.js', 'core-port-browser.js', 'audio-store.js', 'app.js'];
+    var loaded = Array.prototype.map.call(document.scripts, function (script) { return script.src; });
+    var missing = required.filter(function (name) {
+      return !loaded.some(function (src) { return src.indexOf('/' + name) !== -1; });
+    });
+    if (missing.length) report('MISSING_SCRIPT_TAG', missing.join(', '));
+    if (!window.CollectorEngine) report('MISSING_GLOBAL', 'window.CollectorEngine nu este definit');
+    if (!window.CollectorBrowserCorePort) report('MISSING_GLOBAL', 'window.CollectorBrowserCorePort nu este definit');
+    if (!document.getElementById('menuToggle') || !document.getElementById('mainContent')) {
+      report('MISSING_DOM', 'Lipsesc elementele de bază ale interfeței');
+    }
+    window.__collectorStartupDiagnostics.ready = errors.length === 0;
+  });
+})();
+</script></head><body>
 <a class="skip-link" href="#mainContent">Sari la conținut</a>
 <aside class="sidebar" id="appSidebar" aria-label="Navigare principală"><div class="brand"><span class="logo">C</span><div><b>Collector</b><small>MVP v11 · local-first</small></div></div>
 <nav class="primary-nav" aria-label="Secțiuni Collector"><button class="nav active" data-page="dashboard" aria-current="page" aria-label="Dashboard">⌂ Dashboard</button><button class="nav" data-page="entities" aria-label="Entități">◉ Entități</button><button class="nav" data-page="relations" aria-label="Relații și locații">⇄ Relații & locații</button><button class="nav" data-page="inventory" aria-label="Populații și solduri">▦ Populații & solduri</button><button class="nav" data-page="finance" aria-label="Financiar">◈ Financiar</button><button class="nav" data-page="attributes" aria-label="Atribute">◇ Atribute</button><button class="nav" data-page="events" aria-label="Evenimente">↻ Evenimente</button><button class="nav" data-page="history" aria-label="Istoric">≡ Istoric</button><button class="nav" data-page="assistant" aria-label="Introducere rapidă vocală">🎙 Introducere rapidă</button><button class="nav" data-page="audit" aria-label="Audit și date">✓ Audit & date</button></nav></aside>
