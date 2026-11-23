@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 6,
+  "entities": [
+    {
+      "id": "legacy-entity-missing-create",
+      "name": "Legacy specimen",
+      "type": "plant",
+      "createdAt": "1999-01-01T00:00:00.000Z",
+      "attributes": {},
+      "attributeHistory": {},
+      "status": "active"
+    }
+  ],
+  "attributes": [],
+  "relations": [],
+  "events": [
+    {
+      "id": "legacy-journal-note-001",
+      "type": "legacy.note",
+      "timestamp": "2026-11-20T10:00:00.000Z",
+      "status": "committed",
+      "operations": [
+        {
+          "operation": "event.note",
+          "data": {
+            "description": "Synthetic pre-migration journal event"
+          }
+        }
+      ]
+    }
+  ],
+  "stock": [],
+  "finance": [],
+  "eventAttributes": [],
+  "meta": {
+    "lastActivityAt": "2026-11-20T10:00:00.000Z",
+    "activeContext": null,
+    "processedIntentKeys": [],
+    "replayWarnings": []
+  }
+}
