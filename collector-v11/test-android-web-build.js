@@ -30,4 +30,8 @@ test('Android web bundle is deterministic and includes every local runtime asset
   const html = await readFile(path.join(output, 'index.html'), 'utf8');
   assert.ok(html.includes('audio-store.js'));
   assert.ok(html.includes('ai/core-port-browser.js'));
+  await access(path.join(output, 'android-native-entry.js'));
+  assert.ok(html.includes('android-native-entry.js'));
+  const nativeBridge = await readFile(path.join(output, 'android-native-entry.js'), 'utf8');
+  assert.ok(nativeBridge.includes('CollectorRecorder'));
 });
