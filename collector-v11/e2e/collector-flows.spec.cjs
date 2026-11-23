@@ -466,13 +466,13 @@ test('migrarea legacy jurnalizează definițiile și rămâne validă la următo
 });
 
 test('migrarea legacy refuză o proiecție de relații divergentă fără să o suprascrie', async ({ page }) => {
-  await createEntity(page, 'Sursă legacy', 'plant');
-  await createEntity(page, 'Destinație legacy', 'location');
+  const sourceId = await createEntity(page, 'Sursă legacy', 'plant');
+  const targetId = await createEntity(page, 'Destinație legacy', 'location');
   await page.locator('.nav[data-page="relations"]').click();
   await page.locator('#relations .toolbar button.primary').first().click();
-  await page.locator('#relSource').selectOption({ label: /Sursă legacy/ });
+  await page.locator('#relSource').selectOption(sourceId);
   await page.locator('#relType').selectOption('related_to');
-  await page.locator('#relTarget').selectOption({ label: /Destinație legacy/ });
+  await page.locator('#relTarget').selectOption(targetId);
   await page.locator('#modal button.primary').click();
   await page.evaluate(() => {
     const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
