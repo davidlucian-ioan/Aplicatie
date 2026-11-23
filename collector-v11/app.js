@@ -40,12 +40,12 @@ function loadDb(){
   if(projected.type!==String(ent.type||'generic'))return preserveAndBlock(raw,'Tipul unei entități vechi diferă de jurnal și nu poate fi migrat automat.');
   if(projected.name!==String(ent.name||'Fără nume')){
    const ev={id:id(),type:'migration.entity_renamed',timestamp:migrationTimestamp(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name},operations:[{target:ent.id,operation:'entity.rename',data:{name:ent.name}}]};
-   events.push(ev);state=E.replay(events,attrs);projected=state.entities.find(x=>x.id===ent.id);
+   events.push(ev);state=E.replay(events,[]);projected=state.entities.find(x=>x.id===ent.id);
   }
   for(const [name,value] of Object.entries(ent.attributes||{})){
    if(JSON.stringify(projected.attributes?.[name])!==JSON.stringify(value)){
     const ev={id:id(),type:'migration.attribute_imported',timestamp:migrationTimestamp(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,attribute:name,value},operations:[{target:ent.id,operation:'attribute.set',data:{name,value,certainty:'certain'}}]};
-    events.push(ev);state=E.replay(events,attrs);projected=state.entities.find(x=>x.id===ent.id);
+    events.push(ev);state=E.replay(events,[]);projected=state.entities.find(x=>x.id===ent.id);
    }
   }
  }
