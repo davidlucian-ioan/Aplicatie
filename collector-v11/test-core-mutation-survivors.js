@@ -65,6 +65,8 @@ test('stock.adjust aplică numai corecții nenule care nu produc sold negativ', 
   assert.throws(() => s.commit('stock-adjust-empty', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [] } }]), /nu conține modificări/);
   assert.throws(() => s.commit('stock-adjust-zero', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'population', locationId: 'location-a', quantity: 0 }] } }]), /nenulă/);
   assert.throws(() => s.commit('stock-adjust-unknown', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'missing', quantity: 1 }] } }]), /nu există/);
+  assert.throws(() => s.commit('stock-adjust-missing-location', [{ operation: 'stock.adjust', data: { changes: [{ populationId: 'population', locationId: 'missing', quantity: 1 }] } }]), /Locația corectată nu există/);
+  assert.throws(() => s.commit('stock-adjust-non-location', [{ operation: 'stock.adjust', data: { changes: [{ populationId: 'population', locationId: 'item', quantity: 1 }] } }]), /Locația corectată nu există/);
   assert.throws(() => s.commit('stock-adjust-negative', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'population', locationId: 'location-a', quantity: -4 }] } }]), /sold (?:activ )?negativ/);
   assert.equal(JSON.stringify(s.db), before);
 
