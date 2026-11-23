@@ -501,3 +501,19 @@ test('migrarea legacy refuză o proiecție de relații divergentă fără să o 
   expect(stillPreserved.schemaVersion).toBe(6);
   expect(stillPreserved.relations[0].type).toBe('tampered_relation');
 });
+
+
+test('startup-ul păstrează datele unei versiuni de schemă viitoare și nu le retrogradează', async ({ page }) => {
+  await createEntity(page, 'Entitate schema viitoare', 'plant');
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.schemaVersion = 8;
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(preserved.schemaVersion).toBe(8);
+  expect(preserved.entities[0].name).toBe('Entitate schema viitoare');
+});
