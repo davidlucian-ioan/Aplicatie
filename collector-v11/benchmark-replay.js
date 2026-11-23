@@ -27,7 +27,7 @@ function makeEvents(count) {
   }];
 
   const types = ['event.note', 'stock.change', 'finance.record', 'attribute.set', 'relation.attribute.set', 'entity.rename'];
-  const expected = { stockAdds: 0, financeRecords: 0, attributeWrites: 0, relationWrites: 0, renames: 0 };
+  const expected = { stockAdds: 0, financeRecords: 0, attributeValue: undefined, relationValue: undefined, entityName: 'Synthetic item' };
 
   for (let index = 1; index < count; index++) {
     const timestamp = new Date(BASE + index).toISOString();
@@ -47,15 +47,15 @@ function makeEvents(count) {
         operation = { operation: type, data: { entityId: 'benchmark-item', kind: 'cost', amount: 1, currency: 'RON', description: 'synthetic cost ' + index } };
         break;
       case 'attribute.set':
-        expected.attributeWrites++;
+        expected.attributeValue = index;
         operation = { operation: type, target: 'benchmark-item', data: { name: 'benchmark_quality', value: index } };
         break;
       case 'relation.attribute.set':
-        expected.relationWrites++;
+        expected.relationValue = index;
         operation = { operation: type, data: { relationId: 'benchmark-relation', name: 'benchmark_score', value: index } };
         break;
       case 'entity.rename':
-        expected.renames++;
+        expected.entityName = 'Synthetic item ' + index;
         operation = { operation: type, target: 'benchmark-item', data: { name: 'Synthetic item ' + index } };
         break;
       default:
@@ -103,9 +103,9 @@ for (const count of SIZES) {
     assert.equal(activeQuantity, 1 + expected.stockAdds);
     assert.equal(E.totalFinance(replayed)['RON|cost'] || 0, expected.financeRecords);
     const entity = replayed.entities.find(row => row.id === 'benchmark-item');
-    assert.equal(entity.attributes.benchmark_quality, expected.attributeWrites ? count - 2 : undefined);
-    assert.equal(entity.name, expected.renames ? 'Synthetic item ' + (count - 1) : 'Synthetic item');
-    assert.equal(replayed.relations.find(row => row.id === 'benchmark-relation').attributes.benchmark_score, expected.relationWrites ? count - 1 : undefined);
+    assert.equal(entity.attributes.benchmark_quality, expected.attributeValue);
+    assert.equal(entity.name, expected.entityName);
+    assert.equal(replayed.relations.find(row => row.id === 'benchmark-relation').attributes.benchmark_score, expected.relationValue);
 
     samplesMs.push(Number(elapsed.toFixed(3)));
     heapSamplesBytes.push(Math.max(0, heapAfter - heapBefore));
