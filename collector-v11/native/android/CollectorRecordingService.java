@@ -59,6 +59,10 @@ public final class CollectorRecordingService extends Service {
         }
 
         String action = intent.getAction();
+        String requestedId = intent.getStringExtra(EXTRA_ID);
+        if (!ACTION_START.equals(action) && recordingId != null && requestedId != null && !recordingId.equals(requestedId)) {
+            return START_NOT_STICKY;
+        }
         try {
             if (ACTION_START.equals(action)) {
                 startRecording(intent);
@@ -85,23 +89,15 @@ public final class CollectorRecordingService extends Service {
             recordingId = UUID.randomUUID().toString();
         }
 
-        File directory = recordingsDirectory();
-        if (!directory.exists() && !directory.mkdirs()) {
-            throw new IllegalStateException("Nu pot crea directorul local pentru înregistrări.");
-        }
-
         boolean supportsAdts = Build.VERSION.SDK_INT >= 26;
         format = supportsAdts ? "aac" : "m4a";
         String extension = supportsAdts ? ".aac" : ".m4a";
-        outputFile = new File(directory, "recording-" + recordingId + extension);
-        manifestFile = new File(directory, recordingId + ".json");
         startedAtMs = System.currentTimeMillis();
         pausedDurationMs = 0L;
         pauseStartedAtMs = 0L;
         status = "starting";
-        persistManifest(null);
 
-        Notification notification = buildNotification("Microfon activ · înregistrarea se salvează local");
+        Notification notification = buildNotification("Pornire microfon · pregătesc fișierul local");
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(
                 NOTIFICATION_ID,
@@ -111,6 +107,14 @@ public final class CollectorRecordingService extends Service {
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
+
+        File directory = recordingsDirectory();
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw new IllegalStateException("Nu pot crea directorul local pentru înregistrări.");
+        }
+        outputFile = new File(directory, "recording-" + recordingId + extension);
+        manifestFile = new File(directory, recordingId + ".json");
+        persistManifest(null);
 
         MediaRecorder nextRecorder = new MediaRecorder();
         nextRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
