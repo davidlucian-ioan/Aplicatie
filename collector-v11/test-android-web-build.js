@@ -29,5 +29,5 @@ test('Android web bundle is deterministic and includes every local runtime asset
 
   const html = await readFile(path.join(output, 'index.html'), 'utf8');
   assert.ok(html.includes('audio-store.js'));
-  assert.match(html, /ai\\/core-port-browser\\.js/);
+  assert.ok(html.includes('ai/core-port-browser.js'));
 });
