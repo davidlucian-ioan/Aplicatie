@@ -158,3 +158,6 @@ Benchmark Replay după PR #22 (run #45248706376, Node 22.23.5, Linux x64, AMD EP
 
 
 PR #25 în lucru: stock.change folosește allowlist pentru acțiunile publice (add, sell, dispose, move_out); move_in rămâne efect ledger intern generat de move_out. Acțiunile necunoscute sunt respinse în loc să fie tratate implicit ca add. Teste de regresie și CI în așteptare.
+
+
+PR #26 în lucru: `stock.adjust` validează referințele `locationId` nenule și respinge locațiile inexistente sau entitățile care nu sunt de tip `location`; teste de rollback atomic și CI în așteptare.
