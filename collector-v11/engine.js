@@ -73,7 +73,7 @@ function replay(events,attributeDefs=[]){
  const ordered=(events||[]).filter(e=>e&&e.status==='committed');
  // These operations can mutate projections before a final invariant check throws.
  // Multi-operation events also need a transaction boundary across their whole operation list.
- const needsTransaction=ev=>(ev.operations||[]).length>1||(ev.operations||[]).some(op=>['stock.adjust','stock.reverse','relation.create.correct','relation.move.correct'].includes(op?.operation));
+ const needsTransaction=ev=>{const operations=Array.isArray(ev.operations)?ev.operations:[];return operations.length>1||operations.some(op=>['stock.adjust','stock.reverse','relation.create.correct','relation.move.correct'].includes(op?.operation));};
  for(const ev of ordered){
   if(typeof ev.id!=='string'||!ev.id.trim()||ev.id!==ev.id.trim()){
    s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:null,error:'Eveniment fără ID în jurnal.'});continue;
@@ -94,9 +94,12 @@ function replay(events,attributeDefs=[]){
   if(!validTimestamp(ev.timestamp)){
    s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Timestamp-ul evenimentului lipsește sau este invalid.'});continue;
   }
+  const operations=Array.isArray(ev.operations)?ev.operations:[];
+  const malformedOperations=ev.operations!==undefined&&!Array.isArray(ev.operations);
   const transactional=needsTransaction(ev),target=transactional?clone(s):s;
   try{
-   for(const op of ev.operations||[])applyOperation(target,op,ev);
+   if(malformedOperations)throw Error('Lista operațiilor evenimentului este invalidă.');
+   for(const op of operations)applyOperation(target,op,ev);
    target.events.push(ev);
    if(ev.intentKey)target.meta.processedIntentKeys.push(ev.intentKey);
    if(transactional)s=target;
