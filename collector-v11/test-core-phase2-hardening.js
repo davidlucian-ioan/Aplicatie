@@ -460,3 +460,81 @@ test('normDb normalizes all collection and metadata cache arrays', () => {
   assert.deepEqual(normalized.meta.processedIntentKeys, []);
   assert.deepEqual(normalized.meta.replayWarnings, []);
 });
+
+test('Replay discards every projection change when a stock.adjust event violates a final balance invariant', () => {
+  const base = setupBase();
+  const initial = commit(base.db, 'initial-stock-for-replay-atomicity', T1, [
+    { operation: 'stock.change', data: {
+      populationId: base.entities.pop,
+      locationId: base.entities.a,
+      quantity: 2,
+      action: 'add'
+    } }
+  ]);
+
+  const invalidEvent = {
+    id: 'invalid-multi-row-stock-adjust',
+    type: 'stock.adjust',
+    timestamp: T2,
+    status: 'committed',
+    operations: [{
+      operation: 'stock.adjust',
+      data: {
+        changes: [
+          { populationId: base.entities.pop, locationId: base.entities.a, quantity: 1 },
+          { populationId: base.entities.pop, locationId: base.entities.b, quantity: -5 }
+        ]
+      }
+    }]
+  };
+
+  const replayed = E.replay([...initial.db.events, invalidEvent]);
+
+  assert.ok(replayed.meta.replayWarnings.some(warning => warning.eventId === invalidEvent.id));
+  assert.equal(replayed.stock.some(row => row.eventId === invalidEvent.id), false);
+  assert.equal(activeBalance(replayed, base.entities.pop, base.entities.a), 2);
+  assert.equal(activeBalance(replayed, base.entities.pop, base.entities.b), 0);
+});
+
+test('Replay rolls back earlier operations when a later operation in the same event fails', () => {
+  const base = setupBase();
+  const invalidEvent = {
+    id: 'invalid-compound-event',
+    type: 'compound.invalid',
+    timestamp: T1,
+    status: 'committed',
+    operations: [
+      { operation: 'entity.create', target: 'must-rollback-entity', data: { name: 'Must roll back', type: 'generic' } },
+      { operation: 'stock.change', data: {
+        populationId: 'missing-population',
+        locationId: null,
+        quantity: 1,
+        action: 'add'
+      } }
+    ]
+  };
+
+  const replayed = E.replay([...base.db.events, invalidEvent]);
+
+  assert.ok(replayed.meta.replayWarnings.some(warning => warning.eventId === invalidEvent.id));
+  assert.equal(replayed.entities.some(entity => entity.id === 'must-rollback-entity'), false);
+  assert.equal(replayed.stock.some(row => row.eventId === invalidEvent.id), false);
+});
+
+test('Replay reports malformed non-array operations without crashing', () => {
+  const base = setupBase();
+  const malformedEvent = {
+    id: 'malformed-operations-list',
+    type: 'malformed',
+    timestamp: T1,
+    status: 'committed',
+    operations: 'entity.create'
+  };
+
+  const replayed = E.replay([...base.db.events, malformedEvent]);
+
+  assert.ok(replayed.meta.replayWarnings.some(warning =>
+    warning.eventId === malformedEvent.id && /lista operațiilor/i.test(warning.error)
+  ));
+  assert.equal(replayed.entities.length, base.db.entities.length);
+});

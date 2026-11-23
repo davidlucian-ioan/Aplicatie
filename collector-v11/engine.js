@@ -67,7 +67,49 @@ case 'event.note': return;
 default: throw Error('Operație necunoscută: '+op.operation);
 }}
 function commit(dbInput,event){const db=normDb(dbInput);if(!event||typeof event.id!=='string'||!event.id.trim()||event.id!==event.id.trim())throw Error('Evenimentul trebuie să aibă un ID text valid.');const duplicateId=db.events.find(e=>e.id===event.id);if(duplicateId)return {db,duplicate:true,event:duplicateId};if(event.intentKey!==undefined&&event.intentKey!==null&&(typeof event.intentKey!=='string'||!event.intentKey.trim()||event.intentKey!==event.intentKey.trim()))throw Error('Cheia de intenție trebuie să fie un șir valid.');const duplicateIntent=event.intentKey?db.events.find(e=>e.intentKey===event.intentKey):null;if(duplicateIntent)return {db,duplicate:true,event:duplicateIntent};const ev={timestamp:now(),source:'user',actor:'local-user',certainty:'certain',operations:[],...clone(event),status:'committed'};if(!validTimestamp(ev.timestamp))throw Error('Evenimentul trebuie să aibă un timestamp ISO valid.');if(!Array.isArray(ev.operations)||!ev.operations.length)throw Error('Evenimentul trebuie să conțină cel puțin o operație.');const draft=clone(db);for(const op of ev.operations)applyOperation(draft,op,ev);draft.events.push(ev);if(ev.intentKey)draft.meta.processedIntentKeys.push(ev.intentKey);draft.meta.lastActivityAt=ev.timestamp;draft.meta.activeContext={...(draft.meta.activeContext||{}),lastActivityAt:ev.timestamp};return {db:draft,event:ev,duplicate:false};}
-function replay(events,attributeDefs=[]){let s=emptyState();s.attributes=clone(attributeDefs);const seenIds=new Set(),seenIntentKeys=new Set();const ordered=(events||[]).filter(e=>e&&e.status==='committed');for(const ev of ordered){if(typeof ev.id!=='string'||!ev.id.trim()||ev.id!==ev.id.trim()){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:null,error:'Eveniment fără ID în jurnal.'});continue;}if(seenIds.has(ev.id)){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'ID de eveniment duplicat în jurnal.'});continue;}seenIds.add(ev.id);if(ev.intentKey!==undefined&&ev.intentKey!==null){if(typeof ev.intentKey!=='string'||!ev.intentKey.trim()||ev.intentKey!==ev.intentKey.trim()){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Cheie de intenție (intentKey) invalidă în jurnal.'});continue;}if(seenIntentKeys.has(ev.intentKey)){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Cheie de intenție (intentKey) duplicată în jurnal.'});continue;}seenIntentKeys.add(ev.intentKey);}if(!validTimestamp(ev.timestamp)){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Timestamp-ul evenimentului lipsește sau este invalid.'});continue;}try{for(const op of ev.operations||[])applyOperation(s,op,ev);s.events.push(ev);if(ev.intentKey)s.meta.processedIntentKeys.push(ev.intentKey);}catch(err){s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:err.message});}}return s;}
+function replay(events,attributeDefs=[]){
+ let s=emptyState();s.attributes=clone(attributeDefs);
+ const seenIds=new Set(),seenIntentKeys=new Set();
+ const ordered=(events||[]).filter(e=>e&&e.status==='committed');
+ // These operations can mutate projections before a final invariant check throws.
+ // Multi-operation events also need a transaction boundary across their whole operation list.
+ const needsTransaction=ev=>{const operations=Array.isArray(ev.operations)?ev.operations:[];return operations.length>1||operations.some(op=>['stock.adjust','stock.reverse','relation.create.correct','relation.move.correct'].includes(op?.operation));};
+ for(const ev of ordered){
+  if(typeof ev.id!=='string'||!ev.id.trim()||ev.id!==ev.id.trim()){
+   s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:null,error:'Eveniment fără ID în jurnal.'});continue;
+  }
+  if(seenIds.has(ev.id)){
+   s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'ID de eveniment duplicat în jurnal.'});continue;
+  }
+  seenIds.add(ev.id);
+  if(ev.intentKey!==undefined&&ev.intentKey!==null){
+   if(typeof ev.intentKey!=='string'||!ev.intentKey.trim()||ev.intentKey!==ev.intentKey.trim()){
+    s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Cheie de intenție (intentKey) invalidă în jurnal.'});continue;
+   }
+   if(seenIntentKeys.has(ev.intentKey)){
+    s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Cheie de intenție (intentKey) duplicată în jurnal.'});continue;
+   }
+   seenIntentKeys.add(ev.intentKey);
+  }
+  if(!validTimestamp(ev.timestamp)){
+   s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Timestamp-ul evenimentului lipsește sau este invalid.'});continue;
+  }
+  const operations=Array.isArray(ev.operations)?ev.operations:[];
+  const malformedOperations=ev.operations!==undefined&&!Array.isArray(ev.operations);
+  const transactional=needsTransaction(ev),target=transactional?clone(s):s;
+  try{
+   if(malformedOperations)throw Error('Lista operațiilor evenimentului este invalidă.');
+   for(const op of operations)applyOperation(target,op,ev);
+   target.events.push(ev);
+   if(ev.intentKey)target.meta.processedIntentKeys.push(ev.intentKey);
+   if(transactional)s=target;
+  }catch(err){
+   s.events.push(ev);
+   (s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:err.message});
+  }
+ }
+ return s;
+}
 function stableJson(value){
  if(Array.isArray(value))return '['+value.map(stableJson).join(',')+']';
  if(value&&typeof value==='object')return '{'+Object.keys(value).filter(k=>value[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+stableJson(value[k])).join(',')+'}';
