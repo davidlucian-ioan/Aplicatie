@@ -4,7 +4,7 @@
   "private": true,
   "description": "Collector MVP with an isolated AI Foundation scaffold",
   "scripts": {
-    "test": "node --test test-*.js",
+    "test": "node --check app.js && node --test test-*.js",
     "test:properties": "node --test property-stock-sequences.test.js",
     "test:e2e": "playwright test --project=chromium",
     "test:ui-coverage": "playwright test --project=chromium e2e/app-ui-coverage.spec.cjs",
