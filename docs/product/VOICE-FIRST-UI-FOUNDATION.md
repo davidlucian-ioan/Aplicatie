@@ -119,3 +119,12 @@ Microphone / Speech API → Transcript → Intent interpreter → Core Port prev
 - Browser permission denial, unsupported APIs and local storage errors are surfaced. The microphone is requested only after an explicit user action.
 - This is foreground browser capture. It does not guarantee background recording, device-lock continuity, offline transcription, encryption at rest, or cross-device sync. Those require separate platform and security work.
 - E2E coverage exercises start, pause, resume, stop, local persistence across reload, permission denial and the invariant that audio capture does not append Core events.
+
+
+## Screen wake lock — browser recorder
+
+- While a foreground audio recording is active, Collector requests the Screen Wake Lock API to prevent automatic display sleep on supported browsers/devices.
+- The lock is released when recording is paused, stopped or fails. Resuming recording requests it again.
+- If the browser releases the lock when the document becomes hidden, Collector requests it again when the page returns to the visible state and recording is still active.
+- Unsupported browsers and rejected requests do not block audio capture; the UI warns that the screen may turn off and the app should remain in the foreground.
+- Screen Wake Lock does not keep a browser tab alive in the background, does not guarantee microphone continuity after screen lock/app suspension, and is not a substitute for an Android microphone Foreground Service.
