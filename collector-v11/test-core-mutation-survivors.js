@@ -280,7 +280,7 @@ test('relation.close.correct nu redeschide o a doua locație activă pentru acee
   const before = JSON.stringify(s.db);
   assert.throws(
     () => s.commit('located-a-close-correction', [{ operation: 'relation.close.correct', data: { relationId: relationA.id, correctsEventId: 'located-a-close' } }]),
-    /altă locație activă/
+    /altă locație activă/i
   );
   assert.equal(JSON.stringify(s.db), before);
   assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
@@ -297,7 +297,7 @@ test('relation.close.correct nu redeschide o relație a cărei creare a fost anu
   const before = JSON.stringify(s.db);
   assert.throws(
     () => s.commit('voided-relation-close-correction', [{ operation: 'relation.close.correct', data: { relationId, correctsEventId: 'voided-relation-close' } }]),
-    /anulată prin corectarea creării/
+    /anulată prin corectarea creării/i
   );
   assert.equal(JSON.stringify(s.db), before);
 });
