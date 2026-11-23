@@ -63,8 +63,8 @@ test('desktop navigation exposes the current section to assistive technology', a
 
 test('voice entry degrades to accessible text input when speech recognition is unavailable', async ({ page }) => {
   await page.addInitScript(() => {
-    delete window.SpeechRecognition;
-    delete window.webkitSpeechRecognition;
+    window.SpeechRecognition = undefined;
+    window.webkitSpeechRecognition = undefined;
   });
   await page.goto('/index-server.html');
   await page.getByRole('button', { name: 'Începe introducerea vocală' }).click();
