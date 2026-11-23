@@ -520,3 +520,21 @@ test('Replay rolls back earlier operations when a later operation in the same ev
   assert.equal(replayed.entities.some(entity => entity.id === 'must-rollback-entity'), false);
   assert.equal(replayed.stock.some(row => row.eventId === invalidEvent.id), false);
 });
+
+test('Replay reports malformed non-array operations without crashing', () => {
+  const base = setupBase();
+  const malformedEvent = {
+    id: 'malformed-operations-list',
+    type: 'malformed',
+    timestamp: T1,
+    status: 'committed',
+    operations: 'entity.create'
+  };
+
+  const replayed = E.replay([...base.db.events, malformedEvent]);
+
+  assert.ok(replayed.meta.replayWarnings.some(warning =>
+    warning.eventId === malformedEvent.id && /lista operațiilor/i.test(warning.error)
+  ));
+  assert.equal(replayed.entities.length, base.db.entities.length);
+});
