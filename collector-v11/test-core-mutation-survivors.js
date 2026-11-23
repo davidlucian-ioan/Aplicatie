@@ -293,6 +293,22 @@ test('finance.record și finance.adjust validează și păstrează totalurile', 
   const adjustment = s.db.finance.find(row => row.eventId === 'finance-correction');
   assert.equal(adjustment.correctsEventId, 'finance-cost');
   assert.equal(adjustment.quantity, 1);
+  const afterFinanceCorrection = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('finance-correction-twice', [{ operation: 'finance.adjust', data: { entityId: 'item', kind: 'cost', amount: -100, currency: 'RON', correctsEventId: 'finance-cost' } }]),
+    /deja corectată/
+  );
+  assert.equal(JSON.stringify(s.db), afterFinanceCorrection);
+
+  s.commit('finance-compound-source', [
+    { operation: 'finance.record', data: { amount: 10, currency: 'RON', kind: 'cost' } },
+    { operation: 'finance.record', data: { amount: 5, currency: 'RON', kind: 'fee' } }
+  ]);
+  s.commit('finance-compound-correction', [
+    { operation: 'finance.adjust', data: { amount: -10, currency: 'RON', kind: 'cost', correctsEventId: 'finance-compound-source' } },
+    { operation: 'finance.adjust', data: { amount: -5, currency: 'RON', kind: 'fee', correctsEventId: 'finance-compound-source' } }
+  ]);
+  assert.equal(s.db.finance.filter(row => row.eventId === 'finance-compound-correction').length, 2, 'multiple ledger rows from one source event can be corrected atomically in one event');
 
   s.commit('finance-zero-record', [{ operation: 'finance.record', data: { amount: 0, currency: 'RON' } }]);
   const zeroRecord = s.db.finance.find(row => row.eventId === 'finance-zero-record');
