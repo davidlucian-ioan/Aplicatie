@@ -246,6 +246,15 @@ test('stock.reverse poate inversa un eveniment stock.adjust fără să dubleze c
 test('Replay face rollback atomic când stock.reverse ar crea un sold negativ', () => {
   const events = [
     {
+      id: 'replay-reverse-setup',
+      timestamp: new Date(BASE).toISOString(),
+      status: 'committed',
+      operations: [
+        { operation: 'entity.create', target: 'population', data: { name: 'Fancy', type: 'population' } },
+        { operation: 'entity.create', target: 'location-a', data: { name: 'Sera', type: 'location' } }
+      ]
+    },
+    {
       id: 'replay-reverse-seed',
       timestamp: new Date(BASE + 1).toISOString(),
       status: 'committed',
