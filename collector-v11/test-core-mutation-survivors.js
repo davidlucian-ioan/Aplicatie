@@ -122,6 +122,22 @@ test('stock.reverse respinge inversarea unei adăugări după vânzare parțial�
   assert.equal(JSON.stringify(s.db), before);
 });
 
+test('stock.reverse respinge inversarea unei mutări după vânzare din destinație și păstrează atomicitatea', () => {
+  const s = setup();
+  s.commit('reverse-moved-stock-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('reverse-moved-stock', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', destinationId: 'location-b', quantity: 2, action: 'move_out' } }]);
+  s.commit('reverse-moved-stock-sale', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-b', quantity: 1, action: 'sell' } }]);
+  const before = JSON.stringify(s.db);
+
+  assert.throws(
+    () => s.commit('reverse-partially-consumed-move', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-moved-stock' } }]),
+    /sold activ negativ/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+  assert.equal(balance(s.db, 'population', 'location-a'), 3);
+  assert.equal(balance(s.db, 'population', 'location-b'), 1);
+});
+
 test('finance.record și finance.adjust validează și păstrează totalurile', () => {
   const s = setup();
   s.commit('finance-cost', [{ operation: 'finance.record', data: { entityId: 'item', kind: 'cost', amount: 100, currency: 'RON', description: 'purchase' } }]);
