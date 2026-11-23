@@ -307,6 +307,8 @@ test('eșecul localStorage nu păstrează în memorie un eveniment neconfirmat d
   });
   expect(afterFailure).not.toContain('Entitate eșuată');
 
+  // The failed form remains open so the user can correct or retry it.
+  await page.locator('#modal .close').click();
   await page.locator('#entities .toolbar button.primary').click();
   await page.locator('#newName').fill('Entitate salvată ulterior');
   await page.locator('#newType').fill('generic');
