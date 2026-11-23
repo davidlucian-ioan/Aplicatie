@@ -475,7 +475,7 @@ test('migrarea legacy refuză o proiecție de relații divergentă fără să o 
   const sourceId = await createEntity(page, 'Sursă legacy', 'plant');
   const targetId = await createEntity(page, 'Destinație legacy', 'location');
   await page.locator('.nav[data-page="relations"]').click();
-  await page.locator('#relations .toolbar button.primary').first().click();
+  await page.locator('#relations .toolbar button.primary').last().click();
   await page.locator('#relSource').selectOption(sourceId);
   await page.locator('#relType').selectOption('related_to');
   await page.locator('#relTarget').selectOption(targetId);
