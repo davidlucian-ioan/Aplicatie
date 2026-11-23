@@ -25,7 +25,7 @@ test('mobile navigation opens, selects a section and closes accessibly', async (
 test('global voice action opens assistant and starts microphone capture without committing', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorVoiceStarts = 0;
-    window.SpeechRecognition = class {
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
       start() {
         window.__collectorVoiceStarts += 1;
         this.onstart?.();
@@ -33,7 +33,7 @@ test('global voice action opens assistant and starts microphone capture without 
       stop() {
         this.onend?.();
       }
-    };
+    } });
   });
 
   await page.goto('/index-server.html');
@@ -63,8 +63,8 @@ test('desktop navigation exposes the current section to assistive technology', a
 
 test('voice entry degrades to accessible text input when speech recognition is unavailable', async ({ page }) => {
   await page.addInitScript(() => {
-    window.SpeechRecognition = undefined;
-    window.webkitSpeechRecognition = undefined;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
   });
   await page.goto('/index-server.html');
   await page.getByRole('button', { name: 'Începe introducerea vocală' }).click();
