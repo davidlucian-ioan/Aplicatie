@@ -2,13 +2,13 @@
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "command",
   "commandRunner": {
-    "command": "npm test"
+    "command": "node --test test-core-mutation-survivors.js"
   },
   "coverageAnalysis": "off",
   "mutate": [
     "engine.js"
   ],
-  "concurrency": 2,
+  "concurrency": 4,
   "timeoutMS": 10000,
   "timeoutFactor": 1.5,
   "reporters": [
