@@ -246,6 +246,28 @@ test('relation.move transferă soldul și corectează numai ultima mutare activ�
   assert.equal(balance(s.db, 'population', 'location-b'), 0);
 });
 
+test('relation.move.correct marchează corecția și respinge repetarea fără a afecta mutările ulterioare', () => {
+  const s = setup();
+  s.commit('population-located-a-repeat', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
+  s.commit('population-stock-repeat', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('population-move-b-repeat', [{ operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-b' } }]);
+  s.commit('population-move-back-a-repeat', [{ operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-a' } }]);
+
+  const moved = s.db.relations.find(row => row.history.some(entry => entry.eventId === 'population-move-b-repeat' && entry.action === 'created_by_move'));
+  const beforeStaleCorrection = JSON.stringify(s.db.stock);
+  s.commit('population-move-b-stale-correct', [{ operation: 'relation.move.correct', data: { correctsEventId: 'population-move-b-repeat' } }]);
+  assert.equal(moved.voidedByEventId, 'population-move-b-stale-correct');
+  assert.equal(JSON.stringify(s.db.stock), beforeStaleCorrection, 'a superseded move must not reverse current stock');
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-a');
+
+  const beforeDuplicate = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('population-move-b-stale-correct-twice', [{ operation: 'relation.move.correct', data: { correctsEventId: 'population-move-b-repeat' } }]),
+    /deja corectată/
+  );
+  assert.equal(JSON.stringify(s.db), beforeDuplicate);
+});
+
 test('relation.create.correct nu poate șterge un membru dacă ar crea sold negativ după vânzare', () => {
   const s = setup();
   s.commit('individual-create-for-sale', [{ operation: 'entity.create', target: 'individual', data: { name: 'Shrimp sold', type: 'individual' } }]);
