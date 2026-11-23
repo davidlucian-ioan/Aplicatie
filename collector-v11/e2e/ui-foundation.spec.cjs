@@ -127,6 +127,7 @@ test('one-shot dictation remains available for structured commands', async ({ pa
     } });
   });
   await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="assistant"]').click();
   await page.getByRole('button', { name: 'Începe dictarea' }).click();
   await expect(page.locator('#voiceButton')).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate(() => window.__oneShotStarts)).toBe(1);
