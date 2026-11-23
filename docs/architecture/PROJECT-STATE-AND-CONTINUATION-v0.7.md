@@ -149,3 +149,6 @@ Actualizare 2026-11-23: PR #22 extinde invariantul de sold nenegativ la toate di
 
 
 PR #22 integrat (`27c7d41bb69691dfa46f3adbf5783649b606f77e`): `stock.reverse` și `stock.adjust` verifică soldurile nenegative pentru toate dispozițiile (`active`, `sold`, `disposed`); testele acoperă rollback când o ajustare/inversare ar crea sold negativ. CI complet trecut (run #45248325717). PR #23 rămâne deschis: `relation.close.correct` verifică faptul că relația nu a fost anulată prin corectarea creării și că redeschiderea unei relații `located_in` nu ar crea două locații active pentru aceeași entitate. CI este în desfășurare.
+
+
+PR #23 în lucru: relation.close.correct respinge redeschiderea unei relații a cărei creare a fost anulată și împiedică redeschiderea unei relații located_in dacă există deja o altă locație activă pentru aceeași entitate. PR #24 în lucru: relation.move.correct nu mai poate redeschide o relație precedentă al cărei eveniment de creare a fost anulat. Ambele au teste de rollback atomic și CI în desfășurare/în așteptare; nu integra fără CI complet verde.
