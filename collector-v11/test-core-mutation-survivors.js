@@ -219,9 +219,12 @@ test('stock.reverse folosește dispoziția activă implicită pentru rândurile 
   const legacyRow = s.db.stock.find(row => row.eventId === 'reverse-legacy-seed');
   delete legacyRow.disposition;
 
-  assert.equal(balance(s.db, 'population', null), 4);
+  const legacyActiveBalance = () => s.db.stock
+    .filter(row => row.populationId === 'population' && row.locationId === null && (row.disposition || 'active') === 'active')
+    .reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+  assert.equal(legacyActiveBalance(), 4);
   s.commit('reverse-legacy-correction', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-legacy-seed' } }]);
-  assert.equal(balance(s.db, 'population', null), 0);
+  assert.equal(legacyActiveBalance(), 0);
   const inverse = s.db.stock.find(row => row.eventId === 'reverse-legacy-correction');
   assert.equal(inverse.disposition, 'active');
   assert.equal(inverse.locationId, null);
