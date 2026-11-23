@@ -726,6 +726,74 @@ test('relation.move.correct ignoră corecția stale fără să blocheze revenire
   assert.equal(replayedFirstMove.ignoredCorrectionByEventId, 'population-move-b-ignored-correction');
 });
 
+test('relation.move.correct corectează toate populațiile curente și ignoră separat mutările stale', () => {
+  const s = setup();
+  s.commit('multi-population-seed', [
+    { operation: 'entity.create', target: 'population-two', data: { name: 'Second population', type: 'population' } },
+    { operation: 'entity.create', target: 'location-c', data: { name: 'Depozit', type: 'location' } },
+    { operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } },
+    { operation: 'relation.create', data: { sourceId: 'population-two', targetId: 'location-a', type: 'located_in' } },
+    { operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } },
+    { operation: 'stock.change', data: { populationId: 'population-two', locationId: 'location-a', quantity: 7, action: 'add' } }
+  ]);
+
+  s.commit('multi-population-move', [
+    { operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-b' } },
+    { operation: 'relation.move', data: { sourceId: 'population-two', targetId: 'location-b' } }
+  ]);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
+  assert.equal(E.activeLocation(s.db, 'population-two').id, 'location-b');
+
+  s.commit('population-two-later-move', [{ operation: 'relation.move', data: { sourceId: 'population-two', targetId: 'location-c' } }]);
+  s.commit('multi-population-move-correct', [{ operation: 'relation.move.correct', data: { correctsEventId: 'multi-population-move' } }]);
+
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-a');
+  assert.equal(E.activeLocation(s.db, 'population-two').id, 'location-c');
+  assert.equal(balance(s.db, 'population', 'location-a'), 5);
+  assert.equal(balance(s.db, 'population', 'location-b'), 0);
+  assert.equal(balance(s.db, 'population-two', 'location-a'), 0);
+  assert.equal(balance(s.db, 'population-two', 'location-b'), 0);
+  assert.equal(balance(s.db, 'population-two', 'location-c'), 7);
+
+  const replay = E.replay(s.db.events, s.db.attributes);
+  assert.equal(E.activeLocation(replay, 'population').id, 'location-a');
+  assert.equal(E.activeLocation(replay, 'population-two').id, 'location-c');
+  assert.equal(balance(replay, 'population', 'location-a'), 5);
+  assert.equal(balance(replay, 'population-two', 'location-c'), 7);
+  assert.deepEqual(replay.meta.replayWarnings || [], []);
+});
+
+test('relation.move respinge două mutări ale aceleiași entități în același eveniment și Replay face rollback', () => {
+  const s = setup();
+  s.commit('single-population-location', [
+    { operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } },
+    { operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 3, action: 'add' } }
+  ]);
+  const before = JSON.stringify(s.db);
+  const duplicateMove = {
+    id: 'duplicate-source-move',
+    type: 'test.duplicate-source-move',
+    timestamp: new Date(BASE + 100).toISOString(),
+    status: 'committed',
+    operations: [
+      { operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-b' } },
+      { operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-a' } }
+    ]
+  };
+
+  assert.throws(
+    () => s.commit(duplicateMove.id, duplicateMove.operations, { timestamp: duplicateMove.timestamp }),
+    /de mai multe ori în același eveniment/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+
+  const replay = E.replay([...s.db.events, duplicateMove], s.db.attributes);
+  assert.ok(replay.meta.replayWarnings.some(row => row.eventId === duplicateMove.id));
+  assert.equal(E.activeLocation(replay, 'population').id, 'location-a');
+  assert.equal(balance(replay, 'population', 'location-a'), 3);
+  assert.equal(balance(replay, 'population', 'location-b'), 0);
+});
+
 test('relation.create.correct nu poate șterge un membru dacă ar crea sold negativ după vânzare', () => {
   const s = setup();
   s.commit('individual-create-for-sale', [{ operation: 'entity.create', target: 'individual', data: { name: 'Shrimp sold', type: 'individual' } }]);
