@@ -292,13 +292,13 @@ test('relation.create.correct păstrează închiderea anterioară și inverseaz�
   const relation = s.db.relations.find(row => row.history.some(entry => entry.eventId === 'population-member-closed' && entry.action === 'created'));
   s.commit('population-member-close', [{ operation: 'relation.close', data: { relationId: relation.id } }]);
   const closedAt = s.db.relations.find(row => row.id === relation.id).endedAt;
-  assert.equal(balance(s.db), 1);
+  assert.equal(balance(s.db, 'population', null), 1);
 
   s.commit('population-member-closed-correct', [{ operation: 'relation.create.correct', data: { correctsEventId: 'population-member-closed' } }]);
   const corrected = s.db.relations.find(row => row.id === relation.id);
   assert.equal(corrected.endedAt, closedAt);
   assert.equal(corrected.voidedByEventId, 'population-member-closed-correct');
-  assert.equal(balance(s.db), 0);
+  assert.equal(balance(s.db, 'population', null), 0);
 });
 
 test('relation.create.correct respinge un eveniment existent fără relații și păstrează atomicitatea', () => {
