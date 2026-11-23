@@ -65,6 +65,22 @@ test('stock.adjust aplică numai corecții nenule care nu produc sold negativ', 
   assert.throws(() => s.commit('stock-adjust-unknown', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'missing', quantity: 1 }] } }]), /nu există/);
   assert.throws(() => s.commit('stock-adjust-negative', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'population', locationId: 'location-a', quantity: -4 }] } }]), /sold (?:activ )?negativ/);
   assert.equal(JSON.stringify(s.db), before);
+
+  s.commit('stock-sell-for-adjust', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'sell' } }]);
+  const beforeSold = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('stock-adjust-sold-negative', [{ operation: 'stock.adjust', data: { changes: [{ populationId: 'population', locationId: 'location-a', disposition: 'sold', quantity: -3 }] } }]),
+    /sold negativ/
+  );
+  assert.equal(JSON.stringify(s.db), beforeSold);
+
+  s.commit('stock-dispose-for-adjust', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 1, action: 'dispose' } }]);
+  const beforeDisposed = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('stock-adjust-disposed-negative', [{ operation: 'stock.adjust', data: { changes: [{ populationId: 'population', locationId: 'location-a', disposition: 'disposed', quantity: -2 }] } }]),
+    /sold negativ/
+  );
+  assert.equal(JSON.stringify(s.db), beforeDisposed);
 });
 
 test('stock.reverse inversează un eveniment o singură dată', () => {
