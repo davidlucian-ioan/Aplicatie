@@ -13,7 +13,7 @@ test('mobile navigation opens, selects a section and closes accessibly', async (
 
   await toggle.click();
   await expect(sidebar).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Închide meniul' })).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#menuToggle')).toHaveAttribute('aria-expanded', 'true');
 
   await page.getByRole('button', { name: 'Entități' }).click();
   await expect(page.locator('#entities')).toBeVisible();
@@ -59,4 +59,18 @@ test('desktop navigation exposes the current section to assistive technology', a
   await expect(page.locator('#history')).toBeVisible();
   await expect(page.locator('.nav[data-page="history"]')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.nav[data-page="dashboard"]')).not.toHaveAttribute('aria-current', 'page');
+});
+
+test('voice entry degrades to accessible text input when speech recognition is unavailable', async ({ page }) => {
+  await page.addInitScript(() => {
+    delete window.SpeechRecognition;
+    delete window.webkitSpeechRecognition;
+  });
+  await page.goto('/index-server.html');
+  await page.getByRole('button', { name: 'Începe introducerea vocală' }).click();
+
+  await expect(page.locator('#assistant')).toBeVisible();
+  await expect(page.locator('#commandResult')).toContainText('Dictarea vocală nu este disponibilă');
+  await expect(page.locator('#commandInput')).toBeFocused();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
 });
