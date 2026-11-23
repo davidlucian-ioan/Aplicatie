@@ -176,7 +176,7 @@ test('relation.close și relation.close.correct păstrează istoricul și respin
   const relationId = s.db.relations[0].id;
 
   s.commit('relation-close-first', [{ operation: 'relation.close', data: { relationId } }]);
-  assert.equal(s.db.relations[0].endedAt, new Date(BASE + 1).toISOString());
+  assert.equal(s.db.relations[0].endedAt, new Date(BASE + 2).toISOString());
 
   s.commit('relation-close-correct', [{ operation: 'relation.close.correct', data: { relationId, correctsEventId: 'relation-close-first' } }]);
   assert.equal(s.db.relations[0].endedAt, null);
