@@ -169,18 +169,19 @@ PR #27 integrat (`68c58d15b3b3ad3ddc100874656a286b67da5feb`): `finance.adjust` v
 PR #28 integrat (`bc5a60a7097bd2a6832d48a8af7c43aef8734c39`): `event.attribute.set` trim-uiește numele și respinge valorile goale sau formate doar din spații; teste de rollback atomic. CI complet trecut (run #45251169429).
 
 
-PR #29 în lucru: `event.attribute.correct` respinge corectarea repetată a unei înregistrări deja voided și păstrează primul `voidedByEventId`; test de rollback atomic și CI în așteptare.
+PR #29 este înlocuit de PR #32 după integrarea PR #30. PR #32 păstrează guard-ul de idempotency pentru `event.attribute.correct`, cu branch sincronizat la `main` și CI complet nou obligatoriu înainte de integrare.
 
+**PR #30 integrat:** https://github.com/davidlucian-ioan/Aplicatie/pull/30
+**Merge commit:** `43c385c7bfcfbe823a462e20c7325e9d48b09695`
+- [x] Eveniment compus sell + dispose + move_out inversat atomic pe mai multe locații și dispoziții.
+- [x] `balances()` tratează rândurile legacy fără `disposition` ca `active`.
+- [x] Inversarea unui eveniment `stock.adjust` este testată; o corecție manuală deja legată blochează inversarea originalului.
+- [x] Replay păstrează proiecțiile când o inversare ar produce sold negativ și înregistrează warning.
+- [x] Triage semantic pentru raportul Stryker istoric (33 supraviețuitori și un timeout); nu se revendică un scor nou.
+- [x] CI complet pentru head-ul PR #30: run #45252517108; CI post-merge pe `main`: run #45252907794.
 
-**PR #30 în lucru — stock.reverse și Stryker:** https://github.com/davidlucian-ioan/Aplicatie/pull/30
-- [ ] Test pentru inversarea atomică a unui eveniment compus care conține vânzare, eliminare și transfer între locații.
-- [ ] Test și fix pentru fallback-ul `disposition: active` la rânduri legacy fără câmpul `disposition`; `balances()` proiectează acum rândurile legacy în categoria activă.
-- [ ] Test pentru inversarea unui eveniment `stock.adjust` ca eveniment distinct, blocarea unei a doua inversări și refuzul inversării unui eveniment deja corectat prin `stock.adjust`.
-- [ ] Test Replay: dacă `stock.reverse` ar crea un sold negativ, Replay păstrează proiecțiile anterioare și adaugă un warning.
-- [ ] Triage documentat pentru cei 33 de mutanți supraviețuitori și un timeout din raportul istoric #45237194442; raportul precede PR #22 și nu este un scor actual.
-- [ ] CI complet în așteptare. Date sintetice; fără deploy.
-
-**Verificare de integrare:** PR #17–#20 sunt în continuare strămoși ai branch-ului `main` (compare API: `ahead`, `behind_by=0` pentru fiecare merge commit). PR #21 este integrat și CI a trecut (run #45247173561). Ultimul CI `main` verificat pentru SHA `bd359025b7dc48eb09d98beeeacd2fdbc3541860` a trecut (run #45251393000). După integrarea PR #28, `main` este la SHA `265d6da5b28723dc6a2727b8fa22342a74df2a90`, iar CI pentru acest SHA este în desfășurare (run #45251640647). PR #27 este deschis și noua revizie are CI în desfășurare (run #45251550928); PR #29 este deschis, cu CI în desfășurare (run #45251353306).
-
-
-**PR #30 — status CI:** primele trei rulări au expus o aserțiune legacy care folosea `E.balances()` fără fallback pentru `disposition`; fixul din `balances()` și testul actualizat sunt în branch. Noua rulare CI este în desfășurare. Nu integra până când toate joburile nu sunt verzi.
+**Verificare de integrare 2026-11-23:**
+- PR #27 și #28 sunt integrate, cu CI complet trecut (run #45251550928, respectiv #45251169429).
+- PR #30 este integrat, iar `main` este la `43c385c7bfcfbe823a462e20c7325e9d48b09695`; CI post-merge a trecut.
+- PR #29 rămâne deschis doar până când PR #32, care conține aceeași corecție pe un branch sincronizat, trece CI complet.
+- Nu există deploy; s-au folosit exclusiv date sintetice.
