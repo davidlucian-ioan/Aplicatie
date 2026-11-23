@@ -188,6 +188,61 @@ test('stock.reverse respinge inversarea unei mutări după vânzare din destina�
   assert.equal(balance(s.db, 'population', 'location-b'), 1);
 });
 
+test('stock.reverse inversează atomic toate efectele unui eveniment compus pe locații și dispoziții', () => {
+  const s = setup();
+  s.commit('reverse-composite-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 10, action: 'add' } }]);
+
+  s.commit('reverse-composite-event', [
+    { operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'sell' } },
+    { operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 3, action: 'dispose' } },
+    { operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', destinationId: 'location-b', quantity: 1, action: 'move_out' } }
+  ]);
+
+  assert.equal(balance(s.db, 'population', 'location-a'), 4);
+  assert.equal(balance(s.db, 'population', 'location-a', 'sold'), 2);
+  assert.equal(balance(s.db, 'population', 'location-a', 'disposed'), 3);
+  assert.equal(balance(s.db, 'population', 'location-b'), 1);
+  assert.equal(s.db.stock.filter(row => row.eventId === 'reverse-composite-event').length, 6);
+
+  s.commit('reverse-composite-correction', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-composite-event' } }]);
+
+  assert.equal(balance(s.db, 'population', 'location-a'), 10);
+  assert.equal(balance(s.db, 'population', 'location-a', 'sold'), 0);
+  assert.equal(balance(s.db, 'population', 'location-a', 'disposed'), 0);
+  assert.equal(balance(s.db, 'population', 'location-b'), 0);
+  assert.equal(s.db.stock.filter(row => row.eventId === 'reverse-composite-correction').length, 6);
+});
+
+test('stock.reverse folosește dispoziția activă implicită pentru rândurile legacy fără disposition', () => {
+  const s = setup();
+  s.commit('reverse-legacy-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: null, quantity: 4, action: 'add' } }]);
+  const legacyRow = s.db.stock.find(row => row.eventId === 'reverse-legacy-seed');
+  delete legacyRow.disposition;
+
+  assert.equal(balance(s.db, 'population', null), 4);
+  s.commit('reverse-legacy-correction', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-legacy-seed' } }]);
+  assert.equal(balance(s.db, 'population', null), 0);
+  const inverse = s.db.stock.find(row => row.eventId === 'reverse-legacy-correction');
+  assert.equal(inverse.disposition, 'active');
+  assert.equal(inverse.locationId, null);
+});
+
+test('stock.reverse poate inversa un eveniment stock.adjust fără să dubleze corecția originală', () => {
+  const s = setup();
+  s.commit('reverse-adjust-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('reverse-adjust-event', [{ operation: 'stock.adjust', data: { changes: [{ populationId: 'population', locationId: 'location-a', quantity: 2 }] } }]);
+  assert.equal(balance(s.db), 7);
+
+  s.commit('reverse-adjust-correction', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-adjust-event' } }]);
+  assert.equal(balance(s.db), 5);
+  assert.equal(s.db.stock.filter(row => row.eventId === 'reverse-adjust-correction').length, 1);
+  assert.throws(
+    () => s.commit('reverse-adjust-correction-twice', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-adjust-event' } }]),
+    /deja corectate/
+  );
+  assert.equal(balance(s.db), 5);
+});
+
 test('finance.record și finance.adjust validează și păstrează totalurile', () => {
   const s = setup();
   s.commit('finance-cost', [{ operation: 'finance.record', data: { entityId: 'item', kind: 'cost', amount: 100, currency: 'RON', description: 'purchase' } }]);
