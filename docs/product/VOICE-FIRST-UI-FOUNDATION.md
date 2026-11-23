@@ -107,3 +107,24 @@ Microphone / Speech API → Transcript → Intent interpreter → Core Port prev
 - Short structured commands remain available through the separate one-shot dictation control.
 - This is not background recording, wake-word detection, automatic command batching, spoken read-back, or guaranteed offline recognition. Browser implementations may terminate recognition; a session ending early is surfaced and any final transcript is still subject to review.
 - E2E coverage verifies multi-segment accumulation, preview-only behavior, explicit commit, and unsupported-browser fallback.
+
+
+## Local audio recorder — first implementation increment
+
+- The global capture action now starts a real foreground audio recording using `getUserMedia` and `MediaRecorder`.
+- Recording supports pause, resume and explicit stop. Microphone tracks are stopped after recording.
+- Original audio blobs are stored in a dedicated IndexedDB database, separate from the append-only Core event journal and localStorage projections.
+- Recordings can be played back and explicitly deleted from the local recordings list.
+- Audio capture does not create Core events or invoke cloud transcription. Live speech recognition remains a separate optional workflow.
+- Browser permission denial, unsupported APIs and local storage errors are surfaced. The microphone is requested only after an explicit user action.
+- This is foreground browser capture. It does not guarantee background recording, device-lock continuity, offline transcription, encryption at rest, or cross-device sync. Those require separate platform and security work.
+- E2E coverage exercises start, pause, resume, stop, local persistence across reload, permission denial and the invariant that audio capture does not append Core events.
+
+
+## Screen wake lock — browser recorder
+
+- While a foreground audio recording is active, Collector requests the Screen Wake Lock API to prevent automatic display sleep on supported browsers/devices.
+- The lock is released when recording is paused, stopped or fails. Resuming recording requests it again.
+- If the browser releases the lock when the document becomes hidden, Collector requests it again when the page returns to the visible state and recording is still active.
+- Unsupported browsers and rejected requests do not block audio capture; the UI warns that the screen may turn off and the app should remain in the foreground.
+- Screen Wake Lock does not keep a browser tab alive in the background, does not guarantee microphone continuity after screen lock/app suspension, and is not a substitute for an Android microphone Foreground Service.
