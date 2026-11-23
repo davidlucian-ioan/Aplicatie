@@ -322,3 +322,87 @@ test('eșecul localStorage nu păstrează în memorie un eveniment neconfirmat d
   expect(afterReload).toContain('Entitate salvată ulterior');
   expect(afterReload).not.toContain('Entitate eșuată');
 });
+
+
+test('startup-ul blochează proiecțiile divergente și reconstruiește numai după salvare reușită', async ({ page }) => {
+  await createEntity(page, 'Entitate din jurnal', 'plant');
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.entities[0].name = 'Proiecție divergentă';
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+
+  await page.locator('#modal').waitFor({ state: 'detached' }).catch(() => {});
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  await expect(page.locator('#modalContent pre')).toContainText('"warnings": []');
+
+  await page.evaluate(() => {
+    const originalSetItem = Storage.prototype.setItem;
+    window.__collectorFailNextPersist = true;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'collector_mvp_v2' && window.__collectorFailNextPersist) {
+        window.__collectorFailNextPersist = false;
+        throw new DOMException('Simulated storage quota failure', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+  });
+  const failedSaveDialog = page.waitForEvent('dialog');
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  const failedSave = await failedSaveDialog;
+  expect(failedSave.message()).toContain('nu a fost salvată');
+  await failedSave.accept();
+
+  await expect(page.locator('#entityList')).toHaveCount(0);
+  const stillDivergent = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities[0].name);
+  expect(stillDivergent).toBe('Proiecție divergentă');
+
+  const successDialog = page.waitForEvent('dialog');
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  const success = await successDialog;
+  expect(success.message()).toContain('salvate cu succes');
+  await success.accept();
+
+  await page.locator('.nav[data-page="entities"]').click();
+  await expect(page.locator('#entityList')).toContainText('Entitate din jurnal');
+  await expect(page.locator('#entityList')).not.toContainText('Proiecție divergentă');
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
+});
+
+test('rebuild refuză jurnalul invalid și păstrează proiecțiile existente', async ({ page }) => {
+  await createEntity(page, 'Entitate păstrată', 'plant');
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.events.push({
+      id: 'invalid-startup-replay-event',
+      type: 'invalid.test',
+      timestamp: new Date().toISOString(),
+      status: 'committed',
+      operations: [{ operation: 'entity.rename', target: 'missing-entity', data: { name: 'Must not apply' } }]
+    });
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  await expect(page.locator('#auditSummary')).toContainText('Erori la replay: <b>1</b>');
+
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  await expect(page.locator('#modalContent pre')).toContainText('invalid-startup-replay-event');
+  const blockedDialog = page.waitForEvent('dialog');
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  const blocked = await blockedDialog;
+  expect(blocked.message()).toContain('Reconstruirea a fost blocată');
+  await blocked.accept();
+
+  const after = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return { names: db.entities.map(entity => entity.name), hasInvalidEvent: db.events.some(event => event.id === 'invalid-startup-replay-event') };
+  });
+  expect(after.names).toContain('Entitate păstrată');
+  expect(after.hasInvalidEvent).toBe(true);
+});
