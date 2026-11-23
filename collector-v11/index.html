@@ -2,47 +2,91 @@
 (function () {
   'use strict';
   var errors = [];
-  function report(kind, detail) {
-    var message = String(detail || kind).slice(0, 1800);
-    errors.push({ kind: kind, message: message, at: new Date().toISOString() });
-    var panel = document.getElementById('collectorStartupDiagnostics');
+  var panel = null;
+  var nativeContext = false;
+  function render() {
     if (!panel) {
-      panel = document.createElement('section');
+      panel = document.createElement('aside');
       panel.id = 'collectorStartupDiagnostics';
-      panel.setAttribute('role', 'alert');
-      panel.style.cssText = 'position:fixed;z-index:2147483647;left:8px;right:8px;top:8px;max-height:45vh;overflow:auto;padding:14px;background:#3b1010;color:#fff;border:2px solid #ff7777;border-radius:10px;font:13px/1.45 monospace;white-space:pre-wrap;box-shadow:0 4px 24px #0008';
+      panel.setAttribute('role', 'status');
+      panel.setAttribute('aria-live', 'polite');
+      panel.style.cssText = 'position:fixed;z-index:2147483647;left:8px;right:8px;bottom:8px;max-height:30vh;overflow:auto;padding:9px 12px;background:#10251b;color:#eaffef;border:1px solid #4b9b69;border-radius:9px;font:12px/1.4 monospace;white-space:pre-wrap;box-shadow:0 3px 16px #0006;pointer-events:none;opacity:.94';
       document.body.appendChild(panel);
     }
-    panel.textContent = 'COLLECTOR — EROARE LA PORNIRE\\n' + errors.map(function (entry) {
-      return entry.kind + ': ' + entry.message;
-    }).join('\\n\\n') + '\\n\\nTrimite o captură de ecran pentru diagnostic.';
+    var appReady = window.__collectorAppReady === true;
+    var lines = errors.map(function (entry) { return entry.kind + ': ' + entry.message; });
+    if (!appReady) lines.push('APP_NOT_READY: app.js nu a confirmat inițializarea completă.');
+    var state = errors.length || !appReady ? 'EROARE STARTUP' : 'STARTUP OK';
+    panel.style.background = errors.length || !appReady ? '#3b1010' : '#10251b';
+    panel.style.borderColor = errors.length || !appReady ? '#ff7777' : '#4b9b69';
+    panel.textContent = 'COLLECTOR ANDROID · ' + state + '\\n' +
+      'Engine: ' + Boolean(window.CollectorEngine) +
+      ' | Core Port: ' + Boolean(window.CollectorBrowserCorePort) +
+      ' | Audio Store: ' + Boolean(window.CollectorAudioStore) +
+      ' | Native Recorder: ' + Boolean(window.CollectorAndroidRecorder) +
+      ' | App: ' + appReady + '\\n' +
+      'Ultima atingere: ' + (window.__collectorStartupDiagnostics.lastTap || 'nicio atingere detectată') +
+      (lines.length ? '\\n' + lines.join('\\n') : '');
   }
-  window.__collectorStartupDiagnostics = { errors: errors };
+  function report(kind, detail) {
+    errors.push({ kind: kind, message: String(detail || kind).slice(0, 1800), at: new Date().toISOString() });
+    render();
+  }
+  window.__collectorStartupDiagnostics = {
+    errors: errors,
+    lastTap: null,
+    snapshot: function () {
+      return {
+        appReady: window.__collectorAppReady === true,
+        engine: Boolean(window.CollectorEngine),
+        corePort: Boolean(window.CollectorBrowserCorePort),
+        audioStore: Boolean(window.CollectorAudioStore),
+        nativeRecorder: Boolean(window.CollectorAndroidRecorder),
+        errors: errors.slice(),
+        lastTap: this.lastTap
+      };
+    }
+  };
   window.addEventListener('error', function (event) {
     var target = event.target;
     if (target && target !== window && target.tagName === 'SCRIPT') {
       report('SCRIPT_LOAD', target.src || target.outerHTML);
       return;
     }
-    report('JAVASCRIPT', (event.message || 'Eroare JavaScript') + (event.filename ? ' @ ' + event.filename + ':' + event.lineno + ':' + event.colno : '') + (event.error && event.error.stack ? '\\n' + event.error.stack : ''));
+    report('JAVASCRIPT', (event.message || 'Eroare JavaScript') +
+      (event.filename ? ' @ ' + event.filename + ':' + event.lineno + ':' + event.colno : '') +
+      (event.error && event.error.stack ? '\\n' + event.error.stack : ''));
   }, true);
   window.addEventListener('unhandledrejection', function (event) {
     var reason = event.reason;
     report('PROMISE_REJECTION', reason && (reason.stack || reason.message) || reason);
   });
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    window.__collectorStartupDiagnostics.lastTap =
+      (target && (target.id || target.textContent || target.tagName) || 'unknown').toString().trim().slice(0, 100) +
+      ' · trusted=' + Boolean(event.isTrusted) + ' · ' + new Date().toISOString();
+    render();
+  }, true);
   window.addEventListener('load', function () {
-    var required = ['engine.js', 'core-port-browser.js', 'audio-store.js', 'app' + '.js'];
-    var loaded = Array.prototype.map.call(document.scripts, function (script) { return script.src; });
-    var missing = required.filter(function (name) {
-      return !loaded.some(function (src) { return src.indexOf('/' + name) !== -1; });
+    nativeContext = Boolean(window.CollectorAndroidRecorder) ||
+      location.hostname === 'localhost' || location.search.indexOf('diagnostics=1') !== -1;
+    if (!nativeContext) return;
+    ['engine.js', 'core-port-browser.js', 'audio-store.js', 'app.js'].forEach(function (name) {
+      var loaded = Array.prototype.some.call(document.scripts, function (script) {
+        return script.src.indexOf('/' + name) !== -1;
+      });
+      if (!loaded) report('MISSING_SCRIPT_TAG', name);
     });
-    if (missing.length) report('MISSING_SCRIPT_TAG', missing.join(', '));
-    if (!window.CollectorEngine) report('MISSING_GLOBAL', 'window.CollectorEngine nu este definit');
-    if (!window.CollectorBrowserCorePort) report('MISSING_GLOBAL', 'window.CollectorBrowserCorePort nu este definit');
+    if (!window.CollectorEngine) report('MISSING_GLOBAL', 'window.CollectorEngine');
+    if (!window.CollectorBrowserCorePort) report('MISSING_GLOBAL', 'window.CollectorBrowserCorePort');
+    if (!window.CollectorAudioStore) report('MISSING_GLOBAL', 'window.CollectorAudioStore');
+    if (!window.CollectorAndroidRecorder) report('MISSING_GLOBAL', 'window.CollectorAndroidRecorder');
     if (!document.getElementById('menuToggle') || !document.getElementById('mainContent')) {
-      report('MISSING_DOM', 'Lipsesc elementele de bază ale interfeței');
+      report('MISSING_DOM', 'menuToggle sau mainContent');
     }
-    window.__collectorStartupDiagnostics.ready = errors.length === 0;
+    if (window.__collectorAppReady !== true) report('APP_NOT_READY', 'app.js nu a ajuns la finalul inițializării.');
+    render();
   });
 })();
 </script></head><body>
