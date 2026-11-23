@@ -335,7 +335,6 @@ test('startup-ul blochează proiecțiile divergente și reconstruiește numai du
   await page.locator('.nav[data-page="audit"]').click();
   await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
 
-  await page.locator('#modal').waitFor({ state: 'detached' }).catch(() => {});
   await page.getByRole('button', { name: 'Verifică replay' }).click();
   await expect(page.locator('#modalContent pre')).toContainText('"warnings": []');
 
@@ -356,10 +355,14 @@ test('startup-ul blochează proiecțiile divergente și reconstruiește numai du
   expect(failedSave.message()).toContain('nu a fost salvată');
   await failedSave.accept();
 
-  await expect(page.locator('#entityList')).toHaveCount(0);
+  await page.locator('#modalContent button.secondary').click();
+  await page.locator('.nav[data-page="entities"]').click();
+  await expect(page.locator('#entityList')).toContainText('Proiecție divergentă');
   const stillDivergent = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities[0].name);
   expect(stillDivergent).toBe('Proiecție divergentă');
 
+  await page.locator('.nav[data-page="audit"]').click();
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
   const successDialog = page.waitForEvent('dialog');
   await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
   const success = await successDialog;
@@ -389,7 +392,7 @@ test('rebuild refuză jurnalul invalid și păstrează proiecțiile existente', 
   await page.reload();
   await page.locator('.nav[data-page="audit"]').click();
   await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
-  await expect(page.locator('#auditSummary')).toContainText('Erori la replay: <b>1</b>');
+  await expect(page.locator('#auditSummary')).toContainText(/Erori la replay: 1/);
 
   await page.getByRole('button', { name: 'Verifică replay' }).click();
   await expect(page.locator('#modalContent pre')).toContainText('invalid-startup-replay-event');
