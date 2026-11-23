@@ -346,6 +346,66 @@ test('atributele evenimentelor pot fi înregistrate și corectate, iar eveniment
   assert.equal(s.db.events.find(event => event.id === 'note-original').hiddenFromHistory, true);
 });
 
+test('corecțiile de nume și atributele relațiilor resping duplicatele, iar măsurătorile rămân corectabile', () => {
+  const s = setup();
+
+  s.commit('rename-before-correction', [{ operation: 'entity.rename', target: 'item', data: { name: 'Plant renamed' } }]);
+  s.commit('rename-correction-first', [{ operation: 'entity.rename.correct', target: 'item', data: { correctsEventId: 'rename-before-correction' } }]);
+  assert.equal(s.db.entities.find(row => row.id === 'item').name, 'Plant');
+  const renameRow = s.db.entities.find(row => row.id === 'item').nameHistory[0];
+  assert.equal(renameRow.correctedByEventId, 'rename-correction-first');
+
+  s.commit('attribute-before-correction', [{ operation: 'attribute.set', target: 'item', data: { name: 'height', value: 10 } }]);
+  s.commit('attribute-correction-first', [{ operation: 'attribute.correct', target: 'item', data: { name: 'height', value: 11, correctsEventId: 'attribute-before-correction' } }]);
+  assert.equal(s.db.entities.find(row => row.id === 'item').attributes.height, 11);
+  const attributeRow = s.db.entities.find(row => row.id === 'item').attributeHistory.height[0];
+  assert.equal(attributeRow.correctedByEventId, 'attribute-correction-first');
+  // Measurement corrections are intentionally repeatable: each correction refines the same historical row.
+  s.commit('attribute-correction-second', [{ operation: 'attribute.correct', target: 'item', data: { name: 'height', value: 12, correctsEventId: 'attribute-before-correction' } }]);
+  assert.equal(s.db.entities.find(row => row.id === 'item').attributes.height, 12);
+  const correctedAttributeRow = s.db.entities.find(row => row.id === 'item').attributeHistory.height[0];
+  assert.equal(correctedAttributeRow.value, 12);
+  assert.equal(correctedAttributeRow.correctedByEventId, 'attribute-correction-second');
+
+  s.commit('correction-relation-create', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'other', type: 'related_to' } }]);
+  const relationId = s.db.relations[0].id;
+  s.commit('relation-attribute-before-correction', [{ operation: 'relation.attribute.set', data: { relationId, name: 'strength', value: 2 } }]);
+  s.commit('relation-attribute-to-correct', [{ operation: 'relation.attribute.set', data: { relationId, name: 'strength', value: 3 } }]);
+  s.commit('relation-attribute-correction-first', [{ operation: 'relation.attribute.correct', data: { relationId, name: 'strength', correctsEventId: 'relation-attribute-to-correct' } }]);
+  assert.equal(s.db.relations[0].attributes.strength, 2);
+  const relationAttributeRow = s.db.relations[0].attributeHistory.strength[1];
+  assert.equal(relationAttributeRow.correctedByEventId, 'relation-attribute-correction-first');
+
+  s.commit('invalidate-target', [{ operation: 'event.note', data: { description: 'synthetic target' } }]);
+  s.commit('invalidate-first', [{ operation: 'event.invalidate', data: { correctsEventId: 'invalidate-target' } }]);
+  const invalidatedTarget = s.db.events.find(row => row.id === 'invalidate-target');
+  assert.equal(invalidatedTarget.invalidatedByEventId, 'invalidate-first');
+  assert.equal(invalidatedTarget.hiddenFromHistory, true);
+
+  const beforeDuplicateAttempts = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('rename-correction-duplicate', [{ operation: 'entity.rename.correct', target: 'item', data: { correctsEventId: 'rename-before-correction' } }]),
+    /Schimbarea numelui a fost deja corectată/
+  );
+  assert.throws(
+    () => s.commit('relation-attribute-correction-duplicate', [{ operation: 'relation.attribute.correct', data: { relationId, name: 'strength', correctsEventId: 'relation-attribute-to-correct' } }]),
+    /Modificarea atributului relației a fost deja corectată/
+  );
+  assert.equal(JSON.stringify(s.db), beforeDuplicateAttempts);
+
+  const duplicateEvents = [
+    { id: 'replay-rename-correction-duplicate', type: 'event.correction', timestamp: new Date(BASE + 100).toISOString(), status: 'committed', operations: [{ operation: 'entity.rename.correct', target: 'item', data: { correctsEventId: 'rename-before-correction' } }] },
+    { id: 'replay-relation-attribute-correction-duplicate', type: 'event.correction', timestamp: new Date(BASE + 101).toISOString(), status: 'committed', operations: [{ operation: 'relation.attribute.correct', data: { relationId, name: 'strength', correctsEventId: 'relation-attribute-to-correct' } }] }
+  ];
+  const replay = E.replay([...s.db.events, ...duplicateEvents], s.db.attributes);
+  assert.deepEqual(replay.meta.replayWarnings.map(row => row.eventId), duplicateEvents.map(row => row.id));
+  assert.equal(replay.entities.find(row => row.id === 'item').nameHistory[0].correctedByEventId, 'rename-correction-first');
+  assert.equal(replay.entities.find(row => row.id === 'item').attributeHistory.height[0].correctedByEventId, 'attribute-correction-second');
+  assert.equal(replay.entities.find(row => row.id === 'item').attributes.height, 12);
+  assert.equal(replay.relations[0].attributeHistory.strength[1].correctedByEventId, 'relation-attribute-correction-first');
+  assert.equal(replay.events.find(row => row.id === 'invalidate-target').invalidatedByEventId, 'invalidate-first');
+});
+
 test('helper-ele de locație, identificare, corecție și expirare context au rezultate stabile', () => {
   const s = setup();
   s.commit('location-hierarchy', [{ operation: 'relation.create', data: { sourceId: 'location-a', targetId: 'location-b', type: 'contains' } }]);
