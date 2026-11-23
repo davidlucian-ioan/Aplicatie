@@ -346,6 +346,13 @@ test('relation.move.correct ignoră corecția stale fără să blocheze revenire
     () => s.commit('population-move-b-ignored-correction-twice', [{ operation: 'relation.move.correct', data: { correctsEventId: 'population-move-b-chain' } }]),
     /deja corectată/
   );
+
+  const replayed = E.replay(s.db.events);
+  assert.equal(E.activeLocation(replayed, 'population').id, 'location-b');
+  assert.equal(balance(replayed, 'population', 'location-b'), 5);
+  assert.equal(balance(replayed, 'population', 'location-c'), 0);
+  const replayedFirstMove = replayed.relations.find(row => row.history.some(entry => entry.eventId === 'population-move-b-chain' && entry.action === 'created_by_move'));
+  assert.equal(replayedFirstMove.ignoredCorrectionByEventId, 'population-move-b-ignored-correction');
 });
 
 test('relation.create.correct nu poate șterge un membru dacă ar crea sold negativ după vânzare', () => {
