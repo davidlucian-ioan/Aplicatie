@@ -60,6 +60,7 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
   const outputPath = path.join(__dirname, '..', 'test-results', 'app-ui-coverage.json');
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(report, null, 2) + '\n', 'utf8');
+  console.log('APP_UI_COVERAGE ' + JSON.stringify(report));
   await session.detach();
 
   expect(coveredBytes).toBeGreaterThan(0);
