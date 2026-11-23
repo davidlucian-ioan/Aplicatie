@@ -122,6 +122,22 @@ test('stock.reverse respinge inversarea unei adăugări după vânzare parțial�
   assert.equal(JSON.stringify(s.db), before);
 });
 
+test('stock.reverse respinge inversarea unei mutări după vânzare din destinație și păstrează atomicitatea', () => {
+  const s = setup();
+  s.commit('reverse-moved-stock-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('reverse-moved-stock', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', destinationId: 'location-b', quantity: 2, action: 'move_out' } }]);
+  s.commit('reverse-moved-stock-sale', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-b', quantity: 1, action: 'sell' } }]);
+  const before = JSON.stringify(s.db);
+
+  assert.throws(
+    () => s.commit('reverse-partially-consumed-move', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-moved-stock' } }]),
+    /sold activ negativ/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+  assert.equal(balance(s.db, 'population', 'location-a'), 3);
+  assert.equal(balance(s.db, 'population', 'location-b'), 1);
+});
+
 test('finance.record și finance.adjust validează și păstrează totalurile', () => {
   const s = setup();
   s.commit('finance-cost', [{ operation: 'finance.record', data: { entityId: 'item', kind: 'cost', amount: 100, currency: 'RON', description: 'purchase' } }]);
@@ -273,6 +289,48 @@ test('relation.create.correct anulează relația și efectul de membru identific
     () => s.commit('population-member-correct-twice', [{ operation: 'relation.create.correct', data: { correctsEventId: 'population-member' } }]),
     /deja corectată/
   );
+});
+
+test('relation.create.correct anulează toate relațiile create de același eveniment', () => {
+  const s = setup();
+  s.commit('multi-relation-create', [
+    { operation: 'relation.create', data: { sourceId: 'population', targetId: 'item', type: 'related_to' } },
+    { operation: 'relation.create', data: { sourceId: 'population', targetId: 'other', type: 'related_to' } }
+  ]);
+  const created = s.db.relations.filter(row => row.history.some(entry => entry.eventId === 'multi-relation-create' && entry.action === 'created'));
+  assert.equal(created.length, 2);
+
+  s.commit('multi-relation-correct', [{ operation: 'relation.create.correct', data: { correctsEventId: 'multi-relation-create' } }]);
+  const corrected = s.db.relations.filter(row => row.voidedByEventId === 'multi-relation-correct');
+  assert.equal(corrected.length, 2);
+  assert.ok(corrected.every(row => row.endedAt));
+});
+
+test('relation.create.correct păstrează închiderea anterioară și inversează membrul identificat', () => {
+  const s = setup();
+  s.commit('individual-create-closed', [{ operation: 'entity.create', target: 'individual', data: { name: 'Shrimp closed', type: 'individual' } }]);
+  s.commit('population-member-closed', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'individual', type: 'contains' } }]);
+  const relation = s.db.relations.find(row => row.history.some(entry => entry.eventId === 'population-member-closed' && entry.action === 'created'));
+  s.commit('population-member-close', [{ operation: 'relation.close', data: { relationId: relation.id } }]);
+  const closedAt = s.db.relations.find(row => row.id === relation.id).endedAt;
+  assert.equal(balance(s.db, 'population', null), 1);
+
+  s.commit('population-member-closed-correct', [{ operation: 'relation.create.correct', data: { correctsEventId: 'population-member-closed' } }]);
+  const corrected = s.db.relations.find(row => row.id === relation.id);
+  assert.equal(corrected.endedAt, closedAt);
+  assert.equal(corrected.voidedByEventId, 'population-member-closed-correct');
+  assert.equal(balance(s.db, 'population', null), 0);
+});
+
+test('relation.create.correct respinge un eveniment existent fără relații și păstrează atomicitatea', () => {
+  const s = setup();
+  s.commit('non-relation-event', [{ operation: 'event.note', data: { description: 'no relation created' } }]);
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('non-relation-correction', [{ operation: 'relation.create.correct', data: { correctsEventId: 'non-relation-event' } }]),
+    /Relația creată de evenimentul vizat nu există/
+  );
+  assert.equal(JSON.stringify(s.db), before);
 });
 
 test('relation.move transferă soldul și corectează numai ultima mutare activă', () => {
