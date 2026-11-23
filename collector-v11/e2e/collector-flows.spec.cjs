@@ -422,3 +422,68 @@ test('focus-ul nu suprascrie date locale mai noi cu un snapshot vechi din memori
   const storedName = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities[0].name);
   expect(storedName).toBe('Valoare mai nouă');
 });
+
+
+test('JSON local corupt este păstrat pentru export și blochează scrierile', async ({ page }) => {
+  const corrupt = '{"events": [ this is not valid JSON';
+  await page.evaluate(value => localStorage.setItem('collector_mvp_v2', value), corrupt);
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  const stored = await page.evaluate(() => localStorage.getItem('collector_mvp_v2'));
+  expect(stored).toBe(corrupt);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export JSON' }).click()
+  ]);
+  const backup = JSON.parse(await require('node:fs/promises').readFile(await download.path(), 'utf8'));
+  expect(backup.db.rawStorageValue).toBe(corrupt);
+  expect(backup.db.storageKey).toBe('collector_mvp_v2');
+});
+
+test('migrarea legacy jurnalizează definițiile și rămâne validă la următorul startup', async ({ page }) => {
+  await createEntity(page, 'Plantă legacy', 'plant');
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#attrOwner').selectOption('entity');
+  await page.locator('#modal button.primary').click();
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.schemaVersion = 6;
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
+  const migrated = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(migrated.schemaVersion).toBe(7);
+  expect(migrated.events.some(event => event.operations?.some(op => op.operation === 'attribute.define' && op.data?.name === 'pH'))).toBe(true);
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
+});
+
+test('migrarea legacy refuză o proiecție de relații divergentă fără să o suprascrie', async ({ page }) => {
+  await createEntity(page, 'Sursă legacy', 'plant');
+  await createEntity(page, 'Destinație legacy', 'location');
+  await page.locator('.nav[data-page="relations"]').click();
+  await page.locator('#relations .toolbar button.primary').first().click();
+  await page.locator('#relSource').selectOption({ label: /Sursă legacy/ });
+  await page.locator('#relType').selectOption('related_to');
+  await page.locator('#relTarget').selectOption({ label: /Destinație legacy/ });
+  await page.locator('#modal button.primary').click();
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.schemaVersion = 6;
+    db.relations[0].type = 'tampered_relation';
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(preserved.schemaVersion).toBe(6);
+  expect(preserved.relations[0].type).toBe('tampered_relation');
+});
