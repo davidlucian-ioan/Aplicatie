@@ -588,3 +588,17 @@ test('aplicația poate înregistra date offline și le recuperează după recone
   await page.locator('.nav[data-page="audit"]').click();
   await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
 });
+
+
+test('startup-ul nu aplică migrarea v6 unei scheme legacy neverificate', async ({ page }) => {
+  const unsupported = { ...legacyV6Fixture, schemaVersion: 5 };
+  await page.addInitScript(fixture => {
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(fixture));
+  }, unsupported);
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(preserved.schemaVersion).toBe(5);
+  expect(preserved.entities[0].id).toBe('legacy-entity-missing-create');
+});
