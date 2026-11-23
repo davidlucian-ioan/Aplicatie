@@ -140,3 +140,13 @@ Nicio etapă nu trebuie să folosească exportul operațional personal al utiliz
 - **PR #17 integrat:** corecțiile mutărilor supersedate sunt idempotente și nu schimbă locația/soldul curent. Testele `stock.reverse` acoperă inversarea vânzărilor și transferurilor, evenimente fără efecte de stoc și rollback dacă stocul a fost consumat parțial. CI: run #45245225951 (success).
 - **PR #18 integrat:** commit și Replay resping offset-uri de fus orar în afara limitei ISO 8601 ±14:00; limita +14:00 este acceptată. CI: run #45245432917 (success).
 - **PR #19 în lucru:** teste pentru corectarea mai multor relații create de același eveniment, corectarea unei relații deja închise și refuzul unui eveniment fără relații. Prima rulare a expus o aserțiune care verifica locația implicită greșită; testul a fost corectat să verifice explicit locația nulă. Așteaptă CI-ul noii revizii.
+
+
+### Actualizare 2026-11-23 — Core correction hardening (PR #17–#20)
+
+- **PR #17:** corecția mutărilor supersedate este idempotentă; `stock.reverse` verifică vânzări, transferuri, evenimente fără efecte de stoc și rollback după consum parțial. CI run #45245225951 — success.
+- **PR #18:** validarea commit/Replay verifică offset-ul ISO 8601 în limita ±14:00 și acceptă limita exactă. CI run #45245432917 — success.
+- **PR #19:** teste pentru anularea mai multor relații create de același eveniment, corectarea relațiilor deja închise, evenimente fără relații și refuzul inversării unui transfer după vânzare parțială la destinație. CI run #45246231904 — success.
+- **PR #20:** corecția stale este păstrată ca `ignoredCorrectionByEventId`, separat de `voidedByEventId`; un undo ulterior al mutării descendente redeschide corect relația anterioară, iar Replay reproduce locația și soldurile. CI run #45246497191 — success.
+
+Aceste teste și modificări sunt sintetice și nu reprezintă validare manuală a utilizării reale. Baseline-ul Stryker 65,81% precede PR #15–#20; scorul complet trebuie recalculat în următoarea rulare nocturnă înainte de orice comparație.
