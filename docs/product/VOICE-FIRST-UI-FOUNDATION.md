@@ -107,3 +107,15 @@ Microphone / Speech API → Transcript → Intent interpreter → Core Port prev
 - Short structured commands remain available through the separate one-shot dictation control.
 - This is not background recording, wake-word detection, automatic command batching, spoken read-back, or guaranteed offline recognition. Browser implementations may terminate recognition; a session ending early is surfaced and any final transcript is still subject to review.
 - E2E coverage verifies multi-segment accumulation, preview-only behavior, explicit commit, and unsupported-browser fallback.
+
+
+## Local audio recorder — first implementation increment
+
+- The global capture action now starts a real foreground audio recording using `getUserMedia` and `MediaRecorder`.
+- Recording supports pause, resume and explicit stop. Microphone tracks are stopped after recording.
+- Original audio blobs are stored in a dedicated IndexedDB database, separate from the append-only Core event journal and localStorage projections.
+- Recordings can be played back and explicitly deleted from the local recordings list.
+- Audio capture does not create Core events or invoke cloud transcription. Live speech recognition remains a separate optional workflow.
+- Browser permission denial, unsupported APIs and local storage errors are surfaced. The microphone is requested only after an explicit user action.
+- This is foreground browser capture. It does not guarantee background recording, device-lock continuity, offline transcription, encryption at rest, or cross-device sync. Those require separate platform and security work.
+- E2E coverage exercises start, pause, resume, stop, local persistence across reload, permission denial and the invariant that audio capture does not append Core events.
