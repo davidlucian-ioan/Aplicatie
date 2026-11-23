@@ -50,6 +50,8 @@ test('stock.change validează cantitatea, locația și soldul disponibil', () =>
   assert.throws(() => s.commit('stock-too-much', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 4, action: 'sell' } }]), /Cantitate insuficientă/);
   assert.throws(() => s.commit('stock-zero', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 0, action: 'add' } }]), /pozitiv/);
   assert.throws(() => s.commit('stock-invalid-location', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'missing', quantity: 1, action: 'add' } }]), /Locația selectată/);
+  assert.throws(() => s.commit('stock-invalid-action', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 1, action: 'transfer' } }]), /Acțiunea de stoc nu este validă/);
+  assert.throws(() => s.commit('stock-internal-move-in-action', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 1, action: 'move_in' } }]), /Acțiunea de stoc nu este validă/);
   assert.equal(JSON.stringify(s.db), before, 'failed stock operations must not mutate the committed state');
 });
 
