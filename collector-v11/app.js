@@ -14,6 +14,7 @@ function loadDb(){
  if(parseError)return preserveAndBlock({storageKey:sourceKey,rawStorageValue:rawText},'Datele locale nu sunt JSON valid: '+parseError.message);
  if(raw===null){const empty=E.emptyState();persistRaw(empty);return empty}
  if(typeof raw!=='object'||Array.isArray(raw))return preserveAndBlock({rawPayload:raw},'Structura datelor locale nu este un obiect valid.');
+ if(raw.schemaVersion!==undefined&&(!Number.isInteger(raw.schemaVersion)||raw.schemaVersion>7))return preserveAndBlock(raw,'Versiunea schemei este invalidă sau mai nouă decât versiunea suportată. Datele originale au fost păstrate.');
  if(raw.schemaVersion===7){try{const validated=E.validateImport(raw);if(!persistRaw(validated))throw Error('Nu am putut salva starea verificată în localStorage.');return validated}catch(error){const replayed=E.replay(Array.isArray(raw.events)?raw.events:[],[]),warnings=replayed.meta.replayWarnings||[],projectionMatch=String(error?.message||'').match(/^Import blocat: proiecția „([^”]+)” nu corespunde jurnalului/),canRebuild=warnings.length===0&&!!projectionMatch&&projectionMatch[1]!=='attributes';return preserveAndBlock(raw,error,warnings,canRebuild)}}
  const attrs=Array.isArray(raw.attributes)?raw.attributes:[],sourceEvents=Array.isArray(raw.events)?raw.events:[];
  if(sourceEvents.some(e=>!e||typeof e!=='object'||Array.isArray(e)||typeof e.id!=='string'||!e.id.trim()))return preserveAndBlock(raw,'Jurnalul vechi conține un eveniment fără ID valid.');
