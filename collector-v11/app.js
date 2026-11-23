@@ -298,3 +298,4 @@ document.getElementById('globalVoice').onclick=()=>{showPage('assistant');if(aud
 // Do not persist stale in-memory snapshots on focus; context expiry is evaluated when commands are handled.
 // Every committed change is persisted before publication; never write a stale in-memory snapshot on unload.
 render();
+window.__collectorAppReady = true;
