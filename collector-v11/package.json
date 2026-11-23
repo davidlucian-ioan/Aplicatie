@@ -15,7 +15,8 @@
     "build:android:web": "node scripts/build-android-web.mjs",
     "android:add": "npm run build:android:web && npx --yes --package=@capacitor/cli@8.6.0 cap add android && node scripts/patch-android-manifest.mjs && npx --yes --package=@capacitor/cli@8.6.0 cap sync android",
     "android:sync": "npm run build:android:web && node scripts/patch-android-manifest.mjs && npx --yes --package=@capacitor/cli@8.6.0 cap sync android",
-    "android:open": "npx --yes --package=@capacitor/cli@8.6.0 cap open android"
+    "android:open": "npx --yes --package=@capacitor/cli@8.6.0 cap open android",
+    "android:build": "npm run android:sync && cd android && ./gradlew --no-daemon assembleDebug"
   },
   "engines": {
     "node": ">=22"
