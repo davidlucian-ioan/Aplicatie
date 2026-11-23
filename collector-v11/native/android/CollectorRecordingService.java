@@ -42,7 +42,6 @@ public final class CollectorRecordingService extends Service {
     private String format;
     private String status = "inactive";
     private long startedAtMs;
-    private long startedAtElapsed;
     private long pausedDurationMs;
     private long pauseStartedAtMs;
 
@@ -97,7 +96,6 @@ public final class CollectorRecordingService extends Service {
         outputFile = new File(directory, "recording-" + recordingId + extension);
         manifestFile = new File(directory, recordingId + ".json");
         startedAtMs = System.currentTimeMillis();
-        startedAtElapsed = SystemClock.elapsedRealtime();
         pausedDurationMs = 0L;
         pauseStartedAtMs = 0L;
         status = "starting";
@@ -123,10 +121,9 @@ public final class CollectorRecordingService extends Service {
         nextRecorder.setAudioEncodingBitRate(intent.getIntExtra("bitRate", 128000));
         nextRecorder.setAudioSamplingRate(intent.getIntExtra("sampleRate", 44100));
         nextRecorder.setOutputFile(outputFile.getAbsolutePath());
+        recorder = nextRecorder;
         nextRecorder.prepare();
         nextRecorder.start();
-
-        recorder = nextRecorder;
         status = "recording";
         acquireWakeLock();
         persistManifest(null);
@@ -168,6 +165,10 @@ public final class CollectorRecordingService extends Service {
 
     private void stopRecording() {
         if (recorder == null) {
+            if (recordingId != null && "starting".equals(status)) {
+                status = "interrupted";
+                try { persistManifest("Înregistrarea a fost oprită înainte de inițializarea microfonului."); } catch (Exception ignored) {}
+            }
             releaseWakeLock();
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
@@ -250,6 +251,7 @@ public final class CollectorRecordingService extends Service {
         json.put("status", status);
         json.put("createdAt", isoDate(startedAtMs));
         json.put("updatedAt", isoDate(System.currentTimeMillis()));
+        json.put("updatedAtMs", System.currentTimeMillis());
         json.put("startedAtMs", startedAtMs);
         json.put("pausedDurationMs", pausedDurationMs);
         json.put("pauseStartedAtMs", pauseStartedAtMs);
