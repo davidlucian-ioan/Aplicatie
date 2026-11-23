@@ -280,3 +280,45 @@ test('importul cu proiecții incompatibile nu înlocuiește datele existente', a
   });
   expect(after).toEqual(before);
 });
+
+test('eșecul localStorage nu păstrează în memorie un eveniment neconfirmat de persistență', async ({ page }) => {
+  await page.evaluate(() => {
+    const originalSetItem = Storage.prototype.setItem;
+    window.__collectorFailNextPersist = true;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'collector_mvp_v2' && window.__collectorFailNextPersist) {
+        window.__collectorFailNextPersist = false;
+        throw new DOMException('Simulated storage quota failure', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+  });
+
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Entitate eșuată');
+  await page.locator('#newType').fill('generic');
+  await page.locator('#modal button.primary').click();
+
+  const afterFailure = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return db.entities.map(entity => entity.name);
+  });
+  expect(afterFailure).not.toContain('Entitate eșuată');
+
+  // The failed form remains open so the user can correct or retry it.
+  await page.locator('#modalContent .form-actions button.secondary').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Entitate salvată ulterior');
+  await page.locator('#newType').fill('generic');
+  await page.locator('#modal button.primary').click();
+
+  await page.reload();
+  const afterReload = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return db.entities.map(entity => entity.name);
+  });
+  expect(afterReload).toContain('Entitate salvată ulterior');
+  expect(afterReload).not.toContain('Entitate eșuată');
+});
