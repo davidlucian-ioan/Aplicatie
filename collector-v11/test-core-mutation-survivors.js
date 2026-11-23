@@ -244,41 +244,24 @@ test('stock.reverse poate inversa un eveniment stock.adjust fără să dubleze c
 });
 
 test('Replay face rollback atomic când stock.reverse ar crea un sold negativ', () => {
-  const events = [
-    {
-      id: 'replay-reverse-setup',
-      timestamp: new Date(BASE).toISOString(),
-      status: 'committed',
-      operations: [
-        { operation: 'entity.create', target: 'population', data: { name: 'Fancy', type: 'population' } },
-        { operation: 'entity.create', target: 'location-a', data: { name: 'Sera', type: 'location' } }
-      ]
-    },
-    {
-      id: 'replay-reverse-seed',
-      timestamp: new Date(BASE + 1).toISOString(),
-      status: 'committed',
-      operations: [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]
-    },
-    {
-      id: 'replay-reverse-sale',
-      timestamp: new Date(BASE + 2).toISOString(),
-      status: 'committed',
-      operations: [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'sell' } }]
-    },
-    {
-      id: 'replay-reverse-invalid',
-      timestamp: new Date(BASE + 3).toISOString(),
-      status: 'committed',
-      operations: [{ operation: 'stock.reverse', data: { correctsEventId: 'replay-reverse-seed' } }]
-    }
-  ];
+  const s = setup();
+  s.commit('replay-reverse-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('replay-reverse-sale', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'sell' } }]);
 
-  const replayed = E.replay(events);
+  const invalidReverse = {
+    id: 'replay-reverse-invalid',
+    type: 'test.stock.reverse',
+    timestamp: new Date(BASE + 100).toISOString(),
+    status: 'committed',
+    operations: [{ operation: 'stock.reverse', data: { correctsEventId: 'replay-reverse-seed' } }]
+  };
+  const replayed = E.replay([...s.db.events, invalidReverse]);
+
+  assert.equal(replayed.meta.replayWarnings.filter(row => row.eventId === 'replay-reverse-invalid').length, 1);
+  assert.equal(replayed.meta.replayWarnings.filter(row => row.eventId !== 'replay-reverse-invalid').length, 0);
   assert.equal(balance(replayed, 'population', 'location-a'), 3);
   assert.equal(balance(replayed, 'population', 'location-a', 'sold'), 2);
   assert.equal(replayed.stock.some(row => row.eventId === 'replay-reverse-invalid'), false);
-  assert.equal(replayed.meta.replayWarnings.filter(row => row.eventId === 'replay-reverse-invalid').length, 1);
 });
 
 test('finance.record și finance.adjust validează și păstrează totalurile', () => {
