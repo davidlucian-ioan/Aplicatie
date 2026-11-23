@@ -163,7 +163,7 @@ PR #25 în lucru: stock.change folosește allowlist pentru acțiunile publice (a
 PR #26 integrat (`8703993a5f7de3997b7ea50aef96c71d4af741bf`): `stock.adjust` validează referințele `locationId` nenule și respinge locațiile inexistente sau entitățile care nu sunt de tip `location`; teste de rollback atomic. CI complet trecut (run #45250493556).
 
 
-PR #27 în lucru: `finance.adjust` validează `entityId` nenul împotriva entităților existente, la fel ca `finance.record`; test de regresie pentru referință lipsă și CI în așteptare.
+PR #27 integrat (`68c58d15b3b3ad3ddc100874656a286b67da5feb`): `finance.adjust` validează `entityId` nenul împotriva entităților existente, la fel ca `finance.record`; test de regresie pentru referință lipsă. CI complet trecut (run #45251550928).
 
 
 PR #28 integrat (`bc5a60a7097bd2a6832d48a8af7c43aef8734c39`): `event.attribute.set` trim-uiește numele și respinge valorile goale sau formate doar din spații; teste de rollback atomic. CI complet trecut (run #45251169429).
