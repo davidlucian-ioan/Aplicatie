@@ -175,7 +175,7 @@ PR #29 în lucru: `event.attribute.correct` respinge corectarea repetată a unei
 **PR #30 în lucru — stock.reverse și Stryker:** https://github.com/davidlucian-ioan/Aplicatie/pull/30
 - [ ] Test pentru inversarea atomică a unui eveniment compus care conține vânzare, eliminare și transfer între locații.
 - [ ] Test și fix pentru fallback-ul `disposition: active` la rânduri legacy fără câmpul `disposition`; `balances()` proiectează acum rândurile legacy în categoria activă.
-- [ ] Test pentru inversarea unui eveniment `stock.adjust` ca eveniment distinct și blocarea unei a doua inversări.
+- [ ] Test pentru inversarea unui eveniment `stock.adjust` ca eveniment distinct, blocarea unei a doua inversări și refuzul inversării unui eveniment deja corectat prin `stock.adjust`.
 - [ ] Test Replay: dacă `stock.reverse` ar crea un sold negativ, Replay păstrează proiecțiile anterioare și adaugă un warning.
 - [ ] Triage documentat pentru cei 33 de mutanți supraviețuitori și un timeout din raportul istoric #45237194442; raportul precede PR #22 și nu este un scor actual.
 - [ ] CI complet în așteptare. Date sintetice; fără deploy.
