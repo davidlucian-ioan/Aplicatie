@@ -14,11 +14,31 @@
   }).catch(error=>{opening=null;throw error});
   return opening;
  }
- function transaction(mode,action){return openDb().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction(STORE,mode),store=tx.objectStore(STORE);let result;try{result=action(store)}catch(error){reject(error);return}tx.oncomplete=()=>resolve(result?.result);tx.onerror=()=>reject(tx.error||new Error('Tranzacția audio a eșuat.'));tx.onabort=()=>reject(tx.error||new Error('Tranzacția audio a fost anulată.'))}))}
+ function transaction(mode,action){return openDb().then(db=>new Promise((resolve,reject)=>{
+  const tx=db.transaction(STORE,mode),store=tx.objectStore(STORE);let request;
+  try{request=action(store)}catch(error){reject(error);return}
+  tx.oncomplete=()=>resolve(request?.result);
+  tx.onerror=()=>reject(request?.error||tx.error||new Error('Tranzacția audio a eșuat.'));
+  tx.onabort=()=>reject(request?.error||tx.error||new Error('Tranzacția audio a fost anulată.'));
+ }))}
+ function restoreBlob(record){
+  if(!record)return record;
+  if(record.blob instanceof Blob)return record;
+  if(!(record.audioData instanceof ArrayBuffer))return record;
+  const {audioData,...metadata}=record;
+  return {...metadata,blob:new Blob([audioData],{type:record.mimeType||'application/octet-stream'})};
+ }
  const api={
-  save(record){if(!record?.id||!(record.blob instanceof Blob)||!record.blob.size) return Promise.reject(new Error('Înregistrarea audio este invalidă sau goală.'));return transaction('readwrite',store=>store.put(record))},
-  get(id){return transaction('readonly',store=>store.get(id))},
-  list(){return transaction('readonly',store=>store.getAll()).then(records=>records.sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))))},
+  async save(record){
+   if(!record?.id||!(record.blob instanceof Blob)||!record.blob.size)return Promise.reject(new Error('Înregistrarea audio este invalidă sau goală.'));
+   // Store bytes rather than Blob objects: WebKit has had inconsistent Blob structured-clone
+   // behavior in IndexedDB. ArrayBuffer is consistently structured-cloneable across engines.
+   const {blob,...metadata}=record;
+   const audioData=await blob.arrayBuffer();
+   return transaction('readwrite',store=>store.put({...metadata,audioData}));
+  },
+  get(id){return transaction('readonly',store=>store.get(id)).then(restoreBlob)},
+  list(){return transaction('readonly',store=>store.getAll()).then(records=>records.map(restoreBlob).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))))},
   remove(id){return transaction('readwrite',store=>store.delete(id))}
  };
  global.CollectorAudioStore=Object.freeze(api);
