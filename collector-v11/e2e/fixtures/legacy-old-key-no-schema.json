@@ -1,0 +1,38 @@
+{
+  "entities": [
+    {
+      "id": "legacy-old-key-plant",
+      "name": "Legacy key plant",
+      "type": "plant",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "attributes": {}
+    }
+  ],
+  "attributes": [],
+  "relations": [],
+  "events": [
+    {
+      "id": "legacy-old-key-note",
+      "type": "event.note",
+      "timestamp": "2026-01-01T00:00:00.000Z",
+      "status": "committed",
+      "source": "legacy",
+      "actor": "legacy",
+      "operations": [
+        {
+          "operation": "event.note",
+          "data": {
+            "description": "legacy old-key note"
+          }
+        }
+      ]
+    }
+  ],
+  "stock": [],
+  "finance": [],
+  "eventAttributes": [],
+  "meta": {
+    "lastActivityAt": "2026-01-01T00:00:00.000Z",
+    "replayWarnings": []
+  }
+}

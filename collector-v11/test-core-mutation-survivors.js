@@ -1,0 +1,170 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const E = require('./engine.js');
+
+const BASE = Date.parse('2026-11-01T00:00:00.000Z');
+
+function setup() {
+  let tick = 0;
+  let db = E.emptyState();
+  const commit = (id, operations, extra = {}) => {
+    const result = E.commit(db, {
+      id,
+      type: 'test.' + id,
+      timestamp: new Date(BASE + tick++).toISOString(),
+      operations,
+      ...extra
+    });
+    db = result.db;
+    return result;
+  };
+  commit('setup', [
+    { operation: 'entity.create', target: 'population', data: { name: 'Fancy', type: 'population' } },
+    { operation: 'entity.create', target: 'location-a', data: { name: 'Sera', type: 'location' } },
+    { operation: 'entity.create', target: 'location-b', data: { name: 'Raft', type: 'location' } },
+    { operation: 'entity.create', target: 'item', data: { name: 'Plant', type: 'plant' } },
+    { operation: 'entity.create', target: 'other', data: { name: 'Other', type: 'generic' } }
+  ]);
+  return { get db() { return db; }, commit };
+}
+
+function balance(db, populationId = 'population', locationId = 'location-a', disposition = 'active') {
+  return E.balances(db).find(row =>
+    row.populationId === populationId &&
+    row.locationId === locationId &&
+    row.disposition === disposition
+  )?.quantity || 0;
+}
+
+test('stock.change validează cantitatea, locația și soldul disponibil', () => {
+  const s = setup();
+  s.commit('stock-add', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('stock-sell', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'sell', disposition: 'sold' } }]);
+
+  assert.equal(balance(s.db), 3);
+  assert.equal(balance(s.db, 'population', 'location-a', 'sold'), 2);
+
+  const before = JSON.stringify(s.db);
+  assert.throws(() => s.commit('stock-too-much', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 4, action: 'sell' } }]), /Cantitate insuficientă/);
+  assert.throws(() => s.commit('stock-zero', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 0, action: 'add' } }]), /pozitiv/);
+  assert.throws(() => s.commit('stock-invalid-location', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'missing', quantity: 1, action: 'add' } }]), /Locația selectată/);
+  assert.equal(JSON.stringify(s.db), before, 'failed stock operations must not mutate the committed state');
+});
+
+test('stock.adjust aplică numai corecții nenule care nu produc sold negativ', () => {
+  const s = setup();
+  s.commit('stock-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('stock-adjust', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'population', locationId: 'location-a', disposition: 'active', quantity: -2 }] } }]);
+  assert.equal(balance(s.db), 3);
+
+  const before = JSON.stringify(s.db);
+  assert.throws(() => s.commit('stock-adjust-empty', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [] } }]), /nu conține modificări/);
+  assert.throws(() => s.commit('stock-adjust-zero', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'population', locationId: 'location-a', quantity: 0 }] } }]), /nenulă/);
+  assert.throws(() => s.commit('stock-adjust-unknown', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'missing', quantity: 1 }] } }]), /nu există/);
+  assert.throws(() => s.commit('stock-adjust-negative', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'population', locationId: 'location-a', quantity: -4 }] } }]), /sold activ negativ/);
+  assert.equal(JSON.stringify(s.db), before);
+});
+
+test('stock.reverse inversează un eveniment o singură dată', () => {
+  const s = setup();
+  s.commit('stock-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 4, action: 'add' } }]);
+  s.commit('stock-reverse', [{ operation: 'stock.reverse', data: { correctsEventId: 'stock-seed' } }]);
+  assert.equal(balance(s.db), 0);
+  assert.throws(() => s.commit('stock-reverse-twice', [{ operation: 'stock.reverse', data: { correctsEventId: 'stock-seed' } }]), /deja corectate/);
+});
+
+test('finance.record și finance.adjust validează și păstrează totalurile', () => {
+  const s = setup();
+  s.commit('finance-cost', [{ operation: 'finance.record', data: { entityId: 'item', kind: 'cost', amount: 100, currency: 'RON', description: 'purchase' } }]);
+  s.commit('finance-sale', [{ operation: 'finance.record', data: { entityId: 'population', kind: 'sale', amount: 25, currency: 'RON', description: 'sale' } }]);
+  assert.equal(E.totalFinance(s.db)['RON|cost'], 100);
+  assert.equal(E.totalFinance(s.db)['RON|sale'], 25);
+
+  s.commit('finance-correction', [{ operation: 'finance.adjust', data: { entityId: 'item', kind: 'cost', amount: -100, currency: 'RON', correctsEventId: 'finance-cost' } }]);
+  assert.equal(E.totalFinance(s.db)['RON|cost'], 0);
+
+  const before = JSON.stringify(s.db);
+  assert.throws(() => s.commit('finance-negative', [{ operation: 'finance.record', data: { entityId: 'item', amount: -1, currency: 'RON' } }]), /pozitivă sau zero/);
+  assert.throws(() => s.commit('finance-infinite', [{ operation: 'finance.record', data: { entityId: 'item', amount: 'Infinity', currency: 'RON' } }]), /pozitivă sau zero/);
+  assert.throws(() => s.commit('finance-missing-entity', [{ operation: 'finance.record', data: { entityId: 'missing', amount: 1, currency: 'RON' } }]), /nu există/);
+  assert.throws(() => s.commit('finance-zero-adjustment', [{ operation: 'finance.adjust', data: { amount: 0, currency: 'RON' } }]), /nenulă/);
+  assert.equal(JSON.stringify(s.db), before);
+});
+
+test('attribute.define și attribute.set aplică tipul, câmpul required și compatibilitatea definiției', () => {
+  const s = setup();
+  s.commit('define-ph', [{ operation: 'attribute.define', data: { name: 'pH', type: 'number', ownerType: 'entity', required: true } }]);
+  s.commit('set-ph', [{ operation: 'attribute.set', target: 'item', data: { name: 'pH', value: 6.4 } }]);
+  assert.equal(s.db.entities.find(entity => entity.id === 'item').attributes.pH, 6.4);
+
+  const before = JSON.stringify(s.db);
+  assert.throws(() => s.commit('set-ph-text', [{ operation: 'attribute.set', target: 'item', data: { name: 'pH', value: 'not-a-number' } }]), /trebuie să fie numeric/);
+  assert.throws(() => s.commit('set-ph-empty', [{ operation: 'attribute.set', target: 'item', data: { name: 'pH', value: '' } }]), /obligatoriu/);
+  assert.throws(() => s.commit('redefine-ph-type', [{ operation: 'attribute.define', data: { name: 'pH', type: 'text' } }]), /Tipul atributului este deja folosit/);
+  assert.equal(JSON.stringify(s.db), before);
+});
+
+test('relation.create respinge relații invalide, duplicate și cicluri în ierarhia locațiilor', () => {
+  const s = setup();
+  s.commit('relation-ok', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'other', type: 'related_to' } }]);
+  assert.throws(() => s.commit('relation-duplicate', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'other', type: 'related_to' } }]), /există deja/);
+  assert.throws(() => s.commit('relation-self', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'item', type: 'related_to' } }]), /ea însăși/);
+  assert.throws(() => s.commit('relation-custom-empty', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'other', type: 'custom' } }]), /numele tipului este obligatoriu/);
+  assert.throws(() => s.commit('relation-located-invalid', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'other', type: 'located_in' } }]), /trebuie să fie o locație/);
+
+  s.commit('location-parent-child', [{ operation: 'relation.create', data: { sourceId: 'location-a', targetId: 'location-b', type: 'contains' } }]);
+  assert.throws(() => s.commit('location-cycle', [{ operation: 'relation.create', data: { sourceId: 'location-b', targetId: 'location-a', type: 'contains' } }]), /nu poate conține cicluri/);
+});
+
+test('atributele evenimentelor pot fi înregistrate și corectate, iar evenimentele invalidate sunt ascunse', () => {
+  const s = setup();
+  s.commit('note-original', [{ operation: 'event.note', data: { description: 'note' } }]);
+  s.commit('event-attribute', [{ operation: 'event.attribute.set', data: { eventId: 'note-original', name: 'weather', value: 'sunny' } }]);
+  assert.equal(s.db.eventAttributes.length, 1);
+  assert.equal(s.db.eventAttributes[0].value, 'sunny');
+
+  s.commit('event-attribute-correction', [{ operation: 'event.attribute.correct', data: { eventId: 'note-original', correctsEventId: 'event-attribute' } }]);
+  assert.equal(s.db.eventAttributes[0].voidedByEventId, 'event-attribute-correction');
+  assert.throws(() => s.commit('event-attribute-correction-missing', [{ operation: 'event.attribute.correct', data: { eventId: 'note-original', correctsEventId: 'missing' } }]), /nu există/);
+
+  s.commit('invalidate-note', [{ operation: 'event.invalidate', data: { correctsEventId: 'note-original' } }]);
+  assert.equal(s.db.events.find(event => event.id === 'note-original').hiddenFromHistory, true);
+});
+
+test('helper-ele de locație, identificare, corecție și expirare context au rezultate stabile', () => {
+  const s = setup();
+  s.commit('location-hierarchy', [{ operation: 'relation.create', data: { sourceId: 'location-a', targetId: 'location-b', type: 'contains' } }]);
+  s.commit('population-location', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-b', type: 'located_in' } }]);
+  s.commit('define-code', [{ operation: 'attribute.define', data: { name: 'code', type: 'text', ownerType: 'entity', identifying: true } }]);
+  s.commit('set-code', [{ operation: 'attribute.set', target: 'item', data: { name: 'code', value: 'PLANT-001' } }]);
+
+  assert.deepEqual(E.locationPath(s.db, 'location-b'), ['Sera', 'Raft']);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
+  assert.deepEqual(E.identify(s.db, 'plant', { code: 'plant-001' }).map(entity => entity.id), ['item']);
+  assert.equal(E.correctionDelta(10, null, 7), -3);
+  assert.equal(E.correctionDelta(10, 7, 8), 1);
+
+  const active = { ...s.db, meta: { lastActivityAt: new Date(Date.now() - 29 * 60 * 1000).toISOString() } };
+  const expired = { ...s.db, meta: { lastActivityAt: new Date(Date.now() - 31 * 60 * 1000).toISOString() } };
+  assert.equal(E.contextIsActive(active), true);
+  assert.equal(E.contextIsActive(expired), false);
+});
+
+test('commit și replay resping timestamp-uri și chei de intenție invalide', () => {
+  const s = setup();
+  assert.throws(() => s.commit('bad-date', [{ operation: 'event.note', data: { description: 'bad date' } }], { timestamp: '2026-02-30T12:00:00.000Z' }), /timestamp ISO valid/);
+  assert.throws(() => s.commit('bad-intent', [{ operation: 'event.note', data: { description: 'bad intent' } }], { intentKey: ' padded ' }), /Cheia de intenție/);
+
+  s.commit('intent-first', [{ operation: 'event.note', data: { description: 'intent' } }], { intentKey: 'same-intent' });
+  const duplicate = s.commit('intent-second', [{ operation: 'event.note', data: { description: 'duplicate' } }], { intentKey: 'same-intent' });
+  assert.equal(duplicate.duplicate, true);
+
+  const replayed = E.replay([
+    { id: 'invalid-date', type: 'event.note', timestamp: '2026-02-30T12:00:00.000Z', status: 'committed', operations: [{ operation: 'event.note', data: { description: 'invalid' } }] },
+    { id: 'valid-date', type: 'event.note', timestamp: '2026-02-28T12:00:00.000Z', status: 'committed', operations: [{ operation: 'event.note', data: { description: 'valid' } }] }
+  ]);
+  assert.equal(replayed.meta.replayWarnings.length, 1);
+  assert.equal(replayed.meta.replayWarnings[0].eventId, 'invalid-date');
+});
