@@ -152,3 +152,6 @@ PR #22 integrat (`27c7d41bb69691dfa46f3adbf5783649b606f77e`): `stock.reverse` ș
 
 
 PR #23 în lucru: relation.close.correct respinge redeschiderea unei relații a cărei creare a fost anulată și împiedică redeschiderea unei relații located_in dacă există deja o altă locație activă pentru aceeași entitate. PR #24 în lucru: relation.move.correct nu mai poate redeschide o relație precedentă al cărei eveniment de creare a fost anulat. Ambele au teste de rollback atomic și CI în desfășurare/în așteptare; nu integra fără CI complet verde.
+
+
+Benchmark Replay după PR #22 (run #45248706376, Node 22.23.5, Linux x64, AMD EPYC 9V45): 100 evenimente = 0,316 ms (~316k/s); 1.000 = 2,535 ms (~394k/s); 10.000 = 15,866 ms (~630k/s); 50.000 = 82,946 ms (~603k/s), heap delta median 8.964.824 bytes. Mix sintetic cu șase tipuri de operații, mediană din repetări; heap delta este orientativ, nu GC-normalizat. Nu este SLA și trebuie comparat doar pe aceeași platformă/metodologie.
