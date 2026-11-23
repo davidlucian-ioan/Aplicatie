@@ -244,11 +244,7 @@ public final class CollectorRecordingService extends Service {
         long end = "paused".equals(status) && pauseStartedAtMs > 0L
             ? pauseStartedAtMs
             : System.currentTimeMillis();
-        long paused = pausedDurationMs;
-        if ("paused".equals(status) && pauseStartedAtMs > 0L) {
-            // The current pause is excluded from the elapsed recording duration.
-        }
-        return Math.max(0L, end - startedAtMs - paused);
+        return Math.max(0L, end - startedAtMs - pausedDurationMs);
     }
 
     private void persistManifest(String errorMessage) throws Exception {
@@ -376,6 +372,7 @@ public final class CollectorRecordingService extends Service {
     @Override
     public void onDestroy() {
         if (recorder != null) {
+            recorder.setOnErrorListener(null);
             try {
                 recorder.stop();
             } catch (RuntimeException ignored) {}
