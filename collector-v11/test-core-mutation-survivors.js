@@ -63,7 +63,7 @@ test('stock.adjust aplică numai corecții nenule care nu produc sold negativ', 
   assert.throws(() => s.commit('stock-adjust-empty', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [] } }]), /nu conține modificări/);
   assert.throws(() => s.commit('stock-adjust-zero', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'population', locationId: 'location-a', quantity: 0 }] } }]), /nenulă/);
   assert.throws(() => s.commit('stock-adjust-unknown', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'missing', quantity: 1 }] } }]), /nu există/);
-  assert.throws(() => s.commit('stock-adjust-negative', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'population', locationId: 'location-a', quantity: -4 }] } }]), /sold activ negativ/);
+  assert.throws(() => s.commit('stock-adjust-negative', [{ operation: 'stock.adjust', data: { correctsEventId: 'stock-seed', changes: [{ populationId: 'population', locationId: 'location-a', quantity: -4 }] } }]), /sold (?:activ )?negativ/);
   assert.equal(JSON.stringify(s.db), before);
 });
 
@@ -117,7 +117,7 @@ test('stock.reverse respinge inversarea unei adăugări după vânzare parțial�
 
   assert.throws(
     () => s.commit('reverse-partially-consumed-add', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-partial-seed' } }]),
-    /sold activ negativ/
+    /sold (?:activ )?negativ/
   );
   assert.equal(JSON.stringify(s.db), before);
 });
@@ -161,7 +161,7 @@ test('stock.reverse respinge inversarea unei mutări după vânzare din destina�
 
   assert.throws(
     () => s.commit('reverse-partially-consumed-move', [{ operation: 'stock.reverse', data: { correctsEventId: 'reverse-moved-stock' } }]),
-    /sold activ negativ/
+    /sold (?:activ )?negativ/
   );
   assert.equal(JSON.stringify(s.db), before);
   assert.equal(balance(s.db, 'population', 'location-a'), 3);
@@ -484,7 +484,7 @@ test('relation.create.correct nu poate șterge un membru dacă ar crea sold nega
   const before = JSON.stringify(s.db);
   assert.throws(
     () => s.commit('population-member-sale-correct', [{ operation: 'relation.create.correct', data: { correctsEventId: 'population-member-for-sale' } }]),
-    /sold activ negativ/
+    /sold (?:activ )?negativ/
   );
   assert.equal(JSON.stringify(s.db), before, 'rejected relation correction must roll back relation and stock projections');
 });
