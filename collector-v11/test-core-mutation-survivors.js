@@ -237,6 +237,38 @@ test('commit și replay validează calendarul, fusul orar ISO și cheile de inte
   assert.deepEqual(replayed.meta.replayWarnings.map(row => row.eventId), ['invalid-date', 'invalid-offset']);
 });
 
+test('commit deduplică ID-ul evenimentului și intentKey fără să aplice operațiile repetate', () => {
+  const s = setup();
+  s.commit('commit-idempotent', [{ operation: 'event.note', data: { description: 'original event' } }], { intentKey: 'original-intent' });
+  const beforeDuplicateId = JSON.stringify(s.db);
+  const duplicateId = s.commit('commit-idempotent', [{ operation: 'entity.create', target: 'must-not-exist', data: { name: 'Duplicate', type: 'generic' } }], { intentKey: 'different-intent' });
+  assert.equal(duplicateId.duplicate, true);
+  assert.equal(duplicateId.event.id, 'commit-idempotent');
+  assert.equal(JSON.stringify(s.db), beforeDuplicateId);
+  assert.equal(s.db.entities.some(entity => entity.id === 'must-not-exist'), false);
+
+  const beforeDuplicateIntent = JSON.stringify(s.db);
+  const duplicateIntent = s.commit('commit-new-id-same-intent', [{ operation: 'entity.create', target: 'must-not-exist-either', data: { name: 'Duplicate intent', type: 'generic' } }], { intentKey: 'original-intent' });
+  assert.equal(duplicateIntent.duplicate, true);
+  assert.equal(duplicateIntent.event.id, 'commit-idempotent');
+  assert.equal(JSON.stringify(s.db), beforeDuplicateIntent);
+  assert.equal(s.db.entities.some(entity => entity.id === 'must-not-exist-either'), false);
+});
+
+test('commit este atomic pentru o listă de operații dacă o operație ulterioară e invalidă', () => {
+  const s = setup();
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('commit-composed-invalid', [
+      { operation: 'entity.create', target: 'must-rollback', data: { name: 'Temporary', type: 'generic' } },
+      { operation: 'stock.change', data: { populationId: 'missing-population', quantity: 2, action: 'add' } }
+    ]),
+    /nu există/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+  assert.equal(s.db.entities.some(entity => entity.id === 'must-rollback'), false);
+});
+
 
 test('relation.close și relation.close.correct păstrează istoricul și resping corecțiile stale', () => {
   const s = setup();
