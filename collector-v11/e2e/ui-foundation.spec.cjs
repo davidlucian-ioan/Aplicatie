@@ -27,6 +27,9 @@ test('global action starts a local audio recording without committing an event',
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getTracks: () => [{ stop() { window.__audioTrackStopped = true; } }] }) } });
     window.__audioTrackStopped = false;
+    window.__wakeLockRequests = 0;
+    window.__wakeLockReleases = 0;
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => { window.__wakeLockRequests += 1; let released = false; return { get released() { return released; }, addEventListener() {}, release: async () => { if (!released) { released = true; window.__wakeLockReleases += 1; } } }; } } });
     window.MediaRecorder = class {
       static isTypeSupported() { return true; }
       constructor(stream, options) { this.stream = stream; this.mimeType = options?.mimeType || 'audio/webm'; this.state = 'inactive'; }
@@ -37,21 +40,28 @@ test('global action starts a local audio recording without committing an event',
     };
   });
   await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="assistant"]').click();
   await page.locator('#globalVoice').click();
   await expect(page.locator('#assistant')).toBeVisible();
   await expect(page.locator('#audioRecorderStatus')).toContainText('Înregistrare audio activă');
+  await expect(page.locator('#audioRecorderStatus')).toContainText('Ecranul este menținut activ');
+  expect(await page.evaluate(() => window.__wakeLockRequests)).toBe(1);
   await expect(page.locator('#audioRecordPause')).toBeEnabled();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
   await page.locator('#audioRecordPause').click();
   await expect(page.locator('#audioRecordResume')).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => window.__wakeLockReleases)).toBe(1);
   await page.locator('#audioRecordResume').click();
   await expect(page.locator('#audioRecordStop')).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => window.__wakeLockRequests)).toBe(2);
   await page.locator('#audioRecordStop').click();
   await expect(page.locator('#audioRecorderStatus')).toContainText('Înregistrare salvată local');
+  await expect.poll(() => page.evaluate(() => window.__wakeLockReleases)).toBe(2);
   await expect(page.locator('#audioRecordingList')).toContainText('KB');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
   expect(await page.evaluate(() => window.__audioTrackStopped)).toBe(true);
   await page.reload();
+  await page.locator('.nav[data-page="assistant"]').click();
   await expect(page.locator('#audioRecordingList')).toContainText('KB');
   expect(await page.evaluate(async () => (await window.CollectorAudioStore.list()).length)).toBe(1);
   page.once('dialog', dialog => dialog.accept());
@@ -77,6 +87,7 @@ test('voice entry degrades to accessible text input when speech recognition is u
     Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
   });
   await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="assistant"]').click();
   await page.locator('#voiceSessionButton').click();
 
   await expect(page.locator('#assistant')).toBeVisible();
@@ -95,6 +106,7 @@ test('voice session accumulates multiple phrases and previews one note without a
     } });
   });
   await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="assistant"]').click();
   await page.locator('#voiceSessionButton').click();
   await expect(page.locator('#voiceSessionButton')).toContainText('Oprește transcrierea');
   await page.evaluate(() => {
@@ -119,6 +131,7 @@ test('voice session fallback keeps text entry available when speech recognition 
     Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
   });
   await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="assistant"]').click();
   await page.locator('#voiceSessionButton').click();
   await expect(page.locator('#commandResult')).toContainText('Sesiunea vocală nu este disponibilă');
   await expect(page.locator('#commandInput')).toBeFocused();
