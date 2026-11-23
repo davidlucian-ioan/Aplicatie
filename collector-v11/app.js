@@ -201,6 +201,6 @@ async function confirmCoreCommand(){
 document.getElementById('parseCommand').onclick=runCommand;
 document.getElementById('voiceButton').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('Acest browser nu oferă SpeechRecognition. Poți dicta prin Windows Voice Typing (Win+H) în câmpul de text.');return}const rec=new SR();rec.lang='ro-RO';rec.interimResults=false;rec.maxAlternatives=1;rec.onresult=e=>{document.getElementById('commandInput').value=e.results[0][0].transcript;runCommand()};rec.onerror=e=>alert('Dictarea nu a reușit: '+e.error);rec.start()};
 // Conversation context expires after 30 minutes; persistent entities and event history are unaffected.
-window.addEventListener('focus',()=>{if(!E.contextIsActive(db)){db.meta.activeContext=null;persistRaw(db)}});
+// Do not persist stale in-memory snapshots on focus; context expiry is evaluated when commands are handled.
 // Every committed change is persisted before publication; never write a stale in-memory snapshot on unload.
 render();
