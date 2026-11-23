@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { mkdtemp, mkdir, readFile, rm, writeFile } = require('node:fs/promises');
+const { access, mkdtemp, mkdir, readFile, rm, writeFile } = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -15,6 +15,7 @@ test('Android manifest patch is idempotent and declares microphone foreground se
 
   const manifestPath = path.join(temp, 'AndroidManifest.xml');
   const resourcePath = path.join(temp, 'res');
+  const javaPath = path.join(temp, 'java');
   await mkdir(resourcePath, { recursive: true });
   await writeFile(manifestPath, `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -28,6 +29,7 @@ test('Android manifest patch is idempotent and declares microphone foreground se
     ...process.env,
     COLLECTOR_ANDROID_MANIFEST: manifestPath,
     COLLECTOR_ANDROID_RES: resourcePath,
+    COLLECTOR_ANDROID_JAVA: javaPath,
   };
   const run = () => spawnSync(process.execPath, ['scripts/patch-android-manifest.mjs'], {
     cwd: root,
@@ -51,13 +53,17 @@ test('Android manifest patch is idempotent and declares microphone foreground se
     const declaration = 'android:name="android.permission.' + permission + '"';
     assert.equal(manifest.split(declaration).length - 1, 1);
   }
-  assert.equal((manifest.match(/AndroidForegroundService/g) || []).length, 1);
+  assert.equal((manifest.match(/CollectorRecordingService/g) || []).length, 1);
   assert.match(manifest, /android:foregroundServiceType="microphone"/);
+  assert.match(manifest, /android:process=":collector_recorder"/);
   assert.match(manifest, /android:stopWithTask="false"/);
 
   const icon = await readFile(path.join(resourcePath, 'drawable', 'ic_stat_collector.xml'), 'utf8');
   assert.match(icon, /<vector/);
   assert.match(icon, /fillColor="#FFFFFFFF"/);
+  for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java']) {
+    await access(path.join(javaPath, file));
+  }
 });
 
 test('Android manifest patch refuses an unknown manifest template', async (t) => {
