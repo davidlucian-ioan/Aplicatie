@@ -170,3 +170,13 @@ PR #28 în lucru: `event.attribute.set` trim-uiește numele și respinge valoril
 
 
 PR #29 în lucru: `event.attribute.correct` respinge corectarea repetată a unei înregistrări deja voided și păstrează primul `voidedByEventId`; test de rollback atomic și CI în așteptare.
+
+
+**PR #29 în lucru — stock.reverse și Stryker:** https://github.com/davidlucian-ioan/Aplicatie/pull/29
+- [ ] Test pentru inversarea atomică a unui eveniment compus care conține vânzare, eliminare și transfer între locații.
+- [ ] Test pentru fallback-ul `disposition: active` la rânduri legacy fără câmpul `disposition`.
+- [ ] Test pentru inversarea unui eveniment `stock.adjust` ca eveniment distinct și blocarea unei a doua inversări.
+- [ ] Triage documentat pentru cei 33 de mutanți supraviețuitori și un timeout din raportul istoric #45237194442; raportul precede PR #22 și nu este un scor actual.
+- [ ] CI complet în așteptare. Date sintetice; fără deploy.
+
+**Verificare de integrare:** PR #17–#20 sunt în continuare strămoși ai branch-ului `main` (compare API: `ahead`, `behind_by=0` pentru fiecare merge commit). PR #21 este integrat și CI a trecut (run #45247173561). Ultimul CI `main` verificat pentru SHA `bd359025b7dc48eb09d98beeeacd2fdbc3541860` a trecut (run #45251393000). PR #27 și #28 sunt încă deschise; ambele au o rulare CI verde pe head-ul verificat, dar PR #27 a primit un commit ulterior față de run-ul verificat și trebuie reverificat înainte de integrare.
