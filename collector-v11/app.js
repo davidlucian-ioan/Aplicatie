@@ -20,7 +20,7 @@ function loadDb(){
  const attrs=Array.isArray(raw.attributes)?raw.attributes:[],sourceEvents=Array.isArray(raw.events)?raw.events:[];
  if(sourceEvents.some(e=>!e||typeof e!=='object'||Array.isArray(e)||typeof e.id!=='string'||!e.id.trim()))return preserveAndBlock(raw,'Jurnalul vechi conține un eveniment fără ID valid.');
  let events=sourceEvents.map(e=>({...e,status:e.status||'committed'}));const known=new Set(events.map(e=>e.id));
- let migrationClock=Math.max(Date.now(),...events.map(e=>Date.parse(e.timestamp)||0))+1;const migrationTimestamp=()=>new Date(migrationClock++).toISOString();
+ const legacyEntityTimes=Array.isArray(raw.entities)?raw.entities.map(e=>Date.parse(e?.createdAt)||0):[];let migrationClock=Math.max(Date.now(),...events.map(e=>Date.parse(e.timestamp)||0),...legacyEntityTimes)+1;const migrationTimestamp=()=>new Date(migrationClock++).toISOString();
  // Legacy attribute definitions become explicit journal events so the migrated v7 backup remains replay-verifiable.
  for(const definition of attrs){
   if(!definition||typeof definition!=='object'||typeof definition.name!=='string'||!definition.name.trim())return preserveAndBlock(raw,'O definiție de atribut veche este invalidă și nu poate fi migrată automat.');
