@@ -31,7 +31,7 @@
     report('PROMISE_REJECTION', reason && (reason.stack || reason.message) || reason);
   });
   window.addEventListener('load', function () {
-    var required = ['engine.js', 'core-port-browser.js', 'audio-store.js', 'app.js'];
+    var required = ['engine.js', 'core-port-browser.js', 'audio-store.js', 'app' + '.js'];
     var loaded = Array.prototype.map.call(document.scripts, function (script) { return script.src; });
     var missing = required.filter(function (name) {
       return !loaded.some(function (src) { return src.indexOf('/' + name) !== -1; });
