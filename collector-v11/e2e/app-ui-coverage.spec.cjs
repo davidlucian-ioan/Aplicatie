@@ -43,7 +43,7 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
 
   await page.locator('.nav[data-page="entities"]').click();
   await page.getByRole('button', { name: 'Deschide' }).first().click();
-  await page.locator('.entity-detail .detail-head button.secondary').first().click();
+  await page.locator('.entity-detail .row-actions button').first().click();
   await page.locator('#attrName').fill('pH');
   await page.locator('#attrMin').fill('5.5');
   await page.locator('#attrMax').fill('6.5');
