@@ -517,3 +517,20 @@ test('startup-ul păstrează datele unei versiuni de schemă viitoare și nu le 
   expect(preserved.schemaVersion).toBe(8);
   expect(preserved.entities[0].name).toBe('Entitate schema viitoare');
 });
+
+
+test('migrarea legacy păstrează colecțiile de proiecție malformate în loc să le golească', async ({ page }) => {
+  await createEntity(page, 'Entitate cu stoc corupt', 'plant');
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.schemaVersion = 6;
+    db.stock = { quantity: 42 };
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(preserved.schemaVersion).toBe(6);
+  expect(preserved.stock).toEqual({ quantity: 42 });
+});
