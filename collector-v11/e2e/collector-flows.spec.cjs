@@ -1,6 +1,7 @@
 'use strict';
 
 const { test, expect } = require('@playwright/test');
+const legacyV6Fixture = require('./fixtures/v6-missing-entity-create.json');
 
 async function createLocation(page, name) {
   await page.locator('.nav[data-page="relations"]').click();
@@ -533,4 +534,57 @@ test('migrarea legacy păstrează colecțiile de proiecție malformate în loc s
   const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
   expect(preserved.schemaVersion).toBe(6);
   expect(preserved.stock).toEqual({ quantity: 42 });
+});
+
+
+test('migrarea v6 păstrează ordinea append-only și trece export/import/replay', async ({ page }) => {
+  await page.addInitScript(fixture => {
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(fixture));
+  }, legacyV6Fixture);
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
+
+  const result = await page.evaluate(() => {
+    const migrated = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    const validation = window.CollectorEngine.validateImport(migrated);
+    const originalNoteIndex = migrated.events.findIndex(event => event.id === 'legacy-journal-note-001');
+    const migratedCreateIndex = migrated.events.findIndex(event => event.type === 'migration.entity_imported');
+    return {
+      schemaVersion: migrated.schemaVersion,
+      entityName: migrated.entities.find(entity => entity.id === 'legacy-entity-missing-create')?.name,
+      originalNoteIndex,
+      migratedCreateIndex,
+      originalNoteTimestamp: migrated.events[originalNoteIndex]?.timestamp,
+      migratedCreateTimestamp: migrated.events[migratedCreateIndex]?.timestamp,
+      replayWarnings: validation.meta.replayWarnings || [],
+      replayEntityName: validation.entities.find(entity => entity.id === 'legacy-entity-missing-create')?.name
+    };
+  });
+  expect(result.schemaVersion).toBe(7);
+  expect(result.entityName).toBe('Legacy specimen');
+  expect(result.originalNoteIndex).toBe(0);
+  expect(result.migratedCreateIndex).toBe(1);
+  expect(Date.parse(result.migratedCreateTimestamp)).toBeGreaterThan(Date.parse(result.originalNoteTimestamp));
+  expect(result.replayWarnings).toEqual([]);
+  expect(result.replayEntityName).toBe('Legacy specimen');
+});
+
+test('aplicația poate înregistra date offline și le recuperează după reconectare', async ({ page, context }) => {
+  await context.setOffline(true);
+  const entityId = await createEntity(page, 'Plantă înregistrată offline', 'plant');
+  expect(entityId).toBeTruthy();
+  const offlineState = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return { name: db.entities[0]?.name, eventCount: db.events.length };
+  });
+  expect(offlineState.name).toBe('Plantă înregistrată offline');
+  expect(offlineState.eventCount).toBeGreaterThan(0);
+
+  await context.setOffline(false);
+  await page.reload();
+  await page.locator('.nav[data-page="entities"]').click();
+  await expect(page.locator('#entityList')).toContainText('Plantă înregistrată offline');
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
 });
