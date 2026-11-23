@@ -439,6 +439,12 @@ test('JSON local corupt este păstrat pentru export și blochează scrierile', a
   const backup = JSON.parse(await require('node:fs/promises').readFile(await download.path(), 'utf8'));
   expect(backup.db.rawStorageValue).toBe(corrupt);
   expect(backup.db.storageKey).toBe('collector_mvp_v2');
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  let rebuildMessage = '';
+  page.once('dialog', async dialog => { rebuildMessage = dialog.message(); await dialog.accept(); });
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  expect(rebuildMessage).toContain('Reconstruirea a fost blocată');
+  expect(await page.evaluate(() => localStorage.getItem('collector_mvp_v2'))).toBe(corrupt);
 });
 
 test('migrarea legacy jurnalizează definițiile și rămâne validă la următorul startup', async ({ page }) => {
@@ -486,4 +492,12 @@ test('migrarea legacy refuză o proiecție de relații divergentă fără să o 
   const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
   expect(preserved.schemaVersion).toBe(6);
   expect(preserved.relations[0].type).toBe('tampered_relation');
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  let rebuildMessage = '';
+  page.once('dialog', async dialog => { rebuildMessage = dialog.message(); await dialog.accept(); });
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  expect(rebuildMessage).toContain('Reconstruirea a fost blocată');
+  const stillPreserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(stillPreserved.schemaVersion).toBe(6);
+  expect(stillPreserved.relations[0].type).toBe('tampered_relation');
 });
