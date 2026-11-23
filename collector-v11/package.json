@@ -6,7 +6,7 @@
   "scripts": {
     "test": "node --test test-*.js",
     "test:properties": "node --test property-stock-sequences.test.js",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=chromium",
     "test:all": "npm test && npm run test:properties && npm run test:core-properties && npm run test:coverage && npm run benchmark:replay && npm run test:e2e",
     "test:core-properties": "node --test property-core-sequences.test.js",
     "test:coverage": "node --experimental-test-coverage --test test-*.js property-*.test.js",
