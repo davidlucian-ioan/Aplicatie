@@ -15,7 +15,7 @@
     }
     var appReady = window.__collectorAppReady === true;
     var lines = errors.map(function (entry) { return entry.kind + ': ' + entry.message; });
-    if (!appReady) lines.push('APP_NOT_READY: app.js nu a confirmat inițializarea completă.');
+    if (!appReady) lines.push('APP_NOT_READY: scriptul aplicației nu a confirmat inițializarea completă.');
     var state = errors.length || !appReady ? 'EROARE STARTUP' : 'STARTUP OK';
     panel.style.background = errors.length || !appReady ? '#3b1010' : '#10251b';
     panel.style.borderColor = errors.length || !appReady ? '#ff7777' : '#4b9b69';
@@ -72,7 +72,7 @@
     nativeContext = Boolean(window.CollectorAndroidRecorder) ||
       location.hostname === 'localhost' || location.search.indexOf('diagnostics=1') !== -1;
     if (!nativeContext) return;
-    ['engine.js', 'core-port-browser.js', 'audio-store.js', 'app.js'].forEach(function (name) {
+    ['engine.js', 'core-port-browser.js', 'audio-store.js'].forEach(function (name) {
       var loaded = Array.prototype.some.call(document.scripts, function (script) {
         return script.src.indexOf('/' + name) !== -1;
       });
@@ -85,7 +85,7 @@
     if (!document.getElementById('menuToggle') || !document.getElementById('mainContent')) {
       report('MISSING_DOM', 'menuToggle sau mainContent');
     }
-    if (window.__collectorAppReady !== true) report('APP_NOT_READY', 'app.js nu a ajuns la finalul inițializării.');
+    if (window.__collectorAppReady !== true) report('APP_NOT_READY', 'scriptul aplicației nu a ajuns la finalul inițializării.');
     render();
   });
 })();
