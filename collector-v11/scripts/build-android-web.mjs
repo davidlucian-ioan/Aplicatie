@@ -1,4 +1,5 @@
-import { cp, mkdir, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,4 +39,29 @@ if (missing.length) {
   throw new Error(`Android web bundle contains unresolved local assets: ${missing.join(', ')}`);
 }
 
-console.log(`Prepared Android web bundle in ${path.relative(root, output)} (${assets.length} files).`);
+const bundle = spawnSync('npx', [
+  '--yes',
+  '--package=esbuild@0.25.11',
+  'esbuild',
+  'android-native-entry.js',
+  '--bundle',
+  '--format=iife',
+  '--outfile=www/android-native-entry.js',
+], { cwd: root, encoding: 'utf8' });
+
+if (bundle.status !== 0) {
+  throw new Error(bundle.stderr || bundle.stdout || 'Could not bundle the Android native bridge.');
+}
+
+const indexPath = path.join(output, 'index.html');
+let bundledHtml = await readFile(indexPath, 'utf8');
+if (!bundledHtml.includes('android-native-entry.js')) {
+  const appScript = '<script src="app.js';
+  if (!bundledHtml.includes(appScript)) {
+    throw new Error('Could not find the Collector app.js script tag to inject the Android bridge.');
+  }
+  bundledHtml = bundledHtml.replace(appScript, '<script src="android-native-entry.js"></script>' + appScript);
+  await writeFile(indexPath, bundledHtml);
+}
+
+console.log(`Prepared Android web bundle in ${path.relative(root, output)} (${assets.length} source files plus native bridge).`);
