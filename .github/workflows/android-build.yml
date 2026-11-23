@@ -43,6 +43,10 @@ jobs:
         working-directory: collector-v11
         run: npm ci --no-audit --no-fund
 
+      - name: Verify Android WebView bundle generation
+        working-directory: collector-v11
+        run: npm run build:android:web
+
       - name: Generate Capacitor Android project and apply native permissions
         working-directory: collector-v11
         run: npm run android:add
