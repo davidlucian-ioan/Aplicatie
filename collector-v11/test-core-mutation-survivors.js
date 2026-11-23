@@ -259,3 +259,88 @@ test('relation.create.correct nu poate șterge un membru dacă ar crea sold nega
   );
   assert.equal(JSON.stringify(s.db), before, 'rejected relation correction must roll back relation and stock projections');
 });
+
+
+test('stock.change izolează soldul după populație și locație și permite epuizarea exactă', () => {
+  const s = setup();
+  s.commit('stock-primary-a', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add', certainty: 'estimated' } }]);
+  s.commit('stock-primary-b', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-b', quantity: 4, action: 'add' } }]);
+  s.commit('stock-other-population', [{ operation: 'stock.change', data: { populationId: 'item', locationId: 'location-a', quantity: 6, action: 'add' } }]);
+
+  assert.equal(s.db.stock.find(row => row.eventId === 'stock-primary-a').certainty, 'estimated');
+  s.commit('stock-partial-sale', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'sell' } }]);
+  assert.equal(balance(s.db, 'population', 'location-a'), 3);
+  assert.equal(balance(s.db, 'population', 'location-b'), 4);
+  assert.equal(balance(s.db, 'item', 'location-a'), 6);
+
+  s.commit('stock-exact-sale', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 3, action: 'sell' } }]);
+  assert.equal(balance(s.db, 'population', 'location-a'), 0);
+  assert.equal(balance(s.db, 'population', 'location-a', 'sold'), 5);
+  assert.equal(balance(s.db, 'population', 'location-b'), 4);
+  assert.equal(balance(s.db, 'item', 'location-a'), 6);
+
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('stock-sale-after-exhaustion', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 1, action: 'sell' } }]),
+    /Cantitate insuficientă/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+});
+
+test('stock.change mută cantitatea între locații și respinge destinații invalide atomic', () => {
+  const s = setup();
+  s.commit('stock-move-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('stock-move-out', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', destinationId: 'location-b', quantity: 2, action: 'move_out', certainty: 'estimated' } }]);
+
+  assert.equal(balance(s.db, 'population', 'location-a'), 3);
+  assert.equal(balance(s.db, 'population', 'location-b'), 2);
+  const movedIn = s.db.stock.find(row => row.eventId === 'stock-move-out' && row.action === 'move_in');
+  const movedOut = s.db.stock.find(row => row.eventId === 'stock-move-out' && row.action === 'move_out');
+  assert.equal(movedIn.quantity, 2);
+  assert.equal(movedIn.locationId, 'location-b');
+  assert.equal(movedIn.sourceLocationId, 'location-a');
+  assert.equal(movedIn.certainty, 'estimated');
+  assert.equal(movedOut.quantity, -2);
+  assert.equal(movedOut.locationId, 'location-a');
+
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('stock-move-missing-destination', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', destinationId: 'missing', quantity: 1, action: 'move_out' } }]),
+    /Destinația nu este o locație validă/
+  );
+  assert.throws(
+    () => s.commit('stock-move-non-location-destination', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', destinationId: 'other', quantity: 1, action: 'move_out' } }]),
+    /Destinația nu este o locație validă/
+  );
+  assert.throws(
+    () => s.commit('stock-move-insufficient', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', destinationId: 'location-b', quantity: 4, action: 'move_out' } }]),
+    /Cantitate insuficientă/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+});
+
+test('stock.change dispose scade soldul activ și păstrează dispoziția și acțiunea', () => {
+  const s = setup();
+  s.commit('stock-dispose-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('stock-dispose', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 2, action: 'dispose' } }]);
+
+  assert.equal(balance(s.db, 'population', 'location-a'), 3);
+  assert.equal(balance(s.db, 'population', 'location-a', 'disposed'), 2);
+  const disposed = s.db.stock.find(row => row.eventId === 'stock-dispose' && row.action === 'dispose');
+  assert.equal(disposed.disposition, 'disposed');
+  assert.equal(disposed.quantity, 2);
+  assert.equal(s.db.stock.find(row => row.eventId === 'stock-dispose' && row.disposition === 'active').quantity, -2);
+});
+
+test('stock.change păstrează aliasul entityId, locația nulă și valorile implicite', () => {
+  const s = setup();
+  s.commit('stock-legacy-alias', [{ operation: 'stock.change', data: { entityId: 'population', quantity: 2 } }]);
+
+  const row = s.db.stock.find(entry => entry.eventId === 'stock-legacy-alias');
+  assert.equal(row.populationId, 'population');
+  assert.equal(row.locationId, null);
+  assert.equal(row.disposition, 'active');
+  assert.equal(row.action, 'add');
+  assert.equal(row.certainty, 'certain');
+  assert.equal(E.balances(s.db).find(entry => entry.populationId === 'population' && entry.locationId === null && entry.disposition === 'active').quantity, 2);
+});
