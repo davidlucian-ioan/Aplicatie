@@ -5,7 +5,7 @@
 **Ultima actualizare de proiect:** 23 noiembrie 2026  
 **Repository:** davidlucian-ioan/Aplicatie  
 **Default branch:** main  
-**Status GitHub:** Collector MVP v11 este integrat în `main` prin PR #3. Faza 1 este integrată prin PR #6, hardening Core prin PR #7, iar extinderea migrare/UI/testelor Core prin PR #14 (merge squash 23 noiembrie 2026), commit `1c7aae2a5a906f779eb85af73496c1ba14cf17d2`. CI PR #14 a trecut integral: teste Node/Core/property, Replay benchmark, Chromium/Firefox/WebKit și Stryker focalizat (run #45239707892). UI byte coverage Chromium este 78,39%. Baseline-ul Stryker full-suite este 65,81% (run #45237194442); rularea focalizată din PR #14 a fost 31,35% și nu este comparabilă direct, deoarece folosește doar `test-core-mutation-survivors.js` cu mutații pe întreg `engine.js`. Stryker full-suite este configurat să ruleze nocturn cu `npm test`. Strategia actualizată este în `docs/testing/TEST-STRATEGY-v1.md`.  
+**Status GitHub:** Collector MVP v11 este integrat în `main` prin PR #3. Faza 1 este integrată prin PR #6, hardening Core prin PR #7, iar extinderea migrare/UI/testelor Core prin PR #14 (merge squash 23 noiembrie 2026), commit `1c7aae2a5a906f779eb85af73496c1ba14cf17d2`, iar testele suplimentare de stoc din PR #16 au fost integrate în `main` prin commit `5487c764c9f3183878a3268f23f8423e36d1e76b`. CI PR #14 a trecut integral: teste Node/Core/property, Replay benchmark, Chromium/Firefox/WebKit și Stryker focalizat (run #45239707892). UI byte coverage Chromium este 78,39%. Baseline-ul Stryker full-suite este 65,81% (run #45237194442); rularea focalizată din PR #14 a fost 31,35% și nu este comparabilă direct, deoarece folosește doar `test-core-mutation-survivors.js` cu mutații pe întreg `engine.js`. Stryker full-suite este configurat să ruleze nocturn cu `npm test`. Strategia actualizată este în `docs/testing/TEST-STRATEGY-v1.md`.  
 **Artefacte păstrate:** Library `/Collector/Collector-MVP-v11-CONTINUARE-v0.7.zip` și `/Collector/CONTINUARE-PROIECT.md`.
 
 ## 1. De ce există acest document
@@ -109,7 +109,7 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 - CI rulează 250 secvențe stock + 150 secvențe Core la fiecare PR și 2.500 + 1.500 într-o rulare nocturnă.
 - Coverage Node pentru `engine.js`: 96,85% line, 91,46% branch, 96,08% functions. Coverage-ul Node nu instrumentează `app.js` din browser; nu există încă prag blocant.
 - Benchmark Replay sintetic în PR CI: 100 evenimente = 0,610 ms; 1.000 = 3,791 ms; 10.000 = 13,852 ms pe runner Linux x64 / Node 22.23.5. Sunt măsurători de referință, nu SLA.
-- Issue #5 rămâne deschis pentru analiza mutanților supraviețuitori și revizuirea performanței/heap la volume mari; PR #14 a integrat fixture-ul legacy fără schemaVersion, UI coverage 78,39% și testele Core focalizate.
+- Issue #5 rămâne deschis pentru analiza mutanților supraviețuitori și revizuirea performanței/heap la volume mari; PR #14 a integrat fixture-ul legacy fără schemaVersion, UI coverage 78,39%, testele Core focalizate și testele extinse stock.change (PR #16).
 - Issue #4 rămâne pentru validarea manuală a aplicației în browser; testele automate nu o înlocuiesc.
 
 ## 10. Reguli pentru următoarea sesiune
@@ -138,4 +138,4 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 - PR hardening Core faza 2: https://github.com/davidlucian-ioan/Aplicatie/pull/7
 - Workflow CI: `.github/workflows/collector-quality.yml` — se execută la schimbări în aplicație, documentația root/testing, PR-uri și nocturn.
 
-**Următorul pas implicit:** continuă analiza mutanților supraviețuitori folosind raportul Stryker full-suite (65,81%) și verifică baseline-ul nocturn următor. Nu compara scorul focalizat de 31,35% cu baseline-ul complet. Validarea manuală din issue #4 rămâne separată și necesită confirmarea utilizatorului în browser; nu afirma că a fost făcută automat. Nu relua importul arhivei sau testele de bază deja verificate.
+**Următorul pas implicit:** continuă analiza mutanților supraviețuitori folosind raportul Stryker full-suite (65,81%): prioritățile observate sunt stock.change, relation.create.correct, relation.move.correct, stock.reverse și validarea timestamp. PR #16 a adăugat teste pentru ramurile stock.change; baseline-ul nocturn următor trebuie comparat cu atenție, deoarece raportul anterior este pre-PR #15/#16. Nu compara scorul focalizat de 31,35% cu baseline-ul complet. Validarea manuală din issue #4 rămâne separată și necesită confirmarea utilizatorului în browser; nu afirma că a fost făcută automat. Nu relua importul arhivei sau testele de bază deja verificate.
