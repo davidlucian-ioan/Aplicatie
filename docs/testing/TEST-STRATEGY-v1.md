@@ -89,7 +89,7 @@ Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fie
 - Pornește serverul local din CI pe un port dedicat.
 - La eșec, păstrează screenshot, trace și eventual video ca artifact GitHub Actions.
 
-**Cadru implementat:** Chromium la fiecare Pull Request și rulare nocturnă. Firefox și WebKit rămân pentru etapa următoare.
+**Cadru implementat în PR #8:** Chromium, Firefox și WebKit la fiecare Pull Request; Chromium rămâne și în rularea nocturnă. Prima matrice cross-browser a trecut 7/7 teste în fiecare browser (run #90).
 
 ### Nivel D — coverage, mutații și performanță
 
@@ -102,8 +102,8 @@ Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fie
 
 | Când | Ce rulează | Scop |
 |---|---|---|
-| Fiecare Pull Request | `npm test` + 250 secvențe stock + 150 secvențe Core + coverage informativ + benchmark Replay + Playwright Chromium | blochează regresiile înainte de merge și arhivează baseline-ul |
-| Nocturn | 2.500 secvențe stock + 1.500 secvențe Core + Playwright Chromium | caută secvențe și diferențe greu de prins rapid |
+| Fiecare Pull Request | `npm test` + 250 secvențe stock + 150 secvențe Core + coverage informativ + benchmark Replay + Playwright Chromium/Firefox/WebKit | blochează regresiile înainte de merge și arhivează baseline-ul |
+| Nocturn | 2.500 secvențe stock + 1.500 secvențe Core + Playwright Chromium + StrykerJS pe `engine.js` | caută secvențe rare și mutații nedetectate de teste |
 | Înainte de release | coverage review + mutation testing pentru Core + test de backup/migrare | verifică rezistența și siguranța datelor |
 
 Nicio etapă nu trebuie să folosească exportul operațional personal al utilizatorului. Testele folosesc exclusiv date sintetice și profile de browser izolate.
@@ -112,7 +112,8 @@ Nicio etapă nu trebuie să folosească exportul operațional personal al utiliz
 
 1. **Faza 1 închisă prin PR #6:** Playwright Chromium, patru fluxuri E2E și primele proprietăți stock/replay.
 2. **Faza 2 integrată în `main` prin PR #7:** corecții după ordinea jurnalului, idempotency derivat din jurnal, validare strictă import/timestamp/schema, teste pentru relații și mutări, șapte fluxuri E2E, coverage informativ și benchmark Replay.
-3. Rămân: mutation testing, Firefox/WebKit, teste de migrare mai extinse și benchmark-uri pentru scenarii de domeniu/volume mai mari.
+3. **PR #8:** Firefox/WebKit la fiecare PR și StrykerJS nocturn configurat. Baseline-ul de mutații se colectează după integrare și prima rulare nocturnă.
+4. Rămân: teste de migrare mai extinse, teste offline și benchmark-uri pentru scenarii de domeniu/volume mai mari.
 
 ## 5. Ce nu trebuie confundat
 
