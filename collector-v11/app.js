@@ -14,26 +14,41 @@ function loadDb(){
  if(parseError)return preserveAndBlock({storageKey:sourceKey,rawStorageValue:rawText},'Datele locale nu sunt JSON valid: '+parseError.message);
  if(raw===null){const empty=E.emptyState();persistRaw(empty);return empty}
  if(raw.schemaVersion===7){try{const validated=E.validateImport(raw);if(!persistRaw(validated))throw Error('Nu am putut salva starea verificată în localStorage.');return validated}catch(error){const replayed=E.replay(Array.isArray(raw.events)?raw.events:[],Array.isArray(raw.attributes)?raw.attributes:[]);return preserveAndBlock(raw,error,replayed.meta.replayWarnings||[])}}
- let attrs=Array.isArray(raw.attributes)?raw.attributes:[],events=(Array.isArray(raw.events)?raw.events:[]).filter(e=>e&&e.id).map(e=>({...e,status:e.status||'committed'}));const known=new Set(events.map(e=>e.id));
+ const attrs=Array.isArray(raw.attributes)?raw.attributes:[],sourceEvents=Array.isArray(raw.events)?raw.events:[];
+ if(sourceEvents.some(e=>!e||typeof e!=='object'||Array.isArray(e)||typeof e.id!=='string'||!e.id.trim()))return preserveAndBlock(raw,'Jurnalul vechi conține un eveniment fără ID valid.');
+ let events=sourceEvents.map(e=>({...e,status:e.status||'committed'}));const known=new Set(events.map(e=>e.id));
+ let migrationClock=Math.max(Date.now(),...events.map(e=>Date.parse(e.timestamp)||0))+1;const migrationTimestamp=()=>new Date(migrationClock++).toISOString();
+ // Legacy attribute definitions become explicit journal events so the migrated v7 backup remains replay-verifiable.
+ for(const definition of attrs){
+  if(!definition||typeof definition!=='object'||typeof definition.name!=='string'||!definition.name.trim())return preserveAndBlock(raw,'O definiție de atribut veche este invalidă și nu poate fi migrată automat.');
+  const ev={id:id(),type:'migration.attribute_definition_imported',timestamp:migrationTimestamp(),source:'migration',actor:'system',status:'committed',payload:{attribute:definition.name},operations:[{operation:'attribute.define',data:definition}]};
+  events.push(ev);known.add(ev.id);
+ }
  // Migrate legacy projections to append-only migration events where the old journal is incomplete.
- for(const ent of (Array.isArray(raw.entities)?raw.entities:[])){if(!events.some(ev=>ev.payload?.entityId===ent.id||ev.operations?.some(o=>(o.target===ent.id||o.entityId===ent.id||o.data?.entityId===ent.id)&&['create','entity.create'].includes(o.operation)))){const ev={id:id(),type:'migration.entity_imported',timestamp:ent.createdAt||E.now(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name,type:ent.type},operations:[{target:ent.id,operation:'entity.create',data:{name:ent.name,type:ent.type}}]};if(!known.has(ev.id)){events.push(ev);known.add(ev.id)}}}
- let state=E.replay(events,attrs);
+ for(const ent of (Array.isArray(raw.entities)?raw.entities:[])){
+  if(!ent||typeof ent!=='object'||Array.isArray(ent)||typeof ent.id!=='string'||!ent.id.trim())return preserveAndBlock(raw,'O proiecție veche de entitate este invalidă și nu poate fi migrată automat.');
+  if(!events.some(ev=>ev.payload?.entityId===ent.id||ev.operations?.some(o=>(o.target===ent.id||o.entityId===ent.id||o.data?.entityId===ent.id)&&['create','entity.create'].includes(o.operation)))){
+   const ev={id:id(),type:'migration.entity_imported',timestamp:ent.createdAt||E.now(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name,type:ent.type},operations:[{target:ent.id,operation:'entity.create',data:{name:ent.name,type:ent.type}}]};
+   if(!known.has(ev.id)){events.push(ev);known.add(ev.id)}
+  }
+ }
+ let state=E.replay(events,[]);
  for(const ent of (Array.isArray(raw.entities)?raw.entities:[])){
   let projected=state.entities.find(x=>x.id===ent.id);
   if(!projected)return preserveAndBlock(raw,'O entitate veche nu poate fi reconstruită din jurnal.');
   if(projected.type!==String(ent.type||'generic'))return preserveAndBlock(raw,'Tipul unei entități vechi diferă de jurnal și nu poate fi migrat automat.');
   if(projected.name!==String(ent.name||'Fără nume')){
-   const ev={id:id(),type:'migration.entity_renamed',timestamp:E.now(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name},operations:[{target:ent.id,operation:'entity.rename',data:{name:ent.name}}]};
+   const ev={id:id(),type:'migration.entity_renamed',timestamp:migrationTimestamp(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name},operations:[{target:ent.id,operation:'entity.rename',data:{name:ent.name}}]};
    events.push(ev);state=E.replay(events,attrs);projected=state.entities.find(x=>x.id===ent.id);
   }
   for(const [name,value] of Object.entries(ent.attributes||{})){
    if(JSON.stringify(projected.attributes?.[name])!==JSON.stringify(value)){
-    const ev={id:id(),type:'migration.attribute_imported',timestamp:E.now(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,attribute:name,value},operations:[{target:ent.id,operation:'attribute.set',data:{name,value,certainty:'certain'}}]};
+    const ev={id:id(),type:'migration.attribute_imported',timestamp:migrationTimestamp(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,attribute:name,value},operations:[{target:ent.id,operation:'attribute.set',data:{name,value,certainty:'certain'}}]};
     events.push(ev);state=E.replay(events,attrs);projected=state.entities.find(x=>x.id===ent.id);
    }
   }
  }
- state.events=events.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));state.attributes=attrs;state.schemaVersion=7;state.meta={...state.meta,...raw.meta,replayWarnings:state.meta.replayWarnings||[]};
+ state.events=events.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));state.schemaVersion=7;state.meta={...state.meta,...raw.meta,replayWarnings:state.meta.replayWarnings||[]};
  if((state.meta.replayWarnings||[]).length)return preserveAndBlock(raw,'Jurnalul vechi conține evenimente care nu pot fi reconstruite.',state.meta.replayWarnings);
  const comparable=rows=>rows.map(({id,...row})=>row);
  for(const key of ['relations','stock','finance','eventAttributes']){
@@ -42,8 +57,9 @@ function loadDb(){
   const replayed=['stock','finance','eventAttributes'].includes(key)?comparable(state[key]||[]):(state[key]||[]);
   if(JSON.stringify(stored)!==JSON.stringify(replayed))return preserveAndBlock(raw,'Proiecția veche „'+key+'” nu corespunde jurnalului. Datele originale au fost păstrate; migrarea automată a fost oprită.');
  }
- if(!persistRaw(state))return preserveAndBlock(raw,'Migrarea nu a putut fi salvată în localStorage.');
- return state;
+ let validated;try{validated=E.validateImport(state)}catch(error){return preserveAndBlock(raw,error,state.meta.replayWarnings||[])}
+ if(!persistRaw(validated))return preserveAndBlock(raw,'Migrarea nu a putut fi salvată în localStorage.');
+ return validated;
 }
 function persistRaw(x){try{localStorage.setItem(KEY,JSON.stringify(x));return true}catch(err){console.error(err);return false}}
 function ensureAICorePort(){if(aiCorePort)return aiCorePort;const Port=window.CollectorBrowserCorePort;if(!Port)throw Error('Core Port nu a fost încărcat.');aiCorePort=new Port({core:E,store:{getState:()=>db,persistState:async next=>!integrityBlocked&&persistRaw(next),publishState:async next=>{db=next;render()}}});return aiCorePort}
