@@ -1,95 +1,103 @@
 # Android native recorder — architecture and safety gates
 
-Status: **Phase A — architecture baseline; no Android recording capability is claimed yet.**
+Status: **Phase B — native service and bridge implementation in progress; physical-device acceptance is still required.**
 
 ## Decision
 
-Keep Collector's existing web application and Core unchanged. Add an Android host using Capacitor 8. Use the maintained `@capgo/capacitor-audio-recorder` plugin for native microphone capture and `@capawesome-team/capacitor-android-foreground-service` for the Android microphone foreground service and persistent notification. Keep a custom Kotlin plugin as a fallback only if integration tests reveal a lifecycle or recovery gap that the maintained plugins cannot close. The Android implementation is an adapter for the existing recorder workflow; it must not fork or mutate the domain Core.
+Keep Collector's existing web application and Core unchanged. Add an Android host using Capacitor 8 and a small app-owned Java Capacitor plugin. The plugin controls an app-owned Android microphone foreground service. The service runs in a separate Android process (:collector_recorder) so microphone capture and file writing do not depend on the WebView or Activity lifecycle.
 
-The native recorder plugin owns microphone capture and native file output; the foreground-service plugin owns the ongoing Android service and notification. The web UI owns presentation and user intent. The web recorder remains the fallback on browsers and platforms without the native plugins.
+The native service owns microphone capture, notification, wake lock, audio files, and recovery metadata. The web UI owns presentation and user intent. The existing browser recorder remains the fallback on browsers and platforms without the native bridge.
 
 ## Why the web recorder is not enough
 
-The current recorder uses `getUserMedia()`, `MediaRecorder`, in-memory chunks, and IndexedDB. Screen Wake Lock is only a foreground screen-awake hint. It is not an Android background microphone service and it does not make browser-held chunks durable during process termination.
+The current browser recorder uses getUserMedia(), MediaRecorder, in-memory chunks, and IndexedDB. Screen Wake Lock is only a foreground screen-awake hint. It is not an Android background microphone service and it does not make browser-held chunks durable during process termination.
 
-## Selected native components
+A third-party recorder plugin was evaluated and rejected for the core capture path: its Android implementation is tied to the Capacitor plugin lifecycle and writes into the app cache directory. That is not a strong enough durability boundary for a reportofon that must continue independently of the WebView.
 
-- Capacitor 8 host (`@capacitor/core`, `@capacitor/android`, `@capacitor/cli`) with exact versions pinned together.
-- `@capgo/capacitor-audio-recorder` 8.x for native Android AAC capture, pause/resume, status, and file URI output. Use `format: 'aac'` so a process interruption leaves a playable file through the last complete ADTS frame; this is recovery, not a guarantee of a cleanly finalized recording.
-- `@capawesome-team/capacitor-android-foreground-service` 8.x for a foreground service declared with the `microphone` type and a persistent notification. Its service must be started while the Activity is visible and before microphone capture begins.
-- The recorder plugin does not start a foreground service by itself. The two plugins must be orchestrated as one state machine: start service → start recorder; stop recorder → stop service. On any recorder-start failure, stop the service again.
+## Native components
+
+- Capacitor 8 host (@capacitor/core, @capacitor/android) with exact versions pinned together.
+- CollectorRecorderPlugin.java: typed Capacitor bridge for start, pause, resume, stop, status, listing, lookup, and deletion.
+- CollectorRecordingService.java: Android microphone foreground service running in its own process.
+- filesDir/recordings/: app-private persistent audio files and atomic JSON manifests; never the Core journal.
+- scripts/patch-android-manifest.mjs: generates the service declaration, permissions, notification icon, and MainActivity plugin registration into the generated Capacitor project.
 
 ## Native recording lifecycle
 
-1. The user explicitly presses Record while the app is visible and grants microphone permission.
-2. The bridge starts the native `microphone` foreground service and immediately posts an ongoing notification.
-3. The native audio recorder writes AAC to an app-private native file. The app records the returned URI and metadata; it does not copy the entire audio into JavaScript memory.
-4. Persist a small recording manifest (recording ID, timestamps, native URI, MIME/codec, duration, state, and last known status) independently from the Core journal.
-5. Pause/resume follows the native recorder API. If a pause or interruption produces a separate file, keep each URI as a segment under the same recording ID rather than concatenating or overwriting it.
-6. Stop finalizes the active native file, commits the manifest, stops foreground mode, and reports the completed recording to the web UI.
-7. On app launch, query native recorder status and reconcile manifests with files. Flag incomplete/interrupted AAC sessions for explicit recovery. Never silently discard or auto-submit them.
+1. The user explicitly presses Record while the app is visible.
+2. The bridge requests microphone permission and, on Android 13+, notification permission. A denied permission prevents recording.
+3. The bridge starts the microphone foreground service from the visible Activity.
+4. The service calls startForeground() immediately with an ongoing notification and a direct Stop action, then starts MediaRecorder.
+5. Audio is written directly to app-private filesDir/recordings/, not to JavaScript memory, IndexedDB, or the cache directory.
+6. On Android API 26+, use AAC ADTS (.aac) so a process interruption leaves a readable stream through its last complete frame. On API 24–25, fall back to MPEG-4/AAC (.m4a); an unclean process death may make that file unreadable.
+7. The service atomically persists recording metadata after each state transition. Pause releases the partial wake lock; resume reacquires it.
+8. Stop finalizes the recorder, commits the final manifest, releases the wake lock, removes the notification, and stops the service.
+9. On app launch, the bridge checks whether the separate service process still exists. Stale recording or paused manifests become interrupted; existing partial files are retained and surfaced to the user.
 
 ## Android platform requirements
 
-- Declare `RECORD_AUDIO`.
-- Declare `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MICROPHONE` where required by target SDK.
-- Declare the service with `android:foregroundServiceType="microphone"`.
+- Declare RECORD_AUDIO.
+- Declare FOREGROUND_SERVICE and FOREGROUND_SERVICE_MICROPHONE.
+- Declare the service with android:foregroundServiceType="microphone", android:exported="false", and android:stopWithTask="false".
 - Start the microphone foreground service only from a user-visible, user-initiated flow and comply with current Android foreground-service start restrictions.
-- Create a user-visible notification channel and ongoing notification with a Stop action. Route the notification action through the same idempotent stop coordinator as the UI.
-- Request runtime microphone permission before service start. Request notification permission where applicable; notification permission denial must not be treated as microphone permission.
+- Create a user-visible notification channel and ongoing notification with a direct Stop action.
+- Request runtime microphone permission before service start. Request notification permission on Android 13+; notification permission denial is handled separately from microphone permission.
+- Hold a partial wake lock only while actively recording; release it on pause, stop, or failure. Do not keep the screen awake for native recording.
 - Do not claim that a foreground service survives every force-stop, reboot, OEM battery policy, permission revocation, or system resource kill. Surface recoverable partial recordings honestly.
-- Keep audio in app-private storage by default. Export/share must be a separate explicit user action.
+- Keep audio in app-private persistent storage by default. Export/share must be a separate explicit user action.
 
-## Bridge contract (planned)
+## Bridge contract
 
-The JavaScript adapter should expose typed operations:
-- `getCapabilities()`
-- `startRecording(options)` (start foreground service first, then native recorder)
-- `pauseRecording(recordingId)`
-- `resumeRecording(recordingId)`
-- `stopRecording(recordingId)` (stop native recorder first, then foreground service)
-- `getRecordingState()`
-- `listRecordings()`
-- `getRecording(recordingId)`
-- `deleteRecording(recordingId)`
-- `exportRecording(recordingId)`
+The current JavaScript adapter exposes:
+- startRecording(options) — returns a recording ID after dispatching the start command.
+- pauseRecording(recordingId)
+- resumeRecording(recordingId)
+- stopRecording(recordingId)
+- getRecordingState()
+- listRecordings()
+- getRecording(recordingId)
+- deleteRecording(recordingId)
+- toPlaybackUrl(uri) — converts the native file URI for WebView playback.
 
-Events should report state changes, finalized segments, elapsed duration, recoverable interruptions, and actionable errors. The bridge must be idempotent for repeated stop/pause requests and reject invalid state transitions with stable error codes.
+The UI polls the durable native state manifest; the service does not depend on JavaScript timers to keep recording. Notification Stop is handled directly by the service, even if the WebView is no longer active.
 
 ## Data and failure model
 
-- Audio files and manifests live outside the Core event journal.
-- No audio capture operation creates a domain event.
-- Native AAC output is crash-tolerant through the last complete frame, but a clean stop is still required for normal finalization.
-- A manifest update follows successful native file creation. On startup, reconcile manifests and files without overwriting valid recordings.
-- Handle storage exhaustion, encoder failure, permission revocation, service destruction, app process death, and notification stop explicitly.
-- Deletion removes the manifest and all owned segments; partial failure must be surfaced and retried safely.
+- Audio files and manifests live outside the Core event journal. No audio capture operation creates a domain event.
+- The service writes each manifest through a temporary file, fsync, and atomic rename.
+- A stale active manifest is reconciled as interrupted when the service process is no longer running.
+- AAC ADTS output is crash-tolerant through the last complete frame on API 26+; a clean stop is still required for normal finalization.
+- M4A fallback on API 24–25 is not guaranteed recoverable after abrupt process death.
+- Handle storage exhaustion, encoder failure, permission revocation, service destruction, app process death, and notification Stop explicitly.
+- Deletion removes both the audio file and its manifest; partial failure is surfaced.
 - Do not upload audio or invoke an AI provider.
 
 ## Test and release gates
 
 ### Static/build
-- Android project builds reproducibly in CI with a pinned JDK, Android SDK, Gradle wrapper, and dependency versions.
-- Manifest/service declarations are checked for supported target SDK behavior.
+- Android project builds reproducibly in CI with pinned Capacitor versions, JDK 21, Android SDK, and generated Gradle project.
+- Manifest/service declarations and notification icon are checked by automated tests.
 - No secrets, network upload endpoints, or provider credentials are introduced.
 
 ### Automated
-- Unit tests cover the JS recording coordinator state machine, manifest serialization/versioning, native URI handling, reconciliation, and invalid transitions.
-- Instrumentation tests cover permission grant/deny, service start/stop, notification action, pause/resume, and storage errors.
+- Node tests cover the Android web bundle and manifest patcher.
+- Android build CI compiles the Java bridge and foreground service into a debug APK.
+- Add Android unit/instrumentation tests for state reconciliation, service start/stop, notification Stop, pause/resume, and storage errors.
 - Existing Core, property, Replay, and browser E2E suites remain green.
 
 ### Device acceptance (required before claiming screen-off support)
 - Start recording, lock screen, record for at least 10 minutes, unlock, stop, and verify the entire audio is playable.
 - Repeat while switching apps and with screen timeout enabled.
 - Test incoming call/audio focus interruption, Bluetooth route changes, low storage, denied/revoked permission, and notification Stop.
-- Kill the UI activity (not force-stop the app) and verify the service behavior and recovery path.
+- Destroy the UI Activity while recording and verify the separate service continues.
+- Test process death and verify the AAC partial file is listed as interrupted and playable through its last complete frame.
 - Test at least one physical Android device; emulator-only success is insufficient for the product claim.
 
 ## Rollout strategy
 
-Keep the Android implementation behind native capability detection. If the plugin is unavailable, preserve the current web recorder unchanged. Do not switch the default recording path until Android build, automated tests, and physical-device acceptance gates pass.
+Keep the Android implementation behind native capability detection. If the native bridge is unavailable, preserve the current web recorder unchanged. Do not claim screen-off recording support until Android build, automated tests, and physical-device acceptance gates pass.
 
-## Explicit non-goals for this phase
+## Explicit non-goals
 
 - No change to Core event schema or replay semantics.
 - No cloud sync, automatic transcription, wake-word detection, or AI processing.
@@ -97,4 +105,4 @@ Keep the Android implementation behind native capability detection. If the plugi
 
 ## Implementation note
 
-The Android platform is generated from the pinned Capacitor config by `npm run android:add`; `scripts/patch-android-manifest.mjs` adds only the required microphone foreground-service declarations and notification icon. The generated `android/` directory is local build output and is intentionally not committed. CI regenerates it from scratch before building the debug APK.
+The Android platform is generated from the pinned Capacitor config by npm run android:add; scripts/patch-android-manifest.mjs copies the app-owned Java bridge/service and adds the microphone foreground-service declarations and notification icon. The generated android/ directory is local build output and is intentionally not committed. CI regenerates it from scratch before building the debug APK.
