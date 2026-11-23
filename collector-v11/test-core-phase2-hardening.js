@@ -460,3 +460,38 @@ test('normDb normalizes all collection and metadata cache arrays', () => {
   assert.deepEqual(normalized.meta.processedIntentKeys, []);
   assert.deepEqual(normalized.meta.replayWarnings, []);
 });
+
+test('Replay discards every projection change when a stock.adjust event violates a final balance invariant', () => {
+  const base = setupBase();
+  const initial = commit(base.db, 'initial-stock-for-replay-atomicity', T1, [
+    { operation: 'stock.change', data: {
+      populationId: base.entities.pop,
+      locationId: base.entities.a,
+      quantity: 2,
+      action: 'add'
+    } }
+  ]);
+
+  const invalidEvent = {
+    id: 'invalid-multi-row-stock-adjust',
+    type: 'stock.adjust',
+    timestamp: T2,
+    status: 'committed',
+    operations: [{
+      operation: 'stock.adjust',
+      data: {
+        changes: [
+          { populationId: base.entities.pop, locationId: base.entities.a, quantity: 1 },
+          { populationId: base.entities.pop, locationId: base.entities.b, quantity: -5 }
+        ]
+      }
+    }]
+  };
+
+  const replayed = E.replay([...initial.db.events, invalidEvent]);
+
+  assert.ok(replayed.meta.replayWarnings.some(warning => warning.eventId === invalidEvent.id));
+  assert.equal(replayed.stock.some(row => row.eventId === invalidEvent.id), false);
+  assert.equal(activeBalance(replayed, base.entities.pop, base.entities.a), 2);
+  assert.equal(activeBalance(replayed, base.entities.pop, base.entities.b), 0);
+});
