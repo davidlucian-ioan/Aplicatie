@@ -443,7 +443,7 @@ test('relation.move.correct nu redeschide relația precedentă dacă crearea ei 
   const before = JSON.stringify(s.db);
   assert.throws(
     () => s.commit('correct-move-with-voided-previous', [{ operation: 'relation.move.correct', data: { correctsEventId: 'move-to-b-after-prior-create' } }]),
-    /relația precedentă a fost deja anulată/
+    /relația precedentă a fost deja anulată/i
   );
   assert.equal(JSON.stringify(s.db), before);
   assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
