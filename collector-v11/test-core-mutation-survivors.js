@@ -152,9 +152,13 @@ test('helper-ele de locație, identificare, corecție și expirare context au re
   assert.equal(E.contextIsActive(expired), false);
 });
 
-test('commit și replay resping timestamp-uri și chei de intenție invalide', () => {
+test('commit și replay validează calendarul, fusul orar ISO și cheile de intenție', () => {
   const s = setup();
   assert.throws(() => s.commit('bad-date', [{ operation: 'event.note', data: { description: 'bad date' } }], { timestamp: '2026-02-30T12:00:00.000Z' }), /timestamp ISO valid/);
+  assert.throws(() => s.commit('bad-offset-over-14', [{ operation: 'event.note', data: { description: 'invalid offset' } }], { timestamp: '2026-02-28T12:00:00+14:01' }), /timestamp ISO valid/);
+  assert.throws(() => s.commit('bad-offset-over-23', [{ operation: 'event.note', data: { description: 'invalid offset' } }], { timestamp: '2026-02-28T12:00:00-15:00' }), /timestamp ISO valid/);
+  const boundary = s.commit('valid-offset-boundary', [{ operation: 'event.note', data: { description: 'valid offset boundary' } }], { timestamp: '2026-02-28T12:00:00+14:00' });
+  assert.equal(boundary.event.timestamp, '2026-02-28T12:00:00+14:00');
   assert.throws(() => s.commit('bad-intent', [{ operation: 'event.note', data: { description: 'bad intent' } }], { intentKey: ' padded ' }), /Cheia de intenție/);
 
   s.commit('intent-first', [{ operation: 'event.note', data: { description: 'intent' } }], { intentKey: 'same-intent' });
@@ -163,10 +167,11 @@ test('commit și replay resping timestamp-uri și chei de intenție invalide', (
 
   const replayed = E.replay([
     { id: 'invalid-date', type: 'event.note', timestamp: '2026-02-30T12:00:00.000Z', status: 'committed', operations: [{ operation: 'event.note', data: { description: 'invalid' } }] },
-    { id: 'valid-date', type: 'event.note', timestamp: '2026-02-28T12:00:00.000Z', status: 'committed', operations: [{ operation: 'event.note', data: { description: 'valid' } }] }
+    { id: 'invalid-offset', type: 'event.note', timestamp: '2026-02-28T12:00:00+14:01', status: 'committed', operations: [{ operation: 'event.note', data: { description: 'invalid offset' } }] },
+    { id: 'valid-date', type: 'event.note', timestamp: '2026-02-28T12:00:00+14:00', status: 'committed', operations: [{ operation: 'event.note', data: { description: 'valid' } }] }
   ]);
-  assert.equal(replayed.meta.replayWarnings.length, 1);
-  assert.equal(replayed.meta.replayWarnings[0].eventId, 'invalid-date');
+  assert.equal(replayed.meta.replayWarnings.length, 2);
+  assert.deepEqual(replayed.meta.replayWarnings.map(row => row.eventId), ['invalid-date', 'invalid-offset']);
 });
 
 
