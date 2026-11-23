@@ -7,9 +7,12 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&l
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
 function loadDb(){
- let raw=null;try{raw=JSON.parse(localStorage.getItem(KEY)||'null')}catch{};if(!raw){try{raw=JSON.parse(localStorage.getItem(OLD_KEY)||'null')}catch{}}
- if(!raw)return E.emptyState();
+ let raw=null,rawText=null,parseError=null,sourceKey=KEY;
+ try{rawText=localStorage.getItem(KEY);if(rawText!==null)raw=JSON.parse(rawText)}catch(error){parseError=error}
+ if(raw===null&&parseError===null){sourceKey=OLD_KEY;try{rawText=localStorage.getItem(OLD_KEY);if(rawText!==null)raw=JSON.parse(rawText)}catch(error){parseError=error}}
  const preserveAndBlock=(source,error,warnings=[])=>{integrityBlocked=true;integrityBlockReason=String(error?.message||error||'Integritatea datelor nu a putut fi confirmată.');integrityRawBackup=source;const preserved=E.normDb(source);preserved.meta={...preserved.meta,replayWarnings:warnings,integrityError:integrityBlockReason};return preserved};
+ if(parseError)return preserveAndBlock({storageKey:sourceKey,rawStorageValue:rawText},'Datele locale nu sunt JSON valid: '+parseError.message);
+ if(raw===null){const empty=E.emptyState();persistRaw(empty);return empty}
  if(raw.schemaVersion===7){try{const validated=E.validateImport(raw);if(!persistRaw(validated))throw Error('Nu am putut salva starea verificată în localStorage.');return validated}catch(error){const replayed=E.replay(Array.isArray(raw.events)?raw.events:[],Array.isArray(raw.attributes)?raw.attributes:[]);return preserveAndBlock(raw,error,replayed.meta.replayWarnings||[])}}
  let attrs=Array.isArray(raw.attributes)?raw.attributes:[],events=(Array.isArray(raw.events)?raw.events:[]).filter(e=>e&&e.id).map(e=>({...e,status:e.status||'committed'}));const known=new Set(events.map(e=>e.id));
  // Migrate legacy projections to append-only migration events where the old journal is incomplete.
