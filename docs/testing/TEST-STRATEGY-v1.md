@@ -178,3 +178,15 @@ Triage la nivel de mutanți în snapshot-ul vechi (ID-urile sunt ale raportului,
 | 1130 (Timeout) | filtrarea înlocuită cu întregul array de stoc | timeout separat; nu se numără ca supraviețuitor |
 
 
+
+
+## Semantic mutation triage — actualizare 23.11.2026 (PR #27–#38)
+
+Baseline-ul full Stryker disponibil este încă **65,81%** (run #45237194442: 1.434 Killed, 748 Survived, 6 Timeout). A fost generat înainte de PR #15–#38; nu reprezintă scorul codului actual. Nu se raportează un scor nou până la următoarea rulare full-suite nocturnă.
+
+- **Finance (`finance.adjust`, 16 supraviețuitori istorici; `finance.record`, 14):** mutațiile includ default-ul quantity, limita pentru suma zero și fallback-uri de metadate. PR #27 a validat `entityId`. PR #38 adaugă cantitate finită și pozitivă, default 1 doar pentru câmp lipsă/null, acceptarea sumei zero, cantități fracționare, validarea referinței `correctsEventId` și blocarea corecției duplicate legate de același eveniment. PR #38 este încă în CI; nu este integrat.
+- **Relații (`relation.create.correct`, 41; `relation.move.correct`, 39):** cifrele sunt din codul istoric. PR #19 acoperă corectarea multiplă a relațiilor create; PR #20 separă corecțiile stale de anulările efective; PR #35 acoperă mutări multi-entity; PR #37 previne folosirea `relation.create.correct` pentru evenimente `relation.move`, care ar fi putut lăsa relația și stocul divergente.
+- **Atribute de eveniment (`event.attribute.set`, 14; `event.attribute.correct`, 2):** PR #28 respinge nume goale, PR #32 face corecția idempotentă, iar PR #34 corectează toate rândurile scrise de același eveniment. Mutațiile exclusiv de text/default sunt triat separat de schimbările de comportament.
+- **Commit și Replay (`commit`, 24):** PR #21 acoperă duplicatele după event ID și intentKey și atomicitatea operațiilor compuse; PR #36 păstrează evenimentele committed cu operații lipsă/malformate în jurnal cu warning și fără efecte de proiecție.
+
+Nu urmărim 100% mecanic. Prioritatea este un invariant de business sau un bug reproductibil; mutațiile echivalente și cele care schimbă doar mesajele nu justifică teste artificiale. Toate fixture-urile sunt sintetice.
