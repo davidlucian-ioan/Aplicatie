@@ -17,7 +17,9 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,7 +39,9 @@ public final class CollectorRecorderPlugin extends Plugin {
 
     @PluginMethod
     public void startRecording(PluginCall call) {
-        if (isActiveStatus(readActiveState().optString("status", "inactive"))) {
+        JSONObject existing = readActiveState();
+        reconcileIfServiceStopped(existing);
+        if (isActiveStatus(existing.optString("status", "inactive"))) {
             call.reject("Există deja o înregistrare activă.");
             return;
         }
@@ -119,8 +123,13 @@ public final class CollectorRecorderPlugin extends Plugin {
 
     private void dispatch(PluginCall call, String action) {
         String id = call.getString("recordingId");
-        if (id == null || id.trim().isEmpty()) {
+        if (!validId(id)) {
             call.reject("Lipsește identificatorul înregistrării.");
+            return;
+        }
+        JSONObject active = readActiveState();
+        if (!id.equals(active.optString("id", "")) || !isActiveStatus(active.optString("status", ""))) {
+            call.reject("Această înregistrare nu mai este activă.");
             return;
         }
         Intent intent = new Intent(getContext(), CollectorRecordingService.class);
@@ -225,6 +234,12 @@ public final class CollectorRecorderPlugin extends Plugin {
             }
         }
 
+        File activeState = new File(recordingsDirectory(), "active-state.json");
+        JSONObject current = readJson(activeState);
+        if (id.equals(current.optString("id", "")) && activeState.exists() && !activeState.delete()) {
+            call.reject("Fișierul audio a fost șters, dar starea activă nu a putut fi ștearsă.");
+            return;
+        }
         File manifest = new File(recordingsDirectory(), id + ".json");
         if (manifest.exists() && !manifest.delete()) {
             call.reject("Fișierul audio a fost șters, dar metadatele nu au putut fi șterse.");
@@ -246,8 +261,14 @@ public final class CollectorRecorderPlugin extends Plugin {
             return new JSONObject();
         }
         try {
-            byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
-            return new JSONObject(new String(bytes, StandardCharsets.UTF_8));
+            try (FileInputStream input = new FileInputStream(file); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[4096];
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, read);
+                }
+                return new JSONObject(new String(output.toByteArray(), StandardCharsets.UTF_8));
+            }
         } catch (Exception ignored) {
             return new JSONObject();
         }
@@ -258,10 +279,15 @@ public final class CollectorRecorderPlugin extends Plugin {
         if (!isActiveStatus(status) || isRecorderServiceRunning()) {
             return;
         }
+        long lastUpdate = state.optLong("updatedAtMs", 0L);
+        if (lastUpdate > 0L && System.currentTimeMillis() - lastUpdate < 8000L) {
+            return;
+        }
         state.remove("error");
         try {
             state.put("status", "interrupted");
             state.put("updatedAt", new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(new java.util.Date()));
+            state.put("updatedAtMs", System.currentTimeMillis());
             String fileName = state.optString("fileName", "");
             File audio = fileName.isEmpty() ? null : new File(recordingsDirectory(), fileName);
             boolean exists = audio != null && audio.exists() && audio.length() > 0L;
@@ -311,6 +337,15 @@ public final class CollectorRecorderPlugin extends Plugin {
 
     private JSObject toJsObject(JSONObject source) {
         JSObject result = new JSObject();
+        String status = source.optString("status", "inactive");
+        long startedAt = source.optLong("startedAtMs", 0L);
+        long pausedDuration = source.optLong("pausedDurationMs", 0L);
+        long pauseStarted = source.optLong("pauseStartedAtMs", 0L);
+        if (startedAt > 0L && isActiveStatus(status)) {
+            long end = "paused".equals(status) && pauseStarted > 0L ? pauseStarted : System.currentTimeMillis();
+            source = new JSONObject(source.toString());
+            try { source.put("durationMs", Math.max(0L, end - startedAt - pausedDuration)); } catch (Exception ignored) {}
+        }
         JSONArray names = source.names();
         if (names == null) {
             return result;
