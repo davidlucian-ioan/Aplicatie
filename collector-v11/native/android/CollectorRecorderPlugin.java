@@ -4,7 +4,6 @@ import android.Manifest;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSArray;
@@ -23,7 +22,6 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -154,7 +152,9 @@ public final class CollectorRecorderPlugin extends Plugin {
     public void listRecordings(PluginCall call) {
         File directory = recordingsDirectory();
         if (!directory.exists()) {
-            call.resolve(new JSObject().put("recordings", new JSArray()));
+            JSObject empty = new JSObject();
+            empty.put("recordings", new JSArray());
+            call.resolve(empty);
             return;
         }
 
@@ -343,7 +343,6 @@ public final class CollectorRecorderPlugin extends Plugin {
         long pauseStarted = source.optLong("pauseStartedAtMs", 0L);
         if (startedAt > 0L && isActiveStatus(status)) {
             long end = "paused".equals(status) && pauseStarted > 0L ? pauseStarted : System.currentTimeMillis();
-            source = new JSONObject(source.toString());
             try { source.put("durationMs", Math.max(0L, end - startedAt - pausedDuration)); } catch (Exception ignored) {}
         }
         JSONArray names = source.names();
