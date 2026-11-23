@@ -66,4 +66,4 @@ npm run android:sync
 npm run android:build
 ```
 
-The Android wrapper is still a development scaffold at this stage. Native recording orchestration and screen-off device acceptance are not yet complete; do not treat a successful debug APK build as proof of background recording.
+The app-owned native microphone foreground service and Capacitor bridge are implemented and compile in CI. Physical-device validation is still outstanding; do not rely on screen-off recording until the device acceptance checks pass.
