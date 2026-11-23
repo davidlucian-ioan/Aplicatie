@@ -328,12 +328,16 @@ test('relation.create respinge relații invalide, duplicate și cicluri în iera
 test('atributele evenimentelor pot fi înregistrate și corectate, iar evenimentele invalidate sunt ascunse', () => {
   const s = setup();
   s.commit('note-original', [{ operation: 'event.note', data: { description: 'note' } }]);
-  s.commit('event-attribute', [{ operation: 'event.attribute.set', data: { eventId: 'note-original', name: 'weather', value: 'sunny' } }]);
-  assert.equal(s.db.eventAttributes.length, 1);
-  assert.equal(s.db.eventAttributes[0].value, 'sunny');
+  s.commit('event-attribute', [
+    { operation: 'event.attribute.set', data: { eventId: 'note-original', name: 'weather', value: 'sunny' } },
+    { operation: 'event.attribute.set', data: { eventId: 'note-original', name: 'humidity', value: 65 } }
+  ]);
+  assert.equal(s.db.eventAttributes.length, 2);
+  assert.equal(s.db.eventAttributes.find(row => row.name === 'weather').value, 'sunny');
+  assert.equal(s.db.eventAttributes.find(row => row.name === 'humidity').value, 65);
 
   s.commit('event-attribute-correction', [{ operation: 'event.attribute.correct', data: { eventId: 'note-original', correctsEventId: 'event-attribute' } }]);
-  assert.equal(s.db.eventAttributes[0].voidedByEventId, 'event-attribute-correction');
+  assert.equal(s.db.eventAttributes.every(row => row.voidedByEventId === 'event-attribute-correction'), true);
   const beforeDuplicateCorrection = JSON.stringify(s.db);
   assert.throws(
     () => s.commit('event-attribute-correction-twice', [{ operation: 'event.attribute.correct', data: { eventId: 'note-original', correctsEventId: 'event-attribute' } }]),
@@ -344,6 +348,11 @@ test('atributele evenimentelor pot fi înregistrate și corectate, iar eveniment
 
   s.commit('invalidate-note', [{ operation: 'event.invalidate', data: { correctsEventId: 'note-original' } }]);
   assert.equal(s.db.events.find(event => event.id === 'note-original').hiddenFromHistory, true);
+
+  const replay = E.replay(s.db.events, s.db.attributes);
+  assert.equal(replay.eventAttributes.length, 2);
+  assert.equal(replay.eventAttributes.every(row => row.voidedByEventId === 'event-attribute-correction'), true);
+  assert.deepEqual(replay.meta.replayWarnings || [], []);
 });
 
 test('corecțiile de nume și atributele relațiilor resping duplicatele, iar măsurătorile rămân corectabile', () => {
