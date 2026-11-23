@@ -166,17 +166,21 @@ PR #26 integrat (`8703993a5f7de3997b7ea50aef96c71d4af741bf`): `stock.adjust` val
 PR #27 în lucru: `finance.adjust` validează `entityId` nenul împotriva entităților existente, la fel ca `finance.record`; test de regresie pentru referință lipsă și CI în așteptare.
 
 
-PR #28 în lucru: `event.attribute.set` trim-uiește numele și respinge valorile goale sau formate doar din spații; teste de rollback atomic și CI în așteptare.
+PR #28 integrat (`bc5a60a7097bd2a6832d48a8af7c43aef8734c39`): `event.attribute.set` trim-uiește numele și respinge valorile goale sau formate doar din spații; teste de rollback atomic. CI complet trecut (run #45251169429).
 
 
 PR #29 în lucru: `event.attribute.correct` respinge corectarea repetată a unei înregistrări deja voided și păstrează primul `voidedByEventId`; test de rollback atomic și CI în așteptare.
 
 
-**PR #29 în lucru — stock.reverse și Stryker:** https://github.com/davidlucian-ioan/Aplicatie/pull/29
+**PR #30 în lucru — stock.reverse și Stryker:** https://github.com/davidlucian-ioan/Aplicatie/pull/30
 - [ ] Test pentru inversarea atomică a unui eveniment compus care conține vânzare, eliminare și transfer între locații.
 - [ ] Test pentru fallback-ul `disposition: active` la rânduri legacy fără câmpul `disposition`.
 - [ ] Test pentru inversarea unui eveniment `stock.adjust` ca eveniment distinct și blocarea unei a doua inversări.
+- [ ] Test Replay: dacă `stock.reverse` ar crea un sold negativ, Replay păstrează proiecțiile anterioare și adaugă un warning.
 - [ ] Triage documentat pentru cei 33 de mutanți supraviețuitori și un timeout din raportul istoric #45237194442; raportul precede PR #22 și nu este un scor actual.
 - [ ] CI complet în așteptare. Date sintetice; fără deploy.
 
-**Verificare de integrare:** PR #17–#20 sunt în continuare strămoși ai branch-ului `main` (compare API: `ahead`, `behind_by=0` pentru fiecare merge commit). PR #21 este integrat și CI a trecut (run #45247173561). Ultimul CI `main` verificat pentru SHA `bd359025b7dc48eb09d98beeeacd2fdbc3541860` a trecut (run #45251393000). PR #27 și #28 sunt încă deschise; ambele au o rulare CI verde pe head-ul verificat, dar PR #27 a primit un commit ulterior față de run-ul verificat și trebuie reverificat înainte de integrare.
+**Verificare de integrare:** PR #17–#20 sunt în continuare strămoși ai branch-ului `main` (compare API: `ahead`, `behind_by=0` pentru fiecare merge commit). PR #21 este integrat și CI a trecut (run #45247173561). Ultimul CI `main` verificat pentru SHA `bd359025b7dc48eb09d98beeeacd2fdbc3541860` a trecut (run #45251393000). După integrarea PR #28, `main` este la SHA `265d6da5b28723dc6a2727b8fa22342a74df2a90`, iar CI pentru acest SHA este în desfășurare (run #45251640647). PR #27 este deschis și noua revizie are CI în desfășurare (run #45251550928); PR #29 este deschis, cu CI în desfășurare (run #45251353306).
+
+
+**PR #30 — status CI:** run #45251649873 este în coadă la ultima verificare. Nu integra până când toate joburile nu sunt verzi.
