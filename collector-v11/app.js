@@ -31,7 +31,7 @@ function loadDb(){
  for(const ent of (Array.isArray(raw.entities)?raw.entities:[])){
   if(!ent||typeof ent!=='object'||Array.isArray(ent)||typeof ent.id!=='string'||!ent.id.trim())return preserveAndBlock(raw,'O proiecție veche de entitate este invalidă și nu poate fi migrată automat.');
   if(!events.some(ev=>ev.operations?.some(o=>(o.target===ent.id||o.entityId===ent.id||o.data?.entityId===ent.id)&&['create','entity.create'].includes(o.operation)))){
-   const ev={id:id(),type:'migration.entity_imported',timestamp:ent.createdAt||E.now(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name,type:ent.type},operations:[{target:ent.id,operation:'entity.create',data:{name:ent.name,type:ent.type}}]};
+   const ev={id:id(),type:'migration.entity_imported',timestamp:migrationTimestamp(),source:'migration',actor:'system',status:'committed',payload:{entityId:ent.id,name:ent.name,type:ent.type},operations:[{target:ent.id,operation:'entity.create',data:{name:ent.name,type:ent.type}}]};
    if(!known.has(ev.id)){events.push(ev);known.add(ev.id)}
   }
  }
@@ -51,7 +51,7 @@ function loadDb(){
    }
   }
  }
- state.events=events.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));state.schemaVersion=7;state.meta={...state.meta,...raw.meta,replayWarnings:state.meta.replayWarnings||[]};
+ state.events=events;state.schemaVersion=7;state.meta={...state.meta,...raw.meta,replayWarnings:state.meta.replayWarnings||[]};
  if((state.meta.replayWarnings||[]).length)return preserveAndBlock(raw,'Jurnalul vechi conține evenimente care nu pot fi reconstruite.',state.meta.replayWarnings);
  const comparable=rows=>rows.map(row=>{if(!row||typeof row!=='object')return row;const {id,...rest}=row;return rest});
  for(const key of ['relations','stock','finance','eventAttributes']){
