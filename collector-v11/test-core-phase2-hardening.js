@@ -318,6 +318,39 @@ test('Replay warns and skips projection effects for an event with an invalid tim
   assert.ok(replayed.meta.replayWarnings.some(w => w.eventId === 'date-only-event' && /timestamp/i.test(w.error)));
 });
 
+test('Replay warns and skips committed events with missing or empty operation lists', () => {
+  const base = setupBase();
+  const missing = {
+    id: 'missing-operation-list',
+    type: 'test.malformed',
+    timestamp: T1,
+    status: 'committed'
+  };
+  const empty = {
+    id: 'empty-operation-list',
+    type: 'test.malformed',
+    timestamp: T1,
+    status: 'committed',
+    operations: []
+  };
+  const nonArray = {
+    id: 'non-array-operation-list',
+    type: 'test.malformed',
+    timestamp: T1,
+    status: 'committed',
+    operations: { operation: 'event.note' }
+  };
+
+  assert.throws(() => commit(base.db, 'empty-commit-operation-list', T1, []), /cel puțin o operație/);
+  const replay = E.replay([...base.db.events, missing, empty, nonArray], base.db.attributes);
+  assert.deepEqual(
+    replay.meta.replayWarnings.map(row => row.eventId),
+    [missing.id, empty.id, nonArray.id]
+  );
+  assert.equal(replay.events.filter(row => [missing.id, empty.id, nonArray.id].includes(row.id)).length, 3);
+  assert.equal(replay.entities.length, base.db.entities.length);
+});
+
 test('import rejects a future schema version instead of silently downgrading it', () => {
   const base = setupBase();
   const future = JSON.parse(JSON.stringify(base.db));

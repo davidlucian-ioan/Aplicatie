@@ -95,7 +95,7 @@ function replay(events,attributeDefs=[]){
    s.events.push(ev);(s.meta.replayWarnings||(s.meta.replayWarnings=[])).push({eventId:ev.id,error:'Timestamp-ul evenimentului lipsește sau este invalid.'});continue;
   }
   const operations=Array.isArray(ev.operations)?ev.operations:[];
-  const malformedOperations=ev.operations!==undefined&&!Array.isArray(ev.operations);
+  const malformedOperations=!Array.isArray(ev.operations)||ev.operations.length===0;
   const transactional=needsTransaction(ev),target=transactional?clone(s):s;
   try{
    if(malformedOperations)throw Error('Lista operațiilor evenimentului este invalidă.');
