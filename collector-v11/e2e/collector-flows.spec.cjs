@@ -607,6 +607,7 @@ test('startup-ul nu aplică migrarea v6 unei scheme legacy neverificate', async 
 
 test('old storage key fără schemaVersion este migrat și verificat prin Replay', async ({ page }) => {
   await page.evaluate(fixture => {
+    localStorage.removeItem('collector_mvp_v2');
     localStorage.setItem('collector_mvp_v1', JSON.stringify(fixture));
   }, legacyOldKeyFixture);
 
