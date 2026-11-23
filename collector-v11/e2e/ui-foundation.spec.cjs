@@ -41,8 +41,8 @@ test('global voice action opens assistant and starts microphone capture without 
   await page.locator('#globalVoice').click();
 
   await expect(page.locator('#assistant')).toBeVisible();
-  await expect(page.locator('#globalVoice')).toContainText('Ascult');
-  await expect(page.locator('#appStatus')).toContainText('Ascult');
+  await expect(page.locator('#globalVoice')).toContainText('Sesiune activă');
+  await expect(page.locator('#appStatus')).toContainText('Sesiune vocală activă');
   expect(await page.evaluate(() => window.__collectorVoiceStarts)).toBe(1);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
 
@@ -69,10 +69,10 @@ test('voice entry degrades to accessible text input when speech recognition is u
     Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
   });
   await page.goto('/index-server.html');
-  await page.getByRole('button', { name: 'Începe introducerea vocală' }).click();
+  await page.locator('#globalVoice').click();
 
   await expect(page.locator('#assistant')).toBeVisible();
-  await expect(page.locator('#commandResult')).toContainText('Dictarea vocală nu este disponibilă');
+  await expect(page.locator('#commandResult')).toContainText('Sesiunea vocală nu este disponibilă');
   await expect(page.locator('#commandInput')).toBeFocused();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
 });
@@ -115,4 +115,22 @@ test('voice session fallback keeps text entry available when speech recognition 
   await expect(page.locator('#commandResult')).toContainText('Sesiunea vocală nu este disponibilă');
   await expect(page.locator('#commandInput')).toBeFocused();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+});
+
+
+test('one-shot dictation remains available for structured commands', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__oneShotStarts = 0;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__oneShotStarts += 1; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+  await page.getByRole('button', { name: 'Începe dictarea' }).click();
+  await expect(page.locator('#voiceButton')).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => window.__oneShotStarts)).toBe(1);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+  await page.locator('#voiceButton').click();
+  await expect(page.locator('#voiceButton')).toHaveAttribute('aria-pressed', 'false');
 });
