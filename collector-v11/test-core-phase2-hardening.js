@@ -495,3 +495,28 @@ test('Replay discards every projection change when a stock.adjust event violates
   assert.equal(activeBalance(replayed, base.entities.pop, base.entities.a), 2);
   assert.equal(activeBalance(replayed, base.entities.pop, base.entities.b), 0);
 });
+
+test('Replay rolls back earlier operations when a later operation in the same event fails', () => {
+  const base = setupBase();
+  const invalidEvent = {
+    id: 'invalid-compound-event',
+    type: 'compound.invalid',
+    timestamp: T1,
+    status: 'committed',
+    operations: [
+      { operation: 'entity.create', target: 'must-rollback-entity', data: { name: 'Must roll back', type: 'generic' } },
+      { operation: 'stock.change', data: {
+        populationId: 'missing-population',
+        locationId: null,
+        quantity: 1,
+        action: 'add'
+      } }
+    ]
+  };
+
+  const replayed = E.replay([...base.db.events, invalidEvent]);
+
+  assert.ok(replayed.meta.replayWarnings.some(warning => warning.eventId === invalidEvent.id));
+  assert.equal(replayed.entities.some(entity => entity.id === 'must-rollback-entity'), false);
+  assert.equal(replayed.stock.some(row => row.eventId === invalidEvent.id), false);
+});
