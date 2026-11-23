@@ -97,3 +97,13 @@ Microphone / Speech API → Transcript → Intent interpreter → Core Port prev
 - Starting/stopping capture creates no domain event and changes no projection.
 - No command is committed without Core validation and the existing explicit confirmation.
 - Existing Core, generated invariant, Replay and cross-browser tests pass.
+
+
+## Voice session capture — next increment
+
+- The global voice entry point now starts a foreground, continuous speech-recognition session when supported by the browser.
+- Multiple final speech segments are accumulated into one free-form observation transcript. Stopping the session converts that transcript into one event.note preview through the existing deterministic parser and Core Port.
+- Capture and stop do not persist an event. The user must still review the preview and explicitly confirm the Core command.
+- Short structured commands remain available through the separate one-shot dictation control.
+- This is not background recording, wake-word detection, automatic command batching, spoken read-back, or guaranteed offline recognition. Browser implementations may terminate recognition; a session ending early is surfaced and any final transcript is still subject to review.
+- E2E coverage verifies multi-segment accumulation, preview-only behavior, explicit commit, and unsupported-browser fallback.
