@@ -308,7 +308,8 @@ test('relation.move.correct marchează corecția și respinge repetarea fără a
   const beforeStaleCorrection = JSON.stringify(s.db.stock);
   s.commit('population-move-b-stale-correct', [{ operation: 'relation.move.correct', data: { correctsEventId: 'population-move-b-repeat' } }]);
   const moved = s.db.relations.find(row => row.history.some(entry => entry.eventId === 'population-move-b-repeat' && entry.action === 'created_by_move'));
-  assert.equal(moved.voidedByEventId, 'population-move-b-stale-correct');
+  assert.equal(moved.ignoredCorrectionByEventId, 'population-move-b-stale-correct');
+  assert.equal(moved.voidedByEventId, undefined);
   assert.equal(JSON.stringify(s.db.stock), beforeStaleCorrection, 'a superseded move must not reverse current stock');
   assert.equal(E.activeLocation(s.db, 'population').id, 'location-a');
 
@@ -318,6 +319,33 @@ test('relation.move.correct marchează corecția și respinge repetarea fără a
     /deja corectată/
   );
   assert.equal(JSON.stringify(s.db), beforeDuplicate);
+});
+
+test('relation.move.correct ignoră corecția stale fără să blocheze revenirea ulterioară la locația precedentă', () => {
+  const s = setup();
+  s.commit('create-location-c', [{ operation: 'entity.create', target: 'location-c', data: { name: 'Depozit C', type: 'location' } }]);
+  s.commit('population-located-a-chain', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
+  s.commit('population-stock-chain', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('population-move-b-chain', [{ operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-b' } }]);
+  s.commit('population-move-c-chain', [{ operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-c' } }]);
+
+  const stockBeforeIgnoredCorrection = JSON.stringify(s.db.stock);
+  s.commit('population-move-b-ignored-correction', [{ operation: 'relation.move.correct', data: { correctsEventId: 'population-move-b-chain' } }]);
+  const firstMove = s.db.relations.find(row => row.history.some(entry => entry.eventId === 'population-move-b-chain' && entry.action === 'created_by_move'));
+  assert.equal(firstMove.ignoredCorrectionByEventId, 'population-move-b-ignored-correction');
+  assert.equal(firstMove.voidedByEventId, undefined);
+  assert.equal(JSON.stringify(s.db.stock), stockBeforeIgnoredCorrection);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-c');
+
+  s.commit('population-move-c-correct', [{ operation: 'relation.move.correct', data: { correctsEventId: 'population-move-c-chain' } }]);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
+  assert.equal(balance(s.db, 'population', 'location-b'), 5);
+  assert.equal(balance(s.db, 'population', 'location-c'), 0);
+  assert.equal(s.db.relations.find(row => row.id === firstMove.id).endedAt, null);
+  assert.throws(
+    () => s.commit('population-move-b-ignored-correction-twice', [{ operation: 'relation.move.correct', data: { correctsEventId: 'population-move-b-chain' } }]),
+    /deja corectată/
+  );
 });
 
 test('relation.create.correct nu poate șterge un membru dacă ar crea sold negativ după vânzare', () => {
