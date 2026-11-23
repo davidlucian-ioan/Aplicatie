@@ -336,6 +336,21 @@ test('relation.close.correct nu redeschide o a doua locație activă pentru acee
   assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
 });
 
+test('event.attribute.set respinge nume goale sau formate doar din spații', () => {
+  const s = setup();
+  s.commit('event-attribute-target', [{ operation: 'event.note', data: { description: 'target event' } }]);
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('event-attribute-empty-name', [{ operation: 'event.attribute.set', data: { eventId: 'event-attribute-target', name: '' , value: 'x' } }]),
+    /Numele atributului evenimentului lipsește/
+  );
+  assert.throws(
+    () => s.commit('event-attribute-whitespace-name', [{ operation: 'event.attribute.set', data: { eventId: 'event-attribute-target', name: '   ', value: 'x' } }]),
+    /Numele atributului evenimentului lipsește/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+});
+
 test('relation.close.correct nu redeschide o relație a cărei creare a fost anulată', () => {
   const s = setup();
   s.commit('voided-relation-create', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
