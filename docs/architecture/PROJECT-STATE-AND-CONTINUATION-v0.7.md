@@ -146,3 +146,6 @@ Respectă registrul Decizio.md, inclusiv D-001–D-044:
 
 
 Actualizare 2026-11-23: PR #22 extinde invariantul de sold nenegativ la toate dispozițiile de stoc pentru stock.reverse și stock.adjust. CI este în desfășurare pe head-ul actual; nu integra până la verificarea completă. PR #23 adaugă protecție pentru secvența create → close → correct create → correct close, deoarece o relație a cărei creare a fost anulată nu trebuie redeschisă prin corectarea închiderii sale. CI în desfășurare. Ambele folosesc date sintetice și rămân în branch-uri separate.
+
+
+PR #22 integrat (`27c7d41bb69691dfa46f3adbf5783649b606f77e`): `stock.reverse` și `stock.adjust` verifică soldurile nenegative pentru toate dispozițiile (`active`, `sold`, `disposed`); testele acoperă rollback când o ajustare/inversare ar crea sold negativ. CI complet trecut (run #45248325717). PR #23 rămâne deschis: `relation.close.correct` verifică faptul că relația nu a fost anulată prin corectarea creării și că redeschiderea unei relații `located_in` nu ar crea două locații active pentru aceeași entitate. CI este în desfășurare.
