@@ -79,9 +79,10 @@ Testele E2E folosesc Playwright într-un Chromium real, cu profil nou pentru fie
 - Export + import valid end-to-end și verificarea că datele adăugate după backup dispar după restaurare.
 - Protecția UI față de markup HTML/script în nume și descrieri.
 - Import invalid fără înlocuirea datelor existente.
+- Eșec simulat al scrierii localStorage: operația nepersistată nu ajunge în starea activă și nu reapare după o salvare ulterioară și refresh.
 
 **Fluxuri rămase pentru etape ulterioare**
-- Operații offline și recuperarea după eșecul localStorage.
+- Acoperire offline extinsă: comportamentul aplicației când localStorage rămâne indisponibil, recuperarea după restaurarea spațiului și limitele operațiilor fără conexiune. Scenariul atomic de eșec unic al scrierii localStorage este adăugat în PR #9.
 
 **Implementare**
 - Folosește un context de browser nou pentru fiecare test; nu folosi profilul sau localStorage-ul browserului personal.
