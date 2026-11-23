@@ -75,3 +75,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  html{scroll-behavior:auto}
  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* Voice session: persistent foreground capture with explicit stop and review. */
+.voice-session-launch{background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:10px 13px;min-height:44px;font-weight:700;cursor:pointer}
+.voice-session-launch.is-listening{background:#fff1f1;border-color:#e9a2a2;color:#9b1c1c}
+#voiceSessionButton[aria-pressed="true"]{background:#fff1f1;border-color:#e9a2a2;color:#9b1c1c}
