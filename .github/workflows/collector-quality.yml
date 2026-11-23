@@ -92,6 +92,16 @@ jobs:
         working-directory: collector-v11
         run: npx playwright test --browser=webkit
 
+      - name: Install StrykerJS for nightly mutation testing
+        if: github.event_name == 'schedule'
+        working-directory: collector-v11
+        run: npm install --no-save --no-package-lock @stryker-mutator/core@10.1.1
+
+      - name: Run Core mutation testing (nightly baseline)
+        if: github.event_name == 'schedule'
+        working-directory: collector-v11
+        run: npx stryker run stryker.config.json
+
       - name: Upload test reports and Replay benchmark
         if: always()
         uses: actions/upload-artifact@v4
@@ -100,6 +110,7 @@ jobs:
           path: |
             collector-v11/test-results/coverage-report.txt
             collector-v11/test-results/replay-benchmark.json
+            collector-v11/reports/mutation/
             collector-v11/playwright-report/
             collector-v11/test-results/playwright/
           if-no-files-found: ignore
