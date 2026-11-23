@@ -290,6 +290,18 @@ test('finance.record și finance.adjust validează și păstrează totalurile', 
 
   s.commit('finance-correction', [{ operation: 'finance.adjust', data: { entityId: 'item', kind: 'cost', amount: -100, currency: 'RON', correctsEventId: 'finance-cost' } }]);
   assert.equal(E.totalFinance(s.db)['RON|cost'], 0);
+  const adjustment = s.db.finance.find(row => row.eventId === 'finance-correction');
+  assert.equal(adjustment.correctsEventId, 'finance-cost');
+  assert.equal(adjustment.quantity, 1);
+
+  s.commit('finance-zero-record', [{ operation: 'finance.record', data: { amount: 0, currency: 'RON' } }]);
+  const zeroRecord = s.db.finance.find(row => row.eventId === 'finance-zero-record');
+  assert.equal(zeroRecord.amount, 0, 'zero is a valid recorded amount');
+  assert.equal(zeroRecord.quantity, 1, 'omitted quantity defaults to one');
+  assert.equal(zeroRecord.entityId, null, 'entity association is optional');
+
+  s.commit('finance-fractional-quantity', [{ operation: 'finance.record', data: { amount: 12, currency: 'EUR', quantity: 0.5 } }]);
+  assert.equal(s.db.finance.find(row => row.eventId === 'finance-fractional-quantity').quantity, 0.5);
 
   const before = JSON.stringify(s.db);
   assert.throws(() => s.commit('finance-negative', [{ operation: 'finance.record', data: { entityId: 'item', amount: -1, currency: 'RON' } }]), /pozitivă sau zero/);
@@ -297,6 +309,13 @@ test('finance.record și finance.adjust validează și păstrează totalurile', 
   assert.throws(() => s.commit('finance-missing-entity', [{ operation: 'finance.record', data: { entityId: 'missing', amount: 1, currency: 'RON' } }]), /nu există/);
   assert.throws(() => s.commit('finance-zero-adjustment', [{ operation: 'finance.adjust', data: { amount: 0, currency: 'RON' } }]), /nenulă/);
   assert.throws(() => s.commit('finance-adjust-missing-entity', [{ operation: 'finance.adjust', data: { entityId: 'missing', kind: 'cost', amount: -1, currency: 'RON' } }]), /nu există/);
+  for (const [index, quantity] of [0, -1, '', 'not-a-number', 'Infinity'].entries()) {
+    assert.throws(() => s.commit('finance-record-invalid-quantity-' + index, [{ operation: 'finance.record', data: { amount: 1, quantity } }]), /Cantitatea financiară/);
+    assert.throws(() => s.commit('finance-adjust-invalid-quantity-' + index, [{ operation: 'finance.adjust', data: { amount: -1, quantity } }]), /Cantitatea financiară/);
+  }
+  s.commit('finance-note-without-ledger', [{ operation: 'event.note', data: { description: 'not a finance event' } }]);
+  assert.throws(() => s.commit('finance-adjust-missing-target', [{ operation: 'finance.adjust', data: { amount: -1, correctsEventId: 'missing-finance-event' } }]), /nu există sau nu conține/);
+  assert.throws(() => s.commit('finance-adjust-non-finance-target', [{ operation: 'finance.adjust', data: { amount: -1, correctsEventId: 'finance-note-without-ledger' } }]), /nu există sau nu conține/);
   assert.equal(JSON.stringify(s.db), before);
 });
 
@@ -927,4 +946,19 @@ test('relation.create.correct refuză mutările și păstrează relația și sto
   assert.equal(E.activeLocation(s.db, 'population').id, 'location-a');
   assert.equal(balance(s.db, 'population', 'location-a'), 5);
   assert.equal(balance(s.db, 'population', 'location-b'), 0);
+});
+
+
+test('Replay respinge cantități financiare invalide fără să creeze rânduri de ledger', () => {
+  const s = setup();
+  const invalid = {
+    id: 'replay-invalid-finance-quantity',
+    type: 'test.finance.record',
+    timestamp: new Date(BASE + 100).toISOString(),
+    status: 'committed',
+    operations: [{ operation: 'finance.record', data: { amount: 10, quantity: -2 } }]
+  };
+  const replayed = E.replay([...s.db.events, invalid]);
+  assert.equal(replayed.finance.some(row => row.eventId === invalid.id), false);
+  assert.ok(replayed.meta.replayWarnings.some(row => row.eventId === invalid.id));
 });
