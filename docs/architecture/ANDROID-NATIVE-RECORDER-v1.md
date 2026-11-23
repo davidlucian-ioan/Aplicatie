@@ -4,23 +4,30 @@ Status: **Phase A — architecture baseline; no Android recording capability is 
 
 ## Decision
 
-Keep Collector's existing web application and Core unchanged. Add an Android host using Capacitor and a small native Kotlin plugin. The Android implementation is an adapter for the existing recorder workflow; it must not fork or mutate the domain Core.
+Keep Collector's existing web application and Core unchanged. Add an Android host using Capacitor 8. Use the maintained `@capgo/capacitor-audio-recorder` plugin for native microphone capture and `@capawesome-team/capacitor-android-foreground-service` for the Android microphone foreground service and persistent notification. Keep a custom Kotlin plugin as a fallback only if integration tests reveal a lifecycle or recovery gap that the maintained plugins cannot close. The Android implementation is an adapter for the existing recorder workflow; it must not fork or mutate the domain Core.
 
-The native plugin owns microphone capture and durable audio files. The web UI owns presentation and user intent. The web recorder remains the fallback on browsers and platforms without the native plugin.
+The native recorder plugin owns microphone capture and native file output; the foreground-service plugin owns the ongoing Android service and notification. The web UI owns presentation and user intent. The web recorder remains the fallback on browsers and platforms without the native plugins.
 
 ## Why the web recorder is not enough
 
 The current recorder uses `getUserMedia()`, `MediaRecorder`, in-memory chunks, and IndexedDB. Screen Wake Lock is only a foreground screen-awake hint. It is not an Android background microphone service and it does not make browser-held chunks durable during process termination.
 
+## Selected native components
+
+- Capacitor 8 host (`@capacitor/core`, `@capacitor/android`, `@capacitor/cli`) with exact versions pinned together.
+- `@capgo/capacitor-audio-recorder` 8.x for native Android AAC capture, pause/resume, status, and file URI output. Use `format: 'aac'` so a process interruption leaves a playable file through the last complete ADTS frame; this is recovery, not a guarantee of a cleanly finalized recording.
+- `@capawesome-team/capacitor-android-foreground-service` 8.x for a foreground service declared with the `microphone` type and a persistent notification. Its service must be started while the Activity is visible and before microphone capture begins.
+- The recorder plugin does not start a foreground service by itself. The two plugins must be orchestrated as one state machine: start service → start recorder; stop recorder → stop service. On any recorder-start failure, stop the service again.
+
 ## Native recording lifecycle
 
 1. The user explicitly presses Record while the app is visible and grants microphone permission.
-2. The bridge starts a native `microphone` foreground service and immediately posts an ongoing notification.
-3. Kotlin captures audio and writes bounded segments to app-private storage. Do not buffer the entire recording in RAM.
-4. The service persists a small recording manifest (recording ID, timestamps, segment list, MIME/codec, duration, state, and last durable segment) after each finalized segment.
-5. Pause finalizes the current segment and releases the microphone. Resume starts a new segment under the same recording ID.
+2. The bridge starts the native `microphone` foreground service and immediately posts an ongoing notification.
+3. The native audio recorder writes AAC to an app-private native file. The app records the returned URI and metadata; it does not copy the entire audio into JavaScript memory.
+4. Persist a small recording manifest (recording ID, timestamps, native URI, MIME/codec, duration, state, and last known status) independently from the Core journal.
+5. Pause/resume follows the native recorder API. If a pause or interruption produces a separate file, keep each URI as a segment under the same recording ID rather than concatenating or overwriting it.
 6. Stop finalizes the active segment, fsyncs/commits metadata, stops foreground mode, and reports the completed recording to the web UI.
-7. On app launch, reconciliation lists complete recordings and flags incomplete/interrupted sessions for explicit recovery. Never silently discard or auto-submit them.
+7. On app launch, query native recorder status and reconcile manifests with files. Flag incomplete/interrupted AAC sessions for explicit recovery. Never silently discard or auto-submit them.
 
 ## Android platform requirements
 
@@ -37,10 +44,10 @@ The current recorder uses `getUserMedia()`, `MediaRecorder`, in-memory chunks, a
 
 The Kotlin plugin should expose typed operations:
 - `getCapabilities()`
-- `startRecording(options)`
+- `startRecording(options)` (start foreground service first, then native recorder)
 - `pauseRecording(recordingId)`
 - `resumeRecording(recordingId)`
-- `stopRecording(recordingId)`
+- `stopRecording(recordingId)` (stop native recorder first, then foreground service)
 - `getRecordingState()`
 - `listRecordings()`
 - `getRecording(recordingId)`
@@ -53,8 +60,8 @@ Events should report state changes, finalized segments, elapsed duration, recove
 
 - Audio files and manifests live outside the Core event journal.
 - No audio capture operation creates a domain event.
-- Each segment is written to a temporary file and atomically renamed only after the encoder/container is finalized.
-- A manifest update follows durable segment completion. On startup, reconcile temporary files, manifests, and orphaned segments without overwriting valid recordings.
+- Native AAC output is crash-tolerant through the last complete frame, but a clean stop is still required for normal finalization.
+- A manifest update follows successful native file creation. On startup, reconcile manifests and files without overwriting valid recordings.
 - Handle storage exhaustion, encoder failure, permission revocation, service destruction, app process death, and notification stop explicitly.
 - Deletion removes the manifest and all owned segments; partial failure must be surfaced and retried safely.
 - Do not upload audio or invoke an AI provider.
@@ -67,7 +74,7 @@ Events should report state changes, finalized segments, elapsed duration, recove
 - No secrets, network upload endpoints, or provider credentials are introduced.
 
 ### Automated
-- Unit tests cover the recording state machine, manifest serialization/versioning, segment naming, reconciliation, and invalid transitions.
+- Unit tests cover the JS recording coordinator state machine, manifest serialization/versioning, native URI handling, reconciliation, and invalid transitions.
 - Instrumentation tests cover permission grant/deny, service start/stop, notification action, pause/resume, and storage errors.
 - Existing Core, property, Replay, and browser E2E suites remain green.
 
