@@ -26,7 +26,7 @@ The current recorder uses `getUserMedia()`, `MediaRecorder`, in-memory chunks, a
 3. The native audio recorder writes AAC to an app-private native file. The app records the returned URI and metadata; it does not copy the entire audio into JavaScript memory.
 4. Persist a small recording manifest (recording ID, timestamps, native URI, MIME/codec, duration, state, and last known status) independently from the Core journal.
 5. Pause/resume follows the native recorder API. If a pause or interruption produces a separate file, keep each URI as a segment under the same recording ID rather than concatenating or overwriting it.
-6. Stop finalizes the active segment, fsyncs/commits metadata, stops foreground mode, and reports the completed recording to the web UI.
+6. Stop finalizes the active native file, commits the manifest, stops foreground mode, and reports the completed recording to the web UI.
 7. On app launch, query native recorder status and reconcile manifests with files. Flag incomplete/interrupted AAC sessions for explicit recovery. Never silently discard or auto-submit them.
 
 ## Android platform requirements
@@ -35,14 +35,14 @@ The current recorder uses `getUserMedia()`, `MediaRecorder`, in-memory chunks, a
 - Declare `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MICROPHONE` where required by target SDK.
 - Declare the service with `android:foregroundServiceType="microphone"`.
 - Start the microphone foreground service only from a user-visible, user-initiated flow and comply with current Android foreground-service start restrictions.
-- Create a user-visible notification channel and ongoing notification with a stop action.
+- Create a user-visible notification channel and ongoing notification with a Stop action. Route the notification action through the same idempotent stop coordinator as the UI.
 - Request runtime microphone permission before service start. Request notification permission where applicable; notification permission denial must not be treated as microphone permission.
 - Do not claim that a foreground service survives every force-stop, reboot, OEM battery policy, permission revocation, or system resource kill. Surface recoverable partial recordings honestly.
 - Keep audio in app-private storage by default. Export/share must be a separate explicit user action.
 
 ## Bridge contract (planned)
 
-The Kotlin plugin should expose typed operations:
+The JavaScript adapter should expose typed operations:
 - `getCapabilities()`
 - `startRecording(options)` (start foreground service first, then native recorder)
 - `pauseRecording(recordingId)`
@@ -94,3 +94,7 @@ Keep the Android implementation behind native capability detection. If the plugi
 - No change to Core event schema or replay semantics.
 - No cloud sync, automatic transcription, wake-word detection, or AI processing.
 - No guarantee of recording after force-stop, reboot, or every vendor-specific process-kill scenario.
+
+## Implementation note
+
+The Android platform is generated from the pinned Capacitor config by `npm run android:add`; `scripts/patch-android-manifest.mjs` adds only the required microphone foreground-service declarations and notification icon. The generated `android/` directory is local build output and is intentionally not committed. CI regenerates it from scratch before building the debug APK.
