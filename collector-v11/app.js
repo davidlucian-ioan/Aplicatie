@@ -13,6 +13,7 @@ function loadDb(){
  const preserveAndBlock=(source,error,warnings=[])=>{integrityBlocked=true;integrityBlockReason=String(error?.message||error||'Integritatea datelor nu a putut fi confirmată.');integrityRawBackup=source;const preserved=E.normDb(source);preserved.meta={...preserved.meta,replayWarnings:warnings,integrityError:integrityBlockReason};return preserved};
  if(parseError)return preserveAndBlock({storageKey:sourceKey,rawStorageValue:rawText},'Datele locale nu sunt JSON valid: '+parseError.message);
  if(raw===null){const empty=E.emptyState();persistRaw(empty);return empty}
+ if(typeof raw!=='object'||Array.isArray(raw))return preserveAndBlock({rawPayload:raw},'Structura datelor locale nu este un obiect valid.');
  if(raw.schemaVersion===7){try{const validated=E.validateImport(raw);if(!persistRaw(validated))throw Error('Nu am putut salva starea verificată în localStorage.');return validated}catch(error){const replayed=E.replay(Array.isArray(raw.events)?raw.events:[],Array.isArray(raw.attributes)?raw.attributes:[]);return preserveAndBlock(raw,error,replayed.meta.replayWarnings||[])}}
  const attrs=Array.isArray(raw.attributes)?raw.attributes:[],sourceEvents=Array.isArray(raw.events)?raw.events:[];
  if(sourceEvents.some(e=>!e||typeof e!=='object'||Array.isArray(e)||typeof e.id!=='string'||!e.id.trim()))return preserveAndBlock(raw,'Jurnalul vechi conține un eveniment fără ID valid.');
@@ -50,7 +51,7 @@ function loadDb(){
  }
  state.events=events.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));state.schemaVersion=7;state.meta={...state.meta,...raw.meta,replayWarnings:state.meta.replayWarnings||[]};
  if((state.meta.replayWarnings||[]).length)return preserveAndBlock(raw,'Jurnalul vechi conține evenimente care nu pot fi reconstruite.',state.meta.replayWarnings);
- const comparable=rows=>rows.map(({id,...row})=>row);
+ const comparable=rows=>rows.map(row=>{if(!row||typeof row!=='object')return row;const {id,...rest}=row;return rest});
  for(const key of ['relations','stock','finance','eventAttributes']){
   if(!Array.isArray(raw[key]))continue;
   const stored=['stock','finance','eventAttributes'].includes(key)?comparable(raw[key]):raw[key];
