@@ -37,7 +37,7 @@
     }
     async execute(command,{confirmed=false}={}){
       const ev=this.buildEvent(command), risky=ev.operations.some(o=>HIGH_RISK.has(o.operation));
-      if(risky&&!confirmed) return {status:'rejected',errors:['Este necesară confirmarea explicită a utilizatorului.']};
+      if((risky||command.requiresConfirmation===true)&&confirmed!==true) return {status:'rejected',errors:['Este necesară confirmarea explicită a utilizatorului.']};
       const current=this.snapshot(), result=this.core.commit(current,ev);
       if(result.duplicate) return {status:'duplicate',eventId:result.event?.id||null};
       let ok=false; try { ok=await this.store.persistState(clone(result.db))===true; } catch(error) { return {status:'unavailable',errors:[`Persistența a eșuat: ${error.message}`]}; }

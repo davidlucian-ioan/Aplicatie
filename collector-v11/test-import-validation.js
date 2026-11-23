@@ -26,3 +26,9 @@ pending.events.push({id:E.uid(),type:'draft',timestamp:new Date(tick+=1000).toIS
 assert.throws(()=>E.validateImport(pending),/nu sunt confirmate/);
 
 console.log('PASS: valid import accepted; replay errors, projection drift and uncommitted events rejected.');
+
+// Finance projection row IDs are generated during replay, so they are not stable import identity.
+const financeEvent={id:E.uid(),type:'finance.recorded',timestamp:new Date(tick+=1000).toISOString(),status:'committed',operations:[{operation:'finance.record',data:{amount:12,kind:'cost',currency:'RON',description:'Test import'}}]};
+let financeDb=E.commit(E.emptyState(),financeEvent).db;
+financeDb=E.commit(financeDb,{id:E.uid(),type:'finance.adjusted',timestamp:new Date(tick+=1000).toISOString(),status:'committed',operations:[{operation:'finance.adjust',data:{amount:-2,kind:'cost',currency:'RON',description:'Correction'}}]}).db;
+assert.equal(E.validateImport(JSON.parse(JSON.stringify(financeDb))).finance.length,2);

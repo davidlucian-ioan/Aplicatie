@@ -322,3 +322,215 @@ test('eșecul localStorage nu păstrează în memorie un eveniment neconfirmat d
   expect(afterReload).toContain('Entitate salvată ulterior');
   expect(afterReload).not.toContain('Entitate eșuată');
 });
+
+
+test('startup-ul blochează proiecțiile divergente și reconstruiește numai după salvare reușită', async ({ page }) => {
+  await createEntity(page, 'Entitate din jurnal', 'plant');
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.entities[0].name = 'Proiecție divergentă';
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  await expect(page.locator('#modalContent pre')).toContainText('"warnings": []');
+
+  await page.evaluate(() => {
+    const originalSetItem = Storage.prototype.setItem;
+    window.__collectorFailNextPersist = true;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'collector_mvp_v2' && window.__collectorFailNextPersist) {
+        window.__collectorFailNextPersist = false;
+        throw new DOMException('Simulated storage quota failure', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+  });
+  let failedSaveMessage = '';
+  page.once('dialog', async dialog => { failedSaveMessage = dialog.message(); await dialog.accept(); });
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  expect(failedSaveMessage).toContain('nu a fost salvată');
+
+  await page.locator('#modalContent button.secondary').click();
+  await page.locator('.nav[data-page="entities"]').click();
+  await expect(page.locator('#entityList')).toContainText('Proiecție divergentă');
+  const stillDivergent = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities[0].name);
+  expect(stillDivergent).toBe('Proiecție divergentă');
+
+  await page.locator('.nav[data-page="audit"]').click();
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  let successMessage = '';
+  page.once('dialog', async dialog => { successMessage = dialog.message(); await dialog.accept(); });
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  expect(successMessage).toContain('salvate cu succes');
+
+  await page.locator('.nav[data-page="entities"]').click();
+  await expect(page.locator('#entityList')).toContainText('Entitate din jurnal');
+  await expect(page.locator('#entityList')).not.toContainText('Proiecție divergentă');
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
+});
+
+test('rebuild refuză jurnalul invalid și păstrează proiecțiile existente', async ({ page }) => {
+  await createEntity(page, 'Entitate păstrată', 'plant');
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.events.push({
+      id: 'invalid-startup-replay-event',
+      type: 'invalid.test',
+      timestamp: new Date().toISOString(),
+      status: 'committed',
+      operations: [{ operation: 'entity.rename', target: 'missing-entity', data: { name: 'Must not apply' } }]
+    });
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  await expect(page.locator('#auditSummary')).toContainText(/Erori la replay: 1/);
+
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  await expect(page.locator('#modalContent pre')).toContainText('invalid-startup-replay-event');
+  let blockedMessage = '';
+  page.once('dialog', async dialog => { blockedMessage = dialog.message(); await dialog.accept(); });
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  expect(blockedMessage).toContain('Reconstruirea a fost blocată');
+
+  const after = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return { names: db.entities.map(entity => entity.name), hasInvalidEvent: db.events.some(event => event.id === 'invalid-startup-replay-event') };
+  });
+  expect(after.names).toContain('Entitate păstrată');
+  expect(after.hasInvalidEvent).toBe(true);
+});
+
+
+test('focus-ul nu suprascrie date locale mai noi cu un snapshot vechi din memorie', async ({ page }) => {
+  await page.clock.install();
+  await createEntity(page, 'Valoare inițială', 'plant');
+  await page.clock.fastForward(31 * 60 * 1000);
+  await page.evaluate(() => {
+    // Simulate another tab or an external writer updating the persisted projection.
+    const newer = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    newer.entities[0].name = 'Valoare mai nouă';
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(newer));
+    window.dispatchEvent(new Event('focus'));
+  });
+  const storedName = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities[0].name);
+  expect(storedName).toBe('Valoare mai nouă');
+});
+
+
+test('JSON local corupt este păstrat pentru export și blochează scrierile', async ({ page }) => {
+  const corrupt = '{"events": [ this is not valid JSON';
+  await page.evaluate(value => localStorage.setItem('collector_mvp_v2', value), corrupt);
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  const stored = await page.evaluate(() => localStorage.getItem('collector_mvp_v2'));
+  expect(stored).toBe(corrupt);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export JSON' }).click()
+  ]);
+  const backup = JSON.parse(await require('node:fs/promises').readFile(await download.path(), 'utf8'));
+  expect(backup.db.rawStorageValue).toBe(corrupt);
+  expect(backup.db.storageKey).toBe('collector_mvp_v2');
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  let rebuildMessage = '';
+  page.once('dialog', async dialog => { rebuildMessage = dialog.message(); await dialog.accept(); });
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  expect(rebuildMessage).toContain('Reconstruirea a fost blocată');
+  expect(await page.evaluate(() => localStorage.getItem('collector_mvp_v2'))).toBe(corrupt);
+});
+
+test('migrarea legacy jurnalizează definițiile și rămâne validă la următorul startup', async ({ page }) => {
+  await createEntity(page, 'Plantă legacy', 'plant');
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#attrOwner').selectOption('entity');
+  await page.locator('#modal button.primary').click();
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.schemaVersion = 6;
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
+  const migrated = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(migrated.schemaVersion).toBe(7);
+  expect(migrated.events.some(event => event.operations?.some(op => op.operation === 'attribute.define' && op.data?.name === 'pH'))).toBe(true);
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
+});
+
+test('migrarea legacy refuză o proiecție de relații divergentă fără să o suprascrie', async ({ page }) => {
+  const sourceId = await createEntity(page, 'Sursă legacy', 'plant');
+  const targetId = await createEntity(page, 'Destinație legacy', 'location');
+  await page.locator('.nav[data-page="relations"]').click();
+  await page.locator('#relations .toolbar button.primary').last().click();
+  await page.locator('#relSource').selectOption(sourceId);
+  await page.locator('#relType').selectOption('related_to');
+  await page.locator('#relTarget').selectOption(targetId);
+  await page.locator('#modal button.primary').click();
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.schemaVersion = 6;
+    db.relations[0].type = 'tampered_relation';
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(preserved.schemaVersion).toBe(6);
+  expect(preserved.relations[0].type).toBe('tampered_relation');
+  await page.getByRole('button', { name: 'Verifică replay' }).click();
+  let rebuildMessage = '';
+  page.once('dialog', async dialog => { rebuildMessage = dialog.message(); await dialog.accept(); });
+  await page.locator('#modalContent').getByRole('button', { name: 'Reconstruiește proiecțiile' }).click();
+  expect(rebuildMessage).toContain('Reconstruirea a fost blocată');
+  const stillPreserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(stillPreserved.schemaVersion).toBe(6);
+  expect(stillPreserved.relations[0].type).toBe('tampered_relation');
+});
+
+
+test('startup-ul păstrează datele unei versiuni de schemă viitoare și nu le retrogradează', async ({ page }) => {
+  await createEntity(page, 'Entitate schema viitoare', 'plant');
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.schemaVersion = 8;
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(preserved.schemaVersion).toBe(8);
+  expect(preserved.entities[0].name).toBe('Entitate schema viitoare');
+});
+
+
+test('migrarea legacy păstrează colecțiile de proiecție malformate în loc să le golească', async ({ page }) => {
+  await createEntity(page, 'Entitate cu stoc corupt', 'plant');
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    db.schemaVersion = 6;
+    db.stock = { quantity: 42 };
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(db));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).toContainText('MOD NUMAI CITIRE');
+  const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(preserved.schemaVersion).toBe(6);
+  expect(preserved.stock).toEqual({ quantity: 42 });
+});

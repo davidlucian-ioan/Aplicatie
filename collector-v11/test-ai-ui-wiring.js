@@ -12,7 +12,7 @@ for(const html of ['index.html','index-server.html','Deschide-prin-dublu-click.h
 test('UI folosește preview și execute prin Core Port, cu localStorage ca store',()=>{
  const s=fs.readFileSync('app.js','utf8');
  assert.match(s,/new Port\(\{core:E,store:/);
- assert.match(s,/persistState:async next=>persistRaw\(next\)/);
+ assert.match(s,/persistState:async next=>!integrityBlocked&&persistRaw\(next\)/);
  assert.match(s,/\.preview\(command\)/);
  assert.match(s,/\.execute\(command,\{confirmed:true\}\)/);
  assert.match(s,/publishState:async next=>\{db=next;render\(\)\}/);

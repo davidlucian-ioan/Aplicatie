@@ -36,3 +36,11 @@ test('Browser Core Port cere confirmare pentru modificarea stocului', async () =
   const x=setup(); const command={...cmd(),operations:[{operation:'stock.change',data:{populationId:'missing',action:'sell',quantity:1}}]};
   const result=await x.port.execute(command); assert.equal(result.status,'rejected'); assert.equal(x.state.events.length,0);
 });
+
+test('Browser Core Port respectă requiresConfirmation pentru orice comandă', async () => {
+  const x=setup(); const command={...cmd(),requiresConfirmation:true};
+  const rejected=await x.port.execute(command);
+  assert.equal(rejected.status,'rejected'); assert.equal(x.state.events.length,0); assert.equal(x.published,0);
+  const accepted=await x.port.execute(command,{confirmed:true});
+  assert.equal(accepted.status,'committed'); assert.equal(x.state.entities.length,1); assert.equal(x.published,1);
+});
