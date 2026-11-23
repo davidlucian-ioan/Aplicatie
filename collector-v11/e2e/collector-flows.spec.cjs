@@ -2,6 +2,7 @@
 
 const { test, expect } = require('@playwright/test');
 const legacyV6Fixture = require('./fixtures/v6-missing-entity-create.json');
+const legacyOldKeyFixture = require('./fixtures/legacy-old-key-no-schema.json');
 
 async function createLocation(page, name) {
   await page.locator('.nav[data-page="relations"]').click();
@@ -601,4 +602,42 @@ test('startup-ul nu aplică migrarea v6 unei scheme legacy neverificate', async 
   const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
   expect(preserved.schemaVersion).toBe(5);
   expect(preserved.entities[0].id).toBe('legacy-entity-missing-create');
+});
+
+
+test('old storage key fără schemaVersion este migrat și verificat prin Replay', async ({ page }) => {
+  await page.evaluate(fixture => {
+    localStorage.setItem('collector_mvp_v1', JSON.stringify(fixture));
+  }, legacyOldKeyFixture);
+
+  await page.reload();
+
+  const migrated = await page.evaluate(() => {
+    const raw = localStorage.getItem('collector_mvp_v2');
+    const db = raw ? JSON.parse(raw) : null;
+    return {
+      db,
+      legacyKeyStillPreserved: localStorage.getItem('collector_mvp_v1') !== null
+    };
+  });
+
+  expect(migrated.db).toBeTruthy();
+  expect(migrated.db.schemaVersion).toBe(7);
+  expect(migrated.db.entities.map(entity => entity.id)).toContain('legacy-old-key-plant');
+  expect(migrated.db.events.map(event => event.id)).toContain('legacy-old-key-note');
+  expect(migrated.db.events.at(-1).type).toBe('migration.entity_imported');
+  expect(Date.parse(migrated.db.events.at(-1).timestamp)).toBeGreaterThan(Date.parse('2026-01-01T00:00:00.000Z'));
+  expect(migrated.legacyKeyStillPreserved).toBe(true);
+
+  const validation = await page.evaluate(db => {
+    const checked = window.CollectorEngine.validateImport(db);
+    return {
+      warnings: checked.meta.replayWarnings || [],
+      entityNames: checked.entities.map(entity => entity.name)
+    };
+  }, migrated.db);
+  expect(validation.warnings).toEqual([]);
+  expect(validation.entityNames).toContain('Legacy key plant');
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
 });
