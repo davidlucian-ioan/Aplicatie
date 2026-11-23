@@ -167,3 +167,6 @@ PR #27 în lucru: `finance.adjust` validează `entityId` nenul împotriva entit�
 
 
 PR #28 în lucru: `event.attribute.set` trim-uiește numele și respinge valorile goale sau formate doar din spații; teste de rollback atomic și CI în așteptare.
+
+
+PR #29 în lucru: `event.attribute.correct` respinge corectarea repetată a unei înregistrări deja voided și păstrează primul `voidedByEventId`; test de rollback atomic și CI în așteptare.
