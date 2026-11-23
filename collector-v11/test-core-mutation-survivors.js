@@ -892,3 +892,39 @@ test('stock.change păstrează aliasul entityId, locația nulă și valorile imp
   assert.equal(row.certainty, 'certain');
   assert.equal(E.balances(s.db).find(entry => entry.populationId === 'population' && entry.locationId === null && entry.disposition === 'active').quantity, 2);
 });
+
+
+test('relation.create.correct refuză mutările și păstrează relația și stocul până la relation.move.correct', () => {
+  const s = setup();
+  s.commit('move-correction-location-a', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
+  s.commit('move-correction-stock-seed', [{ operation: 'stock.change', data: { populationId: 'population', locationId: 'location-a', quantity: 5, action: 'add' } }]);
+  s.commit('move-correction-to-b', [{ operation: 'relation.move', data: { sourceId: 'population', targetId: 'location-b' } }]);
+
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
+  assert.equal(balance(s.db, 'population', 'location-a'), 0);
+  assert.equal(balance(s.db, 'population', 'location-b'), 5);
+  const before = JSON.stringify(s.db);
+
+  assert.throws(
+    () => s.commit('move-wrong-correction-operation', [{ operation: 'relation.create.correct', data: { correctsEventId: 'move-correction-to-b' } }]),
+    /Mutarea trebuie corectată prin relation\.move\.correct/
+  );
+  assert.equal(JSON.stringify(s.db), before, 'wrong correction type must not mutate relation or stock projections');
+
+  const malformedReplayEvent = {
+    id: 'replay-move-wrong-correction-operation',
+    type: 'test.relation.create.correct',
+    timestamp: new Date(BASE + 100).toISOString(),
+    status: 'committed',
+    operations: [{ operation: 'relation.create.correct', data: { correctsEventId: 'move-correction-to-b' } }]
+  };
+  const replayed = E.replay([...s.db.events, malformedReplayEvent]);
+  assert.ok(replayed.meta.replayWarnings.some(row => row.eventId === malformedReplayEvent.id));
+  assert.equal(E.activeLocation(replayed, 'population').id, 'location-b');
+  assert.equal(balance(replayed, 'population', 'location-b'), 5);
+
+  s.commit('move-correct-with-specific-operation', [{ operation: 'relation.move.correct', data: { correctsEventId: 'move-correction-to-b' } }]);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-a');
+  assert.equal(balance(s.db, 'population', 'location-a'), 5);
+  assert.equal(balance(s.db, 'population', 'location-b'), 0);
+});
