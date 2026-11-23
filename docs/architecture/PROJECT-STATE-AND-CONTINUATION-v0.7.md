@@ -161,3 +161,6 @@ PR #25 în lucru: stock.change folosește allowlist pentru acțiunile publice (a
 
 
 PR #26 în lucru: `stock.adjust` validează referințele `locationId` nenule și respinge locațiile inexistente sau entitățile care nu sunt de tip `location`; teste de rollback atomic și CI în așteptare.
+
+
+PR #27 în lucru: `finance.adjust` validează `entityId` nenul împotriva entităților existente, la fel ca `finance.record`; test de regresie pentru referință lipsă și CI în așteptare.
