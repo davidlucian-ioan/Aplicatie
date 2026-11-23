@@ -131,7 +131,7 @@ public final class CollectorRecordingService extends Service {
         status = "recording";
         acquireWakeLock();
         persistManifest(null);
-        updateNotification("Înregistrare activă · ecranul poate fi stins");
+        updateNotification("Înregistrare activă · serviciu Android pornit");
     }
 
     private void pauseRecording() throws Exception {
