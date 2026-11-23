@@ -187,4 +187,4 @@ PR #29 în lucru: `event.attribute.correct` respinge corectarea repetată a unei
 **PR #30 — status CI:** primele trei rulări au expus o aserțiune legacy care folosea `E.balances()` fără fallback pentru `disposition`; fixul din `balances()` și testul actualizat sunt în branch. Noua rulare CI este în desfășurare. Nu integra până când toate joburile nu sunt verzi.
 
 
-**Verificare post-merge PR #30:** `main` este la SHA `43c385c7bfcfbe823a462e20c7325e9d48b09695`; CI pentru merge rulează (run #45252907794). Nu există deploy.
+**Verificare post-merge PR #30:** `main` este la SHA `43c385c7bfcfbe823a462e20c7325e9d48b09695`; CI complet a trecut (run #45252907794). Nu există deploy.
