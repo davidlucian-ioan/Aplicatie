@@ -270,6 +270,22 @@ test('commit este atomic pentru o listă de operații dacă o operație ulterioa
 });
 
 
+test('relation.close.correct nu redeschide o a doua locație activă pentru aceeași entitate', () => {
+  const s = setup();
+  s.commit('located-a-create', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
+  const relationA = s.db.relations.find(row => row.sourceId === 'population' && row.targetId === 'location-a');
+  s.commit('located-a-close', [{ operation: 'relation.close', data: { relationId: relationA.id } }]);
+  s.commit('located-b-create', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-b', type: 'located_in' } }]);
+
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('located-a-close-correction', [{ operation: 'relation.close.correct', data: { relationId: relationA.id, correctsEventId: 'located-a-close' } }]),
+    /altă locație activă/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+  assert.equal(E.activeLocation(s.db, 'population').id, 'location-b');
+});
+
 test('relation.close.correct nu redeschide o relație a cărei creare a fost anulată', () => {
   const s = setup();
   s.commit('voided-relation-create', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
