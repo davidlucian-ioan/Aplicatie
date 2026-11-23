@@ -241,6 +241,12 @@ test('atributele evenimentelor pot fi înregistrate și corectate, iar eveniment
 
   s.commit('event-attribute-correction', [{ operation: 'event.attribute.correct', data: { eventId: 'note-original', correctsEventId: 'event-attribute' } }]);
   assert.equal(s.db.eventAttributes[0].voidedByEventId, 'event-attribute-correction');
+  const beforeDuplicateCorrection = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('event-attribute-correction-twice', [{ operation: 'event.attribute.correct', data: { eventId: 'note-original', correctsEventId: 'event-attribute' } }]),
+    /Atributul de eveniment a fost deja corectat/
+  );
+  assert.equal(JSON.stringify(s.db), beforeDuplicateCorrection);
   assert.throws(() => s.commit('event-attribute-correction-missing', [{ operation: 'event.attribute.correct', data: { eventId: 'note-original', correctsEventId: 'missing' } }]), /nu există/);
 
   s.commit('invalidate-note', [{ operation: 'event.invalidate', data: { correctsEventId: 'note-original' } }]);
