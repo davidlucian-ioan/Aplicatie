@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +7,8 @@ const manifestPath = process.env.COLLECTOR_ANDROID_MANIFEST
   || path.join(root, 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
 const resourceRoot = process.env.COLLECTOR_ANDROID_RES
   || path.join(root, 'android', 'app', 'src', 'main', 'res');
+const javaRoot = process.env.COLLECTOR_ANDROID_JAVA
+  || path.join(root, 'android', 'app', 'src', 'main', 'java', 'com', 'collector', 'app');
 
 let manifest = await readFile(manifestPath, 'utf8');
 if (!manifest.includes('xmlns:android=')) {
@@ -32,23 +34,10 @@ if (permissionLines) {
   manifest = manifest.replace(/<application\b/, permissionLines + '\n    <application');
 }
 
-const declarations = [
-  {
-    marker: 'io.capawesome.capacitorjs.plugins.foregroundservice.NotificationActionBroadcastReceiver',
-    xml: '    <receiver android:name="io.capawesome.capacitorjs.plugins.foregroundservice.NotificationActionBroadcastReceiver" android:exported="false" />',
-  },
-  {
-    marker: 'io.capawesome.capacitorjs.plugins.foregroundservice.AndroidForegroundService',
-    xml: '    <service android:name="io.capawesome.capacitorjs.plugins.foregroundservice.AndroidForegroundService" android:exported="false" android:stopWithTask="false" android:foregroundServiceType="microphone" />',
-  },
-];
-const missingDeclarations = declarations
-  .filter(({ marker }) => !manifest.includes(marker))
-  .map(({ xml }) => xml)
-  .join('\n');
-
-if (missingDeclarations) {
-  manifest = manifest.replace('</application>', missingDeclarations + '\n  </application>');
+const serviceClass = 'com.collector.app.CollectorRecordingService';
+if (!manifest.includes(serviceClass)) {
+  const serviceDeclaration = '    <service android:name="' + serviceClass + '" android:exported="false" android:stopWithTask="false" android:process=":collector_recorder" android:foregroundServiceType="microphone" />';
+  manifest = manifest.replace('</application>', serviceDeclaration + '\n  </application>');
 }
 
 await writeFile(manifestPath, manifest);
@@ -70,4 +59,9 @@ const icon = [
 ].join('\n') + '\n';
 await writeFile(iconPath, icon);
 
-console.log('Applied Collector microphone foreground-service manifest and notification icon.');
+await mkdir(javaRoot, { recursive: true });
+for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java']) {
+  await cp(path.join(root, 'native', 'android', file), path.join(javaRoot, file));
+}
+
+console.log('Applied Collector microphone foreground-service manifest, Java bridge, service, and notification icon.');
