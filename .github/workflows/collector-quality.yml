@@ -73,9 +73,24 @@ jobs:
         working-directory: collector-v11
         run: npx playwright install --with-deps chromium
 
+      - name: Install Firefox and WebKit for nightly cross-browser checks
+        if: github.event_name == 'schedule'
+        working-directory: collector-v11
+        run: npx playwright install --with-deps firefox webkit
+
       - name: Run real-browser end-to-end tests
         working-directory: collector-v11
         run: npm run test:e2e
+
+      - name: Run Firefox end-to-end tests (nightly)
+        if: github.event_name == 'schedule'
+        working-directory: collector-v11
+        run: npx playwright test --browser=firefox
+
+      - name: Run WebKit end-to-end tests (nightly)
+        if: github.event_name == 'schedule'
+        working-directory: collector-v11
+        run: npx playwright test --browser=webkit
 
       - name: Upload test reports and Replay benchmark
         if: always()
