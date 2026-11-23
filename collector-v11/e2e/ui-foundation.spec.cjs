@@ -54,6 +54,10 @@ test('global action starts a local audio recording without committing an event',
   await page.reload();
   await expect(page.locator('#audioRecordingList')).toContainText('KB');
   expect(await page.evaluate(async () => (await window.CollectorAudioStore.list()).length)).toBe(1);
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: /Șterge înregistrarea din/ }).click();
+  await expect(page.locator('#audioRecordingList')).toContainText('Nu există înregistrări audio locale');
+  expect(await page.evaluate(async () => (await window.CollectorAudioStore.list()).length)).toBe(0);
 });
 
 test('desktop navigation exposes the current section to assistive technology', async ({ page }) => {
@@ -92,7 +96,7 @@ test('voice session accumulates multiple phrases and previews one note without a
   });
   await page.goto('/index-server.html');
   await page.locator('#voiceSessionButton').click();
-  await expect(page.locator('#voiceSessionButton')).toContainText('Sesiune activă');
+  await expect(page.locator('#voiceSessionButton')).toContainText('Oprește transcrierea');
   await page.evaluate(() => {
     const rec = window.__collectorRecognition;
     const first = [{ transcript: 'B3 are pH 6.4' }]; first.isFinal = true;
