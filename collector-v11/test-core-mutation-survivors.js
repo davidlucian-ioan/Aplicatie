@@ -965,8 +965,10 @@ test('relation.create.correct refuză mutările și păstrează relația și sto
 });
 
 
-test('Replay respinge tranzacții financiare malformate fără să creeze rânduri de ledger', () => {
+test('Replay respinge tranzacții financiare malformate și corecții duplicate fără efecte de ledger', () => {
   const s = setup();
+  s.commit('replay-finance-source', [{ operation: 'finance.record', data: { amount: 10, currency: 'RON' } }]);
+  s.commit('replay-finance-correction', [{ operation: 'finance.adjust', data: { amount: -10, currency: 'RON', correctsEventId: 'replay-finance-source' } }]);
   const invalidQuantity = {
     id: 'replay-invalid-finance-quantity',
     type: 'test.finance.record',
@@ -981,10 +983,18 @@ test('Replay respinge tranzacții financiare malformate fără să creeze rându
     status: 'committed',
     operations: [{ operation: 'finance.adjust', data: { amount: -10, correctsEventId: 'missing-finance-event' } }]
   };
-  const invalidEvents = [invalidQuantity, invalidReference];
+  const duplicateCorrection = {
+    id: 'replay-duplicate-finance-correction',
+    type: 'test.finance.adjust',
+    timestamp: new Date(BASE + 102).toISOString(),
+    status: 'committed',
+    operations: [{ operation: 'finance.adjust', data: { amount: -10, correctsEventId: 'replay-finance-source' } }]
+  };
+  const invalidEvents = [invalidQuantity, invalidReference, duplicateCorrection];
   const replayed = E.replay([...s.db.events, ...invalidEvents]);
   for (const event of invalidEvents) {
     assert.equal(replayed.finance.some(row => row.eventId === event.id), false);
     assert.ok(replayed.meta.replayWarnings.some(row => row.eventId === event.id));
   }
+  assert.equal(E.totalFinance(replayed)['RON|cost'], 0, 'the first linked correction remains effective exactly once');
 });
