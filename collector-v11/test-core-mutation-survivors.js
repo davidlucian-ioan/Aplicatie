@@ -270,6 +270,22 @@ test('commit este atomic pentru o listă de operații dacă o operație ulterioa
 });
 
 
+test('relation.close.correct nu redeschide o relație a cărei creare a fost anulată', () => {
+  const s = setup();
+  s.commit('voided-relation-create', [{ operation: 'relation.create', data: { sourceId: 'population', targetId: 'location-a', type: 'located_in' } }]);
+  const relationId = s.db.relations.find(row => row.sourceId === 'population' && row.targetId === 'location-a').id;
+  s.commit('voided-relation-close', [{ operation: 'relation.close', data: { relationId } }]);
+  s.commit('voided-relation-create-correction', [{ operation: 'relation.create.correct', data: { correctsEventId: 'voided-relation-create' } }]);
+  assert.ok(s.db.relations.find(row => row.id === relationId).voidedByEventId);
+
+  const before = JSON.stringify(s.db);
+  assert.throws(
+    () => s.commit('voided-relation-close-correction', [{ operation: 'relation.close.correct', data: { relationId, correctsEventId: 'voided-relation-close' } }]),
+    /anulată prin corectarea creării/
+  );
+  assert.equal(JSON.stringify(s.db), before);
+});
+
 test('relation.close și relation.close.correct păstrează istoricul și resping corecțiile stale', () => {
   const s = setup();
   s.commit('relation-lifecycle-create', [{ operation: 'relation.create', data: { sourceId: 'item', targetId: 'other', type: 'related_to' } }]);
