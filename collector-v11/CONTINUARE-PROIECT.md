@@ -215,12 +215,13 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
+
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- HEAD la actualizare: `aade726569ed3a12911001085c043dffdc0d69b4`.
-- Ultimul CI verificat anterior pe `6abf829`: Cloud API SUCCESS; Quality Suite și Mobile Build încă în execuție la ultima citire. Nu există încă CI final pentru HEAD nou.
-- Hardening implementat: serializare RevenueCat identity changes; entitlement + product allowlist pentru granturi; revocările RevenueCat (CANCELLATION, BILLING_ISSUE, EXPIRATION, REFUND, SUBSCRIPTION_PAUSED, REFUND_REVERSED) ajung la ledger chiar dacă webhook-ul omite entitlement_ids, dar numai pentru produse allowlisted; cache rate-limit limitat; rezervările AI stale sunt contabilizate conservator după 10 minute.
-- Teste noi: concurență identity, allowlist produs/entitlement, revocări fără entitlement_ids, cache eviction și contract SQL stale reservation.
-- Nevalidat extern: Supabase real (migrare/RLS/RPC), deploy Cloud API, RevenueCat produse/webhook reale și tranzacții sandbox. PR rămâne draft.
-- Următorul pas: urmărește CI pentru HEAD; corectează eșecurile; apoi finalizează auditul refund/transfer/alias, testează migrarea SQL în Postgres și configurează sandbox. Nu activa plăți publice înainte de E2E.
-- Regulă de lucru: acest checkpoint unic se suprascrie la fiecare etapă; nu se adaugă blocuri noi. În conversație raportează doar rezumatul scurt.
+- Ultimul commit de implementare: `bcabb5925afb66c09fb70ede810b31a8d4ea7817`; documentație actualizată în `0d16c996ed685eddc9f097f799c8828d4399172e`. Acest checkpoint va deveni commitul final al sesiunii.
+- CI: Cloud API SUCCESS la commitul anterior de documentație `3d046f8`; Quality/Mobile au fost anulate de commiturile ulterioare. CI complet pentru HEAD-ul final trebuie reverificat după acest checkpoint.
+- Hardening RevenueCat: schimbările concurente de identitate sunt serializate; grantul Pro cere produs allowlisted + entitlement configurat; revocările lifecycle (CANCELLATION, BILLING_ISSUE, EXPIRATION, REFUND, SUBSCRIPTION_PAUSED, REFUND_REVERSED) sunt procesate chiar dacă RevenueCat omite entitlement_ids, dar numai pentru produs allowlisted. Teste de regresie adăugate.
+- Hardening AI billing: cache-ul rate-limit are limită configurabilă; rezervările stale după 10 minute sunt contabilizate conservator; rezerva include 20.000 bytes overhead pentru instrucțiunile fixe și schema JSON OpenAI. Testele verifică plafonul minim al rezervei.
+- Nevalidat extern: Supabase real (migrare/RLS/RPC), deploy HTTPS, configurare RevenueCat reală și tranzacții sandbox. PR rămâne draft.
+- Următorul pas: verifică CI complet pe HEAD final fără a împinge commituri intermediare; apoi validează migrarea în Postgres/Supabase și purchase/restore/refund/expiry în sandbox. Nu activa plăți publice înainte de E2E.
+- Regula de continuitate: suprascrie exclusiv acest checkpoint unic la următoarea etapă; nu adăuga istorice noi. În chat raportează succint.
