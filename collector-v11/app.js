@@ -563,7 +563,8 @@ async function startNativeSpeech(mode){
     const box=document.getElementById('commandResult');if(box)box.textContent=message;
    }
   };
-  nativeSpeechListenerHandles=[];\n  for(const [name,handler] of Object.entries(handlers))nativeSpeechListenerHandles.push(await bridge.addListener(name,handler));
+  nativeSpeechListenerHandles=[];
+  for(const [name,handler] of Object.entries(handlers))nativeSpeechListenerHandles.push(await bridge.addListener(name,handler));
   const started=await bridge.startListening('ro-RO',mode==='session');
   if(nativeSpeechMode!==mode)return true;
   nativeSpeechSessionId=started.sessionId;
