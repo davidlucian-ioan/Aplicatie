@@ -43,12 +43,12 @@ if (!manifest.includes(serviceClass)) {
 
 const alarmReceiver = 'com.collector.app.CollectorAlarmReceiver';
 if (!manifest.includes(alarmReceiver)) {
-  manifest = manifest.replace('</application>', '    <receiver android:name="' + alarmReceiver + '" android:exported="false" />\\n  </application>');
+  manifest = manifest.replace('</application>', '    <receiver android:name="' + alarmReceiver + '" android:exported="false" />\n  </application>');
 }
 const bootReceiver = 'com.collector.app.CollectorAlarmBootReceiver';
 if (!manifest.includes(bootReceiver)) {
-  const declaration = '    <receiver android:name="' + bootReceiver + '" android:enabled="true" android:exported="false">\\n      <intent-filter>\\n        <action android:name="android.intent.action.BOOT_COMPLETED" />\\n        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />\\n        <action android:name="android.intent.action.TIME_SET" />\\n        <action android:name="android.intent.action.TIMEZONE_CHANGED" />\\n      </intent-filter>\\n    </receiver>';
-  manifest = manifest.replace('</application>', declaration + '\\n  </application>');
+  const declaration = '    <receiver android:name="' + bootReceiver + '" android:enabled="true" android:exported="false">\n      <intent-filter>\n        <action android:name="android.intent.action.BOOT_COMPLETED" />\n        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />\n        <action android:name="android.intent.action.TIME_SET" />\n        <action android:name="android.intent.action.TIMEZONE_CHANGED" />\n      </intent-filter>\n    </receiver>';
+  manifest = manifest.replace('</application>', declaration + '\n  </application>');
 }
 
 await writeFile(manifestPath, manifest);
