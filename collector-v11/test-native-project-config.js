@@ -30,6 +30,8 @@ test('configurează descrierea microfonului iOS fără duplicate',async()=>{
   const xml=await fs.readFile(file,'utf8');
   assert.equal((xml.match(/NSMicrophoneUsageDescription/g)||[]).length,1);
   assert.ok(xml.includes('înregistrări audio'));
+  assert.ok(xml.includes('<key>UIBackgroundModes</key>'));
+  assert.ok(xml.includes('<string>audio</string>'));
  }finally{await fs.rm(root,{recursive:true,force:true})}
 });
 test('respinge platformele necunoscute',async()=>{
