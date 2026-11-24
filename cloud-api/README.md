@@ -47,7 +47,7 @@ Alte variabile:
 6. În Project Settings → General setează Restore Behavior la Keep with original App User ID. Aplicația cere cont recuperabil înainte de cumpărare, iar backend-ul nu transferă entitlement între conturi; utilizatorul trebuie să restaureze după autentificarea în același cont Collector. Ștergerea contului nu anulează abonamentul din magazin.
 7. Testează achiziție, reînnoire, anulare, expirare, refund și restore în sandbox.
 
-Backend-ul tratează achiziția/reînnoirea, schimbarea produsului, reactivarea, anularea până la expirare, billing issue/grace period, pauza programată (păstrează Pro până la expirarea perioadei curente) și expirarea/refund-ul. Evenimentele duplicate sunt idempotente. Transferul între conturi este intenționat dezactivat prin Restore Behavior Keep with original App User ID; aliasurile normale sunt rezolvate din webhook. Nu schimba această setare fără implementarea și testarea unui handler TRANSFER.
+Backend-ul tratează achiziția/reînnoirea, schimbarea produsului, reactivarea, anularea până la expirare, billing issue/grace period, pauza programată (păstrează Pro până la expirarea perioadei curente), refund-ul RevenueCat cu motivul `CUSTOMER_SUPPORT` (revocare imediată) și expirarea. Evenimentele duplicate sunt idempotente. Transferul între conturi este intenționat dezactivat prin Restore Behavior Keep with original App User ID; aliasurile normale sunt rezolvate din webhook. Nu schimba această setare fără implementarea și testarea unui handler TRANSFER.
 
 ## Protecție costuri
 
