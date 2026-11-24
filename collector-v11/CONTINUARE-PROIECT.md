@@ -84,20 +84,36 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Branch: `feature/voice-batch-preview`, bazat pe `feature/voice-readback`.
 - PR: https://github.com/davidlucian-ioan/Aplicatie/pull/46 — deschis, mergeable; nu este integrat.
 - Fiecare rezultat final din SpeechRecognition este păstrat ca frază separată; indexurile finale repetate sunt deduplicate.
-- La oprirea sesiunii se construiește un singur preview cu lista frazelor și numărul operațiilor. O frază care nu corespunde unei comenzi structurate este păstrată ca observație, fără interpretare suplimentară.
-- Pentru comenzi structurate sunt construite operații de atribut și stoc; țintele inexistente sau ambigue sunt refuzate, fără selectare automată.
-- Core Port primește toate operațiile într-o singură comandă. Confirmarea creează un singur eveniment cu mai multe operații; anularea nu persistă nimic.
-- Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau registrul D-001–D-044.
-- Quality CI: PASS, run 45384926899; 38 teste E2E Chromium au trecut, inclusiv batch de două observații, commit într-un singur eveniment și anulare fără commit.
-- Android build pentru head `53fdf761cec4e4fe6ace034cb9057db69e9c981d`: în curs la momentul acestei actualizări. Un build Android anterior al implementării batch a trecut în run 45384743911.
-- Acoperire rămasă: teste E2E dedicate pentru loturi mixte (atribute/stoc), selecție interactivă a candidaților ambigui și integrarea contextului persistent. În prezent, țintele ambigue sunt blocate în siguranță, dar nu există încă UI de disambiguare.
+- La oprirea sesiunii se construiește un singur preview cu lista frazelor și numărul operațiilor. O frază care nu corespunde unei comenzi structurate este păstrată ca observație.
+- Operațiile sunt trimise împreună prin Core Port. Confirmarea creează un singur eveniment; anularea nu persistă nimic.
+- Quality CI: PASS, run 45385254964; Android build: PASS, run 45385254881.
 
-### Următorii pași de implementare
-1. Entity disambiguation: interfață de selecție explicită pentru entități/populații/locații cu nume duplicate, cu păstrarea lotului până la rezolvarea tuturor țintelor.
-2. Context persistent în sesiunea vocală: contextul trebuie să fie vizibil, cu TTL și fără a putea contrazice datele confirmate din Core.
-3. Teste E2E pentru loturi mixte de observații, atribute și operații de stoc; verifică atomicitatea și refuzul integral la o singură operație invalidă.
-4. Evaluarea STT offline pe Android separat de browser SpeechRecognition; nu promite funcționare offline până la măsurare pe dispozitiv.
-5. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
-6. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor; nu introduce grafice decorative sau valori estimate.
+### Actualizare 2026-11-24 — Entity disambiguation și loturi mixte (PR #47 în pregătire)
+- Branch: `feature/voice-entity-disambiguation`, bazat pe `feature/voice-batch-preview`.
+- Pentru nume duplicate, UI prezintă candidații cu nume, tip și ID; utilizatorul trebuie să selecteze explicit. Lotul complet este revalidat după fiecare alegere, înainte de preview.
+- Țintele inexistente, definițiile de atribut absente/duplicate și selecțiile devenite invalide blochează întregul lot; nu există fallback la prima potrivire.
+- Avertismentele pentru valori în afara limitelor recomandate apar în preview, înainte de confirmarea atomică.
+- Parserul atributelor folosește delimitatori lexicali cu word-boundary pentru `este`/`la`; a fost prinsă și corectată regresia în care „la” din „Plantă” trunchia numele entității la „P”.
+- Teste E2E: disambiguare explicită pentru două entități cu același nume; lot mixt `attribute.set` + `stock.change` cu un singur eveniment; respingere atomică atunci când vânzarea depășește stocul, verificând că jurnalul, atributul și stocul rămân nemodificate.
+- Quality CI: PASS, run 45401723053 pentru head `23c10fe76ba6d6014551d8fff8a3239e2dba665e`.
+- Android debug build: PASS, run 45401722974 pentru același head.
+- PR #47: deschis, mergeable, bazat pe PR #46; fără integrare în `main`.
+- Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
+
+- Context vocal local: `collector_voice_context_v1` separat de jurnalul Core, cu TTL strict de 30 de minute; se actualizează numai după commit vocal reușit, nu la preview, anulare, duplicat sau comandă scrisă manual.
+- Contextul este vizibil în WORK, poate fi șters manual și este verificat la revenirea aplicației în foreground. Referințele explicite „aceeași entitate/populație/locație” se rezolvă numai către ID-urile confirmate; fără context sau după expirare lotul este respins fără preview.
+- Teste E2E pentru referință contextuală, lipsă de context, TTL, comenzi manuale care nu reîmprospătează contextul și păstrarea confirmării explicite.
+- Confirmarea Core revalidează jurnalul local înainte de commit. Dacă o altă sesiune a modificat jurnalul după preview, preview-ul este refăcut și se cere o nouă confirmare; store-ul refuză să suprascrie un jurnal mai nou.
+- Test E2E cu două pagini/browser sessions reale pe același origin: o sesiune vinde între preview și confirmare; prima confirmare reface preview-ul, a doua confirmă noua stare; nu se pierde evenimentul extern.
+- Teste E2E pentru ținte inexistente, entități de tip greșit și destinații care nu sunt locații; lotul este respins integral. Eșecul de persistență în confirmare nu publică starea nouă și nu creează context vocal.
+- Quality CI: PASS, run 45405641392; 46 teste Chromium au trecut.
+- Android debug build: PASS, run 45405641508.
+- Head verificat: `a2ef95e5214367fbda81892d25093315067976d7`; PR #47 rămâne deschis și mergeable, fără integrare în `main`.
+
+### Următorii pași
+1. Extinde testele de consistență pentru concurență simultană între două sesiuni și recuperarea după eșec de persistență.
+2. Evaluează STT offline pe Android separat de browser SpeechRecognition; nu declara suport offline înainte de testare pe dispozitiv.
+3. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
+4. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
 
 Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.

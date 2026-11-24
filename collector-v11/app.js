@@ -2,10 +2,64 @@
 const E=window.CollectorEngine, KEY='collector_mvp_v2', OLD_KEY='collector_mvp_v1';
 const titles={work:['WORK','Captură rapidă, înregistrare și remindere în timpul activității.'],dashboard:['THINK','Analize, grafice, date și operații.'],entities:['Entități','Entități universale, atribute temporale și cronologie.'],relations:['Relații & locații','Relații de prim rang, localizare temporală și ierarhie.'],inventory:['Populații & solduri','Cantități anonime și solduri derivate din evenimente.'],finance:['Financiar','Tranzacții pe evenimente și indicatori derivați.'],attributes:['Atribute','Definiții configurabile cu tip, rol, natură, proprietar și reguli.'],events:['Evenimente','Jurnalul de evenimente append-only.'],history:['Istoric','Cronologie completă și filtrabilă.'],assistant:['Introducere rapidă','Comenzi locale și dictare vocală, cu confirmare înainte de commit.'],audit:['Audit & date','Replay, export, import și limitele implementării.']};
 let integrityBlocked=false, integrityBlockReason=null, integrityRawBackup=null, integrityCanRebuild=false;
-let db=loadDb(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null;
+let db=loadDb(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null, pendingCorePreviewSignature=null;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
+
+const VOICE_CONTEXT_KEY='collector_voice_context_v1';
+const VOICE_CONTEXT_TTL_MS=30*60*1000;
+function getVoiceContext(){
+ try{
+  const context=JSON.parse(localStorage.getItem(VOICE_CONTEXT_KEY)||'null');
+  if(!context||context.version!==1||!Number.isFinite(context.updatedAt)||!Number.isFinite(context.expiresAt)||context.expiresAt<=context.updatedAt||context.expiresAt-context.updatedAt>VOICE_CONTEXT_TTL_MS||context.expiresAt<=Date.now()){localStorage.removeItem(VOICE_CONTEXT_KEY);return null}
+  const valid={version:1,updatedAt:context.updatedAt,expiresAt:context.expiresAt};
+  for(const key of ['entityId','populationId','locationId'])if(typeof context[key]==='string'&&db.entities.some(entity=>entity.id===context[key]))valid[key]=context[key];
+  if(!valid.entityId&&!valid.populationId&&!valid.locationId){localStorage.removeItem(VOICE_CONTEXT_KEY);return null}
+  return valid;
+ }catch(error){try{localStorage.removeItem(VOICE_CONTEXT_KEY)}catch{}return null}
+}
+function renderVoiceContext(){
+ const box=document.getElementById('voiceContextCard');if(!box)return;
+ const context=getVoiceContext();
+ if(!context){box.innerHTML='<div><b>Fără context vocal activ</b><p>După o comandă vocală confirmată, țintele folosite vor rămâne disponibile local timp de 30 de minute.</p></div>';box.dataset.active='false';return}
+ const names=[['entityId','Entitate'],['populationId','Populație'],['locationId','Locație']].filter(([key])=>context[key]).map(([key,label])=>{const entity=db.entities.find(item=>item.id===context[key]);return '<span><small>'+label+'</small><b>'+esc(entity?.name||'Indisponibil')+'</b></span>'});
+ const minutes=Math.max(1,Math.ceil((context.expiresAt-Date.now())/60000));
+ box.innerHTML='<div><b>Context vocal activ</b><p>Referințele explicite „aceeași entitate”, „aceeași populație” și „aceeași locație” folosesc numai aceste ținte confirmate.</p><div class="voice-context-targets">'+names.join('')+'</div><small>Expiră în aproximativ '+minutes+' min · stocat numai pe acest dispozitiv</small></div><button class="secondary" id="clearVoiceContext" type="button">Șterge contextul</button>';
+ box.dataset.active='true';
+ document.getElementById('clearVoiceContext').onclick=()=>{localStorage.removeItem(VOICE_CONTEXT_KEY);renderVoiceContext();setAppStatus('Contextul vocal local a fost șters.')};
+}
+function updateVoiceContextFromCommand(command){
+ const now=Date.now(),next={version:1,updatedAt:now,expiresAt:now+VOICE_CONTEXT_TTL_MS};
+ for(const operation of command?.operations||[]){
+  const data=operation.data||{};
+  if(operation.operation==='attribute.set'&&typeof operation.target==='string')next.entityId=operation.target;
+  if(operation.operation==='stock.change'){
+   if(typeof data.populationId==='string')next.populationId=data.populationId;
+   if(typeof data.locationId==='string'&&data.locationId)next.locationId=data.locationId;
+  }
+ }
+ if(!next.entityId&&!next.populationId&&!next.locationId)return false;
+ try{localStorage.setItem(VOICE_CONTEXT_KEY,JSON.stringify(next));renderVoiceContext();return true}catch(error){setAppStatus('Comanda a fost salvată, dar contextul vocal nu a putut fi păstrat local.');return false}
+}
+function resolveVoiceContextReference(name,kind){
+ const aliases={
+  entity:['aceeași entitate','aceeasi entitate','entitatea anterioară','entitatea anterioara'],
+  population:['aceeași populație','aceeasi populatie','populația anterioară','populatia anterioara'],
+  location:['aceeași locație','aceeasi locatie','locația anterioară','locatia anterioara']
+ };
+ const normalized=String(name||'').normalize('NFC').trim().toLocaleLowerCase('ro-RO');
+ if(!aliases[kind]?.includes(normalized))return null;
+ const context=getVoiceContext(),key={entity:'entityId',population:'populationId',location:'locationId'}[kind],id=context?.[key];
+ if(!id)throw Error('Nu există un context vocal activ pentru '+({entity:'entitate',population:'populație',location:'locație'}[kind])+'. Specifică numele complet al țintei.');
+ const entity=db.entities.find(item=>item.id===id);
+ if(!entity)throw Error('Ținta din contextul vocal nu mai există. Specifică numele complet.');
+ if(kind==='population'&&!['population','group'].includes(entity.type))throw Error('Ținta din context nu mai este o populație validă. Specifică numele complet.');
+ if(kind==='location'&&entity.type!=='location')throw Error('Ținta din context nu mai este o locație validă. Specifică numele complet.');
+ return entity;
+}
+window.addEventListener('focus',renderVoiceContext);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)renderVoiceContext()});
 function loadDb(){
  let raw=null,rawText=null,parseError=null,sourceKey=KEY;
  try{rawText=localStorage.getItem(KEY);if(rawText!==null)raw=JSON.parse(rawText)}catch(error){parseError=error}
@@ -66,7 +120,7 @@ function loadDb(){
  return validated;
 }
 function persistRaw(x){try{localStorage.setItem(KEY,JSON.stringify(x));return true}catch(err){console.error(err);return false}}
-function ensureAICorePort(){if(aiCorePort)return aiCorePort;const Port=window.CollectorBrowserCorePort;if(!Port)throw Error('Core Port nu a fost încărcat.');aiCorePort=new Port({core:E,store:{getState:()=>db,persistState:async next=>!integrityBlocked&&persistRaw(next),publishState:async next=>{db=next;render()}}});return aiCorePort}
+function ensureAICorePort(){if(aiCorePort)return aiCorePort;const Port=window.CollectorBrowserCorePort;if(!Port)throw Error('Core Port nu a fost încărcat.');aiCorePort=new Port({core:E,store:{getState:()=>db,persistState:async next=>{if(integrityBlocked)return false;try{const raw=localStorage.getItem(KEY);if(!raw)return false;const latest=E.validateImport(JSON.parse(raw));if(JSON.stringify(latest.events)!==JSON.stringify(db.events))return false;return persistRaw(next)}catch(error){return false}},publishState:async next=>{db=next;render()}}});return aiCorePort}
 function commit(type,operations,payload={},extra={}){if(integrityBlocked){alert('Aplicația este în mod numai citire: '+integrityBlockReason+'. Exportă datele originale sau importă un backup valid înainte de a continua.');return false}const ev={id:id(),type,timestamp:E.now(),source:extra.source||'user',actor:'local-user',certainty:extra.certainty||'certain',intentKey:extra.intentKey||null,payload,operations};try{const sourceOfTruth=E.replay(db.events,[]);sourceOfTruth.meta={...db.meta,...sourceOfTruth.meta};const result=E.commit(sourceOfTruth,ev);if(result.duplicate){alert('Această intenție a fost deja procesată; nu am aplicat-o a doua oară.');return false}// Persist the candidate before publishing it; a failed write must not leak into later commands.
 if(!persistRaw(result.db))throw Error('Nu am putut salva datele în browser. Exportă datele și eliberează spațiu.');db=result.db;render();return result.event}catch(err){alert('Operația a fost anulată integral: '+err.message);return false}}
 function setMenuOpen(open){const sidebar=document.getElementById('appSidebar'),toggle=document.getElementById('menuToggle'),backdrop=document.getElementById('sidebarBackdrop');if(!sidebar||!toggle||!backdrop)return;const wasOpen=sidebar.classList.contains('open'),restoreFocus=!open&&wasOpen&&(sidebar.contains(document.activeElement)||document.activeElement===backdrop);sidebar.classList.toggle('open',open);backdrop.classList.toggle('visible',open);toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Închide meniul':'Deschide meniul');if(restoreFocus)toggle.focus()}
@@ -191,7 +245,7 @@ function correctAnyEvent(eventId){
  if(commit('event.correction',ops,payload))render();
 }
 function renderHistory(){const entityFilter=document.getElementById('historyEntityFilter'),typeFilter=document.getElementById('historyTypeFilter'),prev=entityFilter.value,prevType=typeFilter.value;entityFilter.innerHTML='<option value="">Toate elementele</option>'+db.entities.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');entityFilter.value=prev;typeFilter.innerHTML='<option value="">Toate tipurile</option>'+[...new Set(visibleEvents().map(e=>e.type))].sort().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');typeFilter.value=prevType;const eid=entityFilter.value,typ=typeFilter.value;const events=visibleEvents().filter(ev=>(!typ||ev.type===typ)&&(!eid||ev.payload?.entityId===eid||ev.payload?.sourceId===eid||ev.payload?.targetId===eid||ev.operations?.some(o=>o.target===eid||o.data?.entityId===eid||o.data?.sourceId===eid||o.data?.targetId===eid))).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));document.getElementById('historyList').innerHTML=events.map(eventRow).join('')||'<div class="empty">Niciun eveniment pentru filtrele selectate.</div>'}
-function renderAudit(){const warnings=db.meta?.replayWarnings||[];const integrityNotice=integrityBlocked?'<p class="status-warn"><b>MOD NUMAI CITIRE</b> · '+esc(integrityBlockReason)+'. Exportul original rămâne disponibil; poți reconstrui doar dacă jurnalul este valid sau poți importa un backup verificat.</p>':'';document.getElementById('auditSummary').innerHTML=`Jurnal: <b>${db.events.length}</b> evenimente · Entități: <b>${db.entities.length}</b> · Relații: <b>${db.relations.length}</b> · Erori la replay: <b>${warnings.length}</b> · Context conversațional: <b>${E.contextIsActive(db)?'activ':'expirat'}</b>.${integrityNotice}`;document.getElementById('auditList').innerHTML=[...warnings.map(w=>`<div class="row"><div><b class="status-warn">Eroare replay</b><div>${esc(w.eventId)} · ${esc(w.error)}</div></div></div>`),...visibleEvents().slice(-10).reverse().map(eventRow)].join('')||'<div class="empty">Nu există evenimente.</div>'}
+function renderAudit(){const warnings=db.meta?.replayWarnings||[];const integrityNotice=integrityBlocked?'<p class="status-warn"><b>MOD NUMAI CITIRE</b> · '+esc(integrityBlockReason)+'. Exportul original rămâne disponibil; poți reconstrui doar dacă jurnalul este valid sau poți importa un backup verificat.</p>':'';document.getElementById('auditSummary').innerHTML=`Jurnal: <b>${db.events.length}</b> evenimente · Entități: <b>${db.entities.length}</b> · Relații: <b>${db.relations.length}</b> · Erori la replay: <b>${warnings.length}</b> · Context vocal local: <b>${getVoiceContext()?'activ':'inactiv / expirat'}</b>.${integrityNotice}`;document.getElementById('auditList').innerHTML=[...warnings.map(w=>`<div class="row"><div><b class="status-warn">Eroare replay</b><div>${esc(w.eventId)} · ${esc(w.error)}</div></div></div>`),...visibleEvents().slice(-10).reverse().map(eventRow)].join('')||'<div class="empty">Nu există evenimente.</div>'}
 function renderThinkActivity(){
  const chart=document.getElementById('thinkActivityChart'),summary=document.getElementById('thinkActivitySummary');if(!chart||!summary)return;
  const today=new Date();today.setHours(0,0,0,0);
@@ -202,7 +256,7 @@ function renderThinkActivity(){
  chart.innerHTML=days.map(day=>{const count=counts.get(day.key),height=count?Math.max(8,Math.round(count/max*100)):3;return '<div class="think-day" title="'+esc(day.label+': '+count+' evenimente')+'" aria-label="'+esc(day.label+': '+count+' evenimente')+'"><span class="think-day-count">'+count+'</span><div class="think-day-track"><i style="height:'+height+'%"></i></div><small>'+esc(day.label)+'</small></div>'}).join('');
  summary.textContent=total+' '+(total===1?'eveniment':'evenimente')+' în ultimele 7 zile · '+counts.get(days[6].key)+' astăzi';
 }
-function render(){document.getElementById('entityCount').textContent=db.entities.length;document.getElementById('eventCount').textContent=db.events.length;document.getElementById('relationCount').textContent=db.relations.filter(r=>!r.endedAt).length;document.getElementById('stockCount').textContent=E.balances(db).filter(x=>x.disposition==='active').reduce((sum,x)=>sum+Number(x.quantity||0),0);renderEntities();renderRelations();renderInventory();renderFinance();renderAttributes();document.getElementById('eventList').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';document.getElementById('recentEvents').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';renderHistory();renderAudit();renderThinkActivity();if(currentEntityId&&document.getElementById('entityChartBox'))drawEntityChart(currentEntityId)}
+function render(){renderVoiceContext();document.getElementById('entityCount').textContent=db.entities.length;document.getElementById('eventCount').textContent=db.events.length;document.getElementById('relationCount').textContent=db.relations.filter(r=>!r.endedAt).length;document.getElementById('stockCount').textContent=E.balances(db).filter(x=>x.disposition==='active').reduce((sum,x)=>sum+Number(x.quantity||0),0);renderEntities();renderRelations();renderInventory();renderFinance();renderAttributes();document.getElementById('eventList').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';document.getElementById('recentEvents').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';renderHistory();renderAudit();renderThinkActivity();if(currentEntityId&&document.getElementById('entityChartBox'))drawEntityChart(currentEntityId)}
 document.getElementById('quickEvent').onclick=()=>showPage('work');document.getElementById('historyEntityFilter').onchange=renderHistory;document.getElementById('historyTypeFilter').onchange=renderHistory;
 function exportData(){const blob=new Blob([JSON.stringify({exportedAt:E.now(),app:'Collector MVP v6',db:integrityRawBackup||db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='collector-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href)}
 document.getElementById('importFile').addEventListener('change',async ev=>{const file=ev.target.files?.[0];if(!file)return;try{const raw=JSON.parse(await file.text()),candidate=raw.db||raw;const validated=E.validateImport(candidate);if(!confirm('Jurnal valid, fără erori, iar proiecțiile corespund istoricului. Importul va înlocui datele locale curente. Ai exportat o copie de siguranță?'))return;if(!persistRaw(validated))throw Error('Nu s-au putut salva datele importate. Datele locale au rămas neschimbate.');db=validated;integrityBlocked=false;integrityCanRebuild=false;integrityBlockReason=null;integrityRawBackup=null;currentEntityId=null;render();alert('Import reușit: jurnalul și proiecțiile au fost validate.')}catch(err){alert('Import eșuat: '+err.message)}finally{ev.target.value=''}});
@@ -214,52 +268,87 @@ function parseCommand(text){
  let m;
  // Acceptă atât forma scurtă, cât și formularea completă afișată în exemplele UI.
  if((m=s.match(/^(?:observație|observatie|notează|noteaza|înregistrează observație|inregistreaza observatie)\s*:?\s*(.+)$/iu)))return {type:'note',description:m[1].trim()};
- if((m=s.match(/^(?:setează|seteaza|înregistrează|inregistreaza)\s+(?:atributul\s+)?(.+?)\s+pentru\s+(.+?)\s*(?:=|este|la)\s*(.+)$/iu))){return {type:'attribute',attribute:m[1].trim(),entityName:m[2].trim(),value:m[3].trim()}}
+ if((m=s.match(/^(?:setează|seteaza|înregistrează|inregistreaza)\s+(?:atributul\s+)?(.+?)\s+pentru\s+(.+?)\s*(?:=|\beste\b|\bla\b)\s*(.+)$/iu))){return {type:'attribute',attribute:m[1].trim(),entityName:m[2].trim(),value:m[3].trim()}}
  if((m=s.match(/^(?:înregistrează observație|inregistreaza observatie):?\s*(.+?)\s+are\s+(.+?)\s+([0-9]+(?:[.,][0-9]+)?)$/iu)))return {type:'attribute',entityName:m[1].trim(),attribute:m[2].trim(),value:m[3].replace(',','.')};
  if((m=s.match(/^(?:am vândut|am vandut|vinde)\s+(\d+)\s+(.+?)(?:\s+din\s+(.+))?$/iu)))return {type:'sale',quantity:Number(m[1]),populationName:m[2].trim(),locationName:m[3]?.trim()||null};
  return {error:'Nu pot interpreta această comandă fără să ghicesc. Folosește „Observație: ...” sau „Înregistrează [atribut] pentru [entitate] = [valoare]”.'};
 }
-async function runVoiceBatch(phrases){
+function voiceBatchResolveTarget(matches,key,label,selections,unresolved,index){
+ const selectedId=selections[key];
+ if(matches.length===0)throw Error('Fraza '+(index+1)+': nu am găsit '+label+'. Verifică numele și încearcă din nou.');
+ if(selectedId){
+  const selected=matches.find(entity=>entity.id===selectedId);
+  if(!selected)throw Error('Selecția pentru '+label+' nu mai este validă. Reia alegerea.');
+  return selected;
+ }
+ if(matches.length===1)return matches[0];
+ unresolved.push({key,label,index,matches});
+ return null;
+}
+function renderVoiceBatchDisambiguation(entries,unresolved,selections){
+ const box=document.getElementById('commandResult');
+ const controls=unresolved.map(item=>'<label for="voiceChoice_'+esc(item.key)+'">Fraza '+(item.index+1)+' · '+esc(item.label)+'</label><select id="voiceChoice_'+esc(item.key)+'" data-voice-choice-key="'+esc(item.key)+'"><option value="">Selectează explicit…</option>'+item.matches.map(entity=>'<option value="'+esc(entity.id)+'" '+(selections[item.key]===entity.id?'selected':'')+'>'+esc(entity.name)+' · '+esc(entity.type)+' · …'+esc(entity.id.slice(-6))+'</option>').join('')+'</select>').join('');
+ box.innerHTML='<b>Este necesară o alegere explicită</b><p>Am găsit mai multe potriviri. Nu am ales automat nicio entitate și nu am salvat nimic.</p>'+controls+'<p class="note">Selectează ținta corectă pentru fiecare frază. Lotul complet va fi revalidat și previzualizat numai după ce toate alegerile sunt clare.</p><button class="primary" id="resolveVoiceBatch">Reverifică lotul</button> <button class="secondary" id="cancelVoiceBatchResolution">Anulează lotul</button>';
+ document.getElementById('resolveVoiceBatch').onclick=()=>{
+  const next={...selections};
+  box.querySelectorAll('[data-voice-choice-key]').forEach(select=>{next[select.dataset.voiceChoiceKey]=select.value});
+  runVoiceBatch(entries,next);
+ };
+ document.getElementById('cancelVoiceBatchResolution').onclick=()=>{pendingCoreCommand=null;voiceCommandPending=false;voiceReadbackPending=false;cancelSpeechOutput();box.textContent='Lot anulat. Nu s-au modificat date.'};
+}
+async function runVoiceBatch(phrases,selections={}){
  const box=document.getElementById('commandResult');
  const entries=(Array.isArray(phrases)?phrases:[]).map(value=>String(value||'').trim()).filter(Boolean);
  if(!entries.length){voiceReadbackPending=false;setAppStatus('Sesiunea vocală s-a încheiat fără fraze finale. Nu s-au modificat datele.');return}
- const operations=[],items=[],summaries=[];
- for(let index=0;index<entries.length;index++){
-  const phrase=entries[index];
-  let parsed=parseCommand(phrase);
-  if(parsed.error)parsed={type:'note',description:phrase};
-  if(parsed.type==='note'){
-   operations.push({operation:'event.note',data:{description:parsed.description}});
-   items.push({type:'note',description:parsed.description});
-   summaries.push('Observație '+(index+1)+': „'+parsed.description+'”');
-  }else if(parsed.type==='attribute'){
-   const matches=db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
-   if(matches.length!==1){box.textContent=matches.length?'Fraza '+(index+1)+': există mai multe entități cu acest nume; selectează explicit entitatea.':'Fraza '+(index+1)+': nu găsesc entitatea „'+parsed.entityName+'”.';voiceReadbackPending=false;return}
-   const def=db.attributes.find(a=>a.name.toLowerCase()===parsed.attribute.toLowerCase());
-   if(!def){box.textContent='Fraza '+(index+1)+': atributul „'+parsed.attribute+'” nu este definit. Nu voi modifica schema în tăcere.';voiceReadbackPending=false;return}
-   let value;try{value=parseTyped(parsed.value,def.type);if(!confirmAttributeWarnings(def,value)){voiceReadbackPending=false;return}}catch(error){box.textContent='Fraza '+(index+1)+': '+error.message;voiceReadbackPending=false;return}
-   operations.push({operation:'attribute.set',target:matches[0].id,data:{name:def.name,value,certainty:'certain',forceHistory:true}});
-   items.push({type:'attribute',entityId:matches[0].id,attribute:def.name,value});
-   summaries.push(matches[0].name+' · '+def.name+' = '+JSON.stringify(value));
-  }else if(parsed.type==='sale'){
-   const populations=db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
-   if(populations.length!==1){box.textContent=populations.length?'Fraza '+(index+1)+': există mai multe populații cu acest nume. Selectează una explicit.':'Fraza '+(index+1)+': nu am găsit o singură populație cu acel nume.';voiceReadbackPending=false;return}
-   const locations=parsed.locationName?db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase()):[];
-   if(parsed.locationName&&locations.length!==1){box.textContent='Fraza '+(index+1)+': nu am găsit o singură locație cu acel nume.';voiceReadbackPending=false;return}
-   const locationId=locations[0]?.id||null;
-   operations.push({operation:'stock.change',data:{populationId:populations[0].id,action:'sell',locationId,quantity:parsed.quantity,disposition:'sold'}});
-   items.push({type:'sale',populationId:populations[0].id,quantity:parsed.quantity,locationId});
-   summaries.push('Vânzare '+parsed.quantity+' × '+populations[0].name+(locations[0]?' din '+locations[0].name:''));
+ const operations=[],items=[],summaries=[],unresolved=[],warnings=[];
+ try{
+  for(let index=0;index<entries.length;index++){
+   const phrase=entries[index];
+   let parsed=parseCommand(phrase);
+   if(parsed.error)parsed={type:'note',description:phrase};
+   if(parsed.type==='note'){
+    operations.push({operation:'event.note',data:{description:parsed.description}});
+    items.push({type:'note',description:parsed.description});
+    summaries.push('Observație '+(index+1)+': „'+parsed.description+'”');
+   }else if(parsed.type==='attribute'){
+    const contextualEntity=resolveVoiceContextReference(parsed.entityName,'entity');
+    const matches=contextualEntity?[contextualEntity]:db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
+    const entity=voiceBatchResolveTarget(matches,'entity:'+index,'entitatea „'+parsed.entityName+'”',selections,unresolved,index);
+    const definitions=db.attributes.filter(a=>a.name.toLowerCase()===parsed.attribute.toLowerCase());
+    if(definitions.length!==1)throw Error(definitions.length?'Fraza '+(index+1)+': definiția atributului „'+parsed.attribute+'” nu este unică.':'Fraza '+(index+1)+': atributul „'+parsed.attribute+'” nu este definit. Nu voi modifica schema în tăcere.');
+    if(entity){
+     const def=definitions[0];
+     const value=parseTyped(parsed.value,def.type);
+     const valueWarnings=validateAttribute(def,value);if(valueWarnings.length)warnings.push('Fraza '+(index+1)+' · '+def.name+': '+valueWarnings.join(' și '));
+     operations.push({operation:'attribute.set',target:entity.id,data:{name:def.name,value,certainty:'certain',forceHistory:true}});
+     items.push({type:'attribute',entityId:entity.id,attribute:def.name,value});
+     summaries.push(entity.name+' · '+def.name+' = '+JSON.stringify(value));
+    }
+   }else if(parsed.type==='sale'){
+    const contextualPopulation=resolveVoiceContextReference(parsed.populationName,'population');
+    const populations=contextualPopulation?[contextualPopulation]:db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
+    const population=voiceBatchResolveTarget(populations,'population:'+index,'populația „'+parsed.populationName+'”',selections,unresolved,index);
+    const contextualLocation=parsed.locationName?resolveVoiceContextReference(parsed.locationName,'location'):null;
+    const locations=parsed.locationName?(contextualLocation?[contextualLocation]:db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase())):[];
+    const location=parsed.locationName?voiceBatchResolveTarget(locations,'location:'+index,'locația „'+parsed.locationName+'”',selections,unresolved,index):null;
+    if(population&&(!parsed.locationName||location)){
+     operations.push({operation:'stock.change',data:{populationId:population.id,action:'sell',locationId:location?.id||null,quantity:parsed.quantity,disposition:'sold'}});
+     items.push({type:'sale',populationId:population.id,quantity:parsed.quantity,locationId:location?.id||null});
+     summaries.push('Vânzare '+parsed.quantity+' × '+population.name+(location?' din '+location.name:''));
+    }
+   }
   }
- }
+  if(unresolved.length){voiceReadbackPending=false;renderVoiceBatchDisambiguation(entries,unresolved,selections);return}
+  if(!operations.length)throw Error('Lotul nu conține operații valide.');
+ }catch(error){voiceReadbackPending=false;box.textContent=error.message+' Nu s-a salvat nimic.';return}
  const command={contractVersion:'collector.command.v1',turnId:E.uid(),intent:'voice.batch',idempotencyKey:commandIntentKey(),source:'text',certainty:'certain',payload:{items},operations};
  try{
   const result=await ensureAICorePort().preview(command);
   if(result.status!=='preview_ok'){box.textContent=result.status==='duplicate'?'Acest lot a fost deja procesat.':'Preview-ul lotului a fost respins: '+result.status;voiceReadbackPending=false;return}
-  pendingCoreCommand=command;voiceCommandPending=true;voiceReadbackPending=true;
+  pendingCoreCommand=command;pendingCorePreviewSignature=JSON.stringify(db.events);voiceCommandPending=true;voiceReadbackPending=true;
   const summary='Lot vocal · '+entries.length+' fraze';
-  const readbackText=summary+'. '+summaries.join('. ')+'. Modificări estimate: '+result.projectionChanges.entities+' entități, '+result.projectionChanges.relations+' relații, '+result.projectionChanges.stock+' modificări de stoc și '+result.projectionChanges.finance+' modificări financiare. Nu am salvat nimic. Confirmă întregul lot pe ecran.';
-  box.innerHTML='<b>Preview Core Port · lot vocal</b><p>'+esc(summary)+'</p><ol>'+summaries.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ol><p>Operații în lot: '+operations.length+'. Modificări estimate — entități: '+result.projectionChanges.entities+', relații: '+result.projectionChanges.relations+', stoc: '+result.projectionChanges.stock+', financiar: '+result.projectionChanges.finance+'.</p><p class="note">Nicio modificare nu a fost salvată. Confirmarea execută toate operațiile într-un singur eveniment atomic.</p><button class="secondary" id="readbackCoreCommand" type="button">🔊 Redă rezumatul</button> <button class="primary" id="confirmCoreCommand">Confirmă și salvează lotul</button> <button class="secondary" id="cancelCoreCommand">Anulează lotul</button>';
+  const readbackText=summary+'. '+summaries.join('. ')+(warnings.length?'. Atenție: '+warnings.join('. '):'')+'. Modificări estimate: '+result.projectionChanges.entities+' entități, '+result.projectionChanges.relations+' relații, '+result.projectionChanges.stock+' modificări de stoc și '+result.projectionChanges.finance+' modificări financiare. Nu am salvat nimic. Confirmă întregul lot pe ecran.';
+  box.innerHTML='<b>Preview Core Port · lot vocal</b><p>'+esc(summary)+'</p><ol>'+summaries.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ol>'+(warnings.length?'<p class="note"><b>Atenție la valori:</b> '+warnings.map(esc).join('; ')+'. Confirmarea lotului confirmă și aceste valori.</p>':'')+'<p>Operații în lot: '+operations.length+'. Modificări estimate — entități: '+result.projectionChanges.entities+', relații: '+result.projectionChanges.relations+', stoc: '+result.projectionChanges.stock+', financiar: '+result.projectionChanges.finance+'.</p><p class="note">Nicio modificare nu a fost salvată. Confirmarea execută toate operațiile într-un singur eveniment atomic.</p><button class="secondary" id="readbackCoreCommand" type="button">🔊 Redă rezumatul</button> <button class="primary" id="confirmCoreCommand">Confirmă și salvează lotul</button> <button class="secondary" id="cancelCoreCommand">Anulează lotul</button>';
   document.getElementById('readbackCoreCommand').onclick=()=>speakWorkFeedback(readbackText,true);
   document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
   document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;voiceCommandPending=false;voiceReadbackPending=false;cancelSpeechOutput();box.textContent='Lot anulat. Nu s-au modificat date.'};
@@ -273,16 +362,19 @@ async function runCommand(){
  if(parsed.type==='note'){
   operations=[{operation:'event.note',data:{description:parsed.description}}];payload={description:parsed.description,summary:parsed.description};summary=`Observație: „${parsed.description}”`;
  } else if(parsed.type==='attribute'){
-  const matches=db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
+  let contextualEntity;try{contextualEntity=resolveVoiceContextReference(parsed.entityName,'entity')}catch(error){box.textContent=error.message;speakWorkFeedback(error.message);return}
+  const matches=contextualEntity?[contextualEntity]:db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
   if(matches.length!==1){box.textContent=matches.length?'Există mai multe entități cu acest nume; selectează explicit entitatea.':`Nu găsesc entitatea „${parsed.entityName}”.`;speakWorkFeedback(box.textContent);return}
   const def=db.attributes.find(a=>a.name.toLowerCase()===parsed.attribute.toLowerCase());
   if(!def){box.textContent=`Atributul „${parsed.attribute}” nu este definit. Nu voi modifica schema în tăcere.`;speakWorkFeedback(box.textContent);return}
   let value;try{value=parseTyped(parsed.value,def.type);if(!confirmAttributeWarnings(def,value)){voiceReadbackPending=false;return}}catch(err){box.textContent=err.message;speakWorkFeedback(box.textContent);return}
   operations=[{operation:'attribute.set',target:matches[0].id,data:{name:def.name,value,certainty:'certain',forceHistory:true}}];payload={entityId:matches[0].id,attribute:def.name,value};summary=`${matches[0].name} · ${def.name} = ${JSON.stringify(value)}`;
  } else if(parsed.type==='sale'){
-  const populations=db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
+  let contextualPopulation;try{contextualPopulation=resolveVoiceContextReference(parsed.populationName,'population')}catch(error){box.textContent=error.message;speakWorkFeedback(error.message);return}
+  const populations=contextualPopulation?[contextualPopulation]:db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
   if(populations.length!==1){box.textContent=populations.length?'Există mai multe populații cu acest nume. Selectează una explicit.':'Nu am găsit o singură populație cu acel nume.';speakWorkFeedback(box.textContent);return}
-  const locations=parsed.locationName?db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase()):[];
+  let contextualLocation;try{contextualLocation=parsed.locationName?resolveVoiceContextReference(parsed.locationName,'location'):null}catch(error){box.textContent=error.message;speakWorkFeedback(error.message);return}
+  const locations=parsed.locationName?(contextualLocation?[contextualLocation]:db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase())):[];
   if(parsed.locationName&&locations.length!==1){box.textContent='Nu am găsit o singură locație cu acel nume.';speakWorkFeedback(box.textContent);return}
   const locationId=locations[0]?.id||null;
   operations=[{operation:'stock.change',data:{populationId:populations[0].id,action:'sell',locationId,quantity:parsed.quantity,disposition:'sold'}}];payload={populationId:populations[0].id,quantity:parsed.quantity,locationId};summary=`Vânzare ${parsed.quantity} × ${populations[0].name}${locations[0]?' din '+locations[0].name:''}`;
@@ -291,7 +383,7 @@ async function runCommand(){
  try{
   const result=await ensureAICorePort().preview(command);
   if(result.status!=='preview_ok'){box.textContent=result.status==='duplicate'?'Această comandă a fost deja procesată.':'Preview respins: '+result.status;speakWorkFeedback(box.textContent);return}
-  pendingCoreCommand=command;
+  pendingCoreCommand=command;pendingCorePreviewSignature=JSON.stringify(db.events);
   const readbackText=`${summary}. Modificări estimate: ${result.projectionChanges.entities} entități, ${result.projectionChanges.relations} relații, ${result.projectionChanges.stock} modificări de stoc și ${result.projectionChanges.finance} modificări financiare. Nu am salvat nimic. Pentru înregistrare, confirmă pe ecran.`;
   if(voiceReadbackPending)voiceCommandPending=true;
   box.innerHTML=`<b>Preview Core Port</b><p>${esc(summary)}</p><p>Modificări estimate — entități: ${result.projectionChanges.entities}, relații: ${result.projectionChanges.relations}, stoc: ${result.projectionChanges.stock}, financiar: ${result.projectionChanges.finance}.</p><p class="note">Nicio modificare nu a fost salvată încă. Confirmarea de mai jos execută atomic comanda și salvează în localStorage.</p><button class="secondary" id="readbackCoreCommand" type="button">🔊 Redă rezumatul</button> <button class="primary" id="confirmCoreCommand">Confirmă și salvează</button> <button class="secondary" id="cancelCoreCommand">Anulează</button>`;
@@ -301,17 +393,51 @@ async function runCommand(){
   speakWorkFeedback(readbackText);
  }catch(err){box.textContent='Preview eșuat: '+err.message}
 }
+function renderRevalidatedCorePreview(command,preview,box){
+ const text='Datele locale s-au modificat după preview. Am revalidat comanda pe starea actuală; verifică din nou înainte de salvare.';
+ box.innerHTML='<b>Preview actualizat · date modificate</b><p>'+esc(text)+'</p><p>Operații: '+command.operations.length+'. Modificări estimate — entități: '+preview.projectionChanges.entities+', relații: '+preview.projectionChanges.relations+', stoc: '+preview.projectionChanges.stock+', financiar: '+preview.projectionChanges.finance+'.</p><p class="note">Nu s-a salvat nimic. Este necesară o nouă confirmare explicită.</p><button class="secondary" id="readbackCoreCommand" type="button">🔊 Redă rezumatul</button> <button class="primary" id="confirmCoreCommand">Confirmă preview-ul actualizat</button> <button class="secondary" id="cancelCoreCommand">Anulează</button>';
+ document.getElementById('readbackCoreCommand').onclick=()=>speakWorkFeedback(text,true);
+ document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
+ document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;pendingCorePreviewSignature=null;voiceCommandPending=false;voiceReadbackPending=false;cancelSpeechOutput();box.textContent='Comandă anulată. Nu s-au modificat date.'};
+ if(voiceCommandPending)speakWorkFeedback(text,true);
+}
 async function confirmCoreCommand(){
  const box=document.getElementById('commandResult');if(!pendingCoreCommand)return;
- const command=pendingCoreCommand;pendingCoreCommand=null;
+ const command=pendingCoreCommand,wasVoiceCommand=voiceCommandPending;pendingCoreCommand=null;
  try{
+  let latest;
+  try{
+   const raw=localStorage.getItem(KEY);
+   if(!raw)throw Error('Datele locale au dispărut. Nu am salvat comanda.');
+   latest=E.validateImport(JSON.parse(raw));
+  }catch(error){
+   integrityBlocked=true;integrityBlockReason='Datele locale s-au modificat și nu au putut fi validate: '+error.message;
+   pendingCorePreviewSignature=null;voiceCommandPending=false;render();
+   box.textContent=integrityBlockReason+' Comanda a fost blocată pentru a proteja jurnalul.';
+   return;
+  }
+  const latestSignature=JSON.stringify(latest.events);
+  if(latestSignature!==pendingCorePreviewSignature){
+   db=latest;render();
+   const refreshed=await ensureAICorePort().preview(command);
+   if(refreshed.status!=='preview_ok'){
+    pendingCorePreviewSignature=null;voiceCommandPending=false;
+    box.textContent=refreshed.status==='duplicate'?'Comanda a fost deja procesată într-o altă sesiune.':'Preview-ul actualizat a fost respins: '+refreshed.status+'. Nu s-a salvat nimic.';
+    return;
+   }
+   pendingCoreCommand=command;pendingCorePreviewSignature=JSON.stringify(db.events);
+   renderRevalidatedCorePreview(command,refreshed,box);
+   return;
+  }
+  pendingCorePreviewSignature=null;
   const result=await ensureAICorePort().execute(command,{confirmed:true});
   if(result.status==='committed'||result.status==='duplicate'){
+   if(result.status==='committed'&&wasVoiceCommand)updateVoiceContextFromCommand(command);
    box.innerHTML=`<b class="status-ok">${result.status==='committed'?'Salvat cu succes':'Comandă deja procesată'}</b><p>Event ID: ${esc(result.eventId||'—')}</p>`;
    if(voiceCommandPending)speakWorkFeedback(result.status==='committed'?'Comanda a fost salvată cu succes.':'Comanda fusese deja procesată.',true);
    voiceCommandPending=false;
   } else {box.textContent=`Execuție nefinalizată (${result.status}): ${(result.errors||[]).join(' ')}`;if(voiceCommandPending)speakWorkFeedback(box.textContent,true);voiceCommandPending=false}
- }catch(err){box.textContent='Execuția a eșuat: '+err.message;if(voiceCommandPending)speakWorkFeedback(box.textContent,true);voiceCommandPending=false}
+ }catch(err){pendingCorePreviewSignature=null;box.textContent='Execuția a eșuat: '+err.message;if(voiceCommandPending)speakWorkFeedback(box.textContent,true);voiceCommandPending=false}
 }
 document.getElementById('parseCommand').onclick=runCommand;
 let activeRecognition=null;

@@ -474,3 +474,14 @@ header p{font-size:13px;line-height:1.4}
 .think-recent-panel .link{white-space:nowrap}
 @media(max-width:850px){.think-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.think-hero{align-items:flex-start;flex-direction:column;padding:20px 17px}.think-return-work{width:100%}.think-shortcuts{grid-template-columns:1fr 1fr}.think-panel-heading{gap:8px}.think-period{font-size:9px}.think-activity-chart{gap:5px}.think-day{height:112px}.think-day-track i{width:65%}.think-recent-panel .think-panel-heading{align-items:flex-start;flex-direction:column}}
+
+/* WORK: confirmed, device-local voice context */
+.voice-context-card{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.75rem;padding:1rem;border:1px solid var(--line);background:var(--surface)}
+.voice-context-card>div{min-width:0;flex:1}
+.voice-context-card p{margin:.35rem 0;color:var(--muted);font-size:.9rem}
+.voice-context-card small{display:block;color:var(--muted);margin-top:.55rem}
+.voice-context-targets{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.65rem}
+.voice-context-targets span{display:flex;flex-direction:column;gap:.15rem;padding:.5rem .7rem;border-radius:.6rem;background:var(--surface-2,rgba(127,127,127,.09));min-width:7rem}
+.voice-context-targets span small{margin:0;font-size:.7rem}
+.voice-context-card[data-active="false"]{border-style:dashed}
+@media(max-width:640px){.voice-context-card{align-items:flex-start;flex-direction:column}.voice-context-card>button{width:100%}}
