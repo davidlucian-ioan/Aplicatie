@@ -19,6 +19,8 @@ test('voice transcription is blocked while the native recorder owns the micropho
   await expect(page.locator('#audioRecorderStatus')).toContainText('Înregistrarea nativă este activă');
   await page.locator('#voiceSessionButton').click();
   await expect(page.locator('#commandResult')).toContainText('Reportofonul folosește microfonul');
+  await page.locator('#voiceButton').click();
+  await expect(page.locator('#commandResult')).toContainText('Reportofonul folosește microfonul');
   expect(await page.evaluate(() => window.__recognitionStarts)).toBe(0);
 });
 
