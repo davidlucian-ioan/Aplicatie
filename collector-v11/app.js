@@ -293,7 +293,7 @@ async function runAICommand(){
 document.getElementById('parseWithAI')?.addEventListener('click',runAICommand);
 async function refreshAIProviderStatus(){
  const status=document.getElementById('aiProviderStatus');if(!status||!window.CollectorOpenAIProvider)return;
- try{const info=await CollectorOpenAIProvider.status();status.textContent=info.configured?'OpenAI activ · '+info.model:'OpenAI selectat · cheia API nu este configurată pe server';status.dataset.ready=String(info.configured)}
+ try{const info=await CollectorOpenAIProvider.status();status.textContent=info.configured?'OpenAI configurat · '+info.model:'OpenAI selectat · cheia API nu este configurată pe server';status.dataset.ready=String(info.configured)}
  catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false'}
 }
 refreshAIProviderStatus();
