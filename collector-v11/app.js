@@ -68,8 +68,15 @@ async function loadDb(){
 }
 async function persistRaw(x){try{await storageAdapter.writeRaw(KEY,JSON.stringify(x));return true}catch(err){console.error(err);return false}}
 function ensureAICorePort(){if(aiCorePort)return aiCorePort;const Port=window.CollectorBrowserCorePort;if(!Port)throw Error('Core Port nu a fost încărcat.');aiCorePort=new Port({core:E,store:{getState:()=>db,persistState:async next=>!integrityBlocked&&await persistRaw(next),publishState:async next=>{db=next;render()}}});return aiCorePort}
-async function commit(type,operations,payload={},extra={}){if(integrityBlocked){alert('Aplicația este în mod numai citire: '+integrityBlockReason+'. Exportă datele originale sau importă un backup valid înainte de a continua.');return false}const ev={id:id(),type,timestamp:E.now(),source:extra.source||'user',actor:'local-user',certainty:extra.certainty||'certain',intentKey:extra.intentKey||null,payload,operations};try{const sourceOfTruth=E.replay(db.events,[]);sourceOfTruth.meta={...db.meta,...sourceOfTruth.meta};const result=E.commit(sourceOfTruth,ev);if(result.duplicate){alert('Această intenție a fost deja procesată; nu am aplicat-o a doua oară.');return false}// Persist the candidate before publishing it; a failed write must not leak into later commands.
-if(!await persistRaw(result.db))throw Error('Nu am putut salva datele în browser. Exportă datele și eliberează spațiu.');db=result.db;render();return result.event}catch(err){alert('Operația a fost anulată integral: '+err.message);return false}}
+let mutationQueue=Promise.resolve();
+function serializeMutation(action){
+ const operation=mutationQueue.then(action);
+ mutationQueue=operation.catch(()=>undefined);
+ return operation;
+}
+function commit(type,operations,payload={},extra={}){return serializeMutation(()=>commitNow(type,operations,payload,extra))}
+async function commitNow(type,operations,payload={},extra={}){if(integrityBlocked){alert('Aplicația este în mod numai citire: '+integrityBlockReason+'. Exportă datele originale sau importă un backup valid înainte de a continua.');return false}const ev={id:id(),type,timestamp:E.now(),source:extra.source||'user',actor:'local-user',certainty:extra.certainty||'certain',intentKey:extra.intentKey||null,payload,operations};try{const sourceOfTruth=E.replay(db.events,[]);sourceOfTruth.meta={...db.meta,...sourceOfTruth.meta};const result=E.commit(sourceOfTruth,ev);if(result.duplicate){alert('Această intenție a fost deja procesată; nu am aplicat-o a doua oară.');return false}// Persist the candidate before publishing it; a failed write must not leak into later commands.
+if(!await persistRaw(result.db))throw Error('Nu am putut salva datele pe dispozitiv. Exportă datele și eliberează spațiu.');db=result.db;render();return result.event}catch(err){alert('Operația a fost anulată integral: '+err.message);return false}}
 function setMenuOpen(open){const sidebar=document.getElementById('appSidebar'),toggle=document.getElementById('menuToggle'),backdrop=document.getElementById('sidebarBackdrop');if(!sidebar||!toggle||!backdrop)return;const wasOpen=sidebar.classList.contains('open'),restoreFocus=!open&&wasOpen&&(sidebar.contains(document.activeElement)||document.activeElement===backdrop);sidebar.classList.toggle('open',open);backdrop.classList.toggle('visible',open);toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Închide meniul':'Deschide meniul');if(restoreFocus)toggle.focus()}
 function setAppStatus(message){const status=document.getElementById('appStatus');if(status)status.textContent=message}
 function showPage(p){if(!titles[p])return;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===p));document.querySelectorAll('.nav').forEach(x=>{const active=x.dataset.page===p;x.classList.toggle('active',active);if(active)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current')});document.getElementById('title').textContent=titles[p][0];document.getElementById('subtitle').textContent=titles[p][1];setMenuOpen(false);render()}
@@ -243,7 +250,7 @@ async function confirmCoreCommand(){
  const box=document.getElementById('commandResult');if(!pendingCoreCommand)return;
  const command=pendingCoreCommand;pendingCoreCommand=null;
  try{
-  const result=await ensureAICorePort().execute(command,{confirmed:true});
+  const result=await serializeMutation(()=>ensureAICorePort().execute(command,{confirmed:true}));
   if(result.status==='committed'||result.status==='duplicate'){
    box.innerHTML=`<b class="status-ok">${result.status==='committed'?'Salvat cu succes':'Comandă deja procesată'}</b><p>Event ID: ${esc(result.eventId||'—')}</p>`;
   } else box.textContent=`Execuție nefinalizată (${result.status}): ${(result.errors||[]).join(' ')}`;
