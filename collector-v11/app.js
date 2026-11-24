@@ -214,7 +214,7 @@ function parseCommand(text){
  let m;
  // Acceptă atât forma scurtă, cât și formularea completă afișată în exemplele UI.
  if((m=s.match(/^(?:observație|observatie|notează|noteaza|înregistrează observație|inregistreaza observatie)\s*:?\s*(.+)$/iu)))return {type:'note',description:m[1].trim()};
- if((m=s.match(/^(?:setează|seteaza|înregistrează|inregistreaza)\s+(?:atributul\s+)?(.+?)\s+pentru\s+(.+?)\s*(?:=|\\beste\\b|\\bla\\b)\s*(.+)$/iu))){return {type:'attribute',attribute:m[1].trim(),entityName:m[2].trim(),value:m[3].trim()}}
+ if((m=s.match(/^(?:setează|seteaza|înregistrează|inregistreaza)\s+(?:atributul\s+)?(.+?)\s+pentru\s+(.+?)\s*(?:=|\beste\b|\bla\b)\s*(.+)$/iu))){return {type:'attribute',attribute:m[1].trim(),entityName:m[2].trim(),value:m[3].trim()}}
  if((m=s.match(/^(?:înregistrează observație|inregistreaza observatie):?\s*(.+?)\s+are\s+(.+?)\s+([0-9]+(?:[.,][0-9]+)?)$/iu)))return {type:'attribute',entityName:m[1].trim(),attribute:m[2].trim(),value:m[3].replace(',','.')};
  if((m=s.match(/^(?:am vândut|am vandut|vinde)\s+(\d+)\s+(.+?)(?:\s+din\s+(.+))?$/iu)))return {type:'sale',quantity:Number(m[1]),populationName:m[2].trim(),locationName:m[3]?.trim()||null};
  return {error:'Nu pot interpreta această comandă fără să ghicesc. Folosește „Observație: ...” sau „Înregistrează [atribut] pentru [entitate] = [valoare]”.'};
