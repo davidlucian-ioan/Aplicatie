@@ -295,11 +295,20 @@ async function runAICommand(){
  finally{if(button){button.disabled=false;button.textContent='Interpretează cu AI'}}
 }
 document.getElementById('parseWithAI')?.addEventListener('click',runAICommand);
+document.getElementById('deleteCloudAccount')?.addEventListener('click',deleteCloudAccount);
+async function deleteCloudAccount(){
+ const button=document.getElementById('deleteCloudAccount'),status=document.getElementById('cloudAccountStatus');
+ if(!window.CollectorAuth?.isConfigured?.()||!window.CollectorAuth?.deleteAccount)return;
+ if(!confirm('Ștergi definitiv contul cloud Collector? Datele locale de pe acest telefon nu vor fi șterse.'))return;
+ if(button)button.disabled=true;if(status)status.textContent='Se șterge contul cloud…';
+ try{await window.CollectorAuth.deleteAccount();if(status)status.textContent='Contul cloud a fost șters. Datele locale au rămas pe acest telefon.'}
+ catch(error){if(status)status.textContent='Nu am putut șterge contul cloud: '+error.message;if(button)button.disabled=false}
+}
 async function refreshAIProviderStatus(){
  const status=document.getElementById('aiProviderStatus');if(!status||!window.CollectorOpenAIProvider)return;
- const button=document.getElementById('parseWithAI');
- try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.unauthenticated?'Autentificarea cloud nu este configurată. AI rămâne dezactivat.':info.configured?'OpenAI configurat · '+info.model:'OpenAI selectat · cheia API nu este configurată pe server';status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured}
- catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false';if(button)button.disabled=true}
+ const button=document.getElementById('parseWithAI'),deleteButton=document.getElementById('deleteCloudAccount');
+ try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.unauthenticated?'Autentificarea cloud nu este configurată. AI rămâne dezactivat.':info.configured?'OpenAI configurat · '+info.model:'OpenAI selectat · cheia API nu este configurată pe server';status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured;if(deleteButton)deleteButton.disabled=!(info.accountDeletionEnabled&&window.CollectorAuth?.isConfigured?.())}
+ catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false';if(button)button.disabled=true;if(deleteButton)deleteButton.disabled=true}
 }
 document.getElementById('parseCommand').onclick=runCommand;
 let activeRecognition=null;
