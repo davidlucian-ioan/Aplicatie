@@ -155,7 +155,12 @@ class OpenAIProvider {
           requiresConfirmation: Boolean(parsed.requires_confirmation)
         };
       }
-      const validated = validateInterpretation(interpretation);\n      Object.defineProperty(validated, 'usage', {\n        value: { inputTokens: Number(body.usage?.input_tokens)||0, outputTokens: Number(body.usage?.output_tokens)||0 },\n        enumerable: false, configurable: false\n      });\n      return validated;
+      const validated = validateInterpretation(interpretation);
+      Object.defineProperty(validated, 'usage', {
+        value: { inputTokens: Number(body.usage?.input_tokens)||0, outputTokens: Number(body.usage?.output_tokens)||0 },
+        enumerable: false, configurable: false
+      });
+      return validated;
     } catch (error) {
       if (error.name === 'AbortError') throw new Error('Cererea către OpenAI a depășit limita de timp.');
       throw error;
