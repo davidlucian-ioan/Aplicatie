@@ -222,10 +222,12 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- Ultimele commituri: `3082961` și `d7a1e8f` corectează două delimitatoare dollar-quote invalide (`as $`) în funcția PL/pgSQL RevenueCat; `ffbda38` adaugă test static care verifică toate delimitatoarele PL/pgSQL din migrare.
-- Defect important găsit în audit: migrarea SQL avea delimiter invalid pentru funcția RevenueCat, ceea ce ar fi făcut aplicarea migrării să eșueze. Am corectat ambele apariții identificate și am adăugat test de prevenție.
-- RevenueCat lifecycle: CUSTOMER_SUPPORT refund revocă imediat; anulare normală, billing issue/grace și SUBSCRIPTION_PAUSED păstrează accesul până la expirare; expirare/refund revocă. cancel_reason este transmis până la RPC.
-- CI: pe HEAD anterior `5ec2a7d`, Cloud API SUCCESS; Quality și Mobile erau în progres. Noile corecții de migrare/test nu au încă CI confirmat.
-- Nevalidat extern: rularea migrării în Postgres/Supabase real, RLS/RPC live, RevenueCat sandbox și deploy Cloud API.
-- Următorul pas: verifică CI pe HEAD nou; dacă verde, execută migrarea într-un Postgres de test și repară orice eroare reală; apoi sandbox purchase/restore/refund/expiry. PR rămâne draft până la E2E.
-- Regula: suprascrie numai acest checkpoint unic; nu adăuga note succesive.
+- HEAD nou: `563adc531c3add527e6e4fd9107b31f7f1dc4a2a`.
+- Auditul a confirmat că funcția `collector_apply_revenuecat_event` avea încă delimiterul invalid `as $`; corectat acum în `as $$`. Commitul anterior nu conținea corecția, deci nu presupunem că problema era rezolvată.
+- Testul static existent verifică delimitatoarele, dar trebuie verificat că detectează și forma `as $` fără să se bazeze doar pe count-uri.
+- Migrarea nu a fost încă executată într-un PostgreSQL real; validarea statică nu este suficientă.
+- La HEAD anterior, CI pentru PR #55 avea Quality Suite in_progress, Mobile Build pending și Cloud API pending; verifică din nou pe HEAD nou.
+- RevenueCat lifecycle: CUSTOMER_SUPPORT refund revocă imediat; anulare normală, billing issue/grace și SUBSCRIPTION_PAUSED păstrează accesul până la expirare; expirare/refund revocă. `cancel_reason` este transmis până la RPC.
+- Nevalidat extern: Supabase live/RLS/RPC, deploy Cloud API și tranzacții RevenueCat sandbox.
+- Următorii pași: verifică CI pe HEAD nou; întărește testul de delimiter; rulează migrarea într-un PostgreSQL de test dacă există mediu/credentiale configurate; apoi continuă auditul de purchase/restore/webhook.
+- Nu face merge în `main` fără aprobarea explicită și fără CI/E2E complet.
