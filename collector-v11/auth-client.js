@@ -1,7 +1,9 @@
 (function(root){
  'use strict';
  let client=null,initialization=null,configured=false,lastError=null;
+ function isOptedOut(){try{return root.localStorage?.getItem('collector_cloud_opt_out')==='1'}catch{return false}}
  async function initialize(config={}){
+  if(isOptedOut()){configured=false;return {configured:false,optedOut:true}}
   if(!config.supabaseUrl||!config.supabaseAnonKey||!root.CollectorAuthBundle?.createClient){configured=false;return {configured:false}}
   if(initialization)return initialization;
   initialization=(async()=>{
@@ -46,13 +48,15 @@
   if(!base||!token)throw new Error('Backend-ul cloud sau sesiunea nu este disponibilă.');
   const response=await fetch(base+'/api/account',{method:'DELETE',headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
   if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(body.error||'Nu am putut șterge contul cloud.')}
+  try{root.localStorage?.setItem('collector_cloud_opt_out','1')}catch{}
   await signOut();client=null;return true;
  }
+ async function enableCloud(){try{root.localStorage?.removeItem('collector_cloud_opt_out')}catch{}return initialize(root.CollectorConfig||{})}
  async function signOut(){
   if(!client)return true;
   const result=await client.auth.signOut({scope:'local'});
   if(result.error)throw result.error;
   configured=false;return true;
  }
- root.CollectorAuth=Object.freeze({initialize,getAccessToken,getUser,deleteAccount,signOut,isConfigured:()=>configured,getLastError:()=>lastError});
+ root.CollectorAuth=Object.freeze({initialize,getAccessToken,getUser,deleteAccount,enableCloud,signOut,isConfigured:()=>configured,isOptedOut,getLastError:()=>lastError});
 })(typeof window!=='undefined'?window:globalThis);
