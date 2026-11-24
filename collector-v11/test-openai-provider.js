@@ -34,7 +34,10 @@ test('providerul trimite Responses API cu Structured Outputs și store=false', a
   assert.ok(payload.instructions.includes('relation.move'));
   assert.equal(result.command.contractVersion,'collector.command.v1');
   assert.equal(result.command.operations[0].data.description,'pH 6.4');
-  assert.ok(result.command.idempotencyKey);\n  assert.equal(result.usage.inputTokens,123);\n  assert.equal(result.usage.outputTokens,45);\n  assert.equal(Object.keys(result).includes('usage'),false);
+  assert.ok(result.command.idempotencyKey);
+  assert.equal(result.usage.inputTokens,123);
+  assert.equal(result.usage.outputTokens,45);
+  assert.equal(Object.keys(result).includes('usage'),false);
 });
 
 test('providerul refuză output JSON malformat', async () => {
