@@ -39,7 +39,8 @@ test('configurează descrierea microfonului iOS fără duplicate',async()=>{
   assert.ok(privacy.includes('NSPrivacyAccessedAPICategoryFileTimestamp'));
   assert.ok(privacy.includes('C617.1'));
   const project=await fs.readFile(projectFile,'utf8');
-  assert.equal((project.match(/PrivacyInfo\.xcprivacy/g)||[]).length,3);
+  assert.equal((project.match(/C011EC000000000000000001/g)||[]).length,3);
+  assert.equal((project.match(/C011EC000000000000000002/g)||[]).length,2);
  }finally{await fs.rm(root,{recursive:true,force:true})}
 });
 test('respinge platformele necunoscute',async()=>{
