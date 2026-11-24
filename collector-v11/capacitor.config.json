@@ -1,0 +1,8 @@
+{
+  "appId": "ro.collector.mobile",
+  "appName": "Collector",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
