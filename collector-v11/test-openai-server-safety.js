@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const {spawnSync}=require('node:child_process');
 const fs=require('node:fs');
 const path=require('node:path');
+const {safeContext}=require('./ai/context-sanitizer');
 
 test('serverul local are sintaxă JavaScript validă',()=>{
  const result=spawnSync(process.execPath,['--check','server.js'],{encoding:'utf8'});
@@ -35,4 +36,29 @@ test('serverul transmite către provider doar câmpurile explicite din context',
  assert.doesNotMatch(server,/attributes: e\.attributes/);
  assert.match(server,/Number\.isFinite\(a\.min\)/);
  assert.match(server,/Number\.isFinite\(a\.max\)/);
+});
+
+test('sanitizerul transmite doar metadate allowlist și elimină datele arbitrare',()=>{
+ const input={
+  entities:[{id:'e1',name:'Plant',type:'plant',attributes:{privateNote:'do not send'},secret:'x'},null],
+  attributes:[{id:'a1',name:'height',type:'number',min:0,max:250,required:true,secret:'x'}]
+ };
+ const result=safeContext(input);
+ assert.deepEqual(result.entities,[{id:'e1',name:'Plant',type:'plant'}]);
+ assert.deepEqual(result.attributes,[{id:'a1',name:'height',type:'number',required:true,identifying:false,temporal:false,min:0,max:250}]);
+});
+test('sanitizerul limitează dimensiunea și lungimea metadatelor',()=>{
+ const result=safeContext({
+  entities:Array.from({length:180},(_,i)=>({id:String(i).repeat(200),name:'N'.repeat(300),type:'T'.repeat(100)})),
+  attributes:Array.from({length:120},(_,i)=>({id:String(i),name:'A'.repeat(200),type:'X'.repeat(100),min:'1',max:Infinity}))
+ });
+ assert.equal(result.entities.length,150);
+ assert.equal(result.attributes.length,100);
+ assert.equal(result.entities[0].id.length,128);
+ assert.equal(result.entities[0].name.length,160);
+ assert.equal(result.entities[0].type.length,64);
+ assert.equal(result.attributes[0].name.length,120);
+ assert.equal(result.attributes[0].type.length,64);
+ assert.equal(result.attributes[0].min,null);
+ assert.equal(result.attributes[0].max,null);
 });
