@@ -123,7 +123,7 @@ test('înregistrează pH 5.2 în afara intervalului recomandat, cu avertisment',
   await page.locator('#attrMax').fill('6.5');
   await page.locator('#modal button.primary').click();
 
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await page.locator('#commandInput').fill('Înregistrează atributul pH pentru Acvariu E2E = 5.2');
   page.once('dialog', dialog => dialog.accept());
   await page.locator('#parseCommand').click();
@@ -143,7 +143,7 @@ test('înregistrează pH 5.2 în afara intervalului recomandat, cu avertisment',
 test('preview anulat nu persistă evenimentul', async ({ page }) => {
   const before = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length);
 
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await page.locator('#commandInput').fill('Observație: această comandă va fi anulată');
   await page.locator('#parseCommand').click();
   await expect(page.locator('#confirmCoreCommand')).toBeVisible();
