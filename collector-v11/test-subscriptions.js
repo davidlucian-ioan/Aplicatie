@@ -32,12 +32,12 @@ test('RevenueCat initialize uses platform public key and stable Collector user i
 
 test('concurrent account switches are serialized and the last requested user remains active',async()=>{
  const logins=[];
- root.CollectorPurchasesBundle.logIn=async({appUserID})=>{
+ globalThis.CollectorPurchasesBundle.logIn=async({appUserID})=>{
   await new Promise(resolve=>setTimeout(resolve,appUserID==='user-A'?15:0));
   logins.push(appUserID);
  };
  const [first,second]=await Promise.all([
-  root.CollectorSubscriptions.initialize('user-A'),
+  globalThis.CollectorSubscriptions.initialize('user-A'),
   root.CollectorSubscriptions.initialize('user-B')
  ]);
  assert.equal(first.available,true);assert.equal(second.available,true);
