@@ -477,8 +477,6 @@ async function initializeCollectorApp(){
  try{
   await storageAdapter.initialize();
   db=await loadDb();
-  try{await window.CollectorAuth?.initialize(window.CollectorConfig||{})}catch(authError){setAppStatus('Autentificarea cloud nu a putut fi inițializată: '+String(authError?.message||authError))}
-  await refreshAIProviderStatus();
   try{
    await window.CollectorAudioStore?.initialize({capacitor:window.Capacitor,filesystem:window.Capacitor?.Plugins?.Filesystem,storage:storageAdapter});
    audioStorageReady=true;
@@ -498,5 +496,6 @@ async function initializeCollectorApp(){
  if(!audioStorageReady)setAudioUi('idle','Stocarea audio nativă nu a putut fi inițializată. Funcțiile Core rămân disponibile, dar înregistrarea audio este dezactivată.');
  await window.CollectorReminders?.initialize();
  await renderAudioRecordings();
+ void (async()=>{try{await window.CollectorAuth?.initialize(window.CollectorConfig||{})}catch(authError){setAppStatus('Autentificarea cloud nu a putut fi inițializată: '+String(authError?.message||authError))}await refreshAIProviderStatus()})();
 }
 initializeCollectorApp();
