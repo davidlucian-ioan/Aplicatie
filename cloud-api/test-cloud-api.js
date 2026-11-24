@@ -3,8 +3,9 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createCloudServer}=require('./server');
 
+const defaultBilling={configured:true,getEntitlement:async()=>({entitlement:'pro',is_active:true,expires_at:null}),reserve:async()=>({allowed:true}),settle:async()=>({settled:true,used_microusd:13000})};
 async function withServer(options,run){
- const server=createCloudServer(options);
+ const server=createCloudServer({...options,billingService:options.billingService||defaultBilling});
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const address=server.address(),base='http://127.0.0.1:'+address.port;
  try{return await run(base)}finally{await new Promise(resolve=>server.close(resolve))}
