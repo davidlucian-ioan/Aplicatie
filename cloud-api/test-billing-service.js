@@ -47,3 +47,12 @@ test('RevenueCat SUBSCRIPTION_PAUSED preserves Pro until expiration',()=>{
  assert.match(sql,/p_event_type in \('CANCELLATION','BILLING_ISSUE','SUBSCRIPTION_PAUSED'\)[\s\S]{0,220}v_active := p_expires_at is not null and p_expires_at > now\(\)/);
  assert.match(sql,/p_event_type in \('EXPIRATION','REFUND'\)[\s\S]{0,60}v_active := false/);
 });
+
+test('RevenueCat CUSTOMER_SUPPORT refund revokes entitlement immediately',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const sql=fs.readFileSync(path.join(__dirname,'migrations','001_billing_and_ai_usage.sql'),'utf8');
+ assert.match(sql,/p_event_type = 'CANCELLATION' and p_cancel_reason = 'CUSTOMER_SUPPORT'[\s\S]{0,140}v_active := false/);
+ assert.match(sql,/p_cancel_reason text/);
+ assert.match(sql,/collector_apply_revenuecat_event\(text,uuid,text,text,text,timestamptz,timestamptz,boolean,text\)/);
+});
