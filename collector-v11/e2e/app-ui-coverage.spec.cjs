@@ -13,7 +13,7 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
   await session.send('Profiler.startPreciseCoverage', { callCount: true, detailed: true });
 
   await page.goto('/index-server.html');
-  await expect(page.locator('#dashboard')).toBeVisible();
+  await expect(page.locator('#assistant')).toBeVisible();
 
   for (const pageName of ['entities', 'relations', 'inventory', 'finance', 'attributes', 'events', 'history', 'assistant', 'audit', 'dashboard']) {
     await page.locator('.nav[data-page="' + pageName + '"]').click();
