@@ -256,6 +256,7 @@ public final class CollectorSpeechPlugin extends Plugin {
             result.put("provider", "android-speech-recognizer-on-device");
             result.put("continuous", activeContinuous);
             result.put("startedAt", sessionStartedAtMs);
+            result.put("audioCaptured", false);
             result.put("audioUploaded", false);
             call.resolve(result);
             notifySpeechState("listening", "Transcriere on-device activă. Audio nu este trimis în cloud.");
@@ -454,6 +455,7 @@ public final class CollectorSpeechPlugin extends Plugin {
         event.put("sessionId", activeSessionId);
         event.put("language", activeLanguage);
         event.put("provider", "android-speech-recognizer-on-device");
+        event.put("audioCaptured", false);
         event.put("audioUploaded", false);
         return event;
     }
