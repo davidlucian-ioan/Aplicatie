@@ -73,6 +73,6 @@ test('billing migration uses valid PL/pgSQL dollar-quote delimiters',()=>{
  const fs=require('node:fs');
  const path=require('node:path');
  const sql=fs.readFileSync(path.join(__dirname,'migrations','001_billing_and_ai_usage.sql'),'utf8');
- assert.doesNotMatch(sql,/as \$\s*\n\s*declare/i);
+ assert.doesNotMatch(sql,/as \$(?!\$)/i);
  assert.equal((sql.match(/as \$\$/g)||[]).length,(sql.match(/^\$\$;$/gm)||[]).length);
 });
