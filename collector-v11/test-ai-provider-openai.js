@@ -49,8 +49,8 @@ test('normalizeInterpretation rejects malformed operation data JSON', () => {
 
 test('normalizeInterpretation rejects invalid Core command contracts', () => {
   const raw = proposalPayload();
-  raw.command.operations[0].operation = 'database.drop';
-  assert.throws(() => normalizeInterpretation(raw, 'turn-1'), /operation|permis|Comanda/i);
+  raw.command.contractVersion = 'collector.command.v0';
+  assert.throws(() => normalizeInterpretation(raw, 'turn-1'), /collector.command.v1/);
 });
 
 test('extractOutputText reads Responses API output_text and refuses model refusals', () => {
