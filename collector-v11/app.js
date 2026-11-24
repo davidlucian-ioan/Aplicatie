@@ -358,7 +358,7 @@ async function runCommand(){
  if(parsed.type==='note'){
   operations=[{operation:'event.note',data:{description:parsed.description}}];payload={description:parsed.description,summary:parsed.description};summary=`Observație: „${parsed.description}”`;
  } else if(parsed.type==='attribute'){
-  const contextualEntity=resolveVoiceContextReference(parsed.entityName,'entity');
+  let contextualEntity;try{contextualEntity=resolveVoiceContextReference(parsed.entityName,'entity')}catch(error){box.textContent=error.message;speakWorkFeedback(error.message);return}
   const matches=contextualEntity?[contextualEntity]:db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
   if(matches.length!==1){box.textContent=matches.length?'Există mai multe entități cu acest nume; selectează explicit entitatea.':`Nu găsesc entitatea „${parsed.entityName}”.`;speakWorkFeedback(box.textContent);return}
   const def=db.attributes.find(a=>a.name.toLowerCase()===parsed.attribute.toLowerCase());
@@ -366,10 +366,10 @@ async function runCommand(){
   let value;try{value=parseTyped(parsed.value,def.type);if(!confirmAttributeWarnings(def,value)){voiceReadbackPending=false;return}}catch(err){box.textContent=err.message;speakWorkFeedback(box.textContent);return}
   operations=[{operation:'attribute.set',target:matches[0].id,data:{name:def.name,value,certainty:'certain',forceHistory:true}}];payload={entityId:matches[0].id,attribute:def.name,value};summary=`${matches[0].name} · ${def.name} = ${JSON.stringify(value)}`;
  } else if(parsed.type==='sale'){
-  const contextualPopulation=resolveVoiceContextReference(parsed.populationName,'population');
+  let contextualPopulation;try{contextualPopulation=resolveVoiceContextReference(parsed.populationName,'population')}catch(error){box.textContent=error.message;speakWorkFeedback(error.message);return}
   const populations=contextualPopulation?[contextualPopulation]:db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
   if(populations.length!==1){box.textContent=populations.length?'Există mai multe populații cu acest nume. Selectează una explicit.':'Nu am găsit o singură populație cu acel nume.';speakWorkFeedback(box.textContent);return}
-  const contextualLocation=parsed.locationName?resolveVoiceContextReference(parsed.locationName,'location'):null;
+  let contextualLocation;try{contextualLocation=parsed.locationName?resolveVoiceContextReference(parsed.locationName,'location'):null}catch(error){box.textContent=error.message;speakWorkFeedback(error.message);return}
   const locations=parsed.locationName?(contextualLocation?[contextualLocation]:db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase())):[];
   if(parsed.locationName&&locations.length!==1){box.textContent='Nu am găsit o singură locație cu acel nume.';speakWorkFeedback(box.textContent);return}
   const locationId=locations[0]?.id||null;
