@@ -1,0 +1,31 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+require('./subscriptions');
+
+test('RevenueCat initialize uses platform public key and stable Collector user id',async()=>{
+ let configured=null,loggedIn=null,purchased=null,restored=0;
+ let info={entitlements:{active:{pro:{isActive:true,expirationDate:'2027-01-01T00:00:00Z'}}},managementURL:'https://store.example/manage'};
+ globalThis.Capacitor={isNativePlatform:()=>true,getPlatform:()=>'android'};
+ globalThis.CollectorConfig={revenueCatAppleApiKey:'appl_test',revenueCatGoogleApiKey:'goog_test'};
+ globalThis.CollectorPurchasesBundle={
+  async configure(value){configured=value},
+  async logIn(value){loggedIn=value},
+  async getCustomerInfo(){return {customerInfo:info}},
+  async getOfferings(){return {current:{availablePackages:[{identifier:'monthly',product:{identifier:'collector.pro.monthly',title:'Collector Pro Monthly',priceString:'4,99 €'}}]}}},
+  async purchasePackage(value){purchased=value;return {customerInfo:info}},
+  async restorePurchases(){restored++;return {customerInfo:info}},
+  async logOut(){return {}}
+ };
+ const status=await globalThis.CollectorSubscriptions.initialize('stable-supabase-user-id');
+ assert.deepEqual(configured,{apiKey:'goog_test',appUserID:'stable-supabase-user-id'});
+ assert.equal(status.isPro,true);
+ const packages=await globalThis.CollectorSubscriptions.offerings();
+ assert.equal(packages[0].priceString,'4,99 €');
+ const bought=await globalThis.CollectorSubscriptions.purchase('monthly');
+ assert.equal(bought.isPro,true);assert.equal(purchased.aPackage.identifier,'monthly');
+ const restoredResult=await globalThis.CollectorSubscriptions.restore();
+ assert.equal(restoredResult.isPro,true);assert.equal(restored,1);
+ await globalThis.CollectorSubscriptions.initialize('another-stable-user-id');
+ assert.deepEqual(loggedIn,{appUserID:'another-stable-user-id'});
+});
