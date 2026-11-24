@@ -14,10 +14,10 @@ Scop: inventarierea dependențelor de browser înainte de integrarea Capacitor.
 | Core | `engine.js` este JavaScript independent de UI și lucrează pe starea transmisă | Poate rămâne comun între web, Android și iOS; păstrăm testele curente |
 | Core Port | `app.js` creează BrowserCorePort cu un store bazat pe starea din memorie și `persistRaw` | Trebuie păstrată interfața de store, dar implementarea persistării devine adapter |
 | Audio metadata/data | `audio-store.js` folosește încă IndexedDB și ArrayBuffer | Migrarea în Filesystem nativ cu metadate SQLite este următorul pas |
-| Microfon | `navigator.mediaDevices.getUserMedia` și `MediaRecorder` | Necesită permisiuni native, testare pe dispozitive și tratarea întreruperilor/background |
+| Microfon | Web fallback: `getUserMedia`/`MediaRecorder`. Mobil: `@capgo/capacitor-audio-recorder` AAC | Recorder nativ implementat; permisiunile Android/iOS sunt configurate. Background iOS activat; Android necesită foreground service pentru sesiuni lungi |
 | Dictare | `SpeechRecognition` / `webkitSpeechRecognition` | API neuniform între WebView-uri; nu poate fi considerat suport garantat. Planificăm bridge/plugin nativ sau provider cloud opțional |
 | Ecran activ | `navigator.wakeLock` și `visibilitychange` | Wake Lock este best-effort; înregistrarea trebuie proiectată pentru lock/background și restricțiile OS |
-| Import/export | File input, Blob, URL.createObjectURL și download link | Necesită fluxuri native pentru Files/Share Sheet și permisiuni/URI |
+| Import/export | File input, Blob, URL.createObjectURL și download link | Fluxurile native Files/Share Sheet rămân de implementat; exportul actual este orientat browser |
 | AI | Browser provider comunică cu endpoint relativ same-origin | În mobil va apela un API HTTPS public; cheia OpenAI rămâne numai în backend |
 | Notificări | `reminders.js` folosește Local Notifications 8.3.1 în build-urile native | Programarea și permisiunile sunt implementate; testarea hardware și comportamentul la restart/Doze/Focus rămân necesare |
 | Backend | `server.js` ascultă implicit pe 127.0.0.1, citește .env local, fără autentificare multi-user | Exclusiv dezvoltare locală; nu se expune și nu se folosește drept backend comercial |
@@ -41,6 +41,14 @@ Scop: inventarierea dependențelor de browser înainte de integrarea Capacitor.
 5. Testează notificările locale, anularea și livrarea după restart/Doze/Focus.
 6. Completează build-urile reproductibile cu dependențe și lockfile.
 7. Separat, construiește backend cloud multi-tenant, autentificare, sincronizare și endpoint AI public.
+
+## Extensii mobile implementate ulterior
+- `storage-adapter.js` folosește SQLite nativ și păstrează adapterul web pentru browser; Core rămâne comun.
+- `audio-store.js` migrează înregistrările IndexedDB către fișiere private native și index SQLite.
+- `native-audio-recorder.js` folosește pluginul AAC nativ, copiază fișierul final în storage persistent și curăță segmente temporare.
+- `configure-native-projects.js` adaugă permisiunea microfonului, UIBackgroundModes audio și PrivacyInfo.xcprivacy în resursele Xcode.
+- `auth-client-entry.js` bundlează Supabase JS și Secure Storage; sesiunea anonimă este creată numai când URL-ul și anon key sunt configurate.
+- `cloud-api/` verifică tokenuri Supabase, limitează cererile, apelează OpenAI server-side și permite ștergerea contului.
 
 ## Limitări ale auditului
 

@@ -115,11 +115,11 @@ Surse oficiale:
 5. Import/export nativ prin Files/Share Sheet și recuperare după erori.
 
 ### M3 — Backend multiutilizator și sincronizare
-1. Serviciu backend cloud separat de serverul local.
-2. Autentificare, tenancy și autorizare.
-3. Sync incremental cu idempotency și conflict handling.
-4. Backup, export și ștergere cont.
-5. OpenAI proxy cu cote/limitare pe utilizator și protecția datelor.
+1. Serviciu Node cloud separat de serverul local — schelet Docker/API creat în `cloud-api/`.
+2. Validarea tokenurilor Supabase și rate limit per utilizator — implementate în backend.
+3. Client Supabase Auth anonim în build-ul mobil, cu sesiune păstrată prin Secure Storage; tokenul nu este hardcodat — implementat în cod, dar necesită proiect Supabase real și setarea variabilelor.
+4. Endpoint server-side OpenAI și ștergere cont cloud — implementate; ștergerea cere `SUPABASE_SERVICE_ROLE_KEY` exclusiv pe server.
+5. Nu există încă proiect Supabase configurat/deploy, endpoint public, sync incremental, tenancy/workspaces, backup sau conflict handling.
 
 ### M4 — Monetizare
 1. Definirea planurilor și limitelor comerciale.
@@ -158,6 +158,12 @@ Surse oficiale:
 - `app.js` folosește direct localStorage; `audio-store.js` folosește IndexedDB; înregistrarea depinde de MediaRecorder/getUserMedia; dictarea depinde de SpeechRecognition/webkitSpeechRecognition; export/import folosește Blob/URL/File input; wake lock este best-effort.
 - Nu a fost identificată implementare de notificări locale.
 - `server.js` este exclusiv local și nu poate fi backend comercial.
+
+## Configurare build mobil și cloud
+- Variabile publice injectate în build: `COLLECTOR_API_BASE_URL`, `COLLECTOR_SUPABASE_URL`, `COLLECTOR_SUPABASE_ANON_KEY` (GitHub Actions repository variables).
+- Variabile server-side: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `COLLECTOR_ALLOWED_ORIGINS`.
+- `SUPABASE_ANON_KEY` este publică și poate fi în bundle; `SUPABASE_SERVICE_ROLE_KEY` și `OPENAI_API_KEY` nu trebuie niciodată incluse în aplicație.
+- Supabase trebuie configurat pentru anonymous sign-ins. Clientul creează o sesiune anonimă, iar utilizatorul poate șterge contul cloud din ecranul Audit; după ștergere, cloud rămâne dezactivat până la reactivare explicită.
 
 ## Starea reală la 2026-11-24
 - OpenAI provider este implementat pe branch-ul `feature/openai-provider-integration`, PR draft #55; nu s-a făcut încă un apel cu o cheie API reală.

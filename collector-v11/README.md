@@ -54,3 +54,11 @@ Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile real
 ## Aplicație mobilă comercială
 
 Direcția de produs confirmată este distribuția prin Google Play și Apple App Store. Shell-ul Capacitor, bundle-ul mobile, StorageAdapter SQLite, Work/Think și reminders native sunt implementate în branch-ul de lucru. Backend-ul cloud, autentificarea, sincronizarea, billing-ul, audio nativ complet și build-urile semnate rămân de realizat. Vezi [MOBILE-APP-AND-COMMERCIAL-ROADMAP.md](MOBILE-APP-AND-COMMERCIAL-ROADMAP.md).
+
+## Funcții mobile implementate în branch
+
+- Shell Capacitor 8 pentru Android/iOS.
+- Work/Think, notificări native, recorder AAC nativ și SQLite pentru date/metadata audio.
+- Sesiune Supabase anonimă prin Secure Storage; Cloud API separat cu autentificare și OpenAI server-side.
+- Configurarea proiectului Supabase și deploy-ul backend-ului rămân necesare înainte ca AI cloud să fie disponibil în build-ul mobil.
+- Vezi [planul comercial mobil](MOBILE-APP-AND-COMMERCIAL-ROADMAP.md) și [auditul compatibilității](MOBILE-COMPATIBILITY-AUDIT.md).
