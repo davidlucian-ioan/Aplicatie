@@ -1,39 +1,68 @@
 # Collector Cloud API
 
-Backend Node.js separat pentru aplicația mobilă. Acest serviciu este o bază de deploy, nu este încă publicat și nu trebuie expus fără configurarea autentificării și a variabilelor de mediu.
+Backend Node.js separat pentru aplicația mobilă. API-ul nu trebuie expus public înainte de aplicarea migrărilor Supabase și configurarea secretelor de producție.
 
 ## Endpoint-uri
 
 - `GET /health` — health check public, fără date personale.
-- `GET /api/ai/status` — necesită `Authorization: Bearer <Supabase access token>`; raportează dacă ștergerea contului este activată.
+- `GET /api/ai/status` — necesită token Supabase; returnează starea providerului, entitlement-ul Pro verificat server-side și disponibilitatea AI pentru utilizator.
+- `POST /api/ai/interpret` — necesită sesiune Supabase validă, entitlement Pro activ și buget lunar disponibil; rezervă bugetul înainte de OpenAI și regularizează consumul după răspuns.
+- `POST /api/billing/revenuecat-webhook` — webhook RevenueCat autentificat cu secret; evenimentele sunt persistate idempotent.
 - `DELETE /api/account` — șterge utilizatorul Supabase autentificat; cere cheia administrativă server-side.
-- `POST /api/ai/interpret` — necesită sesiune Supabase validă; primește text și context minimizat, apoi apelează OpenAI server-side.
 
 ## Variabile de mediu
 
-- `PORT` — implicit 8080.
+Obligatorii pentru AI și billing:
 - `SUPABASE_URL` — URL-ul proiectului Supabase.
-- `SUPABASE_ANON_KEY` — cheia publică anon a proiectului; folosită doar pentru validarea tokenului.
-- `SUPABASE_SERVICE_ROLE_KEY` — secret administrativ server-side, necesar pentru ștergerea contului; nu se introduce niciodată în aplicație.
-- `OPENAI_API_KEY` — secret server-side. Nu se introduce în aplicația mobilă.
+- `SUPABASE_ANON_KEY` — cheia publică anon; folosită la validarea tokenului.
+- `SUPABASE_SERVICE_ROLE_KEY` — secret administrativ server-side, folosit pentru metering, entitlements, webhook și ștergerea contului. Nu se introduce în aplicație.
+- `OPENAI_API_KEY` — secret OpenAI server-side.
+- `REVENUECAT_WEBHOOK_AUTHORIZATION` — valoarea exactă a headerului Authorization configurat în webhook-ul RevenueCat.
+- `REVENUECAT_PRO_PRODUCT_IDS` — lista separată prin virgulă a product ID-urilor care acordă Collector Pro. Nu acceptăm automat orice produs din RevenueCat.
+- `AI_MONTHLY_BUDGET_USD` — buget maxim AI inclus per utilizator/lună; implicit 1 USD.
+- `OPENAI_INPUT_USD_PER_MILLION` și `OPENAI_OUTPUT_USD_PER_MILLION` — tarifele modelului configurat, exprimate în USD per milion tokeni; defaulturile sunt 2 și 10 și trebuie sincronizate cu tariful real al modelului.
+
+Alte variabile:
+- `PORT` — implicit 8080.
 - `OPENAI_MODEL` — implicit `gpt-6.2-sol`.
 - `COLLECTOR_ALLOWED_ORIGINS` — listă separată prin virgulă, de ex. `capacitor://localhost,https://localhost,https://app.example.com`.
 
-## Siguranță
+## Configurare Supabase — obligatoriu înainte de deploy
 
-- Tokenul Supabase este validat cu endpoint-ul Auth `/auth/v1/user`.
-- AI endpoints cer utilizator autentificat; nu există cheie partajată în bundle.
-- CORS allowlist, limită 128 KB, text maxim 8.000 caractere și rate limit 20 cereri/minut/utilizator.
-- Contextul este trecut prin allowlist-ul `safeContext`.
-- Răspunsurile sunt `no-store`; jurnalul operațional și audio nu sunt trimise la OpenAI.
-- API key OpenAI nu este returnată clientului și nu este logată.
+1. Aplică manual sau prin pipeline migrarea `migrations/001_billing_and_ai_usage.sql` în proiectul Supabase.
+2. Migrarea creează tabelele `collector_entitlements`, `collector_ai_budgets`, `collector_ai_usage` și `collector_billing_events`.
+3. RPC-urile `collector_reserve_ai_usage`, `collector_settle_ai_usage` și `collector_apply_revenuecat_event` folosesc tranzacții/lock-uri pentru rezervarea atomică a bugetului și procesarea idempotentă a webhook-urilor.
+4. RLS este activat; accesul clientului anon/authenticated la tabele este revocat. API-ul folosește service-role key exclusiv server-side.
+5. Configurează anonymous sign-in în Supabase doar dacă produsul încă folosește conturi anonime. Pentru lansare trebuie implementată și testată asocierea contului la o identitate recuperabilă.
 
-## Limitări / integrare rămasă
+## Configurare RevenueCat
 
-- Nu există încă proiect Supabase configurat, autentificare în aplicație, sesiune bearer în client sau endpoint public deployat.
-- `COLLECTOR_API_BASE_URL` este injectat în build-ul mobil din variabila GitHub Actions `vars.COLLECTOR_API_BASE_URL`. Până la configurarea backend-ului, AI cloud rămâne dezactivat în aplicația mobilă; funcțiile locale continuă să funcționeze.
-- Sync multi-device, workspace membership, billing/entitlements și backup nu sunt implementate încă. Ștergerea contului Supabase este implementată, dar trebuie configurată cheia administrativă și testată pe un proiect real.
-- Alege/deployează un host Node 22 și setează variabilele de mediu înainte de a activa endpoint-ul în build-urile store.
+1. Creează produsele lunare/anuale în App Store Connect și Google Play Console.
+2. Configurează entitlement-ul RevenueCat cu numele `pro`.
+3. Setează App User ID din SDK la UUID-ul utilizatorului Supabase autentificat; nu folosi ID-uri anonime RevenueCat care nu pot fi asociate cu un user Collector.
+4. Configurează webhook-ul RevenueCat către `/api/billing/revenuecat-webhook` și aceeași valoare secretă pentru Authorization ca `REVENUECAT_WEBHOOK_AUTHORIZATION`.
+5. Setează lista exactă de product IDs în `REVENUECAT_PRO_PRODUCT_IDS`.
+6. Testează achiziție, reînnoire, anulare, expirare, refund și restore în sandbox.
+
+Backend-ul tratează achiziția/reînnoirea, schimbarea produsului, reactivarea, anularea până la expirare, billing issue și expirarea/refund-ul. Evenimentele duplicate sunt idempotente. Transferul între conturi și aliasurile RevenueCat nu sunt încă suportate; nu promova integrarea în producție înainte de testarea acestor fluxuri.
+
+## Protecție costuri
+
+- AI este refuzat dacă lipsește entitlement-ul Pro activ.
+- Bugetul lunar este rezervat atomic înainte de apelul OpenAI; cererile concurente nu pot depăși plafonul printr-un simplu race.
+- După răspuns, tokenii raportați de OpenAI și costul estimat sunt salvați. Dacă providerul nu returnează usage, se taxează conservator rezerva calculată.
+- La buget epuizat, API răspunde cu `429 monthly_budget_exceeded`; Work/Think și datele locale nu sunt afectate.
+- Rate limit-ul de 20 cereri/minut este suplimentar și în memorie; nu înlocuiește bugetul lunar persistent.
+- Nu se trimit fișiere audio sau jurnalul complet la OpenAI. Contextul trece prin allowlist-ul `safeContext`.
+
+## Limitări încă deschise
+
+- Migrarea trebuie aplicată într-un proiect Supabase real; nu există încă proiect conectat/deploy.
+- Aplicația mobilă nu are încă SDK RevenueCat, ecran de paywall, restore purchases sau login/link de cont recuperabil. Webhook-ul și verificarea server-side sunt fundația backend, nu integrarea completă a plăților.
+- Trebuie validate ordinea evenimentelor webhook, transferul între conturi și recuperarea achizițiilor după reinstalare.
+- Sync multi-device, workspace membership, backup cloud și conflict handling nu sunt implementate.
+- Bugetul de 1 USD/lună este default tehnic inițial, nu plan comercial final; recalibrează-l pe baza usage-ului real și a prețului modelului activ.
+- AI status și endpoint-urile trebuie testate cu proiect Supabase, chei, webhook și achiziții sandbox reale înainte de activarea publică.
 
 ## Local
 
