@@ -60,7 +60,7 @@ Backend-ul tratează achiziția/reînnoirea, schimbarea produsului, reactivarea,
 
 ## Limitări încă deschise
 
-Status-ul AI expune bugetul lunar, suma consumată, suma rezervată și suma rămasă. Defaultul tehnic este 1 USD/utilizator/lună; tarifele input/output și bugetul sunt configurabile în variabilele de mediu. Rezervările abandonate sunt eliberate după 10 minute, iar o regularizare eșuată după un răspuns OpenAI păstrează rezerva pentru a evita subcontorizarea costurilor.
+Status-ul AI expune bugetul lunar, suma consumată, suma rezervată și suma rămasă. Defaultul tehnic este 1 USD/utilizator/lună; tarifele input/output și bugetul sunt configurabile în variabilele de mediu. Rezervările cunoscute ca eșuate la provider sunt eliberate imediat; rezervările rămase nefinalizate peste 10 minute sunt contabilizate conservator la valoarea maximă rezervată, deoarece workerul poate fi căzut după un răspuns billable și înainte de settlement.
 
 - Migrarea trebuie aplicată într-un proiect Supabase real; nu există încă proiect conectat/deploy.
 - Aplicația mobilă include bridge-ul RevenueCat Capacitor 14.1.2, afișarea ofertelor curente, purchase, restore și asocierea/recuperarea contului prin email/parolă. Codul nu este încă validat cu produse și chei reale în sandbox; funcțiile de achiziție rămân dezactivate până la configurarea variabilelor publice din build și a produselor în magazine/RevenueCat.
