@@ -192,13 +192,13 @@ public final class CollectorSpeechPlugin extends Plugin {
             call.reject("Microfonul este deja rezervat de o altă operație Collector.");
             return;
         }
+        speechSessionActive = true;
         try {
             activeRecognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(getContext());
             activeRecognizer.setRecognitionListener(recognitionListener);
             speechSessionId = UUID.randomUUID().toString();
             speechLanguage = language;
             speechContinuous = continuous;
-            speechSessionActive = true;
             speechStopRequested = false;
             speechRetryCount = 0;
             speechSegmentIndex = 0;
