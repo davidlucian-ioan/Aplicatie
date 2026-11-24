@@ -3,10 +3,11 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 require('./ai/provider-openai-browser');
 
-const previous={config:globalThis.CollectorConfig,capacitor:globalThis.Capacitor,fetch:globalThis.fetch};
+const previous={config:globalThis.CollectorConfig,capacitor:globalThis.Capacitor,auth:globalThis.CollectorAuth,fetch:globalThis.fetch};
 test.afterEach(()=>{
  if(previous.config===undefined)delete globalThis.CollectorConfig;else globalThis.CollectorConfig=previous.config;
  if(previous.capacitor===undefined)delete globalThis.Capacitor;else globalThis.Capacitor=previous.capacitor;
+ if(previous.auth===undefined)delete globalThis.CollectorAuth;else globalThis.CollectorAuth=previous.auth;
  globalThis.fetch=previous.fetch;
 });
 test('native app fără endpoint cloud dezactivează AI fără cerere relativă invalidă',async()=>{
@@ -20,19 +21,21 @@ test('native app fără endpoint cloud dezactivează AI fără cerere relativă 
 test('native app folosește endpoint HTTPS configurat și normalizează slash-ul final',async()=>{
  globalThis.Capacitor={isNativePlatform:()=>true};
  globalThis.CollectorConfig={apiBaseUrl:'https://api.example.test/'};
- let requested='';
- globalThis.fetch=async(url)=>{requested=url;return {ok:true,json:async()=>({provider:'openai',configured:true,model:'test-model'})}};
+ globalThis.CollectorAuth={getAccessToken:async()=> 'test-access-token'};
+ let requested='',headers=null;
+ globalThis.fetch=async(url,options)=>{requested=url;headers=options.headers;return {ok:true,json:async()=>({provider:'openai',configured:true,model:'test-model'})}};
  const result=await globalThis.CollectorOpenAIProvider.status();
- assert.equal(requested,'https://api.example.test/api/ai/status');assert.equal(result.configured,true);
+ assert.equal(requested,'https://api.example.test/api/ai/status');assert.equal(result.configured,true);assert.equal(headers.Authorization,'Bearer test-access-token');
 });
 test('interpretarea trimite text și context către backend-ul configurat',async()=>{
  globalThis.Capacitor={isNativePlatform:()=>true};
  globalThis.CollectorConfig={apiBaseUrl:'https://api.example.test'};
- let requested='',payload=null;
- globalThis.fetch=async(url,options)=>{requested=url;payload=JSON.parse(options.body);return {ok:true,json:async()=>({interpretation:{kind:'answer'}})}};
+ globalThis.CollectorAuth={getAccessToken:async()=> 'test-access-token'};
+ let requested='',payload=null,headers=null;
+ globalThis.fetch=async(url,options)=>{requested=url;headers=options.headers;payload=JSON.parse(options.body);return {ok:true,json:async()=>({interpretation:{kind:'answer'}})}};
  const result=await globalThis.CollectorOpenAIProvider.interpret('Notează pH 6.2',{entities:[]});
  assert.equal(requested,'https://api.example.test/api/ai/interpret');
- assert.equal(payload.text,'Notează pH 6.2');assert.deepEqual(payload.context,{entities:[]});
+ assert.equal(payload.text,'Notează pH 6.2');assert.deepEqual(payload.context,{entities:[]});assert.equal(headers.Authorization,'Bearer test-access-token');
  assert.equal(result.interpretation.kind,'answer');
 });
 test('browser local păstrează endpoint-urile relative pentru serverul de dezvoltare',async()=>{
