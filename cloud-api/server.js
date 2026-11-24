@@ -17,7 +17,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
   if(origin){
    res.setHeader('Access-Control-Allow-Origin',origin);
    res.setHeader('Vary','Origin');
-   res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
+   res.setHeader('Access-Control-Allow-Methods','GET, POST, DELETE, OPTIONS');
    res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type, Accept');
    res.setHeader('Access-Control-Max-Age','600');
   }
@@ -58,10 +58,18 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
   if(!cors(req,res)){send(res,403,{error:'Origine nepermisă.'});return}
   if(req.method==='OPTIONS'){res.writeHead(204,{'Cache-Control':'no-store'}).end();return}
   if(req.method==='GET'&&url.pathname==='/health'){send(res,200,{ok:true,service:'collector-api'});return}
-  if(!['GET','POST'].includes(req.method)||!['/api/ai/status','/api/ai/interpret'].includes(url.pathname)){send(res,404,{error:'Endpoint inexistent.'});return}
+  if(!['GET','POST','DELETE'].includes(req.method)||!['/api/ai/status','/api/ai/interpret','/api/account'].includes(url.pathname)){send(res,404,{error:'Endpoint inexistent.'});return}
   try{
    const userId=await authenticate(req);
    if(!rateLimit(userId)){send(res,429,{error:'Ai atins limita temporară de cereri. Încearcă din nou peste un minut.'});return}
+   if(req.method==='DELETE'&&url.pathname==='/api/account'){
+    if(!env.SUPABASE_SERVICE_ROLE_KEY){send(res,503,{error:'Ștergerea contului cloud nu este configurată pe server.'});return}
+    let deleted;
+    try{deleted=await fetchImpl(env.SUPABASE_URL.replace(/\\/+$/,'')+'/auth/v1/admin/users/'+encodeURIComponent(userId),{method:'DELETE',headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,Accept:'application/json'}})}
+    catch{send(res,502,{error:'Nu am putut contacta serviciul de ștergere a contului.'});return}
+    if(!deleted.ok){send(res,502,{error:'Serviciul cloud nu a putut șterge contul.'});return}
+    res.writeHead(204,{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end();return;
+   }
    if(req.method==='GET'&&url.pathname==='/api/ai/status'){
     send(res,200,{provider:'openai',configured:Boolean(env.OPENAI_API_KEY),model:env.OPENAI_MODEL||'gpt-6.2-sol'});return;
    }
