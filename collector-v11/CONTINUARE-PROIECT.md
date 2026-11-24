@@ -112,7 +112,7 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Ultimul cod validat: `9fd244eaf77a5d016a1e05712820268e4e6bfe6c`. Documentația checkpoint este actualizată în commitul următor.
 - Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
 
-### Actualizare 2026-11-24 — Android on-device STT capability probe (PR #49 în pregătire)
+### Actualizare 2026-11-24 — Android on-device STT capability probe (PR #49)
 - Branch: `feature/android-offline-stt-probe`, bazat pe `feature/voice-context-ttl`.
 - A fost adăugat pluginul nativ `CollectorSpeechPlugin`, care verifică numai disponibilitatea serviciului Android on-device și suportul modelului pentru `ro-RO`.
 - API 31–32: raportează existența serviciului, dar marchează limba ca neverificată, deoarece lista limbilor instalate nu este expusă de acest API.
@@ -122,7 +122,7 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Manifest patcher adaugă query-ul pentru `android.speech.RecognitionService` și îl îmbină într-un bloc `queries` existent; pluginul este înregistrat și copiat în proiectul Capacitor generat.
 - Teste automate noi: probele verifică folosirea exclusivă a API-ului on-device, lipsa capturii audio, bridge-ul nativ, manifestul și fallback-ul browser.
 - Build Android la commitul `4d0f63f870b806cde692199b0927d06a14a957ec`: PASS, confirmă compilarea pluginului nativ. Quality CI pe acel commit a fost blocat de teste de integrare cu newline escapate; corecțiile sunt incluse în head-ul curent.
-- Quality și Android CI pentru head-ul curent sunt în curs. Nu declara limba română disponibilă până când verificarea pe un telefon fizic nu confirmă modelul instalat.
+- PR: https://github.com/davidlucian-ioan/Aplicatie/pull/49 — deschis, mergeable; nu este integrat.\n- Quality CI: PASS, run 45393056286; 44 teste Chromium au trecut. Android debug build: PASS, run 45393056339.\n- Ultimul cod validat: `cc086275d09d91645ebb89758ba3ee2fb4e2e7c8`. Nu declara limba română disponibilă până când verificarea pe un telefon fizic nu confirmă modelul instalat.
 - Recunoașterea efectivă nu este încă activată. Următoarea implementare trebuie să fie exclusiv on-device și să nu concureze cu serviciul nativ de înregistrare pentru microfon.
 
 ### Următorii pași
