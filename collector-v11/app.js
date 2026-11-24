@@ -301,7 +301,6 @@ async function refreshAIProviderStatus(){
  try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.unauthenticated?'Autentificarea cloud nu este configurată. AI rămâne dezactivat.':info.configured?'OpenAI configurat · '+info.model:'OpenAI selectat · cheia API nu este configurată pe server';status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured}
  catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false';if(button)button.disabled=true}
 }
-refreshAIProviderStatus();
 document.getElementById('parseCommand').onclick=runCommand;
 let activeRecognition=null;
 let voiceSessionRecognition=null;
@@ -457,6 +456,8 @@ async function initializeCollectorApp(){
  try{
   await storageAdapter.initialize();
   db=await loadDb();
+  try{await window.CollectorAuth?.initialize(window.CollectorConfig||{})}catch(authError){setAppStatus('Autentificarea cloud nu a putut fi inițializată: '+String(authError?.message||authError))}
+  await refreshAIProviderStatus();
   try{
    await window.CollectorAudioStore?.initialize({capacitor:window.Capacitor,filesystem:window.Capacitor?.Plugins?.Filesystem,storage:storageAdapter});
    audioStorageReady=true;

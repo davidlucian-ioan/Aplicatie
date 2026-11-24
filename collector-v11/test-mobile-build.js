@@ -26,6 +26,8 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   const mobileConfig=await fs.readFile(path.join(out,'collector-config.js'),'utf8');
   assert.ok(mobileConfig.includes('apiBaseUrl'));
   assert.ok(mobileConfig.includes('https://api.example.test'));
+  const authBundle=await fs.readFile(path.join(out,'collector-auth-bundle.js'),'utf8');
+  assert.ok(authBundle.includes('CollectorAuthBundle')||authBundle.length>1000);
   assert.ok(html.includes('ai/core-port-browser.js'));
   const capacitorConfig=JSON.parse(await fs.readFile(path.join(__dirname,'capacitor.config.json'),'utf8'));
   assert.equal(capacitorConfig.appName,'Collector');
