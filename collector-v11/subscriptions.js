@@ -19,8 +19,9 @@
   if(!platform)return {available:false,reason:'native_only',isPro:false};
   if(!key||!sdk)return {available:false,reason:'not_configured',isPro:false};
   if(!userId)return {available:false,reason:'no_user',isPro:false};
-  if(initializing)return initializing;
-  initializing=(async()=>{
+  // Serialize identity changes. Concurrent screen refreshes or account switches
+  // must not let a stale configure/logIn finish after a newer user was selected.
+  const run=async()=>{
    if(!sdkReady){
     await sdk.configure({apiKey:key,appUserID:userId});
     sdkReady=true;currentUserId=userId;
@@ -28,8 +29,10 @@
     await sdk.logIn({appUserID:userId});currentUserId=userId;
    }
    return refresh();
-  })();
-  try{return await initializing}finally{initializing=null}
+  };
+  const pending=(initializing||Promise.resolve()).catch(()=>{}).then(run);
+  initializing=pending;
+  try{return await pending}finally{if(initializing===pending)initializing=null}
  }
  async function customerInfo(){
   const sdk=bridge();
