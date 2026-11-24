@@ -466,7 +466,7 @@ function nativeSpeechText(){
 }
 function ensureNativeTranscriptSession(sessionId){
  if(!nativeTranscriptSession&&sessionId){
-  nativeTranscriptSession={id:sessionId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),language:'ro-RO',provider:'android-speech-recognizer-on-device',source:'microphone',segments:[]};
+  nativeTranscriptSession={id:sessionId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),language:'ro-RO',provider:'android-speech-recognizer-on-device',source:'microphone',audioRecordingId:null,audioLinkStatus:'not-linked',segments:[]};
  }
  return nativeTranscriptSession;
 }
@@ -565,6 +565,7 @@ async function startNativeSpeech(mode){
   };
   nativeSpeechListenerHandles=await Promise.all(Object.entries(handlers).map(([name,handler])=>bridge.addListener(name,handler)));
   const started=await bridge.startListening('ro-RO',mode==='session');
+  if(nativeSpeechMode!==mode)return true;
   nativeSpeechSessionId=started.sessionId;
   ensureNativeTranscriptSession(started.sessionId);
   if(mode==='session')voiceSessionRecognition={native:true,stop:()=>bridge.stopListening(nativeSpeechSessionId)};
