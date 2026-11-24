@@ -406,7 +406,7 @@ test('voice confirmation does not publish or retain context when local persisten
   await expect(page.locator('#confirmCoreCommand')).toBeVisible();
 
   await page.evaluate(() => {
-    const original = Storage.prototype.setItem;
+    window.__originalStorageSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key, value) {
       if (key === 'collector_mvp_v2') throw new Error('simulated quota failure');
       return original.call(this, key, value);
@@ -419,7 +419,7 @@ test('voice confirmation does not publish or retain context when local persisten
   expect(after.entities.find(entity => entity.name === 'Plantă fără persistență').attributes?.pH).toBeUndefined();
   expect(await page.evaluate(() => localStorage.getItem('collector_voice_context_v1'))).toBeNull();
 
-  await page.evaluate(() => { Storage.prototype.setItem = Storage.prototype.__originalSetItem || Storage.prototype.setItem; });
+  await page.evaluate(() => { Storage.prototype.setItem = window.__originalStorageSetItem; });
 });
 
 test('voice preview is revalidated and requires confirmation again after another session changes stock', async ({ page }) => {
