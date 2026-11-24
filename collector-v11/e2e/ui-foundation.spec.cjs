@@ -72,7 +72,7 @@ test('global action starts a local audio recording without committing an event',
 
 test('desktop navigation exposes the current section to assistive technology', async ({ page }) => {
   await page.goto('/index-server.html');
-  await expect(page.getByRole('navigation', { name: 'Secțiuni Collector' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Spații de lucru' })).toBeVisible();
   await expect(page.locator('.nav[data-page="work"]')).toHaveAttribute('aria-current', 'page');
 
   await page.getByRole('button', { name: 'Istoric' }).click();
