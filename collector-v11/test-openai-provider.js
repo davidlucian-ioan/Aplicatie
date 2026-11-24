@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { OpenAIProvider, INTERPRETATION_SCHEMA } = require('./ai/provider-openai');
 
 function apiResponse(parsed) {
-  return { status:'completed', output_text:JSON.stringify(parsed) };
+  return { status:'completed', output_text:JSON.stringify(parsed), usage:{input_tokens:123,output_tokens:45} };
 }
 const base = {
   intent:'propose', answer:'', question:'', confidence:0.94,
@@ -34,7 +34,7 @@ test('providerul trimite Responses API cu Structured Outputs și store=false', a
   assert.ok(payload.instructions.includes('relation.move'));
   assert.equal(result.command.contractVersion,'collector.command.v1');
   assert.equal(result.command.operations[0].data.description,'pH 6.4');
-  assert.ok(result.command.idempotencyKey);
+  assert.ok(result.command.idempotencyKey);\n  assert.equal(result.usage.inputTokens,123);\n  assert.equal(result.usage.outputTokens,45);\n  assert.equal(Object.keys(result).includes('usage'),false);
 });
 
 test('providerul refuză output JSON malformat', async () => {
