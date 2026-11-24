@@ -70,7 +70,17 @@ function staticFile(req, res) {
   try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
   catch { res.writeHead(400).end('Bad request'); return; }
   if (pathname === '/') pathname = '/index-server.html';
-  if (pathname === '/.env' || (pathname.startsWith('/.env.') && pathname !== '/.env.example')) {
+  const segments = pathname.split('/').filter(Boolean);
+  const privateFiles = new Set([
+    'server.js', 'package.json', 'package-lock.json',
+    'provider-openai.js', 'context-sanitizer.js', 'contracts.js'
+  ]);
+  const basename = path.basename(pathname);
+  if (segments.some(segment => segment.startsWith('.')) ||
+      privateFiles.has(basename) ||
+      /^test[-_].*\.js$/i.test(basename) ||
+      /\.(?:test|spec)\.js$/i.test(basename) ||
+      /^(?:README|CONTINUARE-PROIECT|OPENAI-INTEGRATION|AI-FOUNDATION-README)\.md$/i.test(basename)) {
     res.writeHead(404).end('Not found'); return;
   }
   const file = path.resolve(ROOT, '.' + pathname);
@@ -83,6 +93,9 @@ function staticFile(req, res) {
       'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
       'X-Content-Type-Options':'nosniff',
       'Referrer-Policy':'no-referrer',
+      'X-Frame-Options':'DENY',
+      'Permissions-Policy':'camera=(), microphone=(self), geolocation=()',
+      'Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
       'Cache-Control':'no-cache'
     });
     fs.createReadStream(file).pipe(res);
