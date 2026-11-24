@@ -121,3 +121,30 @@ test('AI status indică indisponibilitatea când metering-ul persistent lipseșt
   const status=await response.json();assert.equal(status.configured,true);assert.equal(status.billingConfigured,false);assert.equal(status.aiAvailable,false);
  });
 });
+
+test('webhook RevenueCat autentificat mapează achiziția la utilizatorul Collector',async()=>{
+ let received=null;
+ const billingService={configured:true,reserve:async()=>({allowed:true}),settle:async()=>({}),
+  applyRevenueCatEvent:async value=>{received=value;return {processed:true,active:true}}};
+ const env={...baseEnv,REVENUECAT_WEBHOOK_AUTHORIZATION:'Bearer webhook-secret',REVENUECAT_PRO_PRODUCT_IDS:'collector_pro_monthly,collector_pro_yearly'};
+ await withServer({env,fetchImpl:authFetch(),billingService},async base=>{
+  const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
+   headers:{Authorization:'Bearer webhook-secret','Content-Type':'application/json'},
+   body:JSON.stringify({event:{id:'evt-1',type:'RENEWAL',app_user_id:'123e4567-e89b-42d3-a456-426614174000',
+    product_id:'collector_pro_monthly',store:'PLAY_STORE',expiration_at_ms:1893456000000}})});
+  assert.equal(response.status,200);assert.equal((await response.json()).processed,true);
+  assert.equal(received.userId,'123e4567-e89b-42d3-a456-426614174000');
+  assert.equal(received.isProProduct,true);assert.equal(received.store,'play_store');
+  assert.equal(received.eventType,'RENEWAL');assert.ok(received.expiresAt);
+ });
+});
+test('webhook RevenueCat respinge sem secret corect',async()=>{
+ let called=false;
+ const billingService={configured:true,applyRevenueCatEvent:async()=>{called=true}};
+ const env={...baseEnv,REVENUECAT_WEBHOOK_AUTHORIZATION:'Bearer expected'};
+ await withServer({env,fetchImpl:authFetch(),billingService},async base=>{
+  const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
+   headers:{Authorization:'Bearer wrong','Content-Type':'application/json'},body:JSON.stringify({event:{id:'x',type:'RENEWAL'}})});
+  assert.equal(response.status,401);assert.equal(called,false);
+ });
+});
