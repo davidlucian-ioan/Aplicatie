@@ -168,7 +168,7 @@ create or replace function public.collector_apply_revenuecat_event(
   p_event_id text, p_user_id uuid, p_event_type text, p_product_id text,
   p_store text, p_expires_at timestamptz, p_event_timestamp timestamptz,
   p_is_pro_product boolean, p_cancel_reason text
-) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $
+) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_active boolean;
 begin
