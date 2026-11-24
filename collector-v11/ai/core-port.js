@@ -44,9 +44,11 @@ class CorePort {
   }
 
   async read(request = {}) {
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new TypeError('Cererea de citire trebuie să fie un obiect.');
+    }
     const state = this._snapshot();
-    const kind = request.kind;
-    switch (kind) {
+    switch (request.kind) {
       case 'entities':
         return clone(state.entities.filter(entity =>
           (!request.type || entity.type === request.type) &&
@@ -57,11 +59,16 @@ class CorePort {
           (!request.locationId || row.locationId === request.locationId)));
       case 'finance':
         return clone(this.core.totalFinance(state));
-      case 'events':
+      case 'events': {
+        const limit = request.limit === undefined ? 20 : Number(request.limit);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+          throw new TypeError('Limită de istoric invalidă.');
+        }
         return clone(state.events.filter(event =>
           (!request.entityId || event.payload?.entityId === request.entityId ||
             event.operations?.some(op => op.target === request.entityId || op.data?.entityId === request.entityId)))
-          .slice(-Math.min(Math.max(Number(request.limit) || 20, 1), 100)));
+          .slice(-limit));
+      }
       default:
         throw new Error('Cerere de citire nepermisă sau necunoscută.');
     }
