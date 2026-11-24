@@ -40,11 +40,19 @@
   if(result.error)throw result.error;
   return result.data.user||null;
  }
+ async function deleteAccount(){
+  if(!client||!configured)throw new Error('Nu există un cont cloud activ.');
+  const token=await getAccessToken(),base=String(root.CollectorConfig?.apiBaseUrl||'').replace(/\/+$/,'');
+  if(!base||!token)throw new Error('Backend-ul cloud sau sesiunea nu este disponibilă.');
+  const response=await fetch(base+'/api/account',{method:'DELETE',headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
+  if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(body.error||'Nu am putut șterge contul cloud.')}
+  await signOut();client=null;return true;
+ }
  async function signOut(){
   if(!client)return true;
   const result=await client.auth.signOut({scope:'local'});
   if(result.error)throw result.error;
   configured=false;return true;
  }
- root.CollectorAuth=Object.freeze({initialize,getAccessToken,getUser,signOut,isConfigured:()=>configured,getLastError:()=>lastError});
+ root.CollectorAuth=Object.freeze({initialize,getAccessToken,getUser,deleteAccount,signOut,isConfigured:()=>configured,getLastError:()=>lastError});
 })(typeof window!=='undefined'?window:globalThis);
