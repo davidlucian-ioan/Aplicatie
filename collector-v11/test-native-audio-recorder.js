@@ -9,16 +9,17 @@ function fixture({permission='granted',request='granted'}={}){
  const filesystem={
   async mkdir(value){calls.push(['mkdir',value])},
   async getUri(value){calls.push(['getUri',value]);return {uri:'file:///app/'+value.path}},
+  async copy(value){calls.push(['copy',value]);files.set(value.to,'saved')},
   async stat(value){calls.push(['stat',value]);return {size:4096}},
   async deleteFile(value){calls.push(['deleteFile',value]);files.delete(value.path)}
  };
  const plugin={
   async checkPermissions(){calls.push(['checkPermissions']);return {recordAudio:permission}},
   async requestPermissions(){calls.push(['requestPermissions']);return {recordAudio:request}},
-  async startRecording(value){calls.push(['startRecording',value]);files.set(value.uri,true)},
+  async startRecording(value){calls.push(['startRecording',value])},
   async pauseRecording(){calls.push(['pauseRecording'])},
   async resumeRecording(){calls.push(['resumeRecording'])},
-  async stopRecording(){calls.push(['stopRecording']);return {duration:2500,uri:'file:///app/collector-audio/note.aac'}},
+  async stopRecording(){calls.push(['stopRecording']);return {duration:2500,uri:'file:///cache/recording-note.aac'}},
   async cancelRecording(){calls.push(['cancelRecording'])}
  };
  NativeRecorder.configure({capacitor,plugin,filesystem});
@@ -28,17 +29,19 @@ test('native recorder requests mic permission and starts AAC in app-private stor
  const x=fixture({permission:'prompt'});
  const session=await NativeRecorder.start({id:'note-1'});
  assert.equal(session.filePath,'collector-audio/note-1.aac');
- assert.equal(session.uri,'file:///app/collector-audio/note-1.aac');
+ assert.equal(session.filePath,'collector-audio/note-1.aac');
  assert.ok(x.calls.some(call=>call[0]==='requestPermissions'));
  const start=x.calls.find(call=>call[0]==='startRecording');
- assert.equal(start[1].format,'aac');assert.equal(start[1].uri,session.uri);
+ assert.equal(start[1].format,'aac');assert.equal(start[1].uri,undefined);
 });
 test('native recorder pauses, resumes and returns file metadata on stop',async()=>{
  const x=fixture();await NativeRecorder.start({id:'note-2'});
  await NativeRecorder.pause();await NativeRecorder.resume();
  const result=await NativeRecorder.stop();
- assert.equal(result.id,'note-2');assert.equal(result.durationMs,2500);assert.equal(result.size,4096);
+ assert.equal(result.id,'note-2');assert.equal(result.durationMs,2500);assert.equal(result.size,4096);assert.equal(result.uri,'file:///app/collector-audio/note-2.aac');
  assert.equal(result.mimeType,'audio/aac');
+ assert.ok(x.calls.some(call=>call[0]==='copy'&&call[1].from==='file:///cache/recording-note.aac'));
+ assert.ok(x.calls.some(call=>call[0]==='deleteFile'&&call[1].path==='file:///cache/recording-note.aac'));
  assert.equal(NativeRecorder.toPlayableUrl(result.uri),x.capacitor.convertFileSrc(result.uri));
 });
 test('native recorder cancels and deletes partial audio',async()=>{
