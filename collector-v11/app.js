@@ -404,6 +404,23 @@ async function confirmCoreCommand(){
 }
 document.getElementById('parseCommand').onclick=runCommand;
 document.getElementById('clearVoiceContext')?.addEventListener('click',()=>clearVoiceContext('Contextul vocal a fost șters.'));
+document.getElementById('checkOfflineSpeech')?.addEventListener('click',async()=>{
+ const button=document.getElementById('checkOfflineSpeech'),status=document.getElementById('offlineSpeechStatus');
+ if(!button||!status)return;
+ const bridge=window.CollectorAndroidSpeech;
+ if(!bridge||!bridge.isAvailable()){status.textContent='Verificarea STT on-device este disponibilă numai în aplicația Android Collector.';return}
+ button.disabled=true;status.textContent='Verific suportul on-device pentru română…';
+ try{
+  const result=await bridge.getOfflineSpeechSupport('ro-RO');
+  if(result.languageStatus==='installed')status.textContent='Română: model on-device instalat. Recunoașterea efectivă și acuratețea trebuie încă testate pe dispozitiv. Niciun audio nu a fost capturat.';
+  else if(result.languageStatus==='downloadable')status.textContent='Română: model suportat on-device, dar neinstalat. Descărcarea nu a fost pornită. Niciun audio nu a fost capturat.';
+  else if(result.languageStatus==='pending')status.textContent='Română: descărcarea modelului on-device este în așteptare. Niciun audio nu a fost capturat.';
+  else if(result.languageStatus==='unsupported')status.textContent='Serviciul on-device nu raportează suport pentru limba română pe acest dispozitiv.';
+  else status.textContent=result.message||'Suportul limbii române nu a putut fi verificat pe această versiune Android.';
+ }catch(error){status.textContent='Verificarea STT on-device a eșuat: '+error.message}
+ finally{button.disabled=false}
+});
+
 let activeRecognition=null;
 let voiceSessionRecognition=null;
 let voiceSessionActive=false;
