@@ -194,3 +194,14 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 
 - Clarificare de execuție GitHub Actions: la un eveniment `pull_request`, GitHub evaluează workflow-ul din branch-ul de bază. Modificarea filtrelor aflată numai pe head-ul PR #51 nu poate activa retroactiv trigger-ul PR pentru acest PR; ea activează trigger-ul pentru push-urile pe `feature/**` și va fi disponibilă pentru PR-uri viitoare după ce ajunge în branch-ul lor de bază. PR #51 are în continuare target branch intermediar. Tool-ul GitHub disponibil pentru workflow runs expune numai evenimente PR, deci nu poate confirma rulările de tip push. Nu raporta CI PASS/FAIL fără acces la run-ul efectiv.
 - Configurația Playwright confirmată: `testDir: ./e2e`, `testMatch: **/*.spec.cjs`, proiect Chromium inclus; fișierul nou este inclus de pattern-ul existent. Workflow-ul Quality CI rulează `npm run test:e2e` pe Chromium.
+
+
+### Checkpoint — unknown native recorder state (2026-11-24)
+- A second fail-open path was found: the Capacitor plugin returned an empty object when `active-state.json` was missing/corrupt. JavaScript could treat a resolved empty object as an inactive recorder.
+- Native fix in `CollectorRecorderPlugin.getRecordingState()`: return explicit `inactive` only when the manifest is absent AND the native recording service is not running. If a manifest exists but cannot be parsed, or the service is running without readable state, return `status: unknown`.
+- JavaScript fix: `refreshNativeAudioState()` clears the ready flag before querying and accepts only explicit statuses: `inactive`, `complete`, `interrupted`, `starting`, `recording`, `paused`. Empty/unknown/malformed results throw and keep microphone operations blocked.
+- Added Node regression tests in `test-android-recorder-state.js` for native and JavaScript contracts.
+- Added Playwright regression test ensuring unknown native state blocks both STT and recorder startup.
+- Playwright microphone arbitration suite now contains 6 E2E scenarios; the new Node test file contains 2 static contract tests. These are added, not yet executed in this environment.
+- Latest code commits: JS state validation `9665fa511a8f69dc2ac213b79f32b2c044e75401`; native plugin explicit unknown/inactive `44328bfc146a8d47c8fe78588777d3a6935ea211`; Node tests `00b5d4ca2389c5409279a4ffca1f8bbe3a8c398a`; E2E unknown-state regression `7a64410ff897cc7c37d51dd4351ac6231e5b900e`.
+- Re-run Quality CI and Android build after the final checkpoint. No PASS claims until run results are available.
