@@ -41,14 +41,19 @@ public final class CollectorRecorderPlugin extends Plugin {
         JSONObject existing = readActiveState();
         reconcileIfServiceStopped(existing);
         String status = existing.optString("status", "");
+        boolean serviceRunning = isRecorderServiceRunning();
         if (isActiveStatus(status)) {
             call.reject("Există deja o înregistrare activă.");
+            return;
+        }
+        if (serviceRunning) {
+            call.reject("Serviciul reportofonului încă rulează. Așteaptă confirmarea opririi înainte de o nouă înregistrare.");
             return;
         }
         boolean knownInactive = "inactive".equals(status)
             || "complete".equals(status)
             || "interrupted".equals(status);
-        if (!knownInactive && (existing.length() > 0 || activeStateFile.exists() || isRecorderServiceRunning())) {
+        if (!knownInactive && (existing.length() > 0 || activeStateFile.exists())) {
             call.reject("Nu pot confirma în siguranță starea reportofonului. Verifică înregistrările înainte de a porni alta.");
             return;
         }
