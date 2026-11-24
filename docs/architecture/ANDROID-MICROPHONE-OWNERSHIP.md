@@ -28,3 +28,4 @@ The Playwright tests verify:
 2. Live voice transcription blocks browser audio recording before `getUserMedia`.
 3. A pending asynchronous native recorder start blocks voice transcription before the service reports its final state.
 4. Speech capture fails closed while the initial native recorder-state query is unresolved.
+5. Native recorder startup fails closed while the initial service-state query is unresolved.
