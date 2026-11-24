@@ -48,4 +48,19 @@ window.CollectorAndroidSpeech = Object.freeze({
   getOfflineSpeechSupport(language = 'ro-RO') {
     return Speech.getOfflineSupport({ language });
   },
+  startListening(language = 'ro-RO', continuous = true) {
+    return Speech.startListening({ language, continuous });
+  },
+  stopListening() {
+    return Speech.stopListening();
+  },
+  cancelListening() {
+    return Speech.cancelListening();
+  },
+  addListener(eventName, listener) {
+    return Speech.addListener(eventName, listener);
+  },
+  removeAllListeners() {
+    return Speech.removeAllListeners();
+  },
 });
