@@ -38,15 +38,6 @@ public final class CollectorSpeechPlugin extends Plugin {
             return;
         }
 
-        if (getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            JSObject result = baseResult(language);
-            result.put("status", "permission-required");
-            result.put("onDeviceAvailable", true);
-            result.put("languageStatus", "unknown");
-            result.put("message", "Acordă permisiunea pentru microfon pentru a verifica disponibilitatea limbii. Nu am pornit microfonul.");
-            call.resolve(result);
-            return;
-        }
 
         boolean available = SpeechRecognizer.isOnDeviceRecognitionAvailable(getContext());
         if (!available) {
@@ -55,6 +46,16 @@ public final class CollectorSpeechPlugin extends Plugin {
             result.put("onDeviceAvailable", false);
             result.put("languageStatus", "unknown");
             result.put("message", "Dispozitivul nu expune un serviciu de recunoaștere vocală on-device.");
+            call.resolve(result);
+            return;
+        }
+
+        if (getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            JSObject result = baseResult(language);
+            result.put("status", "permission-required");
+            result.put("onDeviceAvailable", true);
+            result.put("languageStatus", "unknown");
+            result.put("message", "Acordă permisiunea pentru microfon pentru a verifica disponibilitatea limbii. Nu am pornit microfonul.");
             call.resolve(result);
             return;
         }
