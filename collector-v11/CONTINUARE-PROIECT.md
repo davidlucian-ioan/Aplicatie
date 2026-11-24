@@ -41,8 +41,8 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Model implicit: `gpt-6.2-sol`, suprascris prin `OPENAI_MODEL`.
 - UI are buton separat „Interpretează cu AI”; interpretarea locală existentă rămâne disponibilă.
 - OpenAI primește textul comenzii și metadate limitate de entități/atribute, nu jurnalul complet.
-- Propunerile trec prin BrowserCorePort preview și confirmare explicită. Nu există execuție automată.
-- Endpoint-ul folosește `store:false`, limită de corp, rate limit și verificare Origin.
+- Providerul validează răspunsul cu `ai/contracts.js`; propunerile trec prin BrowserCorePort preview și confirmare explicită. Nu există execuție automată.
+- Endpoint-ul folosește `store:false`, limită de corp, rate limit și verificare Origin; serverul static blochează accesul la `.env`.
 - Teste provider cu fetch mock și teste de wiring/siguranță adăugate; CI a identificat și a ghidat corectarea unei regresii în testul nou. Ultimul run trebuie reverificat după commitul curent. Nu s-a efectuat încă un apel cu o cheie API reală.
 
 ## Ce nu este încă finalizat
