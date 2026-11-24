@@ -216,12 +216,13 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
+
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- Ultimul commit de implementare: `bcabb5925afb66c09fb70ede810b31a8d4ea7817`; documentație actualizată în `0d16c996ed685eddc9f097f799c8828d4399172e`. Acest checkpoint va deveni commitul final al sesiunii.
-- CI: Cloud API SUCCESS la commitul anterior de documentație `3d046f8`; Quality/Mobile au fost anulate de commiturile ulterioare. CI complet pentru HEAD-ul final trebuie reverificat după acest checkpoint.
-- Hardening RevenueCat: schimbările concurente de identitate sunt serializate; grantul Pro cere produs allowlisted + entitlement configurat; revocările lifecycle (CANCELLATION, BILLING_ISSUE, EXPIRATION, REFUND, SUBSCRIPTION_PAUSED, REFUND_REVERSED) sunt procesate chiar dacă RevenueCat omite entitlement_ids, dar numai pentru produs allowlisted. Teste de regresie adăugate.
-- Hardening AI billing: cache-ul rate-limit are limită configurabilă; rezervările stale după 10 minute sunt contabilizate conservator; rezerva include 20.000 bytes overhead pentru instrucțiunile fixe și schema JSON OpenAI. Testele verifică plafonul minim al rezervei.
-- Nevalidat extern: Supabase real (migrare/RLS/RPC), deploy HTTPS, configurare RevenueCat reală și tranzacții sandbox. PR rămâne draft.
-- Următorul pas: verifică CI complet pe HEAD final fără a împinge commituri intermediare; apoi validează migrarea în Postgres/Supabase și purchase/restore/refund/expiry în sandbox. Nu activa plăți publice înainte de E2E.
-- Regula de continuitate: suprascrie exclusiv acest checkpoint unic la următoarea etapă; nu adăuga istorice noi. În chat raportează succint.
+- Implementare curentă: corectată logica RevenueCat `SUBSCRIPTION_PAUSED`; evenimentul indică pauză programată la finalul perioadei, deci Pro rămâne activ până la `expiration_at_ms`. Revocarea are loc la `EXPIRATION`, nu la `SUBSCRIPTION_PAUSED`.
+- Test de regresie static adăugat pentru regula de pauză; README clarifică comportamentul. Ultimul commit de implementare: `16df84063968e9aad4addd1aca6bdd0264051558`; documentație: `60c2e5171666525301b7f8d7c2fa4d8ba476cdfa`.
+- Auditul oficial RevenueCat a confirmat și că TRANSFER are câmpuri separate `transferred_from/transferred_to`; suportul transferului rămâne dezactivat intenționat, conform Restore Behavior Keep with original App User ID și documentației proiectului.
+- CI: la verificarea anterioară, HEAD-ul final nu avea încă runs atașate; trebuie reverificate workflow-urile după actualizarea checkpoint-ului. CI complet nu este declarat verde.
+- Nevalidat extern: migrarea SQL în Supabase real, RLS/RPC live, deploy HTTPS, RevenueCat configurat și purchase/restore/refund/expiry sandbox.
+- Următorul pas: verifică CI pe HEAD; corectează eșecuri; apoi rulează migrarea pe un Postgres/Supabase de test și scenariile sandbox. PR rămâne draft; fără activare plăți publice înainte de E2E.
+- Regulă: suprascrie numai acest checkpoint unic la fiecare etapă; păstrează răspunsurile din chat scurte.
