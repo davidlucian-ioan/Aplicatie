@@ -38,7 +38,7 @@ test('concurrent account switches are serialized and the last requested user rem
  };
  const [first,second]=await Promise.all([
   globalThis.CollectorSubscriptions.initialize('user-A'),
-  root.CollectorSubscriptions.initialize('user-B')
+  globalThis.CollectorSubscriptions.initialize('user-B')
  ]);
  assert.equal(first.available,true);assert.equal(second.available,true);
  assert.deepEqual(logins,['user-A','user-B']);
