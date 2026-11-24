@@ -171,20 +171,24 @@ create or replace function public.collector_apply_revenuecat_event(
 ) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_active boolean;
+  v_user_id uuid;
 begin
   if coalesce(length(trim(p_event_id)),0)=0 or coalesce(length(trim(p_event_type)),0)=0 then
     raise exception 'invalid_revenuecat_event';
   end if;
+  -- Resolve against auth.users first. Unknown/deleted RevenueCat aliases are ledgered
+  -- with a NULL user instead of violating the FK and causing endless webhook retries.
+  select id into v_user_id from auth.users where id=p_user_id;
   insert into public.collector_billing_events(event_id,user_id,event_type,product_id,event_timestamp)
-    values(p_event_id,p_user_id,p_event_type,p_product_id,coalesce(p_event_timestamp,now()))
+    values(p_event_id,v_user_id,p_event_type,p_product_id,coalesce(p_event_timestamp,now()))
     on conflict(event_id) do nothing;
   if not found then return jsonb_build_object('processed',true,'duplicate',true); end if;
-  if p_user_id is null or not coalesce(p_is_pro_product,false) then
+  if v_user_id is null or not coalesce(p_is_pro_product,false) then
     return jsonb_build_object('processed',true,'ignored',true);
   end if;
   -- Serialize updates per account so delayed webhooks cannot overwrite newer state.
-  perform pg_advisory_xact_lock(hashtextextended(p_user_id::text,0));
-  if exists(select 1 from public.collector_entitlements where user_id=p_user_id
+  perform pg_advisory_xact_lock(hashtextextended(v_user_id::text,0));
+  if exists(select 1 from public.collector_entitlements where user_id=v_user_id
       and updated_at > coalesce(p_event_timestamp,now())) then
     return jsonb_build_object('processed',true,'stale',true);
   end if;
@@ -205,7 +209,7 @@ begin
   end if;
 
   insert into public.collector_entitlements(user_id,entitlement,product_id,store,is_active,expires_at,updated_at)
-    values(p_user_id,case when v_active then 'pro' else 'free' end,p_product_id,p_store,v_active,p_expires_at,coalesce(p_event_timestamp,now()))
+    values(v_user_id,case when v_active then 'pro' else 'free' end,p_product_id,p_store,v_active,p_expires_at,coalesce(p_event_timestamp,now()))
     on conflict(user_id) do update set entitlement=excluded.entitlement,
       product_id=excluded.product_id,store=excluded.store,is_active=excluded.is_active,
       expires_at=excluded.expires_at,updated_at=excluded.updated_at;
