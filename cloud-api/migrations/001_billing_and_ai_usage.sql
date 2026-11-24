@@ -126,3 +126,52 @@ alter table public.collector_entitlements enable row level security;
 alter table public.collector_ai_budgets enable row level security;
 alter table public.collector_ai_usage enable row level security;
 revoke all on public.collector_entitlements, public.collector_ai_budgets, public.collector_ai_usage from anon, authenticated;
+
+
+create table if not exists public.collector_billing_events (
+  event_id text primary key,
+  user_id uuid,
+  event_type text not null,
+  product_id text,
+  received_at timestamptz not null default now()
+);
+
+create or replace function public.collector_apply_revenuecat_event(
+  p_event_id text, p_user_id uuid, p_event_type text, p_product_id text,
+  p_store text, p_expires_at timestamptz, p_is_pro_product boolean
+) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_active boolean;
+begin
+  if coalesce(length(trim(p_event_id)),0)=0 or coalesce(length(trim(p_event_type)),0)=0 then
+    raise exception 'invalid_revenuecat_event';
+  end if;
+  insert into public.collector_billing_events(event_id,user_id,event_type,product_id)
+    values(p_event_id,p_user_id,p_event_type,p_product_id)
+    on conflict(event_id) do nothing;
+  if not found then return jsonb_build_object('processed',true,'duplicate',true); end if;
+  if p_user_id is null or not p_is_pro_product then
+    return jsonb_build_object('processed',true,'ignored',true);
+  end if;
+
+  if p_event_type in ('INITIAL_PURCHASE','RENEWAL','PRODUCT_CHANGE','UNCANCELLATION','BILLING_ISSUE','CANCELLATION') then
+    v_active := p_expires_at is null or p_expires_at > now();
+  elsif p_event_type in ('EXPIRATION','REFUND','SUBSCRIPTION_PAUSED') then
+    v_active := false;
+  else
+    return jsonb_build_object('processed',true,'ignored',true);
+  end if;
+
+  insert into public.collector_entitlements(user_id,entitlement,product_id,store,is_active,expires_at,updated_at)
+    values(p_user_id,case when v_active then 'pro' else 'free' end,p_product_id,p_store,v_active,p_expires_at,now())
+    on conflict(user_id) do update set entitlement=excluded.entitlement,
+      product_id=excluded.product_id,store=excluded.store,is_active=excluded.is_active,
+      expires_at=excluded.expires_at,updated_at=now();
+  return jsonb_build_object('processed',true,'active',v_active);
+end;
+$$;
+
+revoke all on function public.collector_apply_revenuecat_event(text,uuid,text,text,text,timestamptz,boolean) from public, anon, authenticated;
+grant execute on function public.collector_apply_revenuecat_event(text,uuid,text,text,text,timestamptz,boolean) to service_role;
+alter table public.collector_billing_events enable row level security;
+revoke all on public.collector_billing_events from anon, authenticated;
