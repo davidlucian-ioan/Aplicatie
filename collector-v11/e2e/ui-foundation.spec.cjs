@@ -336,6 +336,11 @@ test('voice context uses only the last confirmed target and expires after 30 min
   expect(firstContext.entityId).toBe(plantId);
   expect(firstContext.expiresAt - firstContext.updatedAt).toBe(30 * 60 * 1000);
 
+  await page.reload();
+  await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#voiceContextCard')).toContainText('Context vocal activ');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_voice_context_v1')).expiresAt)).toBe(firstContext.expiresAt);
+
   await page.locator('#commandInput').fill('setează pH pentru Plantă context vocal = 6.2');
   await page.locator('#parseCommand').click();
   await expect(page.locator('#confirmCoreCommand')).toBeVisible();
