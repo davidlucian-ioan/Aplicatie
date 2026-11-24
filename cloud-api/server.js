@@ -33,7 +33,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
   return true;
  }
  async function authenticate(req){
-  const token=String(req.headers.authorization||'').match(/^Bearer\\s+(.+)$/i)?.[1];
+  const token=String(req.headers.authorization||'').match(/^Bearer\s+(.+)$/i)?.[1];
   if(!token)throw Object.assign(new Error('Autentificarea este necesară.'),{status:401});
   if(!env.SUPABASE_URL||!env.SUPABASE_ANON_KEY)throw Object.assign(new Error('Autentificarea cloud nu este configurată.'),{status:503});
   let response;
@@ -89,7 +89,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
       ?new Date(Number(event.event_timestamp_ms)).toISOString():new Date(now()).toISOString();
     const result=await billing.applyRevenueCatEvent({eventId:event.id,userId,eventType:event.type,
       productId,store:storeMap[event.store]||null,expiresAt,eventTimestamp,isProProduct:Boolean(productId&&allowedProducts.has(productId))});
-    send(res,200,{ok:true,processed:Boolean(result?.processed),duplicate:Boolean(result?.duplicate),ignored:Boolean(result?.ignored)});return;
+    send(res,200,{ok:true,processed:Boolean(result?.processed),duplicate:Boolean(result?.duplicate),ignored:Boolean(result?.ignored),stale:Boolean(result?.stale)});return;
    }catch(error){send(res,503,{error:'Evenimentul de billing nu a putut fi procesat.'});return}
   }
   if(!['GET','POST','DELETE'].includes(req.method)||!['/api/ai/status','/api/ai/interpret','/api/account'].includes(url.pathname)){send(res,404,{error:'Endpoint inexistent.'});return}
@@ -99,7 +99,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
    if(req.method==='DELETE'&&url.pathname==='/api/account'){
     if(!env.SUPABASE_SERVICE_ROLE_KEY){send(res,503,{error:'Ștergerea contului cloud nu este configurată pe server.'});return}
     let deleted;
-    try{deleted=await fetchImpl(env.SUPABASE_URL.replace(/\\/+$/,'')+'/auth/v1/admin/users/'+encodeURIComponent(userId),{method:'DELETE',headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,Accept:'application/json'}})}
+    try{deleted=await fetchImpl(env.SUPABASE_URL.replace(/\/+$/,'')+'/auth/v1/admin/users/'+encodeURIComponent(userId),{method:'DELETE',headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,Accept:'application/json'}})}
     catch{send(res,502,{error:'Nu am putut contacta serviciul de ștergere a contului.'});return}
     if(!deleted.ok){send(res,502,{error:'Serviciul cloud nu a putut șterge contul.'});return}
     res.writeHead(204,{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end();return;
@@ -161,6 +161,6 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
 if(require.main===module){
  const server=createCloudServer();
  const port=Number(process.env.PORT||8080);
- server.listen(port,'0.0.0.0',()=>process.stdout.write('Collector cloud API listening on '+port+'\\n'));
+ server.listen(port,'0.0.0.0',()=>process.stdout.write('Collector cloud API listening on '+port+'\n'));
 }
 module.exports={createCloudServer,MAX_BODY,monthWindow};
