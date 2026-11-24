@@ -61,3 +61,20 @@ test('purchase este serializat înaintea schimbării contului RevenueCat',async(
  await Promise.all([purchase,switchUser]);
  assert.deepEqual(events,['purchase:start','purchase:end','login:purchase-user-B']);
 });
+
+test('restore este serializat înaintea schimbării contului RevenueCat',async()=>{
+ const events=[];
+ globalThis.CollectorPurchasesBundle.restorePurchases=async()=>{
+  events.push('restore:start');
+  await new Promise(resolve=>setTimeout(resolve,20));
+  events.push('restore:end');
+  return {customerInfo:{entitlements:{active:{pro:{isActive:true}}}}};
+ };
+ globalThis.CollectorPurchasesBundle.logIn=async({appUserID})=>{events.push('login:'+appUserID)};
+ await globalThis.CollectorSubscriptions.initialize('restore-user-A');
+ events.length=0;
+ const restore=globalThis.CollectorSubscriptions.restore();
+ const switchUser=globalThis.CollectorSubscriptions.initialize('restore-user-B');
+ await Promise.all([restore,switchUser]);
+ assert.deepEqual(events,['restore:start','restore:end','login:restore-user-B']);
+});
