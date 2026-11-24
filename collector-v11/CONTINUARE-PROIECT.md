@@ -100,11 +100,17 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - PR #47: deschis, mergeable, bazat pe PR #46; fără integrare în `main`.
 - Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
 
+- Context vocal local: `collector_voice_context_v1` separat de jurnalul Core, cu TTL strict de 30 de minute; se actualizează numai după commit vocal reușit, nu la preview, anulare, duplicat sau comandă scrisă manual.
+- Contextul este vizibil în WORK, poate fi șters manual și este verificat la revenirea aplicației în foreground. Referințele explicite „aceeași entitate/populație/locație” se rezolvă numai către ID-urile confirmate; fără context sau după expirare lotul este respins fără preview.
+- Teste E2E pentru referință contextuală, lipsă de context, TTL, comenzi manuale care nu reîmprospătează contextul și păstrarea confirmării explicite.
+- Quality CI: PASS, run 45403128660; 43 teste Chromium au trecut.
+- Android debug build: PASS, run 45403128685.
+- Head verificat: `86e79caeb4f83eaecc24d046f67217813837df3e`; PR #47 rămâne deschis și mergeable, fără integrare în `main`.
+
 ### Următorii pași
-1. Context vocal vizibil, persistent local și cu TTL de 30 de minute; se activează numai din operații confirmate, iar țintele explicite continuă să aibă prioritate.
-2. Extinde testele de refuz atomic pentru alte ținte invalide și operații de stoc.
-3. Evaluarea STT offline pe Android separat de browser SpeechRecognition.
-4. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
-5. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
+1. Extinde testele de refuz atomic pentru ținte inexistente, populații invalide și locații care nu mai sunt valide.
+2. Evaluează STT offline pe Android separat de browser SpeechRecognition; nu declara suport offline înainte de testare pe dispozitiv.
+3. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
+4. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
 
 Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.
