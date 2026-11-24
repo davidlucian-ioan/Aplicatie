@@ -69,12 +69,19 @@ begin
     where user_id=p_user_id and period_start=p_period_start and status='reserved'
       and created_at < now()-interval '10 minutes';
   if v_stale_reserved > 0 then
-    update public.collector_ai_usage set status='failed',settled_at=now()
+    -- A crashed worker may have received a billable provider response but failed before settlement.
+    -- Known provider failures release immediately through collector_settle_ai_usage(p_failed=true).
+    -- An unknown stale reservation is therefore charged conservatively at its full reserved amount.
+    update public.collector_ai_usage set actual_microusd=reserved_microusd,
+      status='failed',settled_at=now()
       where user_id=p_user_id and period_start=p_period_start and status='reserved'
         and created_at < now()-interval '10 minutes';
-    update public.collector_ai_budgets set reserved_microusd=greatest(0,reserved_microusd-v_stale_reserved),
-      updated_at=now() where user_id=p_user_id and period_start=p_period_start;
+    update public.collector_ai_budgets set
+      reserved_microusd=greatest(0,reserved_microusd-v_stale_reserved),
+      used_microusd=used_microusd+v_stale_reserved,updated_at=now()
+      where user_id=p_user_id and period_start=p_period_start;
     v_budget.reserved_microusd := greatest(0,v_budget.reserved_microusd-v_stale_reserved);
+    v_budget.used_microusd := v_budget.used_microusd+v_stale_reserved;
   end if;
   if exists(select 1 from public.collector_ai_usage where request_id=p_request_id) then
     return jsonb_build_object('allowed', false, 'reason', 'duplicate_request');
