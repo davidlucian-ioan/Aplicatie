@@ -132,4 +132,23 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 4. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
 5. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
 
+### Actualizare 2026-11-24 — STT permission flow (PR #50)
+- Branch: `feature/android-stt-permission-flow`, bazat pe `feature/android-offline-stt-probe`.
+- PR: https://github.com/davidlucian-ioan/Aplicatie/pull/50 — deschis, dependent de PR #49.
+- Diagnosticarea STT cere acum permisiunea Android pentru microfon numai după apăsarea explicită a butonului WORK.
+- Acordarea permisiunii permite doar interogarea suportului on-device; nu pornește `startListening`, nu capturează audio, nu pornește reportofonul și nu descarcă modele.
+- Refuzul este returnat ca stare `permission-required`; interfața explică faptul că nu s-a capturat audio.
+- Au fost adăugate verificări automate pentru aliasul de permisiune, callback și contractul fără captură.
+- Quality CI: PASS, run 45396795785, pentru head `d8ed34a5c3b57aa7caa7a5f613a9a2d703cb7604`.
+- Android debug build: PASS, run 45396786190, pentru commitul de cod `67e5a0b2c9fe9edc621afa5d94e8ea83bf12f5b3`; ultimul commit după acesta schimbă doar documentația.
+- PR #50 este deschis și mergeable, dar nu este integrat. Verificările CI confirmă testele și compilarea, nu funcționarea pe un telefon fizic.
+- Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
+- STT efectiv rămâne blocat până la verificarea modelului românesc pe un dispozitiv fizic.
+
+### Următorii pași
+1. Închide verificările CI pentru PR #50 și remediază orice regresie.
+2. Testează pe Android fizic permisiune acordată/refuzată și starea modelului românesc.
+3. Numai după confirmarea modelului instalat, implementează recunoașterea efectivă on-device, cu arbitrare exclusivă a microfonului față de reportofon.
+4. Testare fizică a reportofonului: ecran blocat, schimbare aplicație, distrugere Activity, Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
+
 Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.
