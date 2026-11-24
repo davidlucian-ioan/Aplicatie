@@ -99,7 +99,41 @@
 <nav class="primary-nav" aria-label="Spații de lucru"><div class="nav-group-label">LUCREAZĂ</div><button class="nav nav-mode active" data-page="work" aria-current="page">◉ WORK <span>Captură rapidă</span></button><div class="nav-group-label nav-group-think">ANALIZEAZĂ</div><button class="nav nav-mode" data-page="dashboard">⌂ THINK <span>Dashboard</span></button><div class="nav-subgroup"><button class="nav" data-page="entities">◉ Entități</button><button class="nav" data-page="relations">⇄ Relații & locații</button><button class="nav" data-page="inventory">▦ Populații & solduri</button><button class="nav" data-page="finance">◈ Financiar</button><button class="nav" data-page="attributes">◇ Atribute</button><button class="nav" data-page="events">↻ Evenimente</button><button class="nav" data-page="history">≡ Istoric</button><button class="nav" data-page="audit">✓ Audit & date</button></div></nav></aside>
 <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Închide meniul"></button>
 <main id="mainContent" tabindex="-1"><header><div class="header-start"><button class="icon-button menu-toggle" id="menuToggle" type="button" aria-controls="appSidebar" aria-expanded="false" aria-label="Deschide meniul">☰</button><div><h1 id="title">Dashboard</h1><p id="subtitle">Motor generic, jurnal de evenimente și proiecții locale.</p></div></div><div class="header-actions"><button class="voice-launch" id="globalVoice" type="button" aria-label="Începe înregistrarea audio" aria-pressed="false">🎙 Înregistrează</button><button class="primary" id="quickEvent">+ Acțiune</button></div></header>
-<section id="dashboard" class="page"><div class="cards"><div class="card"><span>Entități</span><strong id="entityCount">0</strong></div><div class="card"><span>Evenimente</span><strong id="eventCount">0</strong></div><div class="card"><span>Relații active</span><strong id="relationCount">0</strong></div><div class="card"><span>Exemplare active</span><strong id="stockCount">0</strong></div></div><div class="panel"><h2>Acțiuni rapide</h2><div class="quick-grid"><button class="secondary" onclick="addEntity()">+ Entitate</button><button class="secondary" onclick="addLocation()">+ Locație</button><button class="secondary" onclick="addStockAction()">+ Mișcare de stoc</button><button class="secondary" onclick="addRelation()">+ Relație</button><button class="secondary" onclick="addFinance()">+ Tranzacție financiară</button></div></div><div class="panel"><h2>Ultimele evenimente</h2><div id="recentEvents" class="list"></div></div><div class="note">Funcționează local/offline. Jurnalul de evenimente este sursa datelor, iar entitățile, relațiile, soldurile și indicatorii financiari sunt proiecții reconstruibile.</div></section>
+<section id="dashboard" class="page">
+  <div class="think-hero">
+    <div><span class="think-kicker">THINK · CONTROL CENTER</span><h2>Înțelege ce se întâmplă.</h2><p>Datele, evoluțiile și operațiile Collector, într-un singur loc.</p></div>
+    <button class="think-return-work" type="button" onclick="showPage('work')">← Înapoi la WORK</button>
+  </div>
+  <div class="cards">
+    <div class="card"><span>Entități</span><strong id="entityCount">0</strong></div>
+    <div class="card"><span>Evenimente</span><strong id="eventCount">0</strong></div>
+    <div class="card"><span>Relații active</span><strong id="relationCount">0</strong></div>
+    <div class="card"><span>Exemplare active</span><strong id="stockCount">0</strong></div>
+  </div>
+  <div class="think-grid">
+    <section class="panel think-activity-panel" aria-labelledby="thinkActivityTitle">
+      <div class="think-panel-heading"><div><span class="think-kicker">JURNAL · TENDINȚĂ</span><h2 id="thinkActivityTitle">Activitate recentă</h2><p id="thinkActivitySummary">Se calculează activitatea din jurnal…</p></div><span class="think-period">Ultimele 7 zile</span></div>
+      <div id="thinkActivityChart" class="think-activity-chart" role="img" aria-label="Numărul de evenimente înregistrate în fiecare din ultimele șapte zile"></div>
+    </section>
+    <section class="panel think-shortcuts-panel" aria-labelledby="thinkShortcutsTitle">
+      <div class="think-panel-heading"><div><span class="think-kicker">EXPLORARE</span><h2 id="thinkShortcutsTitle">Date și configurare</h2><p>Intră direct în zona pe care vrei să o analizezi.</p></div></div>
+      <div class="think-shortcuts">
+        <button type="button" data-think-target="entities"><span>◉</span><b>Entități</b><small>Obiecte și cronologii</small></button>
+        <button type="button" data-think-target="relations"><span>⇄</span><b>Relații & locații</b><small>Legături și ierarhii</small></button>
+        <button type="button" data-think-target="inventory"><span>▦</span><b>Populații & solduri</b><small>Cantități și mișcări</small></button>
+        <button type="button" data-think-target="finance"><span>◈</span><b>Financiar</b><small>Costuri și tranzacții</small></button>
+        <button type="button" data-think-target="attributes"><span>◇</span><b>Atribute & setări</b><small>Model și validări</small></button>
+        <button type="button" data-think-target="audit"><span>✓</span><b>Audit & date</b><small>Replay și backup</small></button>
+      </div>
+    </section>
+  </div>
+  <section class="panel think-operations-panel">
+    <div class="think-panel-heading"><div><span class="think-kicker">ACȚIUNI</span><h2>Operații rapide</h2><p>Acțiunile modifică datele numai după validarea și confirmarea lor.</p></div></div>
+    <div class="quick-grid"><button class="secondary" onclick="addEntity()">+ Entitate</button><button class="secondary" onclick="addLocation()">+ Locație</button><button class="secondary" onclick="addStockAction()">+ Mișcare de stoc</button><button class="secondary" onclick="addRelation()">+ Relație</button><button class="secondary" onclick="addFinance()">+ Tranzacție financiară</button></div>
+  </section>
+  <section class="panel think-recent-panel"><div class="think-panel-heading"><div><span class="think-kicker">ISTORIC</span><h2>Ultimele modificări</h2><p>Evenimentele comise, în ordinea cronologică.</p></div><button class="link" type="button" onclick="showPage('history')">Vezi istoricul complet →</button></div><div id="recentEvents" class="list"></div></section>
+  <div class="note">Collector rămâne local-first. Jurnalul append-only este sursa datelor, iar entitățile, relațiile, soldurile și indicatorii financiari sunt proiecții reconstruibile. Graficele din THINK sunt calculate din datele locale, nu generate de AI.</div>
+</section>
 <section id="entities" class="page"><div class="toolbar"><button class="primary" onclick="addEntity()">+ Entitate</button></div><div class="panel"><div id="entityList" class="list"></div></div></section>
 <section id="relations" class="page"><div class="toolbar"><button class="primary" onclick="addLocation()">+ Locație</button><button class="primary" onclick="addRelation()">+ Relație</button></div><div class="panel"><h2>Relații active</h2><div id="relationList" class="list"></div></div><div class="panel"><h2>Ierarhia locațiilor</h2><div id="locationList" class="list"></div></div></section>
 <section id="inventory" class="page"><div class="toolbar"><button class="primary" onclick="addStockAction()">+ Mișcare de stoc</button><button class="secondary" onclick="addPopulation()">+ Populație / grup</button></div><div class="note">Cantitatea anonimă este reprezentată ca populație/grup; indivizii identificați nu sunt creați automat. Soldurile se calculează din evenimente și nu pot deveni negative.</div><div class="panel"><h2>Solduri curente</h2><div id="stockList" class="list"></div></div></section>
