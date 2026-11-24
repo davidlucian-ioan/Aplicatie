@@ -45,10 +45,11 @@ class SupabaseBillingService {
     if(!response.ok)throw Object.assign(new Error('Nu am putut verifica utilizarea AI.'),{status:503});
     const rows=await response.json();return Array.isArray(rows)?rows[0]||null:null;
   }
-  async applyRevenueCatEvent({eventId,userId,eventType,productId,store,expiresAt,eventTimestamp,isProProduct}){
+  async applyRevenueCatEvent({eventId,userId,eventType,productId,cancelReason,store,expiresAt,eventTimestamp,isProProduct}){
     return this.rpc('collector_apply_revenuecat_event',{
       p_event_id:eventId,p_user_id:userId,p_event_type:eventType,p_product_id:productId,
-      p_store:store,p_expires_at:expiresAt,p_event_timestamp:eventTimestamp,p_is_pro_product:isProProduct
+      p_store:store,p_expires_at:expiresAt,p_event_timestamp:eventTimestamp,
+      p_is_pro_product:isProProduct,p_cancel_reason:cancelReason||null
     });
   }
   async reserve({userId,requestId=randomUUID(),periodStart,periodEnd,budgetMicrousd,reserveMicrousd}){
