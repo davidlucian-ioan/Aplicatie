@@ -9,7 +9,7 @@ OpenAI este providerul cloud pentru interpretarea limbajului natural. Integrarea
 1. UI trimite textul și un context limitat (entități și definiții de atribute) către serverul local.
 2. Serverul apelează OpenAI Responses API cu o schemă strictă.
 3. Providerul întoarce răspuns, clarificare sau propunere structurată.
-4. Browserul transformă propunerea în contractul `collector.command.v1`.
+4. Providerul validează interpretarea cu contractele Collector, apoi browserul folosește comanda `collector.command.v1`.
 5. BrowserCorePort execută preview și validează toate operațiile.
 6. Utilizatorul confirmă explicit.
 7. Core execută atomic și persistă în localStorage.
@@ -30,6 +30,7 @@ Fișierul `.env` este ignorat de Git și nu este publicat. Nu trimite cheia API 
 
 - Serverul ascultă implicit numai pe 127.0.0.1.
 - Endpoint-urile API nu acceptă cereri cross-origin externe.
+- Serverul static refuză explicit servirea fișierului `.env`.
 - Limită de 128 KB per corp HTTP și 20 cereri/minut per client.
 - Contextul trimis este limitat la 150 entități și 100 definiții de atribute.
 - `store:false` pentru cererile Responses API.
