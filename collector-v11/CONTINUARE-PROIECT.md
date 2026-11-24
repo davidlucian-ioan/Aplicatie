@@ -140,3 +140,19 @@ Utilizatorul a clarificat explicit că Collector trebuie să fie o aplicație in
 - Estimare orientativă: Render Starter ~7 USD/lună + Supabase Pro 25 USD/lună; OpenAI gpt-6.2-sol ~0,009–0,020 USD/interpretare în scenariile din document. RevenueCat este recomandat pentru evaluare, gratuit până la 2.500 USD MTR conform tarifului consultat, apoi 1% MTR.
 - Nu cumpăra hosting și nu activa plăți până la finalizarea proiectului Supabase, a identității recuperabile, deploy-ului, sync/backup-ului, entitlement-ului și usage metering-ului.
 - PR #55 rămâne draft/open; nu se face merge în main fără aprobare.
+
+
+## Progres completare monetizare și abonament — 2026-11-24
+
+- Backend: adăugat cloud-api/billing-service.js pentru Supabase REST/RPC folosind service-role key exclusiv server-side.
+- Migrare nouă: cloud-api/migrations/001_billing_and_ai_usage.sql — entitlements, bugete AI lunare, usage per request, evenimente RevenueCat, RLS și RPC-uri atomice.
+- Cloud API: /api/ai/status verifică entitlement-ul Pro și poate returna bugetul/consumul lunar; /api/ai/interpret refuză Free și rezervă bugetul înainte de apelul OpenAI, apoi regularizează după usage. Dacă regularizarea eșuează după un răspuns billable, rezerva nu este eliberată automat.
+- RevenueCat: webhook cu Authorization secret, product ID allowlist, UUID Supabase ca App User ID, idempotency și protecție la evenimente întârziate.
+- Mobile: integrat @revenuecat/purchases-capacitor 14.1.2 în build-ul Capacitor; bridge pentru offerings, purchase, customer info și restore; UI Collector Pro cu prețuri dinamice și buton de restaurare.
+- Identitate: adăugate asocierea contului anonim la email/parolă și autentificarea ulterioară, astfel încât RevenueCat să primească același UUID Supabase la recuperarea contului. Acest lucru nu implementează încă sync de date.
+- Native: Android launchMode standard pentru flow-ul de achiziție; iOS In-App Purchase capability adăugată automat în proiectul Xcode.
+- Quota: default tehnic AI_MONTHLY_BUDGET_USD=1 USD/utilizator/lună; costul este calculat din usage OpenAI și tarifele input/output configurate. Nu este un preț sau quota comercială aprobată.
+- Teste noi: entitlement gates, buget epuizat, usage settlement, webhook RevenueCat, Supabase billing service, account linking, RevenueCat client și configurare nativă. Cloud API/Docker run pentru commitul e8a301d a trecut; Quality și Android/iOS au fost întrerupte de commituri ulterioare și trebuie rerulate pe ultimul commit.
+- NU există încă proiect Supabase live, migrarea nu este aplicată, nu există deploy public, chei RevenueCat, produse store sau tranzacții sandbox reale. Nu activa plăți/AI public până la aceste configurări și teste.
+- Lipsuri rămase majore: sync multi-device și backup, teste reale Android/iOS, criptare SQLite at-rest, builduri semnate AAB/IPA, privacy policy/GDPR, store metadata și validarea fluxurilor de refund/transfer.
+- Branch rămâne feature/openai-provider-integration; PR #55 draft/open; main nu a fost modificat și nu se face merge fără aprobarea explicită a utilizatorului.
