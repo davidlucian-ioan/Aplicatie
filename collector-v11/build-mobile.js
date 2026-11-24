@@ -9,6 +9,7 @@ const WEB_FILES=[
  'engine.js',
  'audio-store.js',
  'storage-adapter.js',
+ 'collector-config.js',
  'reminders.js',
  'native-audio-recorder.js',
  'app.js',
@@ -48,6 +49,9 @@ async function buildMobile(outDir=path.join(ROOT,'www')){
    if(error.code!=='ENOENT')throw error;
   }
  }
+ const apiBaseUrl=String(process.env.COLLECTOR_API_BASE_URL||'').trim().replace(/\/+$/,'');
+ if(apiBaseUrl&&!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(apiBaseUrl))throw new Error('COLLECTOR_API_BASE_URL trebuie să fie un URL HTTPS valid.');
+ await fs.writeFile(path.join(target,'collector-config.js'),"(function(root){'use strict';root.CollectorConfig=Object.freeze({apiBaseUrl:"+JSON.stringify(apiBaseUrl)+"});})(typeof window!=='undefined'?window:globalThis);\n");
  await fs.writeFile(indexPath,html);
  return {outDir:target,files:WEB_FILES.slice()};
 }

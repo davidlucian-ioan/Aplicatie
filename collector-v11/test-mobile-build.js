@@ -20,6 +20,8 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   assert.ok(html.includes('storage-adapter.js'));
   assert.ok(html.includes('reminders.js'));
   assert.ok(html.includes('native-audio-recorder.js'));
+  const mobileConfig=await fs.readFile(path.join(out,'collector-config.js'),'utf8');
+  assert.ok(mobileConfig.includes('apiBaseUrl'));
   assert.ok(html.includes('ai/core-port-browser.js'));
   const capacitorConfig=JSON.parse(await fs.readFile(path.join(__dirname,'capacitor.config.json'),'utf8'));
   assert.equal(capacitorConfig.appName,'Collector');

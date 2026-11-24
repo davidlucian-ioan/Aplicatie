@@ -297,8 +297,9 @@ async function runAICommand(){
 document.getElementById('parseWithAI')?.addEventListener('click',runAICommand);
 async function refreshAIProviderStatus(){
  const status=document.getElementById('aiProviderStatus');if(!status||!window.CollectorOpenAIProvider)return;
- try{const info=await CollectorOpenAIProvider.status();status.textContent=info.configured?'OpenAI configurat · '+info.model:'OpenAI selectat · cheia API nu este configurată pe server';status.dataset.ready=String(info.configured)}
- catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false'}
+ const button=document.getElementById('parseWithAI');
+ try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.configured?'OpenAI configurat · '+info.model:'OpenAI selectat · cheia API nu este configurată pe server';status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured}
+ catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false';if(button)button.disabled=true}
 }
 refreshAIProviderStatus();
 document.getElementById('parseCommand').onclick=runCommand;
