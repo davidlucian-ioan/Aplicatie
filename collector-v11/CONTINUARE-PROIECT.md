@@ -80,11 +80,24 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Speech Recognition în browser nu este prezentat ca offline. TTS este opțional; când nu este disponibil, preview-ul vizual rămâne utilizabil.
 - Nicio înregistrare audio nu este trimisă către cloud de aceste funcționalități.
 
+### Actualizare 2026-11-24 — Voice batch preview (PR #46)
+- Branch: `feature/voice-batch-preview`, bazat pe `feature/voice-readback`.
+- PR: https://github.com/davidlucian-ioan/Aplicatie/pull/46 — deschis, mergeable; nu este integrat.
+- Fiecare rezultat final din SpeechRecognition este păstrat ca frază separată; indexurile finale repetate sunt deduplicate.
+- La oprirea sesiunii se construiește un singur preview cu lista frazelor și numărul operațiilor. O frază care nu corespunde unei comenzi structurate este păstrată ca observație, fără interpretare suplimentară.
+- Pentru comenzi structurate sunt construite operații de atribut și stoc; țintele inexistente sau ambigue sunt refuzate, fără selectare automată.
+- Core Port primește toate operațiile într-o singură comandă. Confirmarea creează un singur eveniment cu mai multe operații; anularea nu persistă nimic.
+- Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau registrul D-001–D-044.
+- Quality CI: PASS, run 45384926899; 38 teste E2E Chromium au trecut, inclusiv batch de două observații, commit într-un singur eveniment și anulare fără commit.
+- Android build pentru head `53fdf761cec4e4fe6ace034cb9057db69e9c981d`: în curs la momentul acestei actualizări. Un build Android anterior al implementării batch a trecut în run 45384743911.
+- Acoperire rămasă: teste E2E dedicate pentru loturi mixte (atribute/stoc), selecție interactivă a candidaților ambigui și integrarea contextului persistent. În prezent, țintele ambigue sunt blocate în siguranță, dar nu există încă UI de disambiguare.
+
 ### Următorii pași de implementare
-1. Multi-utterance batch preview: păstrează frazele finale separat, construiește un preview cu mai multe observații/comenzi și permite confirmare atomică; nu transforma automat orice pauză în commit.
-2. Entity disambiguation și context persistent: cere selecție explicită când numele nu este unic și nu presupune entitatea activă fără o regulă vizibilă.
-3. Evaluarea STT offline pe Android separat de browser SpeechRecognition; nu promite funcționare offline până la măsurare pe dispozitiv.
-4. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
-5. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor; nu introduce grafice decorative sau valori estimate.
+1. Entity disambiguation: interfață de selecție explicită pentru entități/populații/locații cu nume duplicate, cu păstrarea lotului până la rezolvarea tuturor țintelor.
+2. Context persistent în sesiunea vocală: contextul trebuie să fie vizibil, cu TTL și fără a putea contrazice datele confirmate din Core.
+3. Teste E2E pentru loturi mixte de observații, atribute și operații de stoc; verifică atomicitatea și refuzul integral la o singură operație invalidă.
+4. Evaluarea STT offline pe Android separat de browser SpeechRecognition; nu promite funcționare offline până la măsurare pe dispozitiv.
+5. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
+6. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor; nu introduce grafice decorative sau valori estimate.
 
 Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.

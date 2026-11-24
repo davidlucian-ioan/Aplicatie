@@ -97,7 +97,7 @@ test('voice entry degrades to accessible text input when speech recognition is u
 });
 
 
-test('voice session accumulates multiple phrases and previews one note without auto-committing', async ({ page }) => {
+test('voice session preserves separate utterances in one atomic batch preview', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
@@ -115,14 +115,44 @@ test('voice session accumulates multiple phrases and previews one note without a
     const second = [{ transcript: 'Temperatura este 22 de grade' }]; second.isFinal = true;
     rec.onresult({ resultIndex: 0, results: [first, second] });
   });
-  await expect(page.locator('#commandInput')).toHaveValue('B3 are pH 6.4 Temperatura este 22 de grade');
+  await expect(page.locator('#commandInput')).toHaveValue('B3 are pH 6.4 · Temperatura este 22 de grade');
   await page.locator('#voiceSessionButton').click();
   await expect(page.locator('#confirmCoreCommand')).toBeVisible();
-  await expect(page.locator('#commandResult')).toContainText('Observație');
+  await expect(page.locator('#commandResult')).toContainText('Lot vocal · 2 fraze');
+  await expect(page.locator('#commandResult')).toContainText('Observație 1: „B3 are pH 6.4”');
+  await expect(page.locator('#commandResult')).toContainText('Observație 2: „Temperatura este 22 de grade”');
+  await expect(page.locator('#commandResult')).toContainText('Operații în lot: 2');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
   await page.locator('#confirmCoreCommand').click();
   await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(1);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events);
+  expect(saved).toHaveLength(1);
+  expect(saved[0].operations).toHaveLength(2);
+  expect(saved[0].operations.map(operation => operation.data.description)).toEqual(['B3 are pH 6.4', 'Temperatura este 22 de grade']);
+});
+
+
+test('voice batch cancellation discards all utterances without committing', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const first = [{ transcript: 'Prima observație' }]; first.isFinal = true;
+    const second = [{ transcript: 'A doua observație' }]; second.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [first, second] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  await page.locator('#cancelCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Lot anulat');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
 });
 
 test('voice session fallback keeps text entry available when speech recognition is unsupported', async ({ page }) => {
