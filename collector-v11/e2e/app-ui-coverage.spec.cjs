@@ -109,7 +109,7 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
   await page.locator('#eventAttrValue').fill('sunny');
   await page.locator('#modal button.primary').click();
 
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await page.locator('#commandInput').fill('Observație: coverage assistant note');
   await page.locator('#parseCommand').click();
   await expect(page.locator('#confirmCoreCommand')).toBeVisible();
