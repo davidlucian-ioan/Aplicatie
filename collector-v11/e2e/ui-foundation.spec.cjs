@@ -628,7 +628,7 @@ test('Android one-shot dictation uses native on-device STT and does not call bro
   await page.evaluate(() => {
     window.__nativeSpeechListeners.speechSegment({
       sessionId: 'native-dictation-e2e', segmentId: 'dictation-segment',
-      text: 'Pom B3 are frunze noi', startOffsetMs: 0, endOffsetMs: 900,
+      text: 'Observație: Pom B3 are frunze noi', startOffsetMs: 0, endOffsetMs: 900,
       startedAt: 2000000, endedAt: 2000900, confidence: 0.91,
       language: 'ro-RO', provider: 'android-speech-recognizer-on-device',
     });
