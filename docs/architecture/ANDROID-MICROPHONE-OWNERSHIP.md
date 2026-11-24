@@ -11,6 +11,7 @@ The WORK recorder and browser speech-capture controls must never intentionally s
 - Recorder start is refused while one-shot recognition or live recognition is active.
 - A native recorder state reported as `starting`, `recording`, or `paused` also blocks speech capture, even after WebView recreation.
 - Speech capture and native recorder startup fail closed until the initial native recorder-state query succeeds. A slow, empty, malformed, or unknown state never defaults to `inactive`.
+- The native plugin independently rejects `startRecording` when a manifest is missing/corrupt while a manifest file or recorder service indicates an unresolved state; the JavaScript guard is not the only enforcement layer.
 - The user must explicitly stop the current owner before starting the other operation. The app does not silently stop a recording or discard a transcription session.
 
 ## Scope and limitations
