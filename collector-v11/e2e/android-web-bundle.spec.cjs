@@ -8,6 +8,9 @@ test('Android web bundle starts cleanly and mobile navigation responds', async (
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/www/index.html');
+  await expect(page.locator('#work')).toBeVisible();
+  await page.locator('#menuToggle').click();
+  await page.locator('.nav[data-page="dashboard"]').click();
   await expect(page.locator('#dashboard')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__collectorStartupDiagnostics && window.__collectorStartupDiagnostics.ready)).toBe(true);
   const startupDiagnostics = await page.evaluate(() => window.__collectorStartupDiagnostics.snapshot());
