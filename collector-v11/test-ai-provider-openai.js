@@ -42,6 +42,31 @@ test('normalizeInterpretation transforms JSON string payloads into Core command 
   assert.equal(result.command.requiresConfirmation, true);
 });
 
+test('normalizeInterpretation strips nullable read filters and preserves scoped Core retrieval', () => {
+  const raw = {
+    intent: 'answer',
+    confidence: 0.9,
+    answerSource: 'core',
+    answer: 'Soldul este 7.',
+    question: null,
+    reason: null,
+    proposal: null,
+    ambiguities: [],
+    clarificationQuestion: null,
+    command: null,
+    readRequest: {
+      kind: 'balances', type: null, id: null, name: null,
+      populationId: 'population-1', locationId: null, entityId: null,
+      attributeNames: null, limit: null
+    }
+  };
+  const result = normalizeInterpretation(raw, 'turn-read');
+  assert.equal(result.readRequest.populationId, 'population-1');
+  assert.equal(result.readRequest.attributeNames, undefined);
+  assert.equal(result.readRequest.limit, undefined);
+  assert.equal(result.answerSource, 'core');
+});
+
 test('normalizeInterpretation rejects malformed operation data JSON', () => {
   const raw = proposalPayload();
   raw.command.operations[0].dataJson = '{bad';
