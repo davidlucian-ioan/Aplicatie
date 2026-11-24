@@ -478,3 +478,5 @@ header p{font-size:13px;line-height:1.4}
 .voice-context{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .voice-context span{min-width:0;flex:1}
 .voice-context button{flex:0 0 auto}
+
+#clearVoiceContext[hidden]{display:none!important}
