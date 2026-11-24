@@ -36,11 +36,22 @@ class Orchestrator {
     }
 
     if (decision.action === 'answer') {
-      const data = decision.readRequest
-        ? await this.coreAdapter.read(decision.readRequest)
-        : null;
+      let data = null, answer = decision.answer;
+      if (decision.readRequest) {
+        data = await this.coreAdapter.read(decision.readRequest);
+        // A model must summarize operational facts only after receiving the
+        // authoritative Core result, never before the read has completed.
+        if (typeof this.provider.respond === 'function') {
+          answer = await this.provider.respond({ input, context, turnId, readRequest: decision.readRequest, data });
+          if (typeof answer !== 'string' || !answer.trim() || answer.length > 4000) {
+            throw new TypeError('Provider-ul a returnat un răspuns invalid pentru datele Core.');
+          }
+        } else {
+          answer = null;
+        }
+      }
       this.contextManager.set({ lastTurnId: turnId, pending: null }, userId);
-      return { turnId, action: 'answer', answer: decision.answer, data };
+      return { turnId, action: 'answer', answer, data };
     }
 
     if (decision.action === 'propose') {
