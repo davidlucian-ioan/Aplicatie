@@ -37,10 +37,19 @@ public final class CollectorRecorderPlugin extends Plugin {
 
     @PluginMethod
     public void startRecording(PluginCall call) {
+        File activeStateFile = new File(recordingsDirectory(), "active-state.json");
         JSONObject existing = readActiveState();
         reconcileIfServiceStopped(existing);
-        if (isActiveStatus(existing.optString("status", "inactive"))) {
+        String status = existing.optString("status", "");
+        if (isActiveStatus(status)) {
             call.reject("Există deja o înregistrare activă.");
+            return;
+        }
+        boolean knownInactive = "inactive".equals(status)
+            || "complete".equals(status)
+            || "interrupted".equals(status);
+        if (!knownInactive && (existing.length() > 0 || activeStateFile.exists() || isRecorderServiceRunning())) {
+            call.reject("Nu pot confirma în siguranță starea reportofonului. Verifică înregistrările înainte de a porni alta.");
             return;
         }
         ensureMicrophonePermission(call);
