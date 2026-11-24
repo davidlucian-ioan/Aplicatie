@@ -142,6 +142,13 @@ Surse oficiale:
 - Nu există încă autentificare, sincronizare multi-device, billing, privacy policy sau account deletion.
 - Build-ul iOS necesită Xcode/macOS sau un serviciu CI macOS; build-ul Android necesită Android SDK/Gradle. Acestea sunt cerințe de dezvoltare/publicare, nu cerințe pentru utilizatorul final.
 
+## Audit M0 — constatări din cod
+- Audit static salvat în `MOBILE-COMPATIBILITY-AUDIT.md`.
+- UI-ul actual încă nu conține navigația Work/Think; aceasta rămâne o cerință de implementat, nu o funcție existentă în branch.
+- `app.js` folosește direct localStorage; `audio-store.js` folosește IndexedDB; înregistrarea depinde de MediaRecorder/getUserMedia; dictarea depinde de SpeechRecognition/webkitSpeechRecognition; export/import folosește Blob/URL/File input; wake lock este best-effort.
+- Nu a fost identificată implementare de notificări locale.
+- `server.js` este exclusiv local și nu poate fi backend comercial.
+
 ## Starea reală la 2026-11-24
 - OpenAI provider este implementat pe branch-ul `feature/openai-provider-integration`, PR draft #55.
 - CI pentru commitul `0d97ada1` a trecut atât pe push, cât și pe pull_request.
