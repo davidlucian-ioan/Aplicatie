@@ -86,18 +86,34 @@ function validateInterpretation(value) {
 }
 
 function validateReadRequest(request) {
-  if (!isObject(request) || !['entities', 'balances', 'finance', 'events'].includes(request.kind)) {
+  const kinds = ['entities', 'entityAttributes', 'balances', 'finance', 'events', 'relations'];
+  if (!isObject(request) || !kinds.includes(request.kind)) {
     throw new TypeError('Cererea de citire AI este invalidă.');
   }
-  for (const key of ['type', 'id', 'populationId', 'locationId', 'entityId']) {
+  for (const key of ['type', 'id', 'name', 'populationId', 'locationId', 'entityId']) {
     if (request[key] !== undefined &&
-        (typeof request[key] !== 'string' || request[key].length > 128)) {
+        (typeof request[key] !== 'string' || !request[key].trim() || request[key].length > 128)) {
       throw new TypeError(`Filtrul ${key} este invalid.`);
     }
   }
+  if (request.kind === 'entities' &&
+      !request.id && !request.name && !request.type) {
+    throw new TypeError('Căutarea entităților necesită ID, nume sau tip; nu este permisă citirea întregului registru.');
+  }
+  if (request.kind === 'entityAttributes' && !request.id) {
+    throw new TypeError('Citirea atributelor necesită un ID de entitate rezolvat.');
+  }
+  if (request.kind === 'balances' && !request.populationId && !request.locationId) {
+    throw new TypeError('Citirea soldurilor necesită o populație sau o locație.');
+  }
+  if (request.attributeNames !== undefined &&
+      (!Array.isArray(request.attributeNames) || request.attributeNames.length > 20 ||
+       request.attributeNames.some(name => typeof name !== 'string' || !name.trim() || name.length > 128))) {
+    throw new TypeError('Lista atributelor solicitate este invalidă.');
+  }
   if (request.limit !== undefined &&
       (!Number.isInteger(request.limit) || request.limit < 1 || request.limit > 100)) {
-    throw new TypeError('Limita cererii de istoric trebuie să fie între 1 și 100.');
+    throw new TypeError('Limita cererii trebuie să fie între 1 și 100.');
   }
   return request;
 }
