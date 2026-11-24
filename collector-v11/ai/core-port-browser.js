@@ -99,10 +99,25 @@
       if (!isObject(request)) throw new TypeError('Cererea de citire trebuie să fie un obiect.');
       const state = this.snapshot();
       switch (request.kind) {
-        case 'entities':
+        case 'entities': {
+          const limit = request.limit === undefined ? 20 : Number(request.limit);
+          if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new TypeError('Limită de entități invalidă.');
           return clone(state.entities.filter(entity =>
             (!request.type || entity.type === request.type) &&
-            (!request.id || entity.id === request.id)));
+            (!request.id || entity.id === request.id) &&
+            (!request.name || entity.name.toLocaleLowerCase().includes(request.name.toLocaleLowerCase())))
+            .slice(0, limit)
+            .map(({ id, name, type, status }) => ({ id, name, type, status })));
+        }
+        case 'entityAttributes': {
+          const entity = state.entities.find(item => item.id === request.id);
+          if (!entity) return { found: false, id: request.id };
+          const selected = request.attributeNames?.length
+            ? Object.fromEntries(request.attributeNames.filter(name => Object.prototype.hasOwnProperty.call(entity.attributes || {}, name))
+              .map(name => [name, entity.attributes[name]]))
+            : clone(entity.attributes || {});
+          return { found: true, id: entity.id, name: entity.name, type: entity.type, attributes: selected };
+        }
         case 'balances':
           return clone(this.core.balances(state).filter(row =>
             (!request.populationId || row.populationId === request.populationId) &&
@@ -114,14 +129,29 @@
           if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new TypeError('Limită de istoric invalidă.');
           return clone(state.events.filter(event =>
             (!request.entityId || event.payload?.entityId === request.entityId ||
-              event.operations?.some(op => op.target === request.entityId || op.data?.entityId === request.entityId)))
+              event.operations?.some(op => op.target === request.entityId || op.data?.entityId === request.entityId ||
+                op.data?.populationId === request.entityId || op.data?.sourceId === request.entityId ||
+                op.data?.targetId === request.entityId)))
             .slice(-limit));
+        }
+        case 'relations': {
+          const related = state.relations.filter(relation =>
+            relation.sourceId === request.entityId || relation.targetId === request.entityId);
+          return clone(related.map(relation => {
+            const source = state.entities.find(entity => entity.id === relation.sourceId);
+            const target = state.entities.find(entity => entity.id === relation.targetId);
+            return {
+              id: relation.id, type: relation.type, sourceId: relation.sourceId,
+              sourceName: source?.name || null, targetId: relation.targetId,
+              targetName: target?.name || null, startedAt: relation.startedAt,
+              endedAt: relation.endedAt
+            };
+          }));
         }
         default:
           throw new Error('Tip de citire nepermis.');
       }
     }
-
     async preview(command) {
       const event = this.buildEvent(command), current = this.snapshot();
       let result;
