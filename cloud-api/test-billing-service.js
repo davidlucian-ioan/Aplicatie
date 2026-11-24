@@ -39,3 +39,11 @@ test('stale reservations are charged conservatively instead of being released un
  assert.match(sql,/used_microusd\s*=\s*used_microusd\s*\+\s*v_stale_reserved/);
  assert.match(sql,/created_at\s*<\s*now\(\)\s*-\s*interval\s+'10 minutes'/);
 });
+
+test('RevenueCat SUBSCRIPTION_PAUSED preserves Pro until expiration',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const sql=fs.readFileSync(path.join(__dirname,'migrations','001_billing_and_ai_usage.sql'),'utf8');
+ assert.match(sql,/p_event_type in \('CANCELLATION','BILLING_ISSUE','SUBSCRIPTION_PAUSED'\)[\s\S]{0,220}v_active := p_expires_at is not null and p_expires_at > now\(\)/);
+ assert.match(sql,/p_event_type in \('EXPIRATION','REFUND'\)[\s\S]{0,60}v_active := false/);
+});
