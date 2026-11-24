@@ -156,3 +156,11 @@ Utilizatorul a clarificat explicit că Collector trebuie să fie o aplicație in
 - NU există încă proiect Supabase live, migrarea nu este aplicată, nu există deploy public, chei RevenueCat, produse store sau tranzacții sandbox reale. Nu activa plăți/AI public până la aceste configurări și teste.
 - Lipsuri rămase majore: sync multi-device și backup, teste reale Android/iOS, criptare SQLite at-rest, builduri semnate AAB/IPA, privacy policy/GDPR, store metadata și validarea fluxurilor de refund/transfer.
 - Branch rămâne feature/openai-provider-integration; PR #55 draft/open; main nu a fost modificat și nu se face merge fără aprobarea explicită a utilizatorului.
+
+
+## Politică RevenueCat și recuperare cont — completare 2026-11-24
+- Achiziția este blocată în UI cât timp Supabase user este anonim. Utilizatorul trebuie să asocieze contul cu email/parolă; la login ulterior se folosește același UUID Supabase ca RevenueCat App User ID.
+- În RevenueCat Project Settings → General trebuie configurat Restore Behavior = Keep with original App User ID. Nu activa Transfer to new App User ID până când handler-ul TRANSFER nu este implementat și testat; backend-ul curent ignoră transferurile.
+- Webhook-ul rezolvă user-ul din app_user_id, original_app_user_id sau aliases; verifică entitlement_ids=pro sau product ID allowlist.
+- Evenimentele TEMPORARY_ENTITLEMENT_GRANT, SUBSCRIPTION_EXTENDED și REFUND_REVERSED sunt acceptate ca activări dacă entitlement-ul Pro este prezent și expirarea este validă.
+- UI oferă linkul de gestionare a abonamentului din CustomerInfo. Ștergerea contului avertizează că nu anulează automat abonamentul din App Store/Google Play.
