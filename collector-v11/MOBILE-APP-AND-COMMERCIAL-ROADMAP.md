@@ -131,7 +131,7 @@ Surse oficiale:
 4. Implementat în migrare SQL: tabele entitlements, AI budgets/usage și billing events; RPC pentru rezervare, regularizare și procesare idempotentă RevenueCat.
 5. Implementat: webhook RevenueCat autentificat, product ID allowlist și protecție contra evenimentelor întârziate.
 6. Încă necesar: proiect Supabase real și aplicarea migrației; deploy Cloud API și setarea secretelor.
-7. Încă necesar: proiect RevenueCat, produse/entitlement pro/offering, API keys publice în GitHub Actions variables și webhook secret/product allowlist în host.
+7. Încă necesar: proiect RevenueCat, produse/entitlement pro/offering, API keys publice în GitHub Actions variables și webhook secret/product allowlist în host. Configurează Restore Behavior = Keep with original App User ID; achiziția este blocată până când contul este asociat cu email/parolă.
 8. Încă necesar: teste sandbox pe achiziție, reînnoire, anulare, refund, expirare și restore pe Android/iOS; confirmare email și recuperare cont.
 9. Sync/backup multi-device nu este implementat; Pro nu trebuie să promită sincronizare până la finalizarea și testarea acesteia.
 10. Prețurile și cotele din documentul de cost sunt ipoteze, nu decizii aprobate; calibrare după pilot și usage real.
