@@ -2,7 +2,6 @@ package com.collector.app;
 
 import android.Manifest;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.speech.RecognitionSupport;
 import android.speech.RecognitionSupportCallback;
@@ -10,14 +9,22 @@ import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.util.List;
 import java.util.Locale;
 
-@CapacitorPlugin(name = "CollectorSpeech")
+@CapacitorPlugin(
+    name = "CollectorSpeech",
+    permissions = {
+        @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO })
+    }
+)
 public final class CollectorSpeechPlugin extends Plugin {
 
     @PluginMethod
@@ -28,19 +35,15 @@ public final class CollectorSpeechPlugin extends Plugin {
             return;
         }
 
+        // The user explicitly tapped the diagnostic control. Store only the requested
+        // locale while Capacitor presents its standard Android permission prompt.
+        call.getData().put("collectorLanguage", language);
         if (Build.VERSION.SDK_INT < 31) {
-            JSObject result = baseResult(language);
-            result.put("status", "unsupported-api");
-            result.put("onDeviceAvailable", false);
-            result.put("languageStatus", "unknown");
-            result.put("message", "Recunoașterea on-device necesită Android 12 (API 31) sau mai nou.");
-            call.resolve(result);
+            resolveUnsupportedApi(call, language);
             return;
         }
 
-
-        boolean available = SpeechRecognizer.isOnDeviceRecognitionAvailable(getContext());
-        if (!available) {
+        if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(getContext())) {
             JSObject result = baseResult(language);
             result.put("status", "on-device-unavailable");
             result.put("onDeviceAvailable", false);
@@ -50,16 +53,38 @@ public final class CollectorSpeechPlugin extends Plugin {
             return;
         }
 
-        if (getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        if (getPermissionState("microphone") != PermissionState.GRANTED) {
+            requestPermissionForAlias("microphone", call, "microphonePermissionCallback");
+            return;
+        }
+        checkLanguageSupport(call, language);
+    }
+
+    @PermissionCallback
+    public void microphonePermissionCallback(PluginCall call) {
+        String language = call.getString("collectorLanguage", "ro-RO");
+        if (getPermissionState("microphone") != PermissionState.GRANTED) {
             JSObject result = baseResult(language);
             result.put("status", "permission-required");
             result.put("onDeviceAvailable", true);
             result.put("languageStatus", "unknown");
-            result.put("message", "Acordă permisiunea pentru microfon pentru a verifica disponibilitatea limbii. Nu am pornit microfonul.");
+            result.put("message", "Permisiunea pentru microfon nu a fost acordată. Nu am pornit microfonul și nu am capturat audio.");
             call.resolve(result);
             return;
         }
+        checkLanguageSupport(call, language);
+    }
 
+    private void resolveUnsupportedApi(PluginCall call, String language) {
+        JSObject result = baseResult(language);
+        result.put("status", "unsupported-api");
+        result.put("onDeviceAvailable", false);
+        result.put("languageStatus", "unknown");
+        result.put("message", "Recunoașterea on-device necesită Android 12 (API 31) sau mai nou.");
+        call.resolve(result);
+    }
+
+    private void checkLanguageSupport(PluginCall call, String language) {
         if (Build.VERSION.SDK_INT < 33) {
             JSObject result = baseResult(language);
             result.put("status", "language-unverified");
