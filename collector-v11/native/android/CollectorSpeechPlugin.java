@@ -1,6 +1,8 @@
 package com.collector.app;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.speech.RecognitionSupport;
 import android.speech.RecognitionSupportCallback;
@@ -32,6 +34,16 @@ public final class CollectorSpeechPlugin extends Plugin {
             result.put("onDeviceAvailable", false);
             result.put("languageStatus", "unknown");
             result.put("message", "Recunoașterea on-device necesită Android 12 (API 31) sau mai nou.");
+            call.resolve(result);
+            return;
+        }
+
+        if (getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            JSObject result = baseResult(language);
+            result.put("status", "permission-required");
+            result.put("onDeviceAvailable", true);
+            result.put("languageStatus", "unknown");
+            result.put("message", "Acordă permisiunea pentru microfon pentru a verifica disponibilitatea limbii. Nu am pornit microfonul.");
             call.resolve(result);
             return;
         }
