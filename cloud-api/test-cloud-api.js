@@ -171,3 +171,20 @@ test('RevenueCat billing issue păstrează Pro până la sfârșitul grace perio
   assert.equal(response.status,200);assert.equal(received.expiresAt,new Date(1893456000000).toISOString());
  });
 });
+
+test('rate-limit state has a bounded user cache',async()=>{
+ const env={...baseEnv,COLLECTOR_RATE_LIMIT_MAX_USERS:'2'};
+ const fetchImpl=async(url,options)=>{
+  const token=options.headers.Authorization;
+  return {ok:true,json:async()=>({id:token.slice('Bearer '.length)})};
+ };
+ await withServer({env,fetchImpl},async base=>{
+  for(const user of ['user-1','user-2','user-3']){
+   const response=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer '+user}});
+   assert.equal(response.status,200);
+  }
+  // Oldest cache entry was evicted to keep memory bounded.
+  const firstAgain=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer user-1'}});
+  assert.equal(firstAgain.status,200);
+ });
+});
