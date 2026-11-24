@@ -72,9 +72,11 @@ function validateInterpretation(value) {
       result.reason !== undefined && typeof result.reason !== 'string') {
     throw new TypeError('Motivul refuzului trebuie să fie text.');
   }
+  if (result.intent !== 'answer' && result.readRequest !== undefined) {
+    throw new TypeError('Numai intent=answer poate conține readRequest.');
+  }
   if (result.intent === 'propose') {
     if (!isObject(result.command)) throw new TypeError('Propunerea nu conține command.');
-    if (result.readRequest !== undefined) throw new TypeError('O propunere de modificare nu poate include readRequest.');
     validateCommand(result.command);
   } else if (result.command !== undefined && result.command !== null) {
     throw new TypeError('Numai intent=propose poate conține command.');
