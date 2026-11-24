@@ -18,6 +18,14 @@ test('native app fără endpoint cloud dezactivează AI fără cerere relativă 
  assert.equal(result.configured,false);assert.equal(result.unavailable,true);assert.equal(called,false);
  await assert.rejects(globalThis.CollectorOpenAIProvider.interpret('test',{}),/AI cloud nu este configurat/);
 });
+test('native app cu endpoint dar fără token rămâne blocată până la autentificare',async()=>{
+ globalThis.Capacitor={isNativePlatform:()=>true};
+ globalThis.CollectorConfig={apiBaseUrl:'https://api.example.test'};
+ let called=false;globalThis.fetch=async()=>{called=true;throw new Error('unexpected fetch')};
+ const result=await globalThis.CollectorOpenAIProvider.status();
+ assert.equal(result.unauthenticated,true);assert.equal(called,false);
+ await assert.rejects(globalThis.CollectorOpenAIProvider.interpret('test',{}),/Autentificarea cloud nu este configurată/);
+});
 test('native app folosește endpoint HTTPS configurat și normalizează slash-ul final',async()=>{
  globalThis.Capacitor={isNativePlatform:()=>true};
  globalThis.CollectorConfig={apiBaseUrl:'https://api.example.test/'};
