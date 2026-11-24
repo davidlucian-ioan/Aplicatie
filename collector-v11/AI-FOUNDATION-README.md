@@ -69,3 +69,14 @@ Această fază este un schelet executabil și testat al pipeline-ului, nu o inte
 - Store-ul folosește `localStorage`; starea din UI este publicată numai după persistența reușită.
 - Teste dedicate: `test-ai-browser-core-port.js` și `test-ai-ui-wiring.js`.
 - Furnizorul AI/LLM nu este conectat. Nu prezenta parserul determinist drept AI conversațional.
+
+
+## Provider OpenAI — integrare v1
+
+- `ai/provider-openai.js` — adaptor server-side pentru Responses API și Structured Outputs; cheia API nu ajunge în browser.
+- `ai/provider-openai-browser.js` — client UI către proxy-ul local.
+- `server.js` — server HTTP local și endpoint-uri `/api/ai/status` și `/api/ai/interpret`.
+- `OPENAI-INTEGRATION.md` — configurare, flux și limite de securitate.
+- `test-openai-provider.js` — teste cu fetch mock; nu necesită cheie API reală.
+
+OpenAI produce numai răspunsuri, clarificări sau propuneri. BrowserCorePort face preview-ul, iar salvarea necesită confirmarea explicită a utilizatorului. Providerul Mock rămâne disponibil pentru testele deterministe.
