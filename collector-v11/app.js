@@ -54,6 +54,8 @@ function resolveVoiceContextReference(name,kind){
  if(!id)throw Error('Nu există un context vocal activ pentru '+({entity:'entitate',population:'populație',location:'locație'}[kind])+'. Specifică numele complet al țintei.');
  const entity=db.entities.find(item=>item.id===id);
  if(!entity)throw Error('Ținta din contextul vocal nu mai există. Specifică numele complet.');
+ if(kind==='population'&&!['population','group'].includes(entity.type))throw Error('Ținta din context nu mai este o populație validă. Specifică numele complet.');
+ if(kind==='location'&&entity.type!=='location')throw Error('Ținta din context nu mai este o locație validă. Specifică numele complet.');
  return entity;
 }
 window.addEventListener('focus',renderVoiceContext);
