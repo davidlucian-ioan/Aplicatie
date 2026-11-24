@@ -88,22 +88,33 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Operațiile sunt trimise împreună prin Core Port. Confirmarea creează un singur eveniment; anularea nu persistă nimic.
 - Quality CI: PASS, run 45385254964; Android build: PASS, run 45385254881.
 
-### Actualizare 2026-11-24 — Entity disambiguation și loturi mixte (PR #47 în pregătire)
+### Actualizare 2026-11-24 — Entity disambiguation și loturi mixte (PR #47)
 - Branch: `feature/voice-entity-disambiguation`, bazat pe `feature/voice-batch-preview`.
+- PR: https://github.com/davidlucian-ioan/Aplicatie/pull/47 — deschis, mergeable; nu este integrat.
 - Pentru nume duplicate, UI prezintă candidații cu nume, tip și ID; utilizatorul trebuie să selecteze explicit. Lotul complet este revalidat după fiecare alegere, înainte de preview.
 - Țintele inexistente, definițiile de atribut absente/duplicate și selecțiile devenite invalide blochează întregul lot; nu există fallback la prima potrivire.
 - Avertismentele pentru valori în afara limitelor recomandate apar în preview, înainte de confirmarea atomică.
-- Parserul atributelor folosește delimitatori lexicali cu word-boundary pentru `este`/`la`; a fost prinsă și corectată regresia în care „la” din „Plantă” trunchia numele entității la „P”.
+- Parserul atributelor folosește delimitatori lexicali cu word-boundary pentru `este`/`la`; testul a prins și corectat regresia în care „la” din „Plantă” trunchia numele entității la „P”.
 - Teste E2E: disambiguare explicită pentru două entități cu același nume și lot mixt `attribute.set` + `stock.change`, verificând un singur eveniment și soldul rămas.
 - Quality CI: PASS, run 45389796885; 40 teste Chromium au trecut.
-- Android debug build pentru head `68c905ffbdc20dfb9153356356a89ef5d9da4734`: în curs la momentul actualizării.
+- Android debug build: PASS, run 45389797002.
+- Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
+
+### Actualizare 2026-11-24 — Context vocal cu TTL (PR #48 în pregătire)
+- Branch: `feature/voice-context-ttl`, bazat pe `feature/voice-entity-disambiguation`.
+- Contextul activ este păstrat într-o cheie locală separată, cu ID-ul entității și expirare la 30 de minute; numele și tipul sunt citite din proiecția verificată.
+- Contextul se setează numai după o comandă vocală confirmată. Comenzile cu țintă explicită rămân prioritare; contextul este folosit doar când o comandă de atribut omite entitatea.
+- Contextul poate fi șters manual, este eliminat când expiră sau când entitatea nu mai există și este șters când un lot confirmat vizează mai multe entități.
+- Funcționează pentru sesiunea live și dictarea one-shot confirmată. Nu este folosit de comenzile text introduse manual.
+- Loturile cu stoc insuficient sunt respinse în preview integral: nici modificarea de atribut, nici vânzarea nu sunt persistate.
+- Quality CI: PASS, run 45391198777; 43 teste Chromium au trecut, inclusiv persistarea, expirarea, ștergerea contextului și refuzul atomic.
+- Android debug build: PASS, run 45391199038.
+- Ultimul cod validat: `9fd244eaf77a5d016a1e05712820268e4e6bfe6c`. Documentația checkpoint este actualizată în commitul următor.
 - Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
 
 ### Următorii pași
-1. Context vocal vizibil, persistent local și cu TTL de 30 de minute; se activează numai din operații confirmate, iar țintele explicite continuă să aibă prioritate.
-2. Teste pentru refuz atomic al loturilor cu sold insuficient sau țintă invalidă.
-3. Evaluarea STT offline pe Android separat de browser SpeechRecognition.
-4. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
-5. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
+1. Evaluarea STT offline pe Android separat de browser SpeechRecognition; nu promite funcționare offline până la măsurare pe dispozitiv.
+2. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
+3. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
 
 Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.
