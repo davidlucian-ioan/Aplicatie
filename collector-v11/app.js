@@ -414,7 +414,7 @@ document.getElementById('checkOfflineSpeech')?.addEventListener('click',async()=
   const result=await bridge.getOfflineSpeechSupport('ro-RO');
   if(result.languageStatus==='installed')status.textContent='Română: model on-device instalat. Recunoașterea efectivă și acuratețea trebuie încă testate pe dispozitiv. Niciun audio nu a fost capturat.';
   else if(result.languageStatus==='downloadable')status.textContent='Română: model suportat on-device, dar neinstalat. Descărcarea nu a fost pornită. Niciun audio nu a fost capturat.';
-  else if(result.status==='permission-required')status.textContent='Serviciul on-device există. Acordă permisiunea pentru microfon înainte de verificarea limbii; nu am pornit microfonul.';
+  else if(result.status==='permission-required')status.textContent='Permisiunea pentru microfon nu a fost acordată. Apasă din nou și acceptă solicitarea Android pentru a verifica limba; nu am pornit microfonul și nu am capturat audio.';
   else if(result.languageStatus==='pending')status.textContent='Română: descărcarea modelului on-device este în așteptare. Niciun audio nu a fost capturat.';
   else if(result.languageStatus==='unsupported')status.textContent='Serviciul on-device nu raportează suport pentru limba română pe acest dispozitiv.';
   else status.textContent=result.message||'Suportul limbii române nu a putut fi verificat pe această versiune Android.';
