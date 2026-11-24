@@ -368,6 +368,69 @@ test('voice context uses only the last confirmed target and expires after 30 min
   expect(await page.evaluate(() => localStorage.getItem('collector_voice_context_v1'))).toBeNull();
 });
 
+test('voice batch fails closed for missing populations and non-location targets', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Plantă invalid target');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Fancy Tiger generic');
+  await page.locator('#newType').fill('generic');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Sera generic');
+  await page.locator('#newType').fill('generic');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('.nav[data-page="inventory"]').click();
+  await page.locator('#inventory .toolbar button.secondary').click();
+  await page.locator('#popName').fill('Fancy Tiger valid');
+  await page.locator('#popType').fill('Caridina');
+  await page.locator('#popQty').fill('2');
+  await page.locator('#modal button.primary').click();
+
+  const baseline = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  const submitBatch = async (salePhrase, expectedError) => {
+    await page.locator('.nav[data-page="work"]').click();
+    await page.locator('#voiceSessionButton').click();
+    await page.evaluate((sale) => {
+      const phrases = ['setează pH pentru Plantă invalid target = 6.4', sale].map(transcript => {
+        const result = [{ transcript }]; result.isFinal = true; return result;
+      });
+      window.__collectorRecognition.onresult({ resultIndex: 0, results: phrases });
+    }, salePhrase);
+    await page.locator('#voiceSessionButton').click();
+    await expect(page.locator('#commandResult')).toContainText(expectedError);
+    await expect(page.locator('#confirmCoreCommand')).toHaveCount(0);
+    const after = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+    expect(after.events).toHaveLength(baseline.events.length);
+    expect(after.stock).toEqual(baseline.stock);
+    expect(after.entities.find(entity => entity.name === 'Plantă invalid target').attributes?.pH).toBeUndefined();
+  };
+
+  await submitBatch('am vândut 1 Fancy Tiger inexistent', 'nu am găsit populația');
+  await submitBatch('am vândut 1 Fancy Tiger generic', 'nu am găsit populația');
+  await submitBatch('am vândut 1 Fancy Tiger valid din Sera generic', 'nu am găsit locația');
+});
+
 test('voice contextual reference fails closed when no confirmed local context exists', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
