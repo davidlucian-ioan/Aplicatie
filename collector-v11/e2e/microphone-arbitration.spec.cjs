@@ -105,3 +105,27 @@ test('native recorder start fails closed until its existing service state is con
   await expect(page.locator('#audioRecorderStatus')).toContainText('Verific starea reportofonului Android');
   expect(await page.evaluate(() => window.__nativeStarts)).toBe(0);
 });
+
+test('unknown native recorder state never falls back to inactive', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__nativeStarts = 0;
+    window.__recognitionStarts = 0;
+    window.CollectorAndroidRecorder = {
+      isAvailable: () => true,
+      getRecordingState: async () => ({ status: 'unknown', error: 'manifest unreadable' }),
+      startRecording: () => { window.__nativeStarts += 1; return Promise.resolve({ recordingId: 'unexpected' }); }
+    };
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__recognitionStarts += 1; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#audioRecordStart').click();
+  await expect(page.locator('#audioRecorderStatus')).toContainText('Nu pot confirma starea reportofonului Android');
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#appStatus')).toContainText('Nu pot confirma starea reportofonului Android');
+  expect(await page.evaluate(() => window.__nativeStarts)).toBe(0);
+  expect(await page.evaluate(() => window.__recognitionStarts)).toBe(0);
+});
