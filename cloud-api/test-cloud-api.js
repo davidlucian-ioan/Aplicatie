@@ -119,7 +119,7 @@ test('AI înregistrează usage după răspuns și returnează costul estimat',as
 test('AI status indică indisponibilitatea când metering-ul persistent lipsește',async()=>{
  await withServer({env:baseEnv,fetchImpl:authFetch(),billingService:{configured:false}},async base=>{
   const response=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer valid-token'}});
-  const status=await response.json();assert.equal(status.configured,true);assert.equal(status.billingConfigured,false);assert.equal(status.aiAvailable,false);
+  const status=await response.json();assert.equal(status.configured,false);assert.equal(status.providerConfigured,true);assert.equal(status.billingConfigured,false);assert.equal(status.aiAvailable,false);
  });
 });
 
@@ -136,7 +136,7 @@ test('webhook RevenueCat autentificat mapează achiziția la utilizatorul Collec
   assert.equal(response.status,200);assert.equal((await response.json()).processed,true);
   assert.equal(received.userId,'123e4567-e89b-42d3-a456-426614174000');
   assert.equal(received.isProProduct,true);assert.equal(received.store,'play_store');
-  assert.equal(received.eventType,'RENEWAL');assert.ok(received.expiresAt);
+  assert.equal(received.eventType,'RENEWAL');assert.ok(received.expiresAt);assert.ok(received.eventTimestamp);
  });
 });
 test('webhook RevenueCat respinge sem secret corect',async()=>{
