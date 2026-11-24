@@ -8,6 +8,7 @@ function proposalPayload() {
   return {
     intent: 'propose',
     confidence: 0.97,
+    answerSource: 'general',
     answer: null,
     question: null,
     reason: null,
