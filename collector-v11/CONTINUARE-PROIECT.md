@@ -84,20 +84,26 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Branch: `feature/voice-batch-preview`, bazat pe `feature/voice-readback`.
 - PR: https://github.com/davidlucian-ioan/Aplicatie/pull/46 — deschis, mergeable; nu este integrat.
 - Fiecare rezultat final din SpeechRecognition este păstrat ca frază separată; indexurile finale repetate sunt deduplicate.
-- La oprirea sesiunii se construiește un singur preview cu lista frazelor și numărul operațiilor. O frază care nu corespunde unei comenzi structurate este păstrată ca observație, fără interpretare suplimentară.
-- Pentru comenzi structurate sunt construite operații de atribut și stoc; țintele inexistente sau ambigue sunt refuzate, fără selectare automată.
-- Core Port primește toate operațiile într-o singură comandă. Confirmarea creează un singur eveniment cu mai multe operații; anularea nu persistă nimic.
-- Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau registrul D-001–D-044.
-- Quality CI: PASS, run 45384926899; 38 teste E2E Chromium au trecut, inclusiv batch de două observații, commit într-un singur eveniment și anulare fără commit.
-- Android build pentru head `53fdf761cec4e4fe6ace034cb9057db69e9c981d`: în curs la momentul acestei actualizări. Un build Android anterior al implementării batch a trecut în run 45384743911.
-- Acoperire rămasă: teste E2E dedicate pentru loturi mixte (atribute/stoc), selecție interactivă a candidaților ambigui și integrarea contextului persistent. În prezent, țintele ambigue sunt blocate în siguranță, dar nu există încă UI de disambiguare.
+- La oprirea sesiunii se construiește un singur preview cu lista frazelor și numărul operațiilor. O frază care nu corespunde unei comenzi structurate este păstrată ca observație.
+- Operațiile sunt trimise împreună prin Core Port. Confirmarea creează un singur eveniment; anularea nu persistă nimic.
+- Quality CI: PASS, run 45385254964; Android build: PASS, run 45385254881.
 
-### Următorii pași de implementare
-1. Entity disambiguation: interfață de selecție explicită pentru entități/populații/locații cu nume duplicate, cu păstrarea lotului până la rezolvarea tuturor țintelor.
-2. Context persistent în sesiunea vocală: contextul trebuie să fie vizibil, cu TTL și fără a putea contrazice datele confirmate din Core.
-3. Teste E2E pentru loturi mixte de observații, atribute și operații de stoc; verifică atomicitatea și refuzul integral la o singură operație invalidă.
-4. Evaluarea STT offline pe Android separat de browser SpeechRecognition; nu promite funcționare offline până la măsurare pe dispozitiv.
-5. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
-6. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor; nu introduce grafice decorative sau valori estimate.
+### Actualizare 2026-11-24 — Entity disambiguation și loturi mixte (PR #47 în pregătire)
+- Branch: `feature/voice-entity-disambiguation`, bazat pe `feature/voice-batch-preview`.
+- Pentru nume duplicate, UI prezintă candidații cu nume, tip și ID; utilizatorul trebuie să selecteze explicit. Lotul complet este revalidat după fiecare alegere, înainte de preview.
+- Țintele inexistente, definițiile de atribut absente/duplicate și selecțiile devenite invalide blochează întregul lot; nu există fallback la prima potrivire.
+- Avertismentele pentru valori în afara limitelor recomandate apar în preview, înainte de confirmarea atomică.
+- Parserul atributelor folosește delimitatori lexicali cu word-boundary pentru `este`/`la`; a fost prinsă și corectată regresia în care „la” din „Plantă” trunchia numele entității la „P”.
+- Teste E2E: disambiguare explicită pentru două entități cu același nume și lot mixt `attribute.set` + `stock.change`, verificând un singur eveniment și soldul rămas.
+- Quality CI: PASS, run 45389796885; 40 teste Chromium au trecut.
+- Android debug build pentru head `68c905ffbdc20dfb9153356356a89ef5d9da4734`: în curs la momentul actualizării.
+- Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
+
+### Următorii pași
+1. Context vocal vizibil, persistent local și cu TTL de 30 de minute; se activează numai din operații confirmate, iar țintele explicite continuă să aibă prioritate.
+2. Teste pentru refuz atomic al loturilor cu sold insuficient sau țintă invalidă.
+3. Evaluarea STT offline pe Android separat de browser SpeechRecognition.
+4. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
+5. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
 
 Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.
