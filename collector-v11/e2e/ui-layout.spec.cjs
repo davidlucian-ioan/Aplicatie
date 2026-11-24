@@ -36,6 +36,8 @@ test('layout desktop: sidebar fixa si dashboard cu actiuni grupate', async ({ pa
   await page.goto('/index-server.html');
 
   await expect(page.locator('#appSidebar')).toBeVisible();
+  await expect(page.locator('#work')).toBeVisible();
+  await page.locator('.nav[data-page="dashboard"]').click();
   await expect(page.locator('#dashboard')).toBeVisible();
   await expect(page.locator('#dashboard .cards .card')).toHaveCount(4);
   await expect(page.locator('#dashboard .quick-grid button')).toHaveCount(5);
