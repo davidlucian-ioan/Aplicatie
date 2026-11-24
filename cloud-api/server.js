@@ -37,7 +37,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
   if(!token)throw Object.assign(new Error('Autentificarea este necesară.'),{status:401});
   if(!env.SUPABASE_URL||!env.SUPABASE_ANON_KEY)throw Object.assign(new Error('Autentificarea cloud nu este configurată.'),{status:503});
   let response;
-  try{response=await fetchImpl(env.SUPABASE_URL.replace(/\\/+$/,'')+'/auth/v1/user',{headers:{apikey:env.SUPABASE_ANON_KEY,Authorization:'Bearer '+token,Accept:'application/json'}})}
+  try{response=await fetchImpl(env.SUPABASE_URL.replace(/\/+$/,'')+'/auth/v1/user',{headers:{apikey:env.SUPABASE_ANON_KEY,Authorization:'Bearer '+token,Accept:'application/json'}})}
   catch{throw Object.assign(new Error('Serviciul de autentificare nu este disponibil.'),{status:503})}
   if(!response.ok)throw Object.assign(new Error('Sesiunea nu este validă sau a expirat.'),{status:401});
   const user=await response.json();
