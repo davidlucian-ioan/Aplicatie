@@ -234,3 +234,5 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 
 - Core Read Port extins pentru AI: `entities` cere filtru ID/nume/tip și returnează doar metadate minime; `entityAttributes` cere ID rezolvat; `balances` cere populație/locație; `relations` cere ID de entitate; `events` are limită 1–100; `finance` returnează agregatul Core. Citirea nefiltrată a întregului registru este respinsă. Browser și Node sunt aliniate.
 - Teste AI extinse pentru citiri minimizate și filtrate în ambele Core Port-uri. Numărul testelor AI urmează a fi recalculat înainte de checkpoint-ul următor.
+
+- Limita relațiilor a fost plafonată la maximum 100 rezultate (implicit 50) în ambele Core Port-uri; căutarea de entități rămâne maximum 100. Nu se expune registrul complet sau istoricul complet printr-un singur read.
