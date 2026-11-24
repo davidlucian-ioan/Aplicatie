@@ -19,19 +19,12 @@ OpenAI nu poate apela instrumente, nu execută comenzi și nu primește datele b
 ## Configurare locală
 
 - Instalează Node.js 22 sau mai nou.
-- Setează `OPENAI_API_KEY` ca variabilă de mediu în sesiunea Windows.
-- Opțional: setează `OPENAI_MODEL` (implicit `gpt-6.2-sol`).
-- Pornește `Porneste-Collector.bat`.
+- Copiază `.env.example` în `.env` în folderul `collector-v11`.
+- Deschide `.env` și completează `OPENAI_API_KEY=cheia-ta`.
+- Opțional: modifică `OPENAI_MODEL` (implicit `gpt-6.2-sol`).
+- Salvează fișierul și pornește `Porneste-Collector.bat`.
 
-Exemplu PowerShell pentru sesiunea curentă:
-
-```powershell
-$env:OPENAI_API_KEY = "cheia-ta"
-$env:OPENAI_MODEL = "gpt-6.2-sol"
-.Porneste-Collector.bat
-```
-
-Cheia rămâne pe server și nu este transmisă în browser sau salvată în Git. Nu o introduce în HTML, JavaScript, localStorage sau repository.
+Fișierul `.env` este ignorat de Git și nu este publicat. Nu trimite cheia API în conversații și nu o introduce în codul HTML/JavaScript.
 
 ## Protecții
 
