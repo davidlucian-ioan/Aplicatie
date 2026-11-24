@@ -638,3 +638,25 @@ test('Android one-shot dictation uses native on-device STT and does not call bro
   expect(await page.evaluate(() => window.__browserRecognitionStarts)).toBe(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
 });
+
+
+test('Android STT failure never falls back to browser or cloud recognition', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__browserRecognitionStarts = 0;
+    window.CollectorAndroidSpeech = {
+      isAvailable: () => true,
+      addListener: async () => ({ remove: async () => {} }),
+      startListening: async () => { throw new Error('Romanian on-device model unavailable'); },
+      stopListening: async () => {},
+    };
+    window.SpeechRecognition = class {
+      start() { window.__browserRecognitionStarts += 1; }
+    };
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceButton').click();
+  await expect(page.locator('#commandResult')).toContainText('Nu am folosit un serviciu cloud');
+  expect(await page.evaluate(() => window.__browserRecognitionStarts)).toBe(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+});
