@@ -18,6 +18,7 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   await assert.rejects(fs.access(path.join(out,'test-engine.js')));
   const html=await fs.readFile(path.join(out,'index.html'),'utf8');
   assert.ok(html.includes('storage-adapter.js'));
+  assert.ok(html.includes('reminders.js'));
   assert.ok(html.includes('ai/core-port-browser.js'));
  }finally{await fs.rm(root,{recursive:true,force:true})}
 });
