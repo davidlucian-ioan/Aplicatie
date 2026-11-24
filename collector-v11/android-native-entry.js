@@ -1,7 +1,8 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
 const Recorder = registerPlugin('CollectorRecorder');
-const Alarms = registerPlugin('CollectorAlarms');\nconst Speech = registerPlugin('CollectorSpeech');
+const Alarms = registerPlugin('CollectorAlarms');
+const Speech = registerPlugin('CollectorSpeech');
 
 window.CollectorAndroidRecorder = Object.freeze({
   isAvailable() {
@@ -31,10 +32,20 @@ window.CollectorAndroidRecorder = Object.freeze({
   deleteRecording(recordingId) {
     return Recorder.deleteRecording({ recordingId });
   },
-  getOfflineSpeechSupport(language = 'ro-RO') { return Speech.getOfflineSupport({ language }); },\n  scheduleAlarm(title, triggerAtMs) { return Alarms.schedule({ title, triggerAtMs }); },
+  getOfflineSpeechSupport(language = 'ro-RO') { return Speech.getOfflineSupport({ language }); },
+  scheduleAlarm(title, triggerAtMs) { return Alarms.schedule({ title, triggerAtMs }); },
   cancelAlarm(id) { return Alarms.cancel({ id }); },
   listAlarms() { return Alarms.list(); },
   toPlaybackUrl(uri) {
     return Capacitor.convertFileSrc(uri);
+  },
+});
+
+window.CollectorAndroidSpeech = Object.freeze({
+  isAvailable() {
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+  },
+  getOfflineSpeechSupport(language = 'ro-RO') {
+    return Speech.getOfflineSupport({ language });
   },
 });
