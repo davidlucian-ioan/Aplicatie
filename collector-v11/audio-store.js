@@ -90,7 +90,7 @@
     const location=await filesystem.getUri({path:filePath,directory:'DATA'});
     return saveNative({...record,filePath,uri:location.uri});
    },
-   async saveNative,
+   saveNative,
    async get(id){await initialize();const row=(await readIndex()).find(item=>item.id===id);return row||legacyStore.get(id)},
    async list(){
     await initialize();
