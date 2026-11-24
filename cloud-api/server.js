@@ -7,6 +7,8 @@ const {SupabaseBillingService}=require('./billing-service');
 
 const MAX_BODY=128*1024;
 const MAX_OUTPUT_TOKENS=1800;
+// Covers fixed provider instructions and the strict JSON schema, which are billed input too.
+const PROVIDER_PROMPT_RESERVE_BYTES=20_000;
 function send(res,status,value,extra={}){
  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra});
  res.end(JSON.stringify(value));
@@ -149,7 +151,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
    const inputBytes=Buffer.byteLength(body.text+JSON.stringify(context),'utf8');
    if(inputBytes>96*1024){send(res,413,{error:'Contextul pentru AI depășește limita sigură.'});return}
    // Reserve using a conservative one-token-per-byte upper estimate; settle with OpenAI's reported token usage.
-   const inputEstimate=Math.max(1,inputBytes);
+   const inputEstimate=Math.max(1,inputBytes+PROVIDER_PROMPT_RESERVE_BYTES);
    const reserveMicrousd=costMicrousd(inputEstimate,MAX_OUTPUT_TOKENS);
    const budgetMicrousd=Math.floor(positiveNumber(env.AI_MONTHLY_BUDGET_USD,1)*1_000_000);
    const {periodStart,periodEnd}=monthWindow(now());
