@@ -69,14 +69,19 @@ function safeContext(input) {
   const attributes = Array.isArray(input.attributes) ? input.attributes.slice(0, 100) : [];
   return {
     entities: entities.map(e => ({
-      id: String(e.id || ''), name: String(e.name || '').slice(0, 160),
-      type: String(e.type || 'generic'), attributes: e.attributes || {}
+      id: String(e.id || '').slice(0, 128),
+      name: String(e.name || '').slice(0, 160),
+      type: String(e.type || 'generic').slice(0, 64)
     })),
     attributes: attributes.map(a => ({
-      id: String(a.id || ''), name: String(a.name || ''),
-      type: String(a.type || 'text'), required: Boolean(a.required),
-      identifying: Boolean(a.identifying), temporal: Boolean(a.temporal),
-      min: a.min ?? null, max: a.max ?? null
+      id: String(a.id || '').slice(0, 128),
+      name: String(a.name || '').slice(0, 120),
+      type: String(a.type || 'text').slice(0, 64),
+      required: Boolean(a.required),
+      identifying: Boolean(a.identifying),
+      temporal: Boolean(a.temporal),
+      min: typeof a.min === 'number' && Number.isFinite(a.min) ? a.min : null,
+      max: typeof a.max === 'number' && Number.isFinite(a.max) ? a.max : null
     }))
   };
 }
