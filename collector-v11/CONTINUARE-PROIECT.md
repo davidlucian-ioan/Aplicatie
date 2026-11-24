@@ -152,3 +152,64 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 4. Testare fizică a reportofonului: ecran blocat, schimbare aplicație, distrugere Activity, Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
 
 Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.
+
+
+### Actualizare 2026-11-24 — Microphone arbitration (PR în lucru)
+- Branch: `feature/android-microphone-arbitration`, bazat pe `feature/android-stt-permission-flow`.
+- WORK refuză acum dictarea one-shot și transcrierea live cât timp reportofonul este în pornire, înregistrare, pauză sau salvare; sunt luate în calcul și stările native Android.
+- Reportofonul refuză pornirea cât timp dictarea sau transcrierea vocală este activă. Mesajul cere oprirea explicită a sesiunii curente; aplicația nu oprește automat o înregistrare și nu aruncă transcrieri.
+- Fereastra asincronă de pornire a reportofonului este tratată ca ocupare a microfonului înainte de confirmarea serviciului nativ.
+- Au fost adăugate teste Playwright dedicate pentru conflictul recorder → STT, STT → recorder și pornire nativă asincronă → STT.
+- Contractul și limitele sunt documentate în `docs/architecture/ANDROID-MICROPHONE-OWNERSHIP.md`.
+- Validarea CI urmează; nu declara remedierea verificată până când testele și build-ul Android nu trec.
+- Nu s-au modificat Collector Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
+
+
+### Checkpoint automat — 2026-11-24 — PR #51 reverificat și extins
+- PR #51: https://github.com/davidlucian-ioan/Aplicatie/pull/51
+- Branch: `feature/android-microphone-arbitration`; base: `feature/android-stt-permission-flow` (lanț PR intenționat, nu `main`).
+- Head la checkpoint-ul intermediar: `6a8481493482fd0387706cffa9a0d5e607f5e4d8`; actualizat ulterior prin fixurile și testele de mai jos.
+- Reverificarea a găsit o cursă la pornirea WebView: STT putea fi apăsat înainte ca starea reportofonului Android să fie citită.
+- Remediere: `nativeAudioStateReady` pornește false; `refreshNativeAudioState` îl setează true numai după un răspuns reușit; `isAudioRecorderBusy` blochează STT cât timp bridge-ul Android este disponibil, dar starea încă nu este confirmată. Butoanele one-shot și live declanșează o nouă citire și refuză pornirea în acel interval.
+- Test Playwright suplimentar: starea nativă rămâne pending, ambele controale STT sunt apăsate, iar recognizerul nu pornește.
+- Total teste noi în `microphone-arbitration.spec.cjs`: 5 scenarii (native recorder → live/one-shot STT; live STT → browser recorder; pending native start → STT; initial native-state pending → fail closed pentru STT; initial native-state pending → fail closed pentru recorder).
+- Documentația `docs/architecture/ANDROID-MICROPHONE-OWNERSHIP.md` actualizată cu regula fail-closed și limitările.
+- Validare locală/CI pentru noul head: NEEXECUTATĂ / NECONFIRMATĂ. Nu declara PASS până la rularea Quality CI și Android debug build.
+- Nu au fost modificate Collector Core, jurnalul, Replay, idempotency, schema sau D-001–D-044.
+- Limite rămase: arbitrare la nivelul aceleiași aplicații/WebView; nu este lock OS-wide și nu garantează coordonare între două instanțe/taburi independente. Testarea fizică rămâne obligatorie.
+- Următoarea acțiune: verifică PR status și CI; inspectează logurile dacă apar eșecuri; apoi continuă hardening pentru lifecycle, stop/error cleanup și testarea Android. Păstrează acest fișier actualizat la fiecare etapă.
+
+- Reverificare suplimentară: și pornirea reportofonului nativ este acum fail-closed cât timp verificarea inițială a serviciului este pending; testul confirmă că `startRecording` nu este apelat.
+- Butoanele STT verifică întâi dacă există o sesiune activă și permit oprirea ei; blocarea reportofonului se aplică numai la inițierea unei sesiuni noi.
+- Head curent înainte de acest checkpoint: `3a4acd191b05f51f7f9b955a2bd8e9810a7c055a`; urmează actualizarea documentației și a descrierii PR.
+
+
+### Reverificare CI — 2026-11-24
+- A fost identificată o problemă de workflow: atât `.github/workflows/collector-quality.yml`, cât și `.github/workflows/android-build.yml` filtrau evenimentele `pull_request` exclusiv pentru target branch `main`.
+- PR #51 este stacked pe `feature/android-stt-permission-flow`, deci nu primea automat aceste workflow-uri ca verificări PR.
+- Corecție publicată pe branch-ul PR #51: am adăugat `feature/**` la filtrele `pull_request.branches` în ambele workflow-uri. Filtrul `push` pentru `feature/**` exista deja.
+- Acest lucru permite verificarea PR-urilor intermediare, nu doar a celor care țintesc `main`.
+- CI pentru noul head: încă în așteptare; connectorul disponibil pentru workflow runs filtrează numai evenimente PR și nu a returnat încă o rulare. Nu declara PASS până când GitHub Actions confirmă rezultatul.
+- Head după corecția workflow-urilor urmează a fi verificat din metadata PR.
+
+- Clarificare de execuție GitHub Actions: la un eveniment `pull_request`, GitHub evaluează workflow-ul din branch-ul de bază. Modificarea filtrelor aflată numai pe head-ul PR #51 nu poate activa retroactiv trigger-ul PR pentru acest PR; ea activează trigger-ul pentru push-urile pe `feature/**` și va fi disponibilă pentru PR-uri viitoare după ce ajunge în branch-ul lor de bază. PR #51 are în continuare target branch intermediar. Tool-ul GitHub disponibil pentru workflow runs expune numai evenimente PR, deci nu poate confirma rulările de tip push. Nu raporta CI PASS/FAIL fără acces la run-ul efectiv.
+- Configurația Playwright confirmată: `testDir: ./e2e`, `testMatch: **/*.spec.cjs`, proiect Chromium inclus; fișierul nou este inclus de pattern-ul existent. Workflow-ul Quality CI rulează `npm run test:e2e` pe Chromium.
+
+
+### Checkpoint — unknown native recorder state (2026-11-24)
+- A second fail-open path was found: the Capacitor plugin returned an empty object when `active-state.json` was missing/corrupt. JavaScript could treat a resolved empty object as an inactive recorder.
+- Native fix in `CollectorRecorderPlugin.getRecordingState()`: return explicit `inactive` only when the manifest is absent AND the native recording service is not running. If a manifest exists but cannot be parsed, or the service is running without readable state, return `status: unknown`.
+- JavaScript fix: `refreshNativeAudioState()` clears the ready flag before querying and accepts only explicit statuses: `inactive`, `complete`, `interrupted`, `starting`, `recording`, `paused`. Empty/unknown/malformed results throw and keep microphone operations blocked.
+- Added Node regression tests in `test-android-recorder-state.js` for native and JavaScript contracts.
+- Added Playwright regression test ensuring unknown native state blocks both STT and recorder startup.
+- Playwright microphone arbitration suite now contains 6 E2E scenarios; the new Node test file contains 2 static contract tests. These are added, not yet executed in this environment.
+- Latest code commits: JS state validation `9665fa511a8f69dc2ac213b79f32b2c044e75401`; native plugin explicit unknown/inactive `44328bfc146a8d47c8fe78588777d3a6935ea211`; Node tests `00b5d4ca2389c5409279a4ffca1f8bbe3a8c398a`; E2E unknown-state regression `7a64410ff897cc7c37d51dd4351ac6231e5b900e`.
+- Re-run Quality CI and Android build after the final checkpoint. No PASS claims until run results are available.
+
+- Native-side bypass check added: `CollectorRecorderPlugin.startRecording()` now independently rejects a new recording if the state is unknown (non-empty malformed state, existing unreadable manifest, or service running without readable state). The JavaScript guard is not the only enforcement layer.
+- Static Node contract test expanded to assert the native start guard. Latest native plugin commit: `7e6b67047a0443f45338f399aab5d440ef6ff955`; test commit: `ce020840153649bfadc1e3319b91375d101373d8`.
+
+- Încă o cursă nativă eliminată: pluginul refuză un nou `startRecording` cât timp vechiul serviciu foreground încă rulează, chiar dacă manifestul spune deja `complete`/alt status inactiv. Previne suprapunerea dintre `stopSelf()`/teardown și o pornire imediat următoare.
+- Testul static verifică și acest guard. Commituri: native service shutdown guard `21174fd5c7fe99d179caaca76f669286de5b47cc`; test `a418900086bf0e49f99c4f600b0b0ed183d60021`.
+
+- Reverificare a testelor de contract: o aserțiune Node rămăsese pe forma anterioară a condiției native după separarea verificării `serviceRunning`; a fost corectată pentru a reflecta implementarea finală. Commit test: `ba433ad490c81a3a24d1b1a0f7b39f7ca3259920`. Numărul E2E confirmat prin citirea fișierului: 6; testele statice Node: 2.

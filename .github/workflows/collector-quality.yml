@@ -13,6 +13,7 @@ on:
   pull_request:
     branches:
       - main
+      - 'feature/**'
     paths:
       - collector-v11/**
       - docs/**

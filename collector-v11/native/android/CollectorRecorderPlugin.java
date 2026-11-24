@@ -37,10 +37,24 @@ public final class CollectorRecorderPlugin extends Plugin {
 
     @PluginMethod
     public void startRecording(PluginCall call) {
+        File activeStateFile = new File(recordingsDirectory(), "active-state.json");
         JSONObject existing = readActiveState();
         reconcileIfServiceStopped(existing);
-        if (isActiveStatus(existing.optString("status", "inactive"))) {
+        String status = existing.optString("status", "");
+        boolean serviceRunning = isRecorderServiceRunning();
+        if (isActiveStatus(status)) {
             call.reject("Există deja o înregistrare activă.");
+            return;
+        }
+        if (serviceRunning) {
+            call.reject("Serviciul reportofonului încă rulează. Așteaptă confirmarea opririi înainte de o nouă înregistrare.");
+            return;
+        }
+        boolean knownInactive = "inactive".equals(status)
+            || "complete".equals(status)
+            || "interrupted".equals(status);
+        if (!knownInactive && (existing.length() > 0 || activeStateFile.exists())) {
+            call.reject("Nu pot confirma în siguranță starea reportofonului. Verifică înregistrările înainte de a porni alta.");
             return;
         }
         ensureMicrophonePermission(call);
@@ -143,7 +157,19 @@ public final class CollectorRecorderPlugin extends Plugin {
 
     @PluginMethod
     public void getRecordingState(PluginCall call) {
+        File activeStateFile = new File(recordingsDirectory(), "active-state.json");
         JSONObject state = readActiveState();
+        if (state.length() == 0) {
+            JSObject unknown = new JSObject();
+            if (activeStateFile.exists() || isRecorderServiceRunning()) {
+                unknown.put("status", "unknown");
+                unknown.put("error", "Starea reportofonului nu poate fi citită în siguranță.");
+            } else {
+                unknown.put("status", "inactive");
+            }
+            call.resolve(unknown);
+            return;
+        }
         reconcileIfServiceStopped(state);
         call.resolve(toJsObject(state));
     }
