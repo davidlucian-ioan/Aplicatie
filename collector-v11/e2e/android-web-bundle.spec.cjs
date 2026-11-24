@@ -9,8 +9,13 @@ test('Android web bundle starts cleanly and mobile navigation responds', async (
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/www/index.html');
   await expect(page.locator('#dashboard')).toBeVisible();
-  await expect(page.locator('#collectorStartupDiagnostics')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.__collectorStartupDiagnostics && window.__collectorStartupDiagnostics.ready)).toBe(true);
+  const startupDiagnostics = await page.evaluate(() => window.__collectorStartupDiagnostics.snapshot());
+  expect(startupDiagnostics.appReady).toBe(true);
+  expect(startupDiagnostics.engine).toBe(true);
+  expect(startupDiagnostics.corePort).toBe(true);
+  expect(startupDiagnostics.nativeRecorder).toBe(true);
+  expect(startupDiagnostics.errors).toEqual([]);
 
   const scriptStatus = await page.evaluate(() => ({
     engine: Boolean(window.CollectorEngine),
