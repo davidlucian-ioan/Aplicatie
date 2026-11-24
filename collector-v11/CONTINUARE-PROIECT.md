@@ -54,3 +54,37 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - `Porneste-Collector.bat` pornește serverul local.
 - Deschide `http://localhost:8000` în browser.
 - Nu închide fereastra serverului cât timp folosește aplicația.
+
+---
+
+## Actualizare 2026-11-24 — WORK / THINK / Voice Read-back
+
+### Repository și dependențe verificate
+- Repository: `davidlucian-ioan/Aplicatie`.
+- `main` nu a fost modificat și nu s-a făcut niciun merge automat.
+- PR #43 — Android foundation: `feature/android-native-recorder` → `main`. Rămâne draft; build-ul APK reușește, dar testarea fizică pe Android este obligatorie înainte de a declara înregistrarea cu ecranul stins fiabilă.
+- PR #44 — WORK/THINK workspace: `feature/think-dashboard-analytics` → `feature/android-native-recorder`. Include ecranul WORK pentru captură și remindere, THINK cu indicatori, graficul local pe 7 zile, scurtături către module și teste UI. Quality CI și Android debug build au trecut.
+- PR #45 — spoken read-back: `feature/voice-readback` → `feature/think-dashboard-analytics`. Include sinteză vocală română pentru preview și confirmarea salvării, buton de repetare, anularea TTS înainte de captură și suprimarea TTS cât timp reportofonul înregistrează.
+- Dependență: #45 → #44 → #43. Nu schimba bazele PR-urilor și nu integra în `main` fără verificarea dependențelor și testarea Android fizică.
+
+### Ultimele verificări confirmate
+- THINK PR #44: Quality CI PASS — run `45382375930`; Android debug PASS — run `45382376123`.
+- Voice Read-back PR #45, head `71b73b8767f8b9585d06ea833b130d99a1ce362a`: Quality CI PASS — run `45383640700`; Android debug PASS — run `45383640738`.
+- Testele noi verifică citirea preview-ului după eliberarea microfonului, faptul că nu se creează evenimente înainte de confirmare și fallback-ul când Speech Synthesis nu este disponibil.
+- Build-ul Android reușit confirmă compilarea APK-ului, nu comportamentul pe un telefon fizic cu ecranul blocat.
+
+### Constrângeri păstrate
+- D-001–D-044 rămân autoritatea pentru comportamentul domeniului.
+- Nicio modificare în Collector Core, schema evenimentelor, Replay, idempotency sau atomicitate pentru aceste două PR-uri.
+- AI/speech nu poate ocoli Core Port, preview-ul și confirmarea explicită.
+- Speech Recognition în browser nu este prezentat ca offline. TTS este opțional; când nu este disponibil, preview-ul vizual rămâne utilizabil.
+- Nicio înregistrare audio nu este trimisă către cloud de aceste funcționalități.
+
+### Următorii pași de implementare
+1. Multi-utterance batch preview: păstrează frazele finale separat, construiește un preview cu mai multe observații/comenzi și permite confirmare atomică; nu transforma automat orice pauză în commit.
+2. Entity disambiguation și context persistent: cere selecție explicită când numele nu este unic și nu presupune entitatea activă fără o regulă vizibilă.
+3. Evaluarea STT offline pe Android separat de browser SpeechRecognition; nu promite funcționare offline până la măsurare pe dispozitiv.
+4. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
+5. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor; nu introduce grafice decorative sau valori estimate.
+
+Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.
