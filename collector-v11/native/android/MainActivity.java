@@ -7,6 +7,7 @@ public final class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(CollectorRecorderPlugin.class);
+        registerPlugin(CollectorAlarmPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
