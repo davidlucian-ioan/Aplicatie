@@ -52,7 +52,9 @@ function safeInput(value) {
   if ('userId' in value || 'requestId' in value) {
     throw Object.assign(new TypeError('Identificatorii de utilizator și request nu sunt acceptați în payload-ul providerului.'), { statusCode: 400 });
   }
-  const parsed = validateInput(value);
+  let parsed;
+  try { parsed = validateInput(value); }
+  catch (error) { error.statusCode = 400; throw error; }
   return {
     text: parsed.text,
     source: parsed.source,
@@ -172,7 +174,8 @@ function createAiGateway({
         }
         result = { interpretation };
       } else {
-        validateReadRequest(body.readRequest);
+        try { validateReadRequest(body.readRequest); }
+        catch (error) { error.statusCode = 400; throw error; }
         if (!body.data || typeof body.data !== 'object') {
           throw Object.assign(new TypeError('data trebuie să fie un obiect sau un array returnat de Core.'), { statusCode: 400 });
         }
