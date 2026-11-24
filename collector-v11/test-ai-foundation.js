@@ -120,3 +120,27 @@ test('contractul respinge comenzi fără idempotency key', async () => {
   await assert.rejects(() => app.handle({ text: 'Transferă', userId: 'u1' }), /idempotencyKey/);
   assert.equal(core.calls.execute, 0);
 });
+
+
+test('răspunsurile despre datele operaționale sunt compuse numai după citirea Core', async () => {
+  const core = makeCore({ async read(request) { return { balances: [{ quantity: 7 }], request }; } });
+  const { app, provider } = makeApp({ core, responses: [{
+    intent: 'answer', answer: 'Am 100 de exemplare.', readRequest: { kind: 'balances', populationId: 'p1' }
+  }] });
+  let received = null;
+  provider.respond = async args => { received = args; return 'Soldul validat este 7.'; };
+  const result = await app.handle({ text: 'Câte exemplare am?', userId: 'u1' });
+  assert.equal(core.calls.read, 1);
+  assert.deepEqual(received.data.balances, [{ quantity: 7 }]);
+  assert.equal(result.answer, 'Soldul validat este 7.');
+});
+
+test('fără provider.respond, AI nu prezintă răspunsul pre-retrieval drept fapt Core', async () => {
+  const core = makeCore({ async read() { return { total: 12 }; } });
+  const { app } = makeApp({ core, responses: [{
+    intent: 'answer', answer: 'Modelul presupune 999.', readRequest: { kind: 'finance' }
+  }] });
+  const result = await app.handle({ text: 'Care este totalul?', userId: 'u1' });
+  assert.equal(result.answer, null);
+  assert.deepEqual(result.data, { total: 12 });
+});
