@@ -27,6 +27,7 @@ test('Android STT performs real Romanian recognition only through the on-device 
   assert.match(source, /@Permission\(alias = "microphone"/);
   assert.match(source, /speechMicrophonePermissionCallback/);
   assert.match(source, /getPermissionState\("microphone"\) != PermissionState\.GRANTED/);
+  assert.match(source, /audioCaptured", false/);
   assert.match(source, /audioUploaded", false/);
   assert.match(source, /Nu există fallback cloud/);
 });
