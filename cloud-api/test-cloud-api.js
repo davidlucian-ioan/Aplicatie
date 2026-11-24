@@ -265,3 +265,19 @@ test('RevenueCat CUSTOMER_SUPPORT cancellation reason is passed to billing for i
   assert.equal(received.isProProduct,true);
  });
 });
+
+
+test('RevenueCat webhook safely ignores out-of-range timestamps instead of retrying forever',async()=>{
+ let received=null;
+ const billingService={configured:true,applyRevenueCatEvent:async value=>{received=value;return {processed:true}}};
+ const env={...baseEnv,REVENUECAT_WEBHOOK_AUTHORIZATION:'Bearer webhook-secret',REVENUECAT_PRO_PRODUCT_IDS:'collector_pro_monthly'};
+ await withServer({env,fetchImpl:authFetch(),billingService,now:()=>1800000000000},async base=>{
+  const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
+   headers:{Authorization:'Bearer webhook-secret','Content-Type':'application/json'},
+   body:JSON.stringify({event:{id:'evt-invalid-dates',type:'RENEWAL',app_user_id:'123e4567-e89b-42d3-a456-426614174000',
+    product_id:'collector_pro_monthly',entitlement_ids:['pro'],expiration_at_ms:9e99,event_timestamp_ms:9e99}})});
+  assert.equal(response.status,200);
+  assert.equal(received.expiresAt,null);
+  assert.equal(received.eventTimestamp,new Date(1800000000000).toISOString());
+ });
+});
