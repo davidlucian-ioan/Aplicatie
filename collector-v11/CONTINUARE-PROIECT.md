@@ -182,3 +182,12 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 - Reverificare suplimentară: și pornirea reportofonului nativ este acum fail-closed cât timp verificarea inițială a serviciului este pending; testul confirmă că `startRecording` nu este apelat.
 - Butoanele STT verifică întâi dacă există o sesiune activă și permit oprirea ei; blocarea reportofonului se aplică numai la inițierea unei sesiuni noi.
 - Head curent înainte de acest checkpoint: `3a4acd191b05f51f7f9b955a2bd8e9810a7c055a`; urmează actualizarea documentației și a descrierii PR.
+
+
+### Reverificare CI — 2026-11-24
+- A fost identificată o problemă de workflow: atât `.github/workflows/collector-quality.yml`, cât și `.github/workflows/android-build.yml` filtrau evenimentele `pull_request` exclusiv pentru target branch `main`.
+- PR #51 este stacked pe `feature/android-stt-permission-flow`, deci nu primea automat aceste workflow-uri ca verificări PR.
+- Corecție publicată pe branch-ul PR #51: am adăugat `feature/**` la filtrele `pull_request.branches` în ambele workflow-uri. Filtrul `push` pentru `feature/**` exista deja.
+- Acest lucru permite verificarea PR-urilor intermediare, nu doar a celor care țintesc `main`.
+- CI pentru noul head: încă în așteptare; connectorul disponibil pentru workflow runs filtrează numai evenimente PR și nu a returnat încă o rulare. Nu declara PASS până când GitHub Actions confirmă rezultatul.
+- Head după corecția workflow-urilor urmează a fi verificat din metadata PR.
