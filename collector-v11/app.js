@@ -412,8 +412,8 @@ document.getElementById('checkOfflineSpeech')?.addEventListener('click',async()=
  button.disabled=true;status.textContent='Verific suportul on-device pentru română…';
  try{
   const result=await bridge.getOfflineSpeechSupport('ro-RO');
-  if(result.languageStatus==='installed')status.textContent='Română: model on-device instalat. Recunoașterea efectivă și acuratețea trebuie încă testate pe dispozitiv. Niciun audio nu a fost capturat.';
-  else if(result.languageStatus==='downloadable')status.textContent='Română: model suportat on-device, dar neinstalat. Descărcarea nu a fost pornită. Niciun audio nu a fost capturat.';
+  if(result.languageStatus==='installed')status.textContent='Română: model on-device instalat. Dictarea și transcrierea live folosesc SpeechRecognizer local, fără fallback cloud. Acuratețea trebuie validată pe dispozitiv. Niciun audio nu a fost încărcat.';
+  else if(result.languageStatus==='downloadable')status.textContent='Română: model suportat on-device, dar neinstalat. Instalează pachetul de limbă în setările serviciului de recunoaștere Android; Collector nu pornește descărcări în fundal și nu folosește cloud.';
   else if(result.status==='permission-required')status.textContent='Permisiunea pentru microfon nu a fost acordată. Apasă din nou și acceptă solicitarea Android pentru a verifica limba; nu am pornit microfonul și nu am capturat audio.';
   else if(result.languageStatus==='pending')status.textContent='Română: descărcarea modelului on-device este în așteptare. Niciun audio nu a fost capturat.';
   else if(result.languageStatus==='unsupported')status.textContent='Serviciul on-device nu raportează suport pentru limba română pe acest dispozitiv.';
@@ -686,11 +686,35 @@ function stopAudioRecording(){if(audioRecorder?.native){stopNativeAudioRecording
 async function playAudioRecording(recordId){try{const player=document.getElementById('audioPlayback');if(nativeAudioAvailable()){const record=await window.CollectorAndroidRecorder.getRecording(recordId);if(!record?.uri)throw Error('Fișierul audio nativ nu mai există.');if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}player.src=window.CollectorAndroidRecorder.toPlaybackUrl(record.uri);player.hidden=false;await player.play();return}const record=await CollectorAudioStore.get(recordId);if(!record?.blob)throw Error('Fișierul audio nu mai există.');if(audioObjectUrl)URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=URL.createObjectURL(record.blob);player.src=audioObjectUrl;player.hidden=false;await player.play()}catch(error){setAudioUi('idle','Nu pot reda înregistrarea: '+error.message)}}
 async function deleteAudioRecording(recordId){if(!confirm('Ștergi definitiv această înregistrare audio locală?'))return;try{if(nativeAudioAvailable())await window.CollectorAndroidRecorder.deleteRecording(recordId);else await CollectorAudioStore.remove(recordId);await renderAudioRecordings();setAudioUi('idle','Înregistrarea audio a fost ștearsă din stocarea locală.')}catch(error){setAudioUi('idle','Nu am putut șterge înregistrarea: '+error.message)}}
 async function renderAudioRecordings(){const list=document.getElementById('audioRecordingList');if(!list||(!nativeAudioAvailable()&&!window.CollectorAudioStore))return;try{const records=nativeAudioAvailable()?(await window.CollectorAndroidRecorder.listRecordings()).recordings:await CollectorAudioStore.list();list.replaceChildren();if(!records.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nu există înregistrări audio locale.';list.append(empty);return}for(const record of records){const row=document.createElement('div');row.className='audio-recording-row';const info=document.createElement('div'),name=document.createElement('b'),meta=document.createElement('small');name.textContent=new Date(record.createdAt).toLocaleString('ro-RO');meta.textContent=formatAudioDuration(record.durationMs)+' · '+Math.round((record.sizeBytes??record.size??0)/1024)+' KB'+(record.status==='interrupted'?' · Întreruptă':'');info.append(name,meta);const actions=document.createElement('div');actions.className='row-actions';const play=document.createElement('button');play.className='secondary';play.type='button';play.textContent='Redă';if(nativeAudioAvailable()&&(['starting','recording','paused'].includes(record.status)||(record.status==='interrupted'&&!record.recoverable))){play.disabled=true;play.title=record.status==='interrupted'?'Fișierul întrerupt nu este garantat redabil.':'Înregistrarea este încă activă.'}play.setAttribute('aria-label','Redă înregistrarea din '+name.textContent);play.addEventListener('click',()=>playAudioRecording(record.id));const remove=document.createElement('button');remove.className='secondary';remove.type='button';remove.textContent='Șterge';remove.setAttribute('aria-label','Șterge înregistrarea din '+name.textContent);remove.addEventListener('click',()=>deleteAudioRecording(record.id));if(nativeAudioAvailable()&&['starting','recording','paused'].includes(record.status))remove.disabled=true;actions.append(play,remove);row.append(info,actions);list.append(row)}}catch(error){list.textContent='Nu pot citi înregistrările locale: '+error.message}}
+async function renderVoiceTranscriptHistory(){
+ const list=document.getElementById('voiceTranscriptHistory');if(!list)return;
+ if(!window.CollectorAudioStore?.listTranscriptSessions){list.textContent='Stocarea locală a transcrierilor nu este disponibilă.';return}
+ try{
+  const sessions=(await window.CollectorAudioStore.listTranscriptSessions()).slice(0,10);
+  list.replaceChildren();
+  if(!sessions.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nu există transcrieri salvate.';list.append(empty);return}
+  for(const session of sessions){
+   const row=document.createElement('div');row.className='audio-recording-row';
+   const info=document.createElement('div'),title=document.createElement('b'),summary=document.createElement('small');
+   title.textContent='Transcriere · '+new Date(session.createdAt).toLocaleString('ro-RO');
+   const text=session.segments.map(segment=>segment.text).join(' ');
+   summary.textContent=session.segments.length+' segmente · '+text.slice(0,150)+(text.length>150?'…':'');
+   info.append(title,summary);
+   const actions=document.createElement('div');actions.className='audio-recording-actions';
+   const load=document.createElement('button');load.className='secondary';load.type='button';load.textContent='Reîncarcă text';
+   load.addEventListener('click',()=>{document.getElementById('commandInput').value=session.segments.map(segment=>segment.text).join('\\n');setAppStatus('Transcrierea locală a fost reîncărcată. Verifică textul înainte de interpretare.')});
+   const remove=document.createElement('button');remove.className='secondary';remove.type='button';remove.textContent='Șterge';
+   remove.addEventListener('click',async()=>{try{await window.CollectorAudioStore.removeTranscriptSession(session.id);await renderVoiceTranscriptHistory()}catch(error){setAppStatus('Nu am putut șterge transcrierea: '+error.message)}});
+   actions.append(load,remove);row.append(info,actions);list.append(row);
+  }
+ }catch(error){list.textContent='Nu pot citi transcrierile locale: '+error.message}
+}
 document.getElementById('audioRecordStart').addEventListener('click',startAudioRecording);
 document.getElementById('audioRecordPause').addEventListener('click',pauseAudioRecording);
 document.getElementById('audioRecordResume').addEventListener('click',resumeAudioRecording);
 document.getElementById('audioRecordStop').addEventListener('click',stopAudioRecording);
 renderAudioRecordings();
+renderVoiceTranscriptHistory();
 initializeNativeAudioRecorder();
 
 async function renderWorkAlarms(){
