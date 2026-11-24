@@ -61,12 +61,12 @@ class CorePort {
       }
       case 'entityAttributes': {
         const entity = state.entities.find(item => item.id === request.id);
-        if (!entity) return null;
+        if (!entity) return { found: false, id: request.id };
         const selected = request.attributeNames?.length
           ? Object.fromEntries(request.attributeNames.filter(name => Object.prototype.hasOwnProperty.call(entity.attributes || {}, name))
             .map(name => [name, entity.attributes[name]]))
           : clone(entity.attributes || {});
-        return { id: entity.id, name: entity.name, type: entity.type, attributes: selected };
+        return { found: true, id: entity.id, name: entity.name, type: entity.type, attributes: selected };
       }
       case 'balances':
         return clone(this.core.balances(state).filter(row =>
