@@ -122,7 +122,10 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
    if(!billing.configured){send(res,503,{error:'Verificarea abonamentului și bugetului AI nu este configurată.'});return}
 
    const context=safeContext(body.context||{});
-   const inputEstimate=Math.max(1,Math.ceil((body.text.length+JSON.stringify(context).length)/4));
+   const inputBytes=Buffer.byteLength(body.text+JSON.stringify(context),'utf8');
+   if(inputBytes>96*1024){send(res,413,{error:'Contextul pentru AI depășește limita sigură.'});return}
+   // Reserve using a conservative one-token-per-byte upper estimate; settle with OpenAI's reported token usage.
+   const inputEstimate=Math.max(1,inputBytes);
    const reserveMicrousd=costMicrousd(inputEstimate,MAX_OUTPUT_TOKENS);
    const budgetMicrousd=Math.floor(positiveNumber(env.AI_MONTHLY_BUDGET_USD,1)*1_000_000);
    const {periodStart,periodEnd}=monthWindow(now());
