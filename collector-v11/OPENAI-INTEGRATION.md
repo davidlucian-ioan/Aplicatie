@@ -30,9 +30,11 @@ Fișierul `.env` este ignorat de Git și nu este publicat. Nu trimite cheia API 
 
 - Serverul ascultă implicit numai pe 127.0.0.1.
 - Endpoint-urile API nu acceptă cereri cross-origin externe.
-- Serverul static refuză explicit servirea fișierului `.env`.
+- Serverul static refuză toate fișierele ascunse (inclusiv `.env` și `.git`), modulele private ale providerului, fișierele server/test și documentația internă.
+- Răspunsurile statice includ Content Security Policy same-origin, `X-Frame-Options: DENY`, `Permissions-Policy` și `Referrer-Policy`.
 - Limită de 128 KB per corp HTTP și 20 cereri/minut per client.
 - Contextul trimis este limitat la 150 entități și 100 definiții de atribute.
+- Testul de integrare pornește serverul local și verifică endpoint-urile, protecția Origin, blocarea fișierelor private și comportamentul fără cheie.
 - `store:false` pentru cererile Responses API.
 - Preview-ul Core rămâne obligatoriu; executarea nu se face din răspunsul modelului.
 - Operațiile nepermise sunt respinse de BrowserCorePort.
