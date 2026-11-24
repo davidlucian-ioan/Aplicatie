@@ -43,3 +43,20 @@ test('concurrent account switches are serialized and the last requested user rem
  assert.equal(first.available,true);assert.equal(second.available,true);
  assert.deepEqual(logins,['user-A','user-B']);
 });
+
+test('purchase este serializat înaintea schimbării contului RevenueCat',async()=>{
+ const events=[];
+ globalThis.CollectorPurchasesBundle.getOfferings=async()=>({current:{availablePackages:[{identifier:'monthly',product:{identifier:'collector.pro.monthly'}}]}});
+ globalThis.CollectorPurchasesBundle.purchasePackage=async()=>{
+  events.push('purchase:start');
+  await new Promise(resolve=>setTimeout(resolve,20));
+  events.push('purchase:end');
+  return {customerInfo:{entitlements:{active:{pro:{isActive:true}}}}};
+ };
+ globalThis.CollectorPurchasesBundle.logIn=async({appUserID})=>{events.push('login:'+appUserID)};
+ await globalThis.CollectorSubscriptions.initialize('purchase-user-A');
+ const purchase=globalThis.CollectorSubscriptions.purchase('monthly');
+ const switchUser=globalThis.CollectorSubscriptions.initialize('purchase-user-B');
+ await Promise.all([purchase,switchUser]);
+ assert.deepEqual(events,['purchase:start','purchase:end','login:purchase-user-B']);
+});
