@@ -101,11 +101,18 @@ create or replace function public.collector_settle_ai_usage(
 declare
   v_usage public.collector_ai_usage%rowtype;
   v_budget public.collector_ai_budgets%rowtype;
+  v_period_start date;
   v_actual bigint;
 begin
   if p_actual_microusd < 0 or p_input_tokens < 0 or p_output_tokens < 0 then
     raise exception 'invalid_usage_settlement';
   end if;
+  -- Read period without locking, then lock budget before usage to match reservation lock order.
+  select period_start into v_period_start from public.collector_ai_usage
+    where request_id=p_request_id and user_id=p_user_id;
+  if not found then raise exception 'usage_reservation_not_found'; end if;
+  select * into v_budget from public.collector_ai_budgets
+    where user_id=p_user_id and period_start=v_period_start for update;
   select * into v_usage from public.collector_ai_usage
     where request_id=p_request_id and user_id=p_user_id for update;
   if not found then raise exception 'usage_reservation_not_found'; end if;
@@ -113,8 +120,6 @@ begin
     return jsonb_build_object('settled',true,'duplicate',true,'actual_microusd',v_usage.actual_microusd);
   end if;
   v_actual := case when p_failed then 0 else p_actual_microusd end;
-  select * into v_budget from public.collector_ai_budgets
-    where user_id=p_user_id and period_start=v_usage.period_start for update;
   update public.collector_ai_budgets set
     reserved_microusd=greatest(0,reserved_microusd-v_usage.reserved_microusd),
     used_microusd=used_microusd+v_actual, updated_at=now()
