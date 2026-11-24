@@ -71,7 +71,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
     res.writeHead(204,{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end();return;
    }
    if(req.method==='GET'&&url.pathname==='/api/ai/status'){
-    send(res,200,{provider:'openai',configured:Boolean(env.OPENAI_API_KEY),model:env.OPENAI_MODEL||'gpt-6.2-sol'});return;
+    send(res,200,{provider:'openai',configured:Boolean(env.OPENAI_API_KEY),accountDeletionEnabled:Boolean(env.SUPABASE_SERVICE_ROLE_KEY),model:env.OPENAI_MODEL||'gpt-6.2-sol'});return;
    }
    if(req.method!=='POST'){send(res,405,{error:'Metodă nepermisă.'});return}
    if(!String(req.headers['content-type']||'').toLowerCase().includes('application/json')){send(res,415,{error:'Content-Type trebuie să fie application/json.'});return}
