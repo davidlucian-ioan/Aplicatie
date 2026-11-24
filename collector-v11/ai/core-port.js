@@ -1,6 +1,6 @@
 'use strict';
 
-const { validateCommand } = require('./contracts');
+const { validateCommand, validateReadRequest } = require('./contracts');
 
 const DEFAULT_ALLOWED_OPERATIONS = new Set([
   'entity.create', 'entity.rename', 'attribute.set', 'attribute.define',
@@ -40,36 +40,76 @@ class CorePort {
     this.idFactory = idFactory || (() => core.uid());
     this.clock = clock;
     this.actor = actor;
+    this.executing = false;
   }
 
   async read(request = {}) {
+    validateReadRequest(request);
     const state = this._snapshot();
-    const kind = request.kind;
-    switch (kind) {
-      case 'entities':
+    switch (request.kind) {
+      case 'entities': {
+        const limit = request.limit === undefined ? 20 : Number(request.limit);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new TypeError('Limită de entități invalidă.');
         return clone(state.entities.filter(entity =>
           (!request.type || entity.type === request.type) &&
-          (!request.id || entity.id === request.id)));
+          (!request.id || entity.id === request.id) &&
+          (!request.name || entity.name.toLocaleLowerCase().includes(request.name.toLocaleLowerCase())))
+          .slice(0, limit)
+          .map(({ id, name, type, status }) => ({ id, name, type, status })));
+      }
+      case 'entityAttributes': {
+        const entity = state.entities.find(item => item.id === request.id);
+        if (!entity) return { found: false, id: request.id };
+        const selected = request.attributeNames?.length
+          ? Object.fromEntries(request.attributeNames.filter(name => Object.prototype.hasOwnProperty.call(entity.attributes || {}, name))
+            .map(name => [name, entity.attributes[name]]))
+          : clone(entity.attributes || {});
+        return { found: true, id: entity.id, name: entity.name, type: entity.type, attributes: selected };
+      }
       case 'balances':
         return clone(this.core.balances(state).filter(row =>
           (!request.populationId || row.populationId === request.populationId) &&
           (!request.locationId || row.locationId === request.locationId)));
       case 'finance':
         return clone(this.core.totalFinance(state));
-      case 'events':
+      case 'events': {
+        const limit = request.limit === undefined ? 20 : Number(request.limit);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+          throw new TypeError('Limită de istoric invalidă.');
+        }
         return clone(state.events.filter(event =>
           (!request.entityId || event.payload?.entityId === request.entityId ||
-            event.operations?.some(op => op.target === request.entityId || op.data?.entityId === request.entityId)))
-          .slice(-Math.min(Math.max(Number(request.limit) || 20, 1), 100)));
+            event.operations?.some(op => op.target === request.entityId || op.data?.entityId === request.entityId ||
+              op.data?.populationId === request.entityId || op.data?.sourceId === request.entityId ||
+              op.data?.targetId === request.entityId)))
+          .slice(-limit));
+      }
+      case 'relations': {
+        const limit = request.limit === undefined ? 50 : Number(request.limit);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new TypeError('Limită de relații invalidă.');
+        const related = state.relations.filter(relation =>
+          relation.sourceId === request.entityId || relation.targetId === request.entityId).slice(-limit);
+        return clone(related.map(relation => {
+          const source = state.entities.find(entity => entity.id === relation.sourceId);
+          const target = state.entities.find(entity => entity.id === relation.targetId);
+          return {
+            id: relation.id, type: relation.type, sourceId: relation.sourceId,
+            sourceName: source?.name || null, targetId: relation.targetId,
+            targetName: target?.name || null, startedAt: relation.startedAt,
+            endedAt: relation.endedAt
+          };
+        }));
+      }
       default:
         throw new Error('Cerere de citire nepermisă sau necunoscută.');
     }
   }
-
   async preview(command) {
     const event = this._buildEvent(command);
     const current = this._snapshot();
-    const result = this.core.commit(current, event);
+    let result;
+    try { result = this.core.commit(current, event); }
+    catch (error) { return { status: 'rejected', errors: [String(error?.message || error)] }; }
     if (result.duplicate) return { status: 'duplicate', eventId: result.event?.id || null };
     return {
       status: 'preview_ok', eventId: result.event.id,
@@ -89,25 +129,31 @@ class CorePort {
     if ((risky || command.requiresConfirmation === true) && confirmed !== true) {
       return { status: 'rejected', errors: ['Este necesară confirmarea explicită a utilizatorului.'] };
     }
-
-    const current = this._snapshot();
-    const result = this.core.commit(current, event);
-    if (result.duplicate) return { status: 'duplicate', eventId: result.event?.id || null };
-
-    // Durable persistence must succeed before in-memory/UI state is published.
-    let persisted;
+    if (this.executing) return { status: 'conflict', errors: ['Există deja o comandă AI în curs de persistare.'] };
+    this.executing = true;
     try {
-      persisted = await this.store.persistState(clone(result.db));
-    } catch (error) {
-      return { status: 'unavailable', errors: [`Persistența a eșuat: ${error.message}`] };
-    }
-    if (persisted !== true) {
-      return { status: 'unavailable', errors: ['Persistența a eșuat; starea activă nu a fost publicată.'] };
-    }
-    if (typeof this.store.publishState === 'function') {
-      await this.store.publishState(clone(result.db));
-    }
-    return {
+      const current = this._snapshot();
+      let result;
+      try { result = this.core.commit(current, event); }
+      catch (error) { return { status: 'rejected', errors: [String(error?.message || error)] }; }
+      if (result.duplicate) return { status: 'duplicate', eventId: result.event?.id || null };
+
+      // Durable persistence must succeed before in-memory/UI state is published.
+      let persisted;
+      try {
+        persisted = await this.store.persistState(clone(result.db));
+      } catch (error) {
+        return { status: 'unavailable', errors: [`Persistența a eșuat: ${error.message}`] };
+      }
+      if (persisted !== true) {
+        return { status: 'unavailable', errors: ['Persistența a eșuat; starea activă nu a fost publicată.'] };
+      }
+      let warnings = [];
+      if (typeof this.store.publishState === 'function') {
+        try { await this.store.publishState(clone(result.db)); }
+        catch (error) { warnings = [`Datele au fost salvate, dar interfața nu a putut fi actualizată: ${error.message}`]; }
+      }
+      return {
       status: 'committed', eventId: result.event.id,
       affectedEntities: this._affectedEntities(event.operations),
       projectionChanges: {
@@ -115,8 +161,11 @@ class CorePort {
         relations: result.db.relations.length - current.relations.length,
         stock: result.db.stock.length - current.stock.length,
         finance: result.db.finance.length - current.finance.length
-      }
-    };
+      }, warnings
+      };
+    } finally {
+      this.executing = false;
+    }
   }
 
   _snapshot() {
