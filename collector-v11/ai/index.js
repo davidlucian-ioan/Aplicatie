@@ -5,6 +5,8 @@ module.exports = {
   ...require('./context-manager'),
   ...require('./decision-gate'),
   ...require('./provider-mock'),
+  ...require('./provider-openai'),
+  ...require('./provider-http'),
   ...require('./core-adapter'),
   ...require('./core-port'),
   ...require('./orchestrator')
