@@ -184,6 +184,7 @@ public final class CollectorRecordingService extends Service {
                 try { persistManifest("Înregistrarea a fost oprită înainte de inițializarea microfonului."); } catch (Exception ignored) {}
             }
             releaseWakeLock();
+            releaseMicrophoneLock();
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
             return;
