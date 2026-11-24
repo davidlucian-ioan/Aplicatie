@@ -12,7 +12,7 @@ const VOICE_CONTEXT_TTL_MS=30*60*1000;
 function getVoiceContext(){
  try{
   const context=JSON.parse(localStorage.getItem(VOICE_CONTEXT_KEY)||'null');
-  if(!context||context.version!==1||!Number.isFinite(context.expiresAt)||context.expiresAt<=Date.now()){localStorage.removeItem(VOICE_CONTEXT_KEY);return null}
+  if(!context||context.version!==1||!Number.isFinite(context.updatedAt)||!Number.isFinite(context.expiresAt)||context.expiresAt<=context.updatedAt||context.expiresAt-context.updatedAt>VOICE_CONTEXT_TTL_MS||context.expiresAt<=Date.now()){localStorage.removeItem(VOICE_CONTEXT_KEY);return null}
   const valid={version:1,updatedAt:context.updatedAt,expiresAt:context.expiresAt};
   for(const key of ['entityId','populationId','locationId'])if(typeof context[key]==='string'&&db.entities.some(entity=>entity.id===context[key]))valid[key]=context[key];
   if(!valid.entityId&&!valid.populationId&&!valid.locationId){localStorage.removeItem(VOICE_CONTEXT_KEY);return null}
@@ -30,7 +30,7 @@ function renderVoiceContext(){
  document.getElementById('clearVoiceContext').onclick=()=>{localStorage.removeItem(VOICE_CONTEXT_KEY);renderVoiceContext();setAppStatus('Contextul vocal local a fost șters.')};
 }
 function updateVoiceContextFromCommand(command){
- const next={version:1,updatedAt:Date.now(),expiresAt:Date.now()+VOICE_CONTEXT_TTL_MS};
+ const now=Date.now(),next={version:1,updatedAt:now,expiresAt:now+VOICE_CONTEXT_TTL_MS};
  for(const operation of command?.operations||[]){
   const data=operation.data||{};
   if(operation.operation==='attribute.set'&&typeof operation.target==='string')next.entityId=operation.target;
