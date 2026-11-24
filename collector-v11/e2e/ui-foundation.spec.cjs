@@ -596,6 +596,9 @@ test('Android live STT uses native on-device events and persists timestamped tra
   expect(stored[0].segments[0].endOffsetMs).toBe(980);
   await page.locator('#cancelCoreCommand').click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+  await page.reload();
+  await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#voiceTranscriptHistory')).toContainText('Pom B3 are frunze noi');
 });
 
 test('Android one-shot dictation uses native on-device STT and does not call browser recognition', async ({ page }) => {
