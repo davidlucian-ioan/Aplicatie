@@ -294,7 +294,29 @@ document.getElementById('audioRecordResume').addEventListener('click',resumeAudi
 document.getElementById('audioRecordStop').addEventListener('click',stopAudioRecording);
 renderAudioRecordings();
 initializeNativeAudioRecorder();
-document.getElementById('globalVoice').onclick=()=>{showPage('assistant');if(audioRecorder&&(audioRecorder.state==='recording'||audioRecorder.state==='paused'))stopAudioRecording();else startAudioRecording()};
+
+async function renderWorkAlarms(){
+ const list=document.getElementById('workAlarmList');if(!list)return;
+ if(!window.CollectorAndroidRecorder?.isAvailable?.()){list.textContent='Programarea alarmelor este disponibilă în aplicația Android.';return}
+ try{const rows=(await window.CollectorAndroidRecorder.listAlarms()).alarms||[];list.replaceChildren();if(!rows.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nu ai alarme programate.';list.append(empty);return}
+ for(const alarm of rows){const row=document.createElement('div');row.className='alarm-row';const info=document.createElement('div'),title=document.createElement('b'),when=document.createElement('small');title.textContent=alarm.title;when.textContent=new Date(alarm.triggerAtMs).toLocaleString('ro-RO');info.append(title,when);const cancel=document.createElement('button');cancel.className='secondary';cancel.type='button';cancel.textContent='Anulează';cancel.addEventListener('click',async()=>{try{await window.CollectorAndroidRecorder.cancelAlarm(alarm.id);await renderWorkAlarms();document.getElementById('workAlarmStatus').textContent='Alarma a fost anulată.'}catch(error){document.getElementById('workAlarmStatus').textContent='Eroare: '+error.message}});row.append(info,cancel);list.append(row)}
+ }catch(error){list.textContent='Nu pot încărca alarmele: '+error.message}
+}
+async function addWorkAlarm(){
+ const title=document.getElementById('workAlarmTitle'),when=document.getElementById('workAlarmWhen'),status=document.getElementById('workAlarmStatus');
+ if(!window.CollectorAndroidRecorder?.isAvailable?.()){status.textContent='Alarmele locale necesită aplicația Android.';return}
+ const triggerAtMs=Date.parse(when.value);
+ if(!title.value.trim()||!Number.isFinite(triggerAtMs)||triggerAtMs<=Date.now()){status.textContent='Completează un titlu și alege o dată/oră din viitor.';return}
+ const button=document.getElementById('workAlarmAdd');button.disabled=true;
+ try{await window.CollectorAndroidRecorder.scheduleAlarm(title.value.trim(),triggerAtMs);title.value='';when.value='';status.textContent='Alarma a fost programată pe acest dispozitiv.';await renderWorkAlarms()}
+ catch(error){status.textContent='Nu am putut programa alarma: '+error.message}
+ finally{button.disabled=false}
+}
+document.getElementById('workAlarmAdd')?.addEventListener('click',addWorkAlarm);
+(function setAlarmMin(){const input=document.getElementById('workAlarmWhen');if(input){const now=new Date(Date.now()-new Date().getTimezoneOffset()*60000);input.min=now.toISOString().slice(0,16)}})();
+renderWorkAlarms();
+
+document.getElementById('globalVoice').onclick=()=>{showPage('work');if(audioRecorder&&(audioRecorder.state==='recording'||audioRecorder.state==='paused'))stopAudioRecording();else startAudioRecording()};
 // Conversation context expires after 30 minutes; persistent entities and event history are unaffected.
 // Do not persist stale in-memory snapshots on focus; context expiry is evaluated when commands are handled.
 // Every committed change is persisted before publication; never write a stale in-memory snapshot on unload.
