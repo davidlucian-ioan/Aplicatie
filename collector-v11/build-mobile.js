@@ -14,6 +14,7 @@ const WEB_FILES=[
  'native-audio-recorder.js',
  'auth-client.js',
  'collector-auth-bundle.js',
+ 'subscriptions.js',
  'app.js',
  'ai/core-port-browser.js',
  'ai/provider-openai-browser.js'
@@ -54,12 +55,23 @@ async function buildMobile(outDir=path.join(ROOT,'www')){
  const apiBaseUrl=String(process.env.COLLECTOR_API_BASE_URL||'').trim().replace(/\/+$/,'');
  const supabaseUrl=String(process.env.COLLECTOR_SUPABASE_URL||'').trim().replace(/\/+$/,'');
  const supabaseAnonKey=String(process.env.COLLECTOR_SUPABASE_ANON_KEY||'').trim();
+ const revenueCatAppleApiKey=String(process.env.COLLECTOR_REVENUECAT_APPLE_API_KEY||'').trim();
+ const revenueCatGoogleApiKey=String(process.env.COLLECTOR_REVENUECAT_GOOGLE_API_KEY||'').trim();
  if(apiBaseUrl&&!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(apiBaseUrl))throw new Error('COLLECTOR_API_BASE_URL trebuie să fie un URL HTTPS valid.');
  if(supabaseUrl&&!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(supabaseUrl))throw new Error('COLLECTOR_SUPABASE_URL trebuie să fie un URL HTTPS valid.');
- await fs.writeFile(path.join(target,'collector-config.js'),"(function(root){'use strict';root.CollectorConfig=Object.freeze({apiBaseUrl:"+JSON.stringify(apiBaseUrl)+",supabaseUrl:"+JSON.stringify(supabaseUrl)+",supabaseAnonKey:"+JSON.stringify(supabaseAnonKey)+"});})(typeof window!=='undefined'?window:globalThis);\n");
+ await fs.writeFile(path.join(target,'collector-config.js'),"(function(root){'use strict';root.CollectorConfig=Object.freeze({apiBaseUrl:"+JSON.stringify(apiBaseUrl)+",supabaseUrl:"+JSON.stringify(supabaseUrl)+",supabaseAnonKey:"+JSON.stringify(supabaseAnonKey)+",revenueCatAppleApiKey:"+JSON.stringify(revenueCatAppleApiKey)+",revenueCatGoogleApiKey:"+JSON.stringify(revenueCatGoogleApiKey)+"});})(typeof window!=='undefined'?window:globalThis);\n");
  let esbuild=null;
  try{esbuild=require('esbuild');require.resolve('@supabase/supabase-js');require.resolve('@aparajita/capacitor-secure-storage')}catch{}
- if(esbuild)await esbuild.build({entryPoints:[path.join(ROOT,'auth-client-entry.js')],bundle:true,platform:'browser',format:'iife',target:['es2020'],minify:true,outfile:path.join(target,'collector-auth-bundle.js')});
+ if(esbuild){
+  await esbuild.build({entryPoints:[path.join(ROOT,'auth-client-entry.js')],bundle:true,platform:'browser',format:'iife',target:['es2020'],minify:true,outfile:path.join(target,'collector-auth-bundle.js')});
+  try{
+   require.resolve('@revenuecat/purchases-capacitor');
+   await esbuild.build({entryPoints:[path.join(ROOT,'purchases-client-entry.js')],bundle:true,platform:'browser',format:'iife',target:['es2020'],minify:true,outfile:path.join(target,'collector-purchases-bundle.js')});
+   const purchaseMarker='<script src="subscriptions.js?v=0.1"></script>';
+   if(!html.includes(purchaseMarker))throw new Error('Nu găsesc punctul de încărcare pentru RevenueCat.');
+   html=html.replace(purchaseMarker,'<script src="collector-purchases-bundle.js"></script>'+purchaseMarker);
+  }catch(error){if(error.code!=='MODULE_NOT_FOUND')throw error}
+ }
 
  await fs.writeFile(indexPath,html);
  return {outDir:target,files:WEB_FILES.slice()};
