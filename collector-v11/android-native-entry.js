@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
 const Recorder = registerPlugin('CollectorRecorder');
+const Alarms = registerPlugin('CollectorAlarms');
 
 window.CollectorAndroidRecorder = Object.freeze({
   isAvailable() {
@@ -30,6 +31,9 @@ window.CollectorAndroidRecorder = Object.freeze({
   deleteRecording(recordingId) {
     return Recorder.deleteRecording({ recordingId });
   },
+  scheduleAlarm(title, triggerAtMs) { return Alarms.schedule({ title, triggerAtMs }); },
+  cancelAlarm(id) { return Alarms.cancel({ id }); },
+  listAlarms() { return Alarms.list(); },
   toPlaybackUrl(uri) {
     return Capacitor.convertFileSrc(uri);
   },
