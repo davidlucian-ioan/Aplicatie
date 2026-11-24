@@ -222,12 +222,12 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- HEAD nou: `563adc531c3add527e6e4fd9107b31f7f1dc4a2a`.
-- Auditul a confirmat că funcția `collector_apply_revenuecat_event` avea încă delimiterul invalid `as $`; corectat acum în `as $$`. Commitul anterior nu conținea corecția, deci nu presupunem că problema era rezolvată.
-- Testul static existent verifică delimitatoarele, dar trebuie verificat că detectează și forma `as $` fără să se bazeze doar pe count-uri.
-- Migrarea nu a fost încă executată într-un PostgreSQL real; validarea statică nu este suficientă.
-- La HEAD anterior, CI pentru PR #55 avea Quality Suite in_progress, Mobile Build pending și Cloud API pending; verifică din nou pe HEAD nou.
-- RevenueCat lifecycle: CUSTOMER_SUPPORT refund revocă imediat; anulare normală, billing issue/grace și SUBSCRIPTION_PAUSED păstrează accesul până la expirare; expirare/refund revocă. `cancel_reason` este transmis până la RPC.
+- HEAD: `6898fe60f9ba946f4e62a589bad0def8e991b4e4`.
+- Auditul a găsit că funcția `collector_apply_revenuecat_event` avea încă `as $` invalid. Corecția este în commitul `563adc5`; verificarea fișierului confirmă delimitatorul `as $$`.
+- Testul static a fost întărit în `6898fe6`: respinge orice `as $` singular, nu doar forma urmată de newline, și verifică perechile de delimitatori.
+- CI pentru HEAD curent: încă nu sunt returnate workflow runs prin endpointul filtrat PR; nu declarăm build/test green. Verifică din nou înainte de următorul pas.
+- Migrarea nu a fost executată într-un PostgreSQL real. Testul static nu înlocuiește validarea parserului și a permisiunilor/RLS.
+- RevenueCat lifecycle: CUSTOMER_SUPPORT refund revocă imediat; anulare normală, billing issue/grace și SUBSCRIPTION_PAUSED păstrează accesul până la expirare; expirare/refund revocă.
 - Nevalidat extern: Supabase live/RLS/RPC, deploy Cloud API și tranzacții RevenueCat sandbox.
-- Următorii pași: verifică CI pe HEAD nou; întărește testul de delimiter; rulează migrarea într-un PostgreSQL de test dacă există mediu/credentiale configurate; apoi continuă auditul de purchase/restore/webhook.
+- Următorii pași: verifică workflow runs pe HEAD; rulează testele Cloud API; dacă există acces la Postgres de test, aplică migrarea; continuă auditul purchase/restore/webhook și corectează orice defect confirmat.
 - Nu face merge în `main` fără aprobarea explicită și fără CI/E2E complet.
