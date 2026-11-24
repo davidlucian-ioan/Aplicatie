@@ -46,3 +46,16 @@ Scop: inventarierea dependențelor de browser înainte de integrarea Capacitor.
 ## Limitări ale auditului
 
 Acesta este un audit static al fișierelor de pe branch, nu un test pe dispozitive reale. Nu certifică suportul efectiv pentru microfon, speech, background execution, SQLite sau notificări pe iOS/Android. Acestea cer build-uri native și teste hardware.
+
+
+## Progres de implementare după audit — 2026-11-24
+
+- Work și Think sunt acum ecrane distincte în navigația principală; pagina Work conține înregistrarea și formularul de alarme.
+- `app.js` nu mai citește/scrie direct `localStorage`; folosește adapter asincron.
+- `storage-adapter.js` oferă adapter Web Storage și adapter SQLite nativ prin `@capacitor-community/sqlite@8.1.1`. La prima pornire nativă, datele vechi rămân citibile din localStorage până când Core le validează și scrie snapshot-ul în SQLite; sursa legacy nu este ștearsă.
+- Operațiile de scriere și confirmările AI sunt serializate înainte de persistare.
+- `reminders.js` folosește Local Notifications 8.3.1; programarea Android este inexactă pentru a evita permisiunea specială de alarmă exactă.
+- `build-mobile.js` produce un bundle allowlist și include plugin bridges native doar când pachetele sunt instalate.
+- `.github/workflows/collector-mobile-build.yml` generează build Android debug și iOS Simulator; un build anterior cu Capacitor și Local Notifications a trecut pe ambele platforme.
+- Build-ul cu SQLite pe branch-ul curent este în curs de verificare; auditul rămâne static și nu înlocuiește testarea pe telefoane fizice.
+- Audio rămâne în IndexedDB și folosește MediaRecorder; migrarea în Filesystem nativ și înregistrarea în background sunt încă de făcut.

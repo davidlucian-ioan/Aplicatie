@@ -66,9 +66,13 @@ Utilizatorul a clarificat explicit că Collector trebuie să fie o aplicație in
 - Arhitectura de producție trebuie să includă stocare mobilă persistentă (SQLite), audio local, notificări native, backend cloud multiutilizator, autentificare, sincronizare offline-first și endpoint OpenAI securizat.
 - `server.js` actual este doar server local de dezvoltare; nu este backend de producție.
 - Monetizarea trebuie să respecte Apple In-App Purchase și Google Play Billing pentru funcții digitale/abonamente, cu verificarea regulilor regionale.
-- Nu există încă implementare Capacitor, backend multiutilizator, billing sau pregătire finală pentru store. Nu afirma contrariul.
-- Auditul static M0 este salvat în `MOBILE-COMPATIBILITY-AUDIT.md`. Confirmat: UI-ul actual încă nu are Work/Think, `app.js` folosește localStorage, audio folosește IndexedDB/MediaRecorder, dictarea folosește SpeechRecognition, notificările native lipsesc, iar serverul actual este local-only.
-- Următorul pas: proiectarea și testarea contractului StorageAdapter, apoi extragerea persistenței din `app.js` fără schimbarea schemei v7. Păstrează testele Core ca gate și nu schimba D-001–D-044.
+- Există shell Capacitor, build pipeline și funcții native inițiale, dar nu există încă backend multiutilizator, billing sau build-uri semnate pentru store. Nu afirma contrariul.
+- Auditul static M0 și progresul implementării sunt salvate în `MOBILE-COMPATIBILITY-AUDIT.md`.
+- Work și Think sunt acum ecrane distincte. Work include recorder și programarea alarmelor native.
+- `app.js` folosește StorageAdapter asincron. Pe Android/iOS este selectat SQLite nativ; pe web rămâne adapterul localStorage.
+- SQLite păstrează schema v7 ca snapshot și citește localStorage legacy până când Core validează și rescrie datele; sursa legacy nu este ștearsă.
+- CI mobile generează Android debug APK și iOS Simulator app. Un build anterior cu Capacitor + Local Notifications a trecut; integrarea SQLite este încă în verificare.
+- Următorul pas: verifică CI-ul SQLite pe ambele platforme, apoi mută audio din IndexedDB în Filesystem nativ și testează microfonul/notificările pe dispozitive reale. Păstrează testele Core ca gate și nu schimba D-001–D-044.
 - Branch-ul curent rămâne `feature/openai-provider-integration`; PR #55 este draft, CI pe commitul `0d97ada1` a trecut pe push și pull_request. Nu merge în main fără aprobare.
 
 ## Instrucțiuni pentru următoarea sesiune
@@ -78,7 +82,7 @@ Utilizatorul a clarificat explicit că Collector trebuie să fie o aplicație in
 - Nu cere utilizatorului să repete contextul sau pașii deja documentați.
 - Utilizatorul nu este programator: explică pașii operaționali în română, unul câte unul, fără jargon inutil.
 
-## Fișiere de pornire locală
-- `Porneste-Collector.bat` pornește serverul local.
-- Deschide `http://localhost:8000` în browser.
-- Nu închide fereastra serverului cât timp folosește aplicația.
+## Pornire locală — doar dezvoltare/testare
+- `Porneste-Collector.bat` și `server.js` sunt doar pentru dezvoltare pe calculator; nu sunt cerințe pentru utilizatorii aplicației mobile.
+- Build-urile mobile sunt generate de workflow-ul `.github/workflows/collector-mobile-build.yml`.
+- `npm run mobile:build` produce bundle-ul allowlist în `www/`; `npm run mobile:sync` sincronizează proiectele native când toolchain-ul Capacitor este instalat.

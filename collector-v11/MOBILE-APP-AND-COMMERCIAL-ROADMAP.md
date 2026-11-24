@@ -83,7 +83,15 @@ Surse oficiale:
 
 ## Etape de implementare
 
-### M0 — Audit de compatibilitate și contracte (următorul pas)
+### M0 — Audit de compatibilitate și contracte
+<badge>În mare parte implementat</badge>
+- Audit static și contract de stocare asincron.
+- `app.js` folosește acum StorageAdapter, fără apeluri directe `localStorage.getItem/setItem`.
+- Adapter web și adapter nativ SQLite; pe mobil, SQLite este sursa principală, iar localStorage este citit doar ca sursă legacy până când Core validează și rescrie schema v7.
+- Scrierile sunt serializate; operațiile UI și confirmările AI folosesc aceeași coadă de mutații.
+- Teste de contract pentru web/SQLite, concurență, rollback și fallback de migrare.
+
+### M1 — Shell nativ
 1. Inventarierea accesului direct la localStorage, IndexedDB, MediaRecorder, SpeechRecognition, notificări și APIs de browser.
 2. Definirea StorageAdapter și a testelor de contract pentru adapter.
 3. Definirea contractelor de autentificare, sincronizare, outbox și entitlements.
@@ -91,18 +99,20 @@ Surse oficiale:
 5. Menținerea testelor Core actuale ca gate obligatoriu.
 
 ### M1 — Shell nativ
-1. Adăugarea Capacitor 8 și configurarea appId stabil.
-2. Proiecte Android/iOS și pipeline de build.
-3. Splash/icon/permissions și navigație responsive.
-4. Smoke tests pe Android și iOS.
-5. Fără modificări în comportamentul Core în această etapă.
+<badge>Implementat; validarea SQLite este în curs</badge>
+1. Capacitor 8.6.2 și `capacitor.config.json`; `appId` curent `ro.collector.mobile` este provizoriu până la confirmarea identității comerciale.
+2. Bundle web allowlist (`build-mobile.js`) care include numai active runtime, fără server, chei, teste sau documente interne.
+3. Work și Think sunt acum ecrane distincte în UI.
+4. Pluginul Local Notifications 8.3.1 este integrat în shell; reminder-ele sunt salvate local și programate nativ, fără permisiune specială pentru alarme exacte pe Android (se folosește programare inexactă).
+5. Pipeline GitHub Actions construiește Android debug APK și iOS Simulator app. Un build anterior cu Capacitor + Local Notifications a trecut pe ambele platforme; build-ul actual cu SQLite este încă în verificare.
+6. Build-urile curente sunt pentru verificare, nu AAB/IPA semnate pentru distribuție.
 
 ### M2 — Funcții native și persistență
-1. SQLite adapter și migrare sigură v7.
-2. Înregistrare audio nativă și redare/export.
-3. Notificări locale și permisiuni.
-4. Gestionarea stărilor background/foreground, întreruperilor și bateriei.
-5. Teste de pierdere/revenire a conexiunii și restart al aplicației.
+1. Validare pe dispozitive reale a adapterului SQLite și a migrării v7; testarea reluării conexiunii la revenirea din background.
+2. Mutarea fișierelor audio din IndexedDB în stocare nativă Filesystem și metadate în SQLite.
+3. Verificarea MediaRecorder/microfonului pe iOS și Android; suportul actual pentru audio în background nu este încă garantat.
+4. Teste pentru notificări, restart, permisiuni și comportament Android Doze/iOS Focus.
+5. Import/export nativ prin Files/Share Sheet și recuperare după erori.
 
 ### M3 — Backend multiutilizator și sincronizare
 1. Serviciu backend cloud separat de serverul local.
@@ -150,8 +160,10 @@ Surse oficiale:
 - `server.js` este exclusiv local și nu poate fi backend comercial.
 
 ## Starea reală la 2026-11-24
-- OpenAI provider este implementat pe branch-ul `feature/openai-provider-integration`, PR draft #55.
-- CI pentru commitul `0d97ada1` a trecut atât pe push, cât și pe pull_request.
-- Integrarea AI reală cu o cheie API nu a fost încă testată.
-- Nicio implementare Capacitor/native/backend comercial nu a fost făcută încă.
-- Următoarea activitate tehnică este M0: auditul compatibilității și introducerea StorageAdapter fără regresii.
+- OpenAI provider este implementat pe branch-ul `feature/openai-provider-integration`, PR draft #55; nu s-a făcut încă un apel cu o cheie API reală.
+- Capacitor 8.6.2 shell, configurarea Android/iOS, build allowlist, Work/Think și reminders native sunt implementate.
+- StorageAdapter asincron și adapter SQLite nativ sunt implementate; build-ul CI curent verifică integrarea SQLite pe ambele platforme.
+- Un build Android debug și un build iOS Simulator cu Capacitor + Local Notifications au trecut anterior; nu sunt build-uri semnate sau pregătite de store.
+- Nu există încă backend cloud multiutilizator, autentificare, sincronizare, billing, ștergere cont sau privacy policy.
+- Nu există încă testare pe dispozitive fizice. Audio folosește încă MediaRecorder + IndexedDB.
+- Nu declara aplicația gata de vânzare/store. Următorul pas: obține CI verde pe SQLite, apoi mută audio în Filesystem nativ și verifică microfonul/notificările pe dispozitive reale.

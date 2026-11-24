@@ -2,9 +2,15 @@
 
 Aplicația executabilă Collector v11. Documentele canonice de produs și deciziile sunt în rădăcina repository-ului.
 
-## Pornire Windows
+## Aplicație mobilă
 
-Dublu-click pe `Porneste-Collector.bat`, apoi deschide `http://localhost:8000/index-server.html`. Lasă fereastra serverului deschisă.
+Collector este în curs de portare ca aplicație instalabilă Android și iOS. Utilizatorul final nu are nevoie de PC sau de un server pornit acasă. Work și Think sunt ecranele principale; datele mobile folosesc SQLite nativ, iar alarmele folosesc notificări locale.
+
+Build-urile de verificare sunt generate de [Collector mobile build](../.github/workflows/collector-mobile-build.yml). Acestea sunt APK debug și iOS Simulator, nu încă pachete semnate pentru magazine.
+
+## Pornire locală — doar dezvoltare
+
+Dublu-click pe `Porneste-Collector.bat`, apoi deschide `http://localhost:8000/index-server.html`. Acesta este doar serverul local de dezvoltare; nu este necesar pentru utilizarea aplicației mobile.
 
 ## Cerințe pentru testare
 
@@ -47,4 +53,4 @@ Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile real
 
 ## Aplicație mobilă comercială
 
-Direcția de produs confirmată este distribuția ca aplicație instalabilă Android și iOS prin Google Play și Apple App Store. PC-ul este doar unealtă de dezvoltare, nu condiție de utilizare. Arhitectura și etapele de implementare sunt documentate în [MOBILE-APP-AND-COMMERCIAL-ROADMAP.md](MOBILE-APP-AND-COMMERCIAL-ROADMAP.md). Implementarea mobilă și backend-ul multiutilizator sunt încă de realizat.
+Direcția de produs confirmată este distribuția prin Google Play și Apple App Store. Shell-ul Capacitor, bundle-ul mobile, StorageAdapter SQLite, Work/Think și reminders native sunt implementate în branch-ul de lucru. Backend-ul cloud, autentificarea, sincronizarea, billing-ul, audio nativ complet și build-urile semnate rămân de realizat. Vezi [MOBILE-APP-AND-COMMERCIAL-ROADMAP.md](MOBILE-APP-AND-COMMERCIAL-ROADMAP.md).
