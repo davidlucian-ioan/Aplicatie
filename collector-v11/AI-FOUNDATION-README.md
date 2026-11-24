@@ -75,6 +75,7 @@ Această fază este un schelet executabil și testat al pipeline-ului, nu o inte
 
 - `ai/provider-openai.js` — adaptor server-side pentru Responses API și Structured Outputs; cheia API nu ajunge în browser.
 - `ai/provider-openai-browser.js` — client UI către proxy-ul local.
+- `ai/context-sanitizer.js` — allowlist pentru metadatele trimise providerului; elimină atribute arbitrare și limitează lungimile/cantitățile.
 - `server.js` — server HTTP local și endpoint-uri `/api/ai/status` și `/api/ai/interpret`.
 - `OPENAI-INTEGRATION.md` — configurare, flux și limite de securitate.
 - `test-openai-provider.js` — teste cu fetch mock; nu necesită cheie API reală.
