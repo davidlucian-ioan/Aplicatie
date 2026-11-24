@@ -228,3 +228,6 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 - Teste AI vizate: 41 în 5 fișiere (`test-ai-foundation.js` 13; `test-ai-core-port.js` 10; `test-ai-browser-core-port.js` 9; `test-ai-contracts.js` 5; `test-ai-core-contract.js` 4). Sunt adăugate/modificate, dar nu executate local în această sesiune; așteaptă Quality CI.
 - Nu s-a ales încă provider/model și nu există cheie/API cloud în client. Niciun provider AI real nu este conectat.
 - Următorul gate după CI: actual STT on-device Android pentru română (capability probe există, captură/transcriere efectivă încă nu), transcript segmentat cu timestamp și legătură la audio; apoi benchmark română; după aceea alegerea providerului și gateway server-side.
+
+- Hardening suplimentar după deschiderea PR #52: output-ul providerului este clonat înainte de validare; providerul nu primește `userId` sau `requestId`; metadata transmisă este allowlistată la limbă, sursă STT, confidence, index/durată/timestamp segment, fără câmpuri arbitrare. Idempotency/turn IDs sunt injectate înainte de validarea propunerii, deci modelul nu trebuie să inventeze aceste identificatoare și nu le poate controla.
+- Test AI total actualizat: 42 cazuri în 5 fișiere (Foundation 14, Core Port Node 10, Core Port Browser 9, contracte 5, Core contract 4). Rămân neexecutate local; CI este autoritatea pentru rezultat.
