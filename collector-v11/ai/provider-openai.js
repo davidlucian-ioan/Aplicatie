@@ -80,7 +80,12 @@ function normalizeInterpretation(raw, turnId) {
   for (const key of ['confidence', 'answer', 'question', 'reason', 'readRequest']) {
     if (result[key] === null) delete result[key];
   }
-  if (result.readRequest) validateReadRequest(result.readRequest);
+  if (result.readRequest) {
+    for (const key of ['type', 'id', 'name', 'populationId', 'locationId', 'entityId', 'attributeNames', 'limit']) {
+      if (result.readRequest[key] === null) delete result.readRequest[key];
+    }
+    validateReadRequest(result.readRequest);
+  }
   if (result.command) {
     const draft = result.command;
     result.command = {
