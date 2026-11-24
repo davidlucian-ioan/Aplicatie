@@ -8,6 +8,13 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+for /f %%P in ('powershell -NoProfile -Command "$c=Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue; if($c){'BUSY'}"') do set "PORTSTATE=%%P"
+if /i "%PORTSTATE%"=="BUSY" (
+  echo Portul 8000 este deja folosit.
+  echo Inchide fereastra serverului vechi si porneste din nou Collector.
+  pause
+  exit /b 1
+)
 if not exist ".env" if "%OPENAI_API_KEY%"=="" (
   echo ATENTIE: OPENAI_API_KEY nu este configurata.
   echo Collector va porni in mod local; AI cloud va ramane indisponibil.
