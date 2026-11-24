@@ -103,12 +103,15 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Context vocal local: `collector_voice_context_v1` separat de jurnalul Core, cu TTL strict de 30 de minute; se actualizează numai după commit vocal reușit, nu la preview, anulare, duplicat sau comandă scrisă manual.
 - Contextul este vizibil în WORK, poate fi șters manual și este verificat la revenirea aplicației în foreground. Referințele explicite „aceeași entitate/populație/locație” se rezolvă numai către ID-urile confirmate; fără context sau după expirare lotul este respins fără preview.
 - Teste E2E pentru referință contextuală, lipsă de context, TTL, comenzi manuale care nu reîmprospătează contextul și păstrarea confirmării explicite.
-- Quality CI: PASS, run 45403584942; 44 teste Chromium au trecut.
-- Android debug build: PASS, run 45403585035.
-- Head verificat: `602988495e772a9bee9b8b51ed1528378a5bd491`; PR #47 rămâne deschis și mergeable, fără integrare în `main`.
+- Confirmarea Core revalidează jurnalul local înainte de commit. Dacă o altă sesiune a modificat jurnalul după preview, preview-ul este refăcut și se cere o nouă confirmare; store-ul refuză să suprascrie un jurnal mai nou.
+- Test E2E cu vânzare concurentă între preview și confirmare: prima confirmare reface preview-ul, a doua confirmă noua stare; nu se pierde evenimentul extern.
+- Teste E2E pentru ținte inexistente, entități de tip greșit și destinații care nu sunt locații; lotul este respins integral.
+- Quality CI: PASS, run 45404400669; 45 teste Chromium au trecut.
+- Android debug build: PASS, run 45404400667.
+- Head verificat: `1147a3769ab37a3bb65d9fdc5c348749fd5edd63`; PR #47 rămâne deschis și mergeable, fără integrare în `main`.
 
 ### Următorii pași
-1. Extinde testele de refuz atomic pentru operații de stoc mixte, solduri insuficiente și schimbări concurente de țintă între preview și confirmare.
+1. Extinde testele de consistență pentru concurență între două sesiuni și eșecuri de persistență în timpul commit-ului.
 2. Evaluează STT offline pe Android separat de browser SpeechRecognition; nu declara suport offline înainte de testare pe dispozitiv.
 3. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
 4. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
