@@ -106,9 +106,9 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Confirmarea Core revalidează jurnalul local înainte de commit. Dacă o altă sesiune a modificat jurnalul după preview, preview-ul este refăcut și se cere o nouă confirmare; store-ul refuză să suprascrie un jurnal mai nou.
 - Test E2E cu vânzare concurentă între preview și confirmare: prima confirmare reface preview-ul, a doua confirmă noua stare; nu se pierde evenimentul extern.
 - Teste E2E pentru ținte inexistente, entități de tip greșit și destinații care nu sunt locații; lotul este respins integral.
-- Quality CI: PASS, run 45404400669; 45 teste Chromium au trecut.
-- Android debug build: PASS, run 45404400667.
-- Head verificat: `1147a3769ab37a3bb65d9fdc5c348749fd5edd63`; PR #47 rămâne deschis și mergeable, fără integrare în `main`.
+- Quality CI: PASS, run 45404826835; 45 teste Chromium au trecut.
+- Android debug build: PASS, run 45404826831.
+- Head verificat: `d4aad67713ab41cc1713c4faa1aad8ca0d145285`; PR #47 rămâne deschis și mergeable, fără integrare în `main`.
 
 ### Următorii pași
 1. Extinde testele de consistență pentru concurență între două sesiuni și eșecuri de persistență în timpul commit-ului.
