@@ -27,6 +27,16 @@ class Orchestrator {
     const userId = input.userId || 'anonymous';
     const context = this.contextManager.get(userId);
     const interpretation = await this.provider.interpret({ input, context, turnId });
+    if (interpretation?.intent === 'propose' && interpretation.command &&
+        typeof interpretation.command === 'object' && !Array.isArray(interpretation.command)) {
+      // Inject trusted transport identity before validating the model's proposal.
+      // The model is not required or allowed to choose idempotency/turn identifiers.
+      interpretation.command = {
+        ...interpretation.command,
+        turnId,
+        idempotencyKey: 'ai-turn:' + (input.requestId || turnId)
+      };
+    }
     const decision = decide(interpretation);
 
     if (decision.action === 'clarify' || decision.action === 'refuse' ||
