@@ -263,19 +263,14 @@ async function runAICommand(){
   const response=await CollectorOpenAIProvider.interpret(text,context);
   const ai=response.interpretation||{};
   if(ai.intent==='answer'){box.textContent=ai.answer||'Nu am un răspuns disponibil.';return}
-  if(ai.intent==='clarify'){box.textContent=ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.';return}
+  if(ai.intent==='clarify'||(ai.intent==='propose'&&Array.isArray(ai.ambiguities)&&ai.ambiguities.length)){box.textContent=ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.';return}
   if(ai.intent==='refuse'){box.textContent=ai.answer||'Nu pot procesa această solicitare.';return}
-  if(ai.intent!=='propose'||!Array.isArray(ai.operations)||!ai.operations.length)throw Error('OpenAI nu a returnat o propunere validă.');
+  if(ai.intent!=='propose'||!ai.command||!Array.isArray(ai.command.operations)||!ai.command.operations.length)throw Error('OpenAI nu a returnat o comandă validă pentru Collector.');
   const command={
-   contractVersion:'collector.command.v1',
+   ...ai.command,
    turnId:E.uid(),
-   intent:ai.command_intent||'ai.proposal',
    idempotencyKey:commandIntentKey(),
-   source:'ai-openai',
-   certainty:ai.certainty==='uncertain'?'uncertain':'certain',
-   payload:ai.payload||{},
-   operations:ai.operations,
-   requiresConfirmation:Boolean(ai.requires_confirmation)
+   source:'ai-openai'
   };
   const preview=await ensureAICorePort().preview(command);
   if(preview.status!=='preview_ok'){
