@@ -195,6 +195,13 @@ Responsabilități:
 - limitarea datelor trimise către cloud;
 - jurnal tehnic fără a expune inutil date sensibile.
 
+Contract minim pentru un provider real:
+- `interpret({ input, context, turnId })` returnează numai una dintre intențiile validate (`answer`, `propose`, `clarify`, `refuse`, `model_extension`) și nu execută acțiuni;
+- `respond({ input, context, turnId, readRequest, data })` sintetizează date operaționale numai după ce Core Read Adapter a returnat rezultatul autoritativ;
+- output-ul pentru propuneri trebuie să fie JSON structurat conform `collector.command.v1`, fără text liber în locul câmpurilor contractuale;
+- providerul nu primește obiectul DB, API keys, actor intern sau acces la `commit`;
+- cheile și apelurile cloud rămân exclusiv server-side. Clientul Android/browser apelează numai un gateway autentificat, nu un endpoint AI cu secret în bundle.
+
 ---
 
 ## 5. Pipeline canonic
