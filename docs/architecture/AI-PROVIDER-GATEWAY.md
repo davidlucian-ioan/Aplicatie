@@ -7,7 +7,7 @@ Updated: 2026-11-24
 This branch adds the provider and server transport layers, but does not yet activate AI calls from the WORK UI.
 
 - `OpenAIResponsesProvider` is server-only. It calls the OpenAI Responses API using `OPENAI_API_KEY` and `OPENAI_MODEL` from the server environment.
-- Interpretation uses strict JSON Schema output. The model returns a typed intent and a command draft; operation data is encoded as JSON strings, parsed server-side and validated against `collector.command.v1`.
+- Interpretation uses strict JSON Schema output. The model returns a typed intent and a command draft; operation data is encoded as JSON strings, parsed server-side and validated against `collector.command.v1`. Answer intents label `answerSource` as `general` or `core`; `core` answers require a scoped read request.
 - The Orchestrator remains the owner of `turnId` and idempotency. Provider-supplied IDs are replaced before decision-gate/Core validation.
 - Operational answers use a separate `respond()` stage. The only data passed to that stage is the result of the explicit Core Read Adapter request.
 - Responses API calls set `store: false`; the gateway itself does not persist conversation content.
