@@ -248,6 +248,55 @@ async function confirmCoreCommand(){
   } else box.textContent=`Execuție nefinalizată (${result.status}): ${(result.errors||[]).join(' ')}`;
  }catch(err){box.textContent='Execuția a eșuat: '+err.message}
 }
+async function runAICommand(){
+ const box=document.getElementById('commandResult'),text=document.getElementById('commandInput').value.trim();
+ if(!text){box.textContent='Scrie sau dictează mai întâi ce dorești să înregistrezi.';return}
+ const button=document.getElementById('parseWithAI');
+ if(button){button.disabled=true;button.textContent='AI procesează…'}
+ box.textContent='Trimit textul către OpenAI pentru interpretare. Nicio modificare nu este salvată în această etapă.';
+ try{
+  if(!window.CollectorOpenAIProvider)throw Error('Modulul OpenAI nu este încărcat. Pornește Collector prin serverul local.');
+  const context={
+   entities:db.entities.slice(0,150).map(e=>({id:e.id,name:e.name,type:e.type})),
+   attributes:db.attributes.slice(0,100).map(a=>({id:a.id,name:a.name,type:a.type,required:Boolean(a.required),identifying:Boolean(a.identifying),temporal:Boolean(a.temporal),min:a.min??null,max:a.max??null}))
+  };
+  const response=await CollectorOpenAIProvider.interpret(text,context);
+  const ai=response.interpretation||{};
+  if(ai.intent==='answer'){box.textContent=ai.answer||'Nu am un răspuns disponibil.';return}
+  if(ai.intent==='clarify'){box.textContent=ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.';return}
+  if(ai.intent==='refuse'){box.textContent=ai.answer||'Nu pot procesa această solicitare.';return}
+  if(ai.intent!=='propose'||!Array.isArray(ai.operations)||!ai.operations.length)throw Error('OpenAI nu a returnat o propunere validă.');
+  const command={
+   contractVersion:'collector.command.v1',
+   turnId:E.uid(),
+   intent:ai.command_intent||'ai.proposal',
+   idempotencyKey:commandIntentKey(),
+   source:'ai-openai',
+   certainty:ai.certainty==='uncertain'?'uncertain':'certain',
+   payload:ai.payload||{},
+   operations:ai.operations,
+   requiresConfirmation:Boolean(ai.requires_confirmation)
+  };
+  const preview=await ensureAICorePort().preview(command);
+  if(preview.status!=='preview_ok'){
+   box.textContent=preview.status==='duplicate'?'Această intenție a fost deja înregistrată.':'Core a respins preview-ul: '+preview.status;
+   return;
+  }
+  pendingCoreCommand=command;
+  const opSummary=command.operations.map(op=>op.operation).join(', ');
+  box.innerHTML='<b>Propunere AI · '+esc(response.model||'OpenAI')+'</b><p>'+esc(ai.answer||'Am interpretat cererea și am pregătit operația: '+opSummary+'.')+'</p><p>Încredere interpretare: '+Math.round(ai.confidence*100)+'%.</p><p>Impact estimat — entități: '+preview.projectionChanges.entities+', relații: '+preview.projectionChanges.relations+', stoc: '+preview.projectionChanges.stock+', financiar: '+preview.projectionChanges.finance+'.</p><p class="note">OpenAI doar propune. Core a validat preview-ul. Datele nu au fost modificate. Verifică propunerea și confirmă explicit pentru salvare.</p><button class="primary" id="confirmCoreCommand">Confirmă și salvează</button> <button class="secondary" id="cancelCoreCommand">Anulează</button>';
+  document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
+  document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;box.textContent='Propunere anulată. Nu s-au modificat date.'};
+ }catch(error){box.textContent='Interpretarea AI nu a putut fi finalizată: '+error.message}
+ finally{if(button){button.disabled=false;button.textContent='Interpretează cu AI'}}
+}
+document.getElementById('parseWithAI')?.addEventListener('click',runAICommand);
+async function refreshAIProviderStatus(){
+ const status=document.getElementById('aiProviderStatus');if(!status||!window.CollectorOpenAIProvider)return;
+ try{const info=await CollectorOpenAIProvider.status();status.textContent=info.configured?'OpenAI activ · '+info.model:'OpenAI selectat · cheia API nu este configurată pe server';status.dataset.ready=String(info.configured)}
+ catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false'}
+}
+refreshAIProviderStatus();
 document.getElementById('parseCommand').onclick=runCommand;
 let activeRecognition=null;
 let voiceSessionRecognition=null;
