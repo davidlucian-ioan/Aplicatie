@@ -7,12 +7,15 @@ for(const html of ['index.html','index-server.html','Deschide-prin-dublu-click.h
   const s=fs.readFileSync(html,'utf8');
   assert.ok(s.indexOf('ai/core-port-browser.js')>s.indexOf('engine.js'));
   assert.ok(s.indexOf('ai/core-port-browser.js')<s.indexOf('app.js'));
+  assert.ok(s.indexOf('storage-adapter.js')<s.indexOf('app.js'));
  });
 }
-test('UI folosește preview și execute prin Core Port, cu localStorage ca store',()=>{
+test('UI folosește preview și execute prin Core Port, cu StorageAdapter asincron',()=>{
  const s=fs.readFileSync('app.js','utf8');
  assert.match(s,/new Port\(\{core:E,store:/);
- assert.match(s,/persistState:async next=>!integrityBlocked&&persistRaw\(next\)/);
+ assert.match(s,/storageAdapter\.writeRaw\(KEY,JSON\.stringify\(x\)\)/);
+ assert.doesNotMatch(s,/localStorage\.(?:getItem|setItem|removeItem)/);
+ assert.match(s,/persistState:async next=>!integrityBlocked&&await persistRaw\(next\)/);
  assert.match(s,/\.preview\(command\)/);
  assert.match(s,/\.execute\(command,\{confirmed:true\}\)/);
  assert.match(s,/publishState:async next=>\{db=next;render\(\)\}/);
