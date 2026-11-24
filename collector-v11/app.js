@@ -208,6 +208,61 @@ function exportData(){const blob=new Blob([JSON.stringify({exportedAt:E.now(),ap
 document.getElementById('importFile').addEventListener('change',async ev=>{const file=ev.target.files?.[0];if(!file)return;try{const raw=JSON.parse(await file.text()),candidate=raw.db||raw;const validated=E.validateImport(candidate);if(!confirm('Jurnal valid, fără erori, iar proiecțiile corespund istoricului. Importul va înlocui datele locale curente. Ai exportat o copie de siguranță?'))return;if(!persistRaw(validated))throw Error('Nu s-au putut salva datele importate. Datele locale au rămas neschimbate.');db=validated;integrityBlocked=false;integrityCanRebuild=false;integrityBlockReason=null;integrityRawBackup=null;currentEntityId=null;render();alert('Import reușit: jurnalul și proiecțiile au fost validate.')}catch(err){alert('Import eșuat: '+err.message)}finally{ev.target.value=''}});
 function verifyReplay(){const rebuilt=E.replay(db.events,[]);const report={events:db.events.length,entitiesCurrent:db.entities.length,entitiesReplay:rebuilt.entities.length,relationsCurrent:db.relations.length,relationsReplay:rebuilt.relations.length,stockCurrent:db.stock.length,stockReplay:rebuilt.stock.length,financialCurrent:db.finance.length,financialReplay:rebuilt.finance.length,warnings:rebuilt.meta.replayWarnings||[]};openModal(`<h2>Verificare replay</h2><pre>${esc(JSON.stringify(report,null,2))}</pre><p>Replay-ul reconstruiește proiecțiile pornind din jurnalul de evenimente.</p><div class="form-actions"><button class="secondary" onclick="closeModal()">Închide</button><button class="primary" onclick="rebuildFromJournal()">Reconstruiește proiecțiile</button></div>`)}
 function rebuildFromJournal(){if(integrityBlocked&&!integrityCanRebuild){alert('Reconstruirea a fost blocată: datele originale nu pot fi înlocuite în siguranță prin replay. Exportă copia păstrată sau importă un backup valid.');return false}const rebuilt=E.replay(db.events,[]);const warnings=rebuilt.meta.replayWarnings||[];if(warnings.length){alert('Reconstruirea a fost blocată: jurnalul conține '+warnings.length+' evenimente invalide. Datele existente au fost păstrate. Exportă datele și repară jurnalul sau importă un backup valid.');return false}rebuilt.meta={...db.meta,...rebuilt.meta};delete rebuilt.meta.integrityError;if(!persistRaw(rebuilt)){alert('Reconstruirea nu a fost salvată. Starea activă și datele existente au rămas neschimbate.');return false}db=rebuilt;integrityBlocked=false;integrityCanRebuild=false;integrityBlockReason=null;integrityRawBackup=null;currentEntityId=null;closeModal();render();alert('Proiecțiile au fost reconstruite și salvate cu succes din jurnal.');return true}
+const VOICE_CONTEXT_KEY='collector_voice_context_v1';
+const VOICE_CONTEXT_TTL_MS=30*60*1000;
+function readVoiceContext(){
+ try{
+  const raw=localStorage.getItem(VOICE_CONTEXT_KEY);if(!raw)return null;
+  const context=JSON.parse(raw);
+  if(!context||typeof context.entityId!=='string'||!Number.isFinite(context.expiresAt)||Date.now()>=context.expiresAt){localStorage.removeItem(VOICE_CONTEXT_KEY);return null}
+  const entity=db.entities.find(item=>item.id===context.entityId);
+  if(!entity){localStorage.removeItem(VOICE_CONTEXT_KEY);return null}
+  return {entityId:entity.id,entityName:entity.name,entityType:entity.type,updatedAt:context.updatedAt,expiresAt:context.expiresAt};
+ }catch(error){try{localStorage.removeItem(VOICE_CONTEXT_KEY)}catch{}return null}
+}
+function renderVoiceContext(){
+ const panel=document.getElementById('voiceContextPanel'),label=document.getElementById('voiceContextLabel'),clear=document.getElementById('clearVoiceContext');
+ if(!panel||!label||!clear)return;
+ const context=readVoiceContext();
+ if(context){
+  label.textContent='Context vocal activ: '+context.entityName+' ('+context.entityType+'). Expiră la '+new Date(context.expiresAt).toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'})+'. Comenzile fără entitate explicită îl pot folosi.';
+  clear.hidden=false;
+ }else{
+  label.textContent='Context vocal: niciun element selectat. Pentru o comandă fără nume de entitate, confirmă mai întâi o țintă.';
+  clear.hidden=true;
+ }
+}
+function clearVoiceContext(message){
+ try{localStorage.removeItem(VOICE_CONTEXT_KEY)}catch{}
+ renderVoiceContext();
+ if(message)setAppStatus(message);
+}
+function setVoiceContext(entityId){
+ const entity=db.entities.find(item=>item.id===entityId);
+ if(!entity){clearVoiceContext();return}
+ const now=Date.now();
+ try{
+  localStorage.setItem(VOICE_CONTEXT_KEY,JSON.stringify({entityId:entity.id,updatedAt:now,expiresAt:now+VOICE_CONTEXT_TTL_MS}));
+  renderVoiceContext();
+ }catch(error){clearVoiceContext('Nu am putut păstra contextul vocal local: '+error.message)}
+}
+function updateVoiceContextFromCommand(command){
+ if(command?.intent!=='voice.batch')return;
+ const ids=new Set();
+ for(const operation of command.operations||[]){
+  if(operation.operation==='attribute.set'&&operation.target)ids.add(operation.target);
+  if(operation.operation==='stock.change'&&operation.data?.populationId)ids.add(operation.data.populationId);
+ }
+ if(ids.size===1)setVoiceContext([...ids][0]);
+ else if(ids.size>1)clearVoiceContext('Lotul a vizat mai multe entități; contextul vocal anterior a fost șters pentru a evita presupuneri.');
+}
+function voiceContextEntityForPhrase(index){
+ const context=readVoiceContext();
+ if(!context)throw Error('Fraza '+(index+1)+': nu ai menționat entitatea și nu există context vocal activ. Spune numele complet sau confirmă mai întâi o țintă.');
+ const entity=db.entities.find(item=>item.id===context.entityId);
+ if(!entity){clearVoiceContext();throw Error('Contextul vocal nu mai corespunde unei entități active. Selectează din nou ținta.')}
+ return entity;
+}
 function parseCommand(text){
  const s=String(text??'').normalize('NFC').trim();
  if(!s)return {error:'Scrie o comandă.'};
@@ -215,6 +270,7 @@ function parseCommand(text){
  // Acceptă atât forma scurtă, cât și formularea completă afișată în exemplele UI.
  if((m=s.match(/^(?:observație|observatie|notează|noteaza|înregistrează observație|inregistreaza observatie)\s*:?\s*(.+)$/iu)))return {type:'note',description:m[1].trim()};
  if((m=s.match(/^(?:setează|seteaza|înregistrează|inregistreaza)\s+(?:atributul\s+)?(.+?)\s+pentru\s+(.+?)\s*(?:=|\beste\b|\bla\b)\s*(.+)$/iu))){return {type:'attribute',attribute:m[1].trim(),entityName:m[2].trim(),value:m[3].trim()}}
+ if((m=s.match(/^(?:setează|seteaza|înregistrează|inregistreaza)\s+(?:atributul\s+)?(.+?)\s*(?:=|\\beste\\b|\\bla\\b)\s*(.+)$/iu)))return {type:'attribute',attribute:m[1].trim(),entityName:null,value:m[2].trim(),usesContext:true};
  if((m=s.match(/^(?:înregistrează observație|inregistreaza observatie):?\s*(.+?)\s+are\s+(.+?)\s+([0-9]+(?:[.,][0-9]+)?)$/iu)))return {type:'attribute',entityName:m[1].trim(),attribute:m[2].trim(),value:m[3].replace(',','.')};
  if((m=s.match(/^(?:am vândut|am vandut|vinde)\s+(\d+)\s+(.+?)(?:\s+din\s+(.+))?$/iu)))return {type:'sale',quantity:Number(m[1]),populationName:m[2].trim(),locationName:m[3]?.trim()||null};
  return {error:'Nu pot interpreta această comandă fără să ghicesc. Folosește „Observație: ...” sau „Înregistrează [atribut] pentru [entitate] = [valoare]”.'};
@@ -257,8 +313,8 @@ async function runVoiceBatch(phrases,selections={}){
     items.push({type:'note',description:parsed.description});
     summaries.push('Observație '+(index+1)+': „'+parsed.description+'”');
    }else if(parsed.type==='attribute'){
-    const matches=db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
-    const entity=voiceBatchResolveTarget(matches,'entity:'+index,'entitatea „'+parsed.entityName+'”',selections,unresolved,index);
+    const matches=parsed.entityName?db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase()):[];
+    const entity=parsed.entityName?voiceBatchResolveTarget(matches,'entity:'+index,'entitatea „'+parsed.entityName+'”',selections,unresolved,index):voiceContextEntityForPhrase(index);
     const definitions=db.attributes.filter(a=>a.name.toLowerCase()===parsed.attribute.toLowerCase());
     if(definitions.length!==1)throw Error(definitions.length?'Fraza '+(index+1)+': definiția atributului „'+parsed.attribute+'” nu este unică.':'Fraza '+(index+1)+': atributul „'+parsed.attribute+'” nu este definit. Nu voi modifica schema în tăcere.');
     if(entity){
@@ -267,7 +323,7 @@ async function runVoiceBatch(phrases,selections={}){
      const valueWarnings=validateAttribute(def,value);if(valueWarnings.length)warnings.push('Fraza '+(index+1)+' · '+def.name+': '+valueWarnings.join(' și '));
      operations.push({operation:'attribute.set',target:entity.id,data:{name:def.name,value,certainty:'certain',forceHistory:true}});
      items.push({type:'attribute',entityId:entity.id,attribute:def.name,value});
-     summaries.push(entity.name+' · '+def.name+' = '+JSON.stringify(value));
+     summaries.push(entity.name+(parsed.usesContext?' · context activ':'')+' · '+def.name+' = '+JSON.stringify(value));
     }
    }else if(parsed.type==='sale'){
     const populations=db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
@@ -339,6 +395,7 @@ async function confirmCoreCommand(){
  try{
   const result=await ensureAICorePort().execute(command,{confirmed:true});
   if(result.status==='committed'||result.status==='duplicate'){
+   if(result.status==='committed')updateVoiceContextFromCommand(command);
    box.innerHTML=`<b class="status-ok">${result.status==='committed'?'Salvat cu succes':'Comandă deja procesată'}</b><p>Event ID: ${esc(result.eventId||'—')}</p>`;
    if(voiceCommandPending)speakWorkFeedback(result.status==='committed'?'Comanda a fost salvată cu succes.':'Comanda fusese deja procesată.',true);
    voiceCommandPending=false;
@@ -346,6 +403,7 @@ async function confirmCoreCommand(){
  }catch(err){box.textContent='Execuția a eșuat: '+err.message;if(voiceCommandPending)speakWorkFeedback(box.textContent,true);voiceCommandPending=false}
 }
 document.getElementById('parseCommand').onclick=runCommand;
+document.getElementById('clearVoiceContext')?.addEventListener('click',()=>clearVoiceContext('Contextul vocal a fost șters.'));
 let activeRecognition=null;
 let voiceSessionRecognition=null;
 let voiceSessionActive=false;
@@ -451,4 +509,5 @@ document.getElementById('globalVoice').onclick=()=>{showPage('work');if(audioRec
 // Do not persist stale in-memory snapshots on focus; context expiry is evaluated when commands are handled.
 // Every committed change is persisted before publication; never write a stale in-memory snapshot on unload.
 render();
+renderVoiceContext();
 window.__collectorAppReady = true;
