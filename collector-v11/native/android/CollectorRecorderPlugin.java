@@ -143,7 +143,19 @@ public final class CollectorRecorderPlugin extends Plugin {
 
     @PluginMethod
     public void getRecordingState(PluginCall call) {
+        File activeStateFile = new File(recordingsDirectory(), "active-state.json");
         JSONObject state = readActiveState();
+        if (state.length() == 0) {
+            JSObject unknown = new JSObject();
+            if (activeStateFile.exists() || isRecorderServiceRunning()) {
+                unknown.put("status", "unknown");
+                unknown.put("error", "Starea reportofonului nu poate fi citită în siguranță.");
+            } else {
+                unknown.put("status", "inactive");
+            }
+            call.resolve(unknown);
+            return;
+        }
         reconcileIfServiceStopped(state);
         call.resolve(toJsObject(state));
     }
