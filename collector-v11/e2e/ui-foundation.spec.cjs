@@ -244,6 +244,134 @@ test('voice batch previews and commits mixed attribute and stock operations atom
   expect(activeBalance).toBe(8);
 });
 
+
+test('voice context persists only after confirmation, expires after 30 minutes and can be cleared', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('B3 context');
+  await page.locator('#newType').fill('aquarium');
+  await page.locator('#modal button.primary').click();
+  const entityId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'B3 context').id);
+
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#voiceContextLabel')).toContainText('niciun element selectat');
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrase = [{ transcript: 'setează pH pentru B3 context = 6.4' }]; phrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [phrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('collector_voice_context_v1'))).toBeNull();
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
+  await expect(page.locator('#voiceContextLabel')).toContainText('B3 context');
+  const context = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_voice_context_v1')));
+  expect(context.entityId).toBe(entityId);
+  expect(context.expiresAt - context.updatedAt).toBe(30 * 60 * 1000);
+
+  await page.reload();
+  await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#voiceContextLabel')).toContainText('B3 context');
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrase = [{ transcript: 'setează pH = 6.5' }]; phrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [phrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  await expect(page.locator('#commandResult')).toContainText('B3 context · context activ · pH = 6.5');
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'B3 context').attributes.pH)).toBe(6.5);
+
+  await page.evaluate(() => {
+    const context = JSON.parse(localStorage.getItem('collector_voice_context_v1'));
+    context.expiresAt = Date.now() - 1;
+    localStorage.setItem('collector_voice_context_v1', JSON.stringify(context));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#voiceContextLabel')).toContainText('niciun element selectat');
+  await expect(page.locator('#clearVoiceContext')).toBeHidden();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrase = [{ transcript: 'setează pH = 6.7' }]; phrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [phrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#commandResult')).toContainText('nu există context vocal activ');
+  await expect(page.locator('#confirmCoreCommand')).toHaveCount(0);
+});
+test('voice context can be cleared explicitly by the user', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.evaluate(() => localStorage.setItem('collector_voice_context_v1', JSON.stringify({ entityId: 'entity-1', updatedAt: Date.now(), expiresAt: Date.now() + 60000 })));
+  await page.reload();
+  await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#clearVoiceContext')).toBeVisible();
+  await page.locator('#clearVoiceContext').click();
+  await expect(page.locator('#voiceContextLabel')).toContainText('niciun element selectat');
+  expect(await page.evaluate(() => localStorage.getItem('collector_voice_context_v1'))).toBeNull();
+});
+test('voice batch rejects the whole mixed batch when stock is insufficient', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Plantă atomică');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+  const plantId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Plantă atomică').id);
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#modal button.primary').click();
+  await page.locator('.nav[data-page="inventory"]').click();
+  await page.locator('#inventory .toolbar button.secondary').click();
+  await page.locator('#popName').fill('Fancy insuficient');
+  await page.locator('#popQty').fill('2');
+  await page.locator('#modal button.primary').click();
+  const populationId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Fancy insuficient').id);
+  const initialEvents = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length);
+
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const first = [{ transcript: 'setează pH pentru Plantă atomică = 6.8' }]; first.isFinal = true;
+    const second = [{ transcript: 'am vândut 3 Fancy insuficient' }]; second.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [first, second] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#commandResult')).toContainText('Cantitate insuficientă');
+  await expect(page.locator('#confirmCoreCommand')).toHaveCount(0);
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(after.events).toHaveLength(initialEvents);
+  expect(after.entities.find(entity => entity.id === plantId).attributes.pH).toBeUndefined();
+  const balance = await page.evaluate((id) => window.CollectorEngine.balances(JSON.parse(localStorage.getItem('collector_mvp_v2'))).filter(item => item.populationId === id && item.disposition === 'active').reduce((sum, item) => sum + item.quantity, 0), populationId);
+  expect(balance).toBe(2);
+});
+
 test('voice batch cancellation discards all utterances without committing', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
