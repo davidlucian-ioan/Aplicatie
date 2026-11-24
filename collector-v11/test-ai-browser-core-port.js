@@ -96,3 +96,18 @@ test('Browser Core Port nu lasă publicarea eșuată să mascheze persistența c
   assert.match(result.warnings[0], /interfața nu a putut fi actualizată/);
   assert.equal(state.entities.length, 1);
 });
+
+
+test('Browser Core Read Port aplică aceeași limitare a registrului și detaliilor', async () => {
+  const x = setup();
+  const command = { ...cmd(), operations: [
+    { operation: 'entity.create', target: 'plant-1', data: { name: 'Monstera', type: 'plant' } },
+    { operation: 'attribute.set', target: 'plant-1', data: { name: 'pH', value: 5.8 } }
+  ] };
+  assert.equal((await x.port.execute(command)).status, 'committed');
+  const matches = await x.port.read({ kind: 'entities', name: 'Monstera' });
+  assert.deepEqual(matches, [{ id: 'plant-1', name: 'Monstera', type: 'plant', status: 'active' }]);
+  const detail = await x.port.read({ kind: 'entityAttributes', id: 'plant-1', attributeNames: ['pH'] });
+  assert.equal(detail.attributes.pH, 5.8);
+  await assert.rejects(() => x.port.read({ kind: 'entities' }), /nu este permisă citirea întregului registru/);
+});
