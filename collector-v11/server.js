@@ -4,6 +4,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { OpenAIProvider } = require('./ai/provider-openai');
+const { safeContext } = require('./ai/context-sanitizer');
 
 // Load a local .env file without an extra dependency. Existing process variables win.
 const envPath = path.join(__dirname, '.env');
@@ -63,27 +64,6 @@ function readJson(req) {
     });
     req.on('error', reject);
   });
-}
-function safeContext(input) {
-  const entities = Array.isArray(input.entities) ? input.entities.slice(0, 150) : [];
-  const attributes = Array.isArray(input.attributes) ? input.attributes.slice(0, 100) : [];
-  return {
-    entities: entities.map(e => ({
-      id: String(e.id || '').slice(0, 128),
-      name: String(e.name || '').slice(0, 160),
-      type: String(e.type || 'generic').slice(0, 64)
-    })),
-    attributes: attributes.map(a => ({
-      id: String(a.id || '').slice(0, 128),
-      name: String(a.name || '').slice(0, 120),
-      type: String(a.type || 'text').slice(0, 64),
-      required: Boolean(a.required),
-      identifying: Boolean(a.identifying),
-      temporal: Boolean(a.temporal),
-      min: typeof a.min === 'number' && Number.isFinite(a.min) ? a.min : null,
-      max: typeof a.max === 'number' && Number.isFinite(a.max) ? a.max : null
-    }))
-  };
 }
 function staticFile(req, res) {
   let pathname;
