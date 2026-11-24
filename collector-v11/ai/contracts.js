@@ -76,11 +76,17 @@ function validateInterpretation(value) {
     if (!isObject(result.command)) throw new TypeError('Propunerea nu conține command.');
     validateCommand(result.command);
   }
+  if (result.answerSource !== undefined && !['general', 'core'].includes(result.answerSource)) {
+    throw new TypeError('answerSource trebuie să fie general sau core.');
+  }
   if (result.intent === 'answer') {
     if (typeof result.answer !== 'string' || result.answer.length > MAX_TEXT) {
       throw new TypeError('Răspunsul trebuie să fie text de maximum 4.000 de caractere.');
     }
     if (result.readRequest !== undefined) validateReadRequest(result.readRequest);
+    if (result.answerSource === 'core' && result.readRequest === undefined) {
+      throw new TypeError('Un răspuns despre datele Collector necesită readRequest.');
+    }
   }
   return result;
 }
@@ -108,6 +114,9 @@ function validateReadRequest(request) {
   }
   if (request.kind === 'balances' && !request.populationId && !request.locationId) {
     throw new TypeError('Citirea soldurilor necesită o populație sau o locație.');
+  }
+  if (request.kind === 'events' && !request.entityId) {
+    throw new TypeError('Citirea istoricului necesită un ID de entitate rezolvat.');
   }
   if (request.attributeNames !== undefined &&
       (!Array.isArray(request.attributeNames) || request.attributeNames.length > 20 ||
