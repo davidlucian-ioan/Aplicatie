@@ -244,6 +244,58 @@ test('voice batch previews and commits mixed attribute and stock operations atom
   expect(activeBalance).toBe(8);
 });
 
+test('voice batch rejects atomically when a sale exceeds available stock', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Plantă atomicitate');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+  const plantId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Plantă atomicitate').id);
+
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('.nav[data-page="inventory"]').click();
+  await page.locator('#inventory .toolbar button.secondary').click();
+  await page.locator('#popName').fill('Fancy Tiger atomic');
+  await page.locator('#popType').fill('Caridina');
+  await page.locator('#popQty').fill('2');
+  await page.locator('#modal button.primary').click();
+  const populationId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Fancy Tiger atomic').id);
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const first = [{ transcript: 'setează pH pentru Plantă atomicitate = 6.4' }]; first.isFinal = true;
+    const second = [{ transcript: 'am vândut 3 Fancy Tiger atomic' }]; second.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [first, second] });
+  });
+  await page.locator('#voiceSessionButton').click();
+
+  await expect(page.locator('#commandResult')).toContainText('Cantitate insuficientă');
+  await expect(page.locator('#confirmCoreCommand')).toHaveCount(0);
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(after.events).toHaveLength(before.events.length);
+  expect(after.entities.find(entity => entity.id === plantId).attributes?.pH).toBeUndefined();
+  expect(after.stock).toEqual(before.stock);
+  expect(after.events).toEqual(before.events);
+  expect(after.entities.find(entity => entity.id === populationId)).toBeTruthy();
+});
+
+
 test('voice batch cancellation discards all utterances without committing', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
