@@ -17,14 +17,37 @@ function authFetch(userId='user-1'){
   return {ok:true,json:async()=>({id:userId})};
  };
 }
-const baseEnv={SUPABASE_URL:'https://project.supabase.co',SUPABASE_ANON_KEY:'anon-test',OPENAI_API_KEY:'sk-server-only',OPENAI_MODEL:'test-model',COLLECTOR_ALLOWED_ORIGINS:'capacitor://localhost,https://app.example.test'};
+const baseEnv={SUPABASE_URL:'https://project.supabase.co',SUPABASE_ANON_KEY:'anon-test',OPENAI_API_KEY:'sk-server-only',OPENAI_MODEL:'test-model',SUPABASE_SERVICE_ROLE_KEY:'service-role-test',COLLECTOR_ALLOWED_ORIGINS:'capacitor://localhost,https://app.example.test'};
 test('health este public, dar endpoint-urile AI cer sesiune autentificată',async()=>{
  await withServer({env:baseEnv,fetchImpl:authFetch(),providerFactory:()=>({model:'test-model',interpret:async()=>({kind:'answer'})})},async base=>{
   const health=await fetch(base+'/health');assert.equal(health.status,200);assert.equal((await health.json()).ok,true);
   const status=await fetch(base+'/api/ai/status');assert.equal(status.status,401);
   const authenticated=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer valid-token',Origin:'capacitor://localhost'}});
-  assert.equal(authenticated.status,200);assert.equal((await authenticated.json()).configured,true);
+  assert.equal(authenticated.status,200);const statusBody=await authenticated.json();assert.equal(statusBody.configured,true);assert.equal(statusBody.accountDeletionEnabled,true);
   assert.equal(authenticated.headers.get('access-control-allow-origin'),'capacitor://localhost');
+ });
+});
+test('utilizatorul autentificat își poate șterge contul cloud',async()=>{
+ const calls=[];
+ const fetchImpl=async(url,options)=>{
+  calls.push({url,options});
+  if(url.endsWith('/auth/v1/user'))return {ok:true,json:async()=>({id:'user-1'})};
+  if(url.endsWith('/auth/v1/admin/users/user-1'))return {ok:true};
+  throw new Error('unexpected URL');
+ };
+ await withServer({env:baseEnv,fetchImpl},async base=>{
+  const response=await fetch(base+'/api/account',{method:'DELETE',headers:{Authorization:'Bearer valid-token',Origin:'capacitor://localhost'}});
+  assert.equal(response.status,204);
+  const deletion=calls.find(call=>call.options.method==='DELETE');
+  assert.ok(deletion);assert.equal(deletion.options.headers.apikey,'service-role-test');
+  assert.equal(deletion.options.headers.Authorization,'Bearer service-role-test');
+ });
+});
+test('ștergerea contului este dezactivată dacă lipsește cheia administrativă',async()=>{
+ const env={...baseEnv};delete env.SUPABASE_SERVICE_ROLE_KEY;
+ await withServer({env,fetchImpl:authFetch()},async base=>{
+  const response=await fetch(base+'/api/account',{method:'DELETE',headers:{Authorization:'Bearer valid-token'}});
+  assert.equal(response.status,503);
  });
 });
 test('interpretarea folosește providerul și contextul sanitizat',async()=>{
