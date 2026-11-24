@@ -222,3 +222,12 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - Modelul API implicit `gpt-6.2-sol` și tarifele de bază input/output 2/10 USD per milion tokeni au fost verificate în documentația/pricing-ul oficial OpenAI la 2026-11-25.
 - CI pentru HEAD `1f69b8c` nu a fost încă confirmat prin rezultatele disponibile; nu marca build-urile ca verzi până la verificarea tuturor celor trei workflow-uri.
 - Următorul pas: confirmă CI pe HEAD final; remediază orice eșec; continuă auditul webhook (evenimente de transfer, refund, billing issue/grace period, aliasuri) și validarea metering; păstrează PR draft până la testarea externă Supabase/RevenueCat în sandbox.
+
+
+## CHECKPOINT AUTORITATIV — 2026-11-25, corecție CI
+- HEAD: `f4ea88a30c8dc04d03890f9441bb89b932204347`.
+- Cloud API workflow la checkpointul anterior a trecut SUCCESS.
+- Quality Suite și ambele builduri mobile au eșuat din cauza unei a doua referințe rămase la `root` în testul de concurență RevenueCat; logurile au confirmat exact eroarea.
+- Referința rămasă a fost înlocuită cu `globalThis` în `f4ea88a`. Acest HEAD trebuie reverificat; nu declara CI verde până la confirmarea Quality, Android și iOS.
+- Codul include și hardening-ul rate-limit cache și verificarea combinată product allowlist + entitlement RevenueCat.
+- Următorul pas imediat: verifică workflow-urile pentru `f4ea88a`, corectează orice nouă eroare, apoi continuă testarea webhook/metering și păstrează PR #55 draft până la sandbox extern.
