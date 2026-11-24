@@ -19,17 +19,21 @@ function sendJson(response, status, value, origin = null) {
 function readJson(request, maxBytes) {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let tooLarge = false;
     const chunks = [];
     request.on('data', chunk => {
+      if (tooLarge) return;
       size += chunk.length;
       if (size > maxBytes) {
+        tooLarge = true;
+        chunks.length = 0;
         reject(Object.assign(new Error('Cererea depășește limita permisă.'), { statusCode: 413 }));
-        request.destroy();
         return;
       }
       chunks.push(chunk);
     });
     request.on('end', () => {
+      if (tooLarge) return;
       try {
         const raw = Buffer.concat(chunks).toString('utf8');
         resolve(JSON.parse(raw || '{}'));
@@ -153,6 +157,9 @@ function createAiGateway({
 
     const requestId = crypto.randomUUID();
     try {
+      if (!String(request.headers['content-type'] || '').toLowerCase().startsWith('application/json')) {
+        throw Object.assign(new TypeError('Content-Type application/json este obligatoriu.'), { statusCode: 415 });
+      }
       const body = await readJson(request, maxBodyBytes);
       const input = safeInput(body.input);
       const context = safeContext(body.context);
