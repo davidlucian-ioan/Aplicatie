@@ -3,16 +3,17 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 require('./ai/provider-openai-browser');
 
-const previous={config:globalThis.CollectorConfig,capacitor:globalThis.Capacitor,auth:globalThis.CollectorAuth,fetch:globalThis.fetch};
+const root=globalThis.window||globalThis;
+const previous={config:root.CollectorConfig,capacitor:root.Capacitor,auth:root.CollectorAuth,fetch:globalThis.fetch};
 test.afterEach(()=>{
- if(previous.config===undefined)delete globalThis.CollectorConfig;else globalThis.CollectorConfig=previous.config;
- if(previous.capacitor===undefined)delete globalThis.Capacitor;else globalThis.Capacitor=previous.capacitor;
- if(previous.auth===undefined)delete globalThis.CollectorAuth;else globalThis.CollectorAuth=previous.auth;
+ if(previous.config===undefined)delete root.CollectorConfig;else root.CollectorConfig=previous.config;
+ if(previous.capacitor===undefined)delete root.Capacitor;else root.Capacitor=previous.capacitor;
+ if(previous.auth===undefined)delete root.CollectorAuth;else root.CollectorAuth=previous.auth;
  globalThis.fetch=previous.fetch;
 });
 test('native app fără endpoint cloud dezactivează AI fără cerere relativă invalidă',async()=>{
- globalThis.Capacitor={isNativePlatform:()=>true};
- globalThis.CollectorConfig={apiBaseUrl:''};
+ root.Capacitor={isNativePlatform:()=>true};
+ root.CollectorConfig={apiBaseUrl:''};
  let called=false;globalThis.fetch=async()=>{called=true;throw new Error('unexpected fetch')};
  const result=await globalThis.CollectorOpenAIProvider.status();
  assert.equal(result.configured,false);assert.equal(result.unavailable,true);assert.equal(called,false);
@@ -29,7 +30,7 @@ test('native app cu endpoint dar fără token rămâne blocată până la autent
 test('native app folosește endpoint HTTPS configurat și normalizează slash-ul final',async()=>{
  globalThis.Capacitor={isNativePlatform:()=>true};
  globalThis.CollectorConfig={apiBaseUrl:'https://api.example.test/'};
- globalThis.CollectorAuth={getAccessToken:async()=> 'test-access-token'};
+ root.CollectorAuth={getAccessToken:async()=> 'test-access-token'};
  let requested='',headers=null;
  globalThis.fetch=async(url,options)=>{requested=url;headers=options.headers;return {ok:true,json:async()=>({provider:'openai',configured:true,model:'test-model'})}};
  const result=await globalThis.CollectorOpenAIProvider.status();
