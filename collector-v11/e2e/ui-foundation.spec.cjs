@@ -97,7 +97,7 @@ test('voice entry degrades to accessible text input when speech recognition is u
 });
 
 
-test('voice session accumulates multiple phrases and previews one note without auto-committing', async ({ page }) => {
+test('voice session preserves separate utterances in one atomic batch preview', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
