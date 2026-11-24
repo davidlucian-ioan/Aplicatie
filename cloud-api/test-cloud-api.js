@@ -248,3 +248,20 @@ test('RevenueCat revocation for non-allowlisted product remains ignored',async()
   assert.equal(response.status,200);assert.equal(received.isProProduct,false);
  });
 });
+
+test('RevenueCat CUSTOMER_SUPPORT cancellation reason is passed to billing for immediate refund revocation',async()=>{
+ let received=null;
+ const billingService={configured:true,applyRevenueCatEvent:async value=>{received=value;return {processed:true,active:false}}};
+ const env={...baseEnv,REVENUECAT_WEBHOOK_AUTHORIZATION:'Bearer webhook-secret',REVENUECAT_PRO_PRODUCT_IDS:'collector_pro_monthly'};
+ await withServer({env,fetchImpl:authFetch(),billingService},async base=>{
+  const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
+   headers:{Authorization:'Bearer webhook-secret','Content-Type':'application/json'},
+   body:JSON.stringify({event:{id:'evt-refund-customer-support',type:'CANCELLATION',
+    cancel_reason:'CUSTOMER_SUPPORT',app_user_id:'123e4567-e89b-42d3-a456-426614174000',
+    product_id:'collector_pro_monthly',entitlement_ids:['pro'],store:'PLAY_STORE',
+    expiration_at_ms:1893456000000,event_timestamp_ms:1800000000000}})});
+  assert.equal(response.status,200);
+  assert.equal(received.cancelReason,'CUSTOMER_SUPPORT');
+  assert.equal(received.isProProduct,true);
+ });
+});
