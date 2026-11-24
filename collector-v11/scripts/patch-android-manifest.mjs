@@ -11,9 +11,18 @@ const javaRoot = process.env.COLLECTOR_ANDROID_JAVA
   || path.join(root, 'android', 'app', 'src', 'main', 'java', 'com', 'collector', 'app');
 
 let manifest = await readFile(manifestPath, 'utf8');
-const speechQueries = `  <queries>\n    <intent>\n      <action android:name="android.speech.RecognitionService" />\n    </intent>\n  </queries>`;
+const speechQueryIntent = `    <intent>
+      <action android:name="android.speech.RecognitionService" />
+    </intent>`;
 if (!manifest.includes('android.speech.RecognitionService')) {
-  manifest = manifest.replace(/<application\b/, speechQueries + '\n  <application');
+  if (/<queries\\b/.test(manifest)) {
+    manifest = manifest.replace('</queries>', speechQueryIntent + '\\n  </queries>');
+  } else {
+    const speechQueries = `  <queries>
+${speechQueryIntent}
+  </queries>`;
+    manifest = manifest.replace(/<application\\b/, speechQueries + '\\n  <application');
+  }
 }
 
 if (!manifest.includes('xmlns:android=')) {
