@@ -217,3 +217,33 @@ test('webhook RevenueCat nu acordă Pro fără entitlement-ul configurat chiar p
   assert.equal(response.status,200);assert.equal(received.isProProduct,false);
  });
 });
+
+test('RevenueCat revocation events reach billing ledger without entitlement_ids when product is allowlisted',async()=>{
+ const received=[];
+ const billingService={configured:true,applyRevenueCatEvent:async value=>{received.push(value);return {processed:true,active:false}}};
+ const env={...baseEnv,REVENUECAT_WEBHOOK_AUTHORIZATION:'Bearer webhook-secret',REVENUECAT_PRO_PRODUCT_IDS:'collector_pro_monthly'};
+ await withServer({env,fetchImpl:authFetch(),billingService},async base=>{
+  for(const type of ['CANCELLATION','BILLING_ISSUE','EXPIRATION','REFUND','SUBSCRIPTION_PAUSED']){
+   const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
+    headers:{Authorization:'Bearer webhook-secret','Content-Type':'application/json'},
+    body:JSON.stringify({event:{id:'evt-'+type,type,app_user_id:'123e4567-e89b-42d3-a456-426614174000',
+     product_id:'collector_pro_monthly',store:'PLAY_STORE',expiration_at_ms:1600000000000,
+     grace_period_expiration_at_ms:1600000000000,event_timestamp_ms:1800000000000}})});
+   assert.equal(response.status,200);
+  }
+  assert.equal(received.length,5);
+  assert.ok(received.every(event=>event.isProProduct===true));
+ });
+});
+test('RevenueCat revocation for non-allowlisted product remains ignored',async()=>{
+ let received=null;
+ const billingService={configured:true,applyRevenueCatEvent:async value=>{received=value;return {processed:true,ignored:true}}};
+ const env={...baseEnv,REVENUECAT_WEBHOOK_AUTHORIZATION:'Bearer webhook-secret',REVENUECAT_PRO_PRODUCT_IDS:'collector_pro_monthly'};
+ await withServer({env,fetchImpl:authFetch(),billingService},async base=>{
+  const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
+   headers:{Authorization:'Bearer webhook-secret','Content-Type':'application/json'},
+   body:JSON.stringify({event:{id:'evt-refund-unlisted',type:'REFUND',app_user_id:'123e4567-e89b-42d3-a456-426614174000',
+    product_id:'other_product',store:'PLAY_STORE',event_timestamp_ms:1800000000000}})});
+  assert.equal(response.status,200);assert.equal(received.isProProduct,false);
+ });
+});
