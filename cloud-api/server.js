@@ -103,9 +103,13 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
     res.writeHead(204,{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end();return;
    }
    if(req.method==='GET'&&url.pathname==='/api/ai/status'){
-    const configured=Boolean(env.OPENAI_API_KEY);
-    const billingConfigured=Boolean(billing.configured);
-    send(res,200,{provider:'openai',configured,aiAvailable:configured&&billingConfigured, billingConfigured,
+    const providerConfigured=Boolean(env.OPENAI_API_KEY),billingConfigured=Boolean(billing.configured);
+    const entitlement=billingConfigured&&typeof billing.getEntitlement==='function'?await billing.getEntitlement(userId):null;
+    const hasPro=Boolean(entitlement?.entitlement==='pro'&&entitlement.is_active&&
+      (!entitlement.expires_at||new Date(entitlement.expires_at).getTime()>now()));
+    const configured=providerConfigured&&billingConfigured&&hasPro;
+    send(res,200,{provider:'openai',configured,aiAvailable:configured,providerConfigured,billingConfigured,
+      entitlement:hasPro?'pro':'free',subscriptionExpiresAt:hasPro?entitlement.expires_at||null:null,
       accountDeletionEnabled:Boolean(env.SUPABASE_SERVICE_ROLE_KEY),model:env.OPENAI_MODEL||'gpt-6.2-sol'});return;
    }
    if(req.method!=='POST'){send(res,405,{error:'Metodă nepermisă.'});return}
