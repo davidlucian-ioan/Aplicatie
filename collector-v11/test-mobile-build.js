@@ -10,10 +10,10 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
  const root=await fs.mkdtemp(path.join(__dirname,'.tmp-mobile-'));
  try{
   const out=path.join(root,'www');
-  const previousApiBase=process.env.COLLECTOR_API_BASE_URL;
-  process.env.COLLECTOR_API_BASE_URL='https://api.example.test';
+  const previousApiBase=process.env.COLLECTOR_API_BASE_URL,previousSupabaseUrl=process.env.COLLECTOR_SUPABASE_URL,previousAnonKey=process.env.COLLECTOR_SUPABASE_ANON_KEY;
+  process.env.COLLECTOR_API_BASE_URL='https://api.example.test';process.env.COLLECTOR_SUPABASE_URL='https://project.supabase.co';process.env.COLLECTOR_SUPABASE_ANON_KEY='anon-public-test';
   let result;
-  try{result=await buildMobile(out)}finally{if(previousApiBase===undefined)delete process.env.COLLECTOR_API_BASE_URL;else process.env.COLLECTOR_API_BASE_URL=previousApiBase}
+  try{result=await buildMobile(out)}finally{if(previousApiBase===undefined)delete process.env.COLLECTOR_API_BASE_URL;else process.env.COLLECTOR_API_BASE_URL=previousApiBase;if(previousSupabaseUrl===undefined)delete process.env.COLLECTOR_SUPABASE_URL;else process.env.COLLECTOR_SUPABASE_URL=previousSupabaseUrl;if(previousAnonKey===undefined)delete process.env.COLLECTOR_SUPABASE_ANON_KEY;else process.env.COLLECTOR_SUPABASE_ANON_KEY=previousAnonKey}
   assert.deepEqual(result.files,WEB_FILES);
   for(const relative of WEB_FILES)await fs.access(path.join(out,relative));
   await assert.rejects(fs.access(path.join(out,'server.js')));
@@ -26,6 +26,8 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   const mobileConfig=await fs.readFile(path.join(out,'collector-config.js'),'utf8');
   assert.ok(mobileConfig.includes('apiBaseUrl'));
   assert.ok(mobileConfig.includes('https://api.example.test'));
+  assert.ok(mobileConfig.includes('https://project.supabase.co'));
+  assert.ok(mobileConfig.includes('anon-public-test'));
   const authBundle=await fs.readFile(path.join(out,'collector-auth-bundle.js'),'utf8');
   assert.ok(authBundle.includes('CollectorAuthBundle')||authBundle.length>1000);
   assert.ok(html.includes('ai/core-port-browser.js'));
