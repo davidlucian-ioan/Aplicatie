@@ -21,4 +21,3 @@ function createCollectorSupabaseClient(config){
  });
 }
 if(typeof window!=='undefined')window.CollectorAuthBundle=Object.freeze({createClient:createCollectorSupabaseClient});
-export {createCollectorSupabaseClient};
