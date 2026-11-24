@@ -33,6 +33,7 @@ test('native recorder requests mic permission and starts AAC in app-private stor
  assert.ok(x.calls.some(call=>call[0]==='requestPermissions'));
  const start=x.calls.find(call=>call[0]==='startRecording');
  assert.equal(start[1].format,'aac');assert.equal(start[1].uri,undefined);
+ await NativeRecorder.cancel();
 });
 test('native recorder pauses, resumes and returns file metadata on stop',async()=>{
  const x=fixture();await NativeRecorder.start({id:'note-2'});
