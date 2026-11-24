@@ -169,3 +169,16 @@ test('audio recorder reports denied microphone permission and keeps Core journal
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
   expect(await page.evaluate(async () => (await window.CollectorAudioStore.list()).length)).toBe(0);
 });
+
+
+test('WORK exposes local reminder controls and explains browser limitation', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#workAlarmTitle')).toBeVisible();
+  await expect(page.locator('#workAlarmWhen')).toBeVisible();
+  await page.locator('#workAlarmTitle').fill('Verifică B3');
+  await page.locator('#workAlarmWhen').fill('2030-01-01T10:00');
+  await page.locator('#workAlarmAdd').click();
+  await expect(page.locator('#workAlarmStatus')).toContainText('necesită aplicația Android');
+  await expect(page.locator('#workAlarmList')).toContainText('disponibilă în aplicația Android');
+});
