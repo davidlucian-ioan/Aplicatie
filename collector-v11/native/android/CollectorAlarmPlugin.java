@@ -118,9 +118,7 @@ public final class CollectorAlarmPlugin extends Plugin {
 
     static void rescheduleAll(Context context) {
         try {
-            JSONArray all = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).hasKey(KEY)
-                ? new JSONArray(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "[]"))
-                : new JSONArray();
+            JSONArray all = new JSONArray(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "[]"));
             for (int i = 0; i < all.length(); i++) {
                 JSONObject item = all.optJSONObject(i);
                 if (item != null && item.optLong("triggerAtMs", 0L) > System.currentTimeMillis()) {
