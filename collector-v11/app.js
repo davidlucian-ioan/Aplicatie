@@ -304,7 +304,11 @@ async function refreshSubscriptionStatus(){
  try{
   const user=await window.CollectorAuth?.getUser?.();
   if(!user?.id){status.textContent='Activează contul cloud pentru a verifica abonamentul.';return}
-  if(user.is_anonymous){status.textContent='Înainte de achiziție, asociază contul curent cu email și parolă în secțiunea Recuperare cont cloud. Astfel poți recupera abonamentul pe alt telefon.';if(restoreButton)restoreButton.disabled=true;if(refreshButton)refreshButton.disabled=true;return}
+  if(user.is_anonymous||!user.email_confirmed_at){
+   status.textContent=user.is_anonymous?'Înainte de achiziție, asociază contul curent cu email și parolă în secțiunea Recuperare cont cloud. Astfel poți recupera abonamentul pe alt telefon.':
+    'Confirmă adresa de email din mesajul trimis de Supabase înainte de a cumpăra Collector Pro.';
+   if(restoreButton)restoreButton.disabled=true;if(refreshButton)refreshButton.disabled=true;return;
+  }
   const state=await window.CollectorSubscriptions.initialize(user.id);
   if(!state.available){
    status.textContent=state.reason==='native_only'?'Achizițiile sunt disponibile în aplicația Android/iOS.': 'Sistemul de achiziții nu este încă configurat pentru această versiune.';
