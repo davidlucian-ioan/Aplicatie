@@ -157,3 +157,17 @@ test('status-ul AI nu expune Pro pentru un utilizator fără abonament activ',as
   const status=await response.json();assert.equal(status.entitlement,'free');assert.equal(status.configured,false);assert.equal(status.aiAvailable,false);
  });
 });
+
+test('RevenueCat billing issue păstrează Pro până la sfârșitul grace period',async()=>{
+ let received=null;
+ const billingService={configured:true,applyRevenueCatEvent:async value=>{received=value;return {processed:true,active:true}}};
+ const env={...baseEnv,REVENUECAT_WEBHOOK_AUTHORIZATION:'Bearer webhook-secret',REVENUECAT_PRO_PRODUCT_IDS:'collector_pro_monthly'};
+ await withServer({env,fetchImpl:authFetch(),billingService},async base=>{
+  const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
+   headers:{Authorization:'Bearer webhook-secret','Content-Type':'application/json'},
+   body:JSON.stringify({event:{id:'evt-grace',type:'BILLING_ISSUE',app_user_id:'123e4567-e89b-42d3-a456-426614174000',
+    product_id:'collector_pro_monthly',expiration_at_ms:1600000000000,grace_period_expiration_at_ms:1893456000000,
+    event_timestamp_ms:1800000000000}})});
+  assert.equal(response.status,200);assert.equal(received.expiresAt,new Date(1893456000000).toISOString());
+ });
+});
