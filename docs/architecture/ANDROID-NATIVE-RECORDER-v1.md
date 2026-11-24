@@ -61,6 +61,18 @@ The current JavaScript adapter exposes:
 
 The UI polls the durable native state manifest; the service does not depend on JavaScript timers to keep recording. Notification Stop is handled directly by the service, even if the WebView is no longer active.
 
+## Local WORK alarms
+
+The WORK reminder module uses a separate app-owned Capacitor plugin and Android AlarmManager path; it does not depend on WebView timers.
+
+- `CollectorAlarmPlugin` persists reminder metadata in app-private SharedPreferences and schedules RTC_WAKEUP alarms with `setAndAllowWhileIdle`.
+- `CollectorAlarmReceiver` posts a high-importance local notification and supports a 10-minute snooze action.
+- `CollectorAlarmBootReceiver` restores future alarms after device boot, app replacement, and system clock/time-zone changes.
+- Alarm metadata stays local and is separate from the Core event journal.
+- Android 13+ notification permission is required to schedule reminders through the app UI.
+- These are **inexact, best-effort alarms**. Android Doze and vendor battery policies may delay delivery. The implementation deliberately does not request exact-alarm special access or claim clock-exact delivery.
+- The browser build does not simulate background alarms; it clearly reports that scheduling requires the Android app.
+
 ## Data and failure model
 
 - Audio files and manifests live outside the Core event journal. No audio capture operation creates a domain event.
