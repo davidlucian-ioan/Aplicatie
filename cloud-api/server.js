@@ -109,10 +109,20 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
     const entitlement=billingConfigured&&typeof billing.getEntitlement==='function'?await billing.getEntitlement(userId):null;
     const hasPro=Boolean(entitlement?.entitlement==='pro'&&entitlement.is_active&&
       (!entitlement.expires_at||new Date(entitlement.expires_at).getTime()>now()));
+    const {periodStart}=monthWindow(now());
+    const usage=hasPro&&typeof billing.getUsage==='function'?await billing.getUsage(userId,periodStart):null;
+    const usageSummary=usage?{
+      budgetUsd:Number(usage.budget_microusd||0)/1_000_000,
+      usedUsd:Number(usage.used_microusd||0)/1_000_000,
+      reservedUsd:Number(usage.reserved_microusd||0)/1_000_000,
+      remainingUsd:Math.max(0,Number(usage.budget_microusd||0)-Number(usage.used_microusd||0)-Number(usage.reserved_microusd||0))/1_000_000,
+      periodEnd:usage.period_end
+    }:null;
     const configured=providerConfigured&&billingConfigured&&hasPro;
     send(res,200,{provider:'openai',configured,aiAvailable:configured,providerConfigured,billingConfigured,
       entitlement:hasPro?'pro':'free',subscriptionExpiresAt:hasPro?entitlement.expires_at||null:null,
-      accountDeletionEnabled:Boolean(env.SUPABASE_SERVICE_ROLE_KEY),model:env.OPENAI_MODEL||'gpt-6.2-sol'});return;
+      aiUsage:usageSummary,accountDeletionEnabled:Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
+      model:env.OPENAI_MODEL||'gpt-6.2-sol'});return;
    }
    if(req.method!=='POST'){send(res,405,{error:'Metodă nepermisă.'});return}
    if(!String(req.headers['content-type']||'').toLowerCase().includes('application/json')){send(res,415,{error:'Content-Type trebuie să fie application/json.'});return}
