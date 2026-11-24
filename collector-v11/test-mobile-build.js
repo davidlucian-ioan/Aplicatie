@@ -7,7 +7,7 @@ const path=require('node:path');
 const {buildMobile,WEB_FILES}=require('./build-mobile');
 
 test('mobile bundle include doar activele runtime necesare',async()=>{
- const root=await fs.mkdtemp(path.join(os.tmpdir(),'collector-mobile-'));
+ const root=await fs.mkdtemp(path.join(__dirname,'.tmp-mobile-'));
  try{
   const out=path.join(root,'www');
   const result=await buildMobile(out);
