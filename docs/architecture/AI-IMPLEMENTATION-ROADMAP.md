@@ -48,7 +48,7 @@ Status: native on-device Romanian STT runtime implemented in the working branch;
 
 ## Gate C — real provider integration
 
-Status: not started; provider choice intentionally remains open.
+Status: server-side OpenAI Responses provider and authenticated stateless gateway scaffold implemented; client authentication, UI wiring and deployment remain pending.
 
 - [ ] Choose deployment mode: cloud provider behind a server-side gateway, local model runtime, or hybrid.
 - [ ] Agree on data policy: which text/context can leave the device, retention, consent and budget.
@@ -98,3 +98,13 @@ Implemented:
 Not yet complete:
 - The Android platform SpeechRecognizer does not expose the PCM stream to Collector. Therefore these transcript segments are not yet linked to the corresponding MediaRecorder audio file. The schema explicitly records `audioRecordingId: null` and `audioLinkStatus: not-linked`.
 - No claim of physical-device validation or Romanian accuracy benchmark is made until those tests are run.
+
+
+## 2026-11-24 — provider gateway scaffold
+
+- Added a server-only OpenAI Responses provider with strict JSON Schema interpretation output and a separate Core-grounded `respond()` stage.
+- Provider requests set `store: false`; gateway does not persist prompts or Core read data.
+- Added a stateless Node gateway with bearer authentication, CORS origin allowlist, per-IP rate limiting, JSON body-size limits and sanitized errors.
+- Added a browser-safe HTTP transport that requires a short-lived token provider; it does not store or embed credentials.
+- Added a local gateway entrypoint and environment template. No real key/model values are committed.
+- The UI is intentionally not connected yet. A production identity provider, gateway hosting, model/budget choice and explicit data policy remain required before live requests.

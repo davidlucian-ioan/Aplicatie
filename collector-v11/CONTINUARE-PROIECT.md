@@ -250,3 +250,15 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 - Testele statice și regresiile pentru no-cloud, bridge, transcript store, manifest și lock sunt adăugate; nu sunt declarate PASS până la rularea CI pe head-ul final.
 - Validarea pe telefon fizic este încă obligatorie: permisiune, instalarea modelului românesc, dictare, sesiune continuă, stop, aplicație în fundal, concurență recorder/STT și eliberarea lock-ului.
 - Următorul pas: verificare completă a codului/contractelor, CI Quality + Android build, remedierea regresiilor, apoi PR #53.
+
+
+### Checkpoint AI provider gateway — 2026-11-24 — PR #54 în pregătire
+- Branch: `feature/ai-provider-gateway`, dependent de `feature/android-ondevice-stt-runtime` (PR #53).
+- Provider server-side `OpenAIResponsesProvider`: folosește Responses API, strict JSON Schema pentru interpretare, separat `respond()` pentru sumarizarea rezultatelor citite din Core, `store:false`, timeout și erori sanitizate.
+- Comanda modelului este normalizată din `dataJson` în forma Core `{operation,target?,data}`; Orchestratorul suprascrie `turnId` și `idempotencyKey` înainte de validare.
+- Gateway Node stateless: bearer auth cu comparație constant-time, allowlist CORS, rate limit per IP, limită de body, validare read scope, fără acces la DB/Core și fără persistența prompturilor.
+- Client transport `HttpProvider` este browser-safe și cere `getAccessToken()` injectat; nu stochează token și refuză HTTP non-local.
+- Entry point local `npm run start:ai-gateway`; server/.env.example conține doar placeholder-ele. Niciun secret real și niciun model default nu sunt în repo.
+- Teste noi: OpenAI provider schema/normalizare/erori, HTTP provider auth/HTTPS/response validation și gateway auth/CORS/rate limit/data scope. CI încă trebuie să le ruleze.
+- AI nu este încă conectat la UI. Lipsesc alegerea modelului și bugetului, hosting-ul gateway-ului, autentificarea reală și token acquisition sigur pe Android/browser. Nu se pune niciodată tokenul serverului sau cheia OpenAI în APK.
+- Următorul pas după CI: integrarea cu un mecanism de autentificare și un mod AI explicit în WORK, păstrând fallback-ul determinist/offline. Necesită o decizie de provider/hosting și un API key furnizat de utilizator în mediul serverului.
