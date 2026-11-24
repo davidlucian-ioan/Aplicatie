@@ -76,3 +76,20 @@ test('billing migration uses valid PL/pgSQL dollar-quote delimiters',()=>{
  assert.doesNotMatch(sql,/as \$(?!\$)/i);
  assert.equal((sql.match(/as \$\$/g)||[]).length,(sql.match(/^\$\$;$/gm)||[]).length);
 });
+
+test('RevenueCat webhook ledger is idempotent and ignores stale events',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const sql=fs.readFileSync(path.join(__dirname,'migrations','001_billing_and_ai_usage.sql'),'utf8');
+ assert.match(sql,/insert into public\.collector_billing_events[\s\S]{0,350}on conflict\(event_id\) do nothing/i);
+ assert.match(sql,/if not found then return jsonb_build_object\('processed',true,'duplicate',true\)/i);
+ assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(p_user_id::text,0\)\)/i);
+ assert.match(sql,/updated_at > coalesce\(p_event_timestamp,now\(\)\)/i);
+});
+test('RevenueCat billing RPC is executable only by service_role',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const sql=fs.readFileSync(path.join(__dirname,'migrations','001_billing_and_ai_usage.sql'),'utf8');
+ assert.match(sql,/revoke all on function public\.collector_apply_revenuecat_event\([\s\S]{0,240}from public, anon, authenticated/i);
+ assert.match(sql,/grant execute on function public\.collector_apply_revenuecat_event\([\s\S]{0,240}to service_role/i);
+});
