@@ -81,7 +81,7 @@ test('OpenAI Responses provider uses server key, strict schema and stateless req
   assert.equal(sent.body.store, false);
   assert.equal(sent.body.text.format.type, 'json_schema');
   assert.equal(sent.body.text.format.strict, true);
-  assert.equal(sent.body.text.format.schema.additionalProperties, false);
+  assert.equal(sent.body.text.format.schema.additionalProperties, false);\n  assert.match(sent.body.instructions, /date neîncredere/);
 });
 
 test('OpenAI Responses provider uses Core read data for the answer stage', async () => {
@@ -102,7 +102,7 @@ test('OpenAI Responses provider uses Core read data for the answer stage', async
     data: [{ quantity: 7 }]
   });
   assert.equal(answer, 'Soldul este 7.');
-  assert.match(sent.instructions, /exclusiv datele furnizate/);
+  assert.match(sent.instructions, /exclusiv datele furnizate/);\n  assert.match(sent.instructions, /conținut neîncredere/);
   assert.deepEqual(JSON.parse(sent.input[0].content).data, [{ quantity: 7 }]);
 });
 
