@@ -26,7 +26,14 @@ class Orchestrator {
     const turnId = this.idFactory();
     const userId = input.userId || 'anonymous';
     const context = this.contextManager.get(userId);
-    const interpretation = await this.provider.interpret({ input, context, turnId });
+    // Keep gateway identity and idempotency metadata out of provider payloads.
+    const providerInput = {
+      text: input.text,
+      source: input.source,
+      receivedAt: input.receivedAt,
+      metadata: structuredClone(input.metadata)
+    };
+    const interpretation = await this.provider.interpret({ input: providerInput, context, turnId });
     if (interpretation?.intent === 'propose' && interpretation.command &&
         typeof interpretation.command === 'object' && !Array.isArray(interpretation.command)) {
       // Inject trusted transport identity before validating the model's proposal.
@@ -52,7 +59,7 @@ class Orchestrator {
         // A model must summarize operational facts only after receiving the
         // authoritative Core result, never before the read has completed.
         if (typeof this.provider.respond === 'function') {
-          answer = await this.provider.respond({ input, context, turnId, readRequest: decision.readRequest, data });
+          answer = await this.provider.respond({ input: providerInput, context, turnId, readRequest: decision.readRequest, data });
           if (typeof answer !== 'string' || !answer.trim() || answer.length > 4000) {
             throw new TypeError('Provider-ul a returnat un răspuns invalid pentru datele Core.');
           }
