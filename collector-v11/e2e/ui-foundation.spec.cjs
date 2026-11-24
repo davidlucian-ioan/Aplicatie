@@ -466,7 +466,9 @@ test('voice preview is revalidated and requires confirmation again after another
   await expect(page.locator('#confirmCoreCommand')).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(baselineCount);
 
-  await page.evaluate((population) => {
+  const otherSession = await page.context().newPage();
+  await otherSession.goto('/index-server.html');
+  await otherSession.evaluate((population) => {
     const state = JSON.parse(localStorage.getItem('collector_mvp_v2'));
     const event = {
       id: 'external-concurrent-stock-sale',
@@ -480,6 +482,7 @@ test('voice preview is revalidated and requires confirmation again after another
     const result = window.CollectorEngine.commit(state, event);
     localStorage.setItem('collector_mvp_v2', JSON.stringify(result.db));
   }, populationId);
+  await otherSession.close();
 
   await page.locator('#confirmCoreCommand').click();
   await expect(page.locator('#commandResult')).toContainText('Preview actualizat');
