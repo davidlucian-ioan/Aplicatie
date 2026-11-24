@@ -236,3 +236,17 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 - Teste AI extinse pentru citiri minimizate și filtrate în ambele Core Port-uri. Numărul testelor AI urmează a fi recalculat înainte de checkpoint-ul următor.
 
 - Limita relațiilor a fost plafonată la maximum 100 rezultate (implicit 50) în ambele Core Port-uri; căutarea de entități rămâne maximum 100. Nu se expune registrul complet sau istoricul complet printr-un singur read.
+
+
+### Checkpoint Android On-device STT — 2026-11-24 — PR #53 în pregătire
+- Branch: `feature/android-ondevice-stt-runtime`, bazat pe head-ul PR #52 după corecția E2E.
+- PR #52: Quality CI PASS, run 45434638797; Android debug build PASS, run 45434638665. PR #52 rămâne separat și nu este integrat automat în main.
+- Implementat nativ `CollectorSpeechPlugin`: start/stop/cancel, recunoaștere numai cu `SpeechRecognizer.createOnDeviceSpeechRecognizer`, locale exclusiv `ro-RO`, rezultate parțiale și finale, relansare între fraze în sesiune continuă, confidence când Android îl oferă, offset-uri relative și timestamp-uri absolute.
+- Android WORK folosește bridge-ul nativ pentru dictare și transcriere live. Nu folosește Web Speech API ca fallback pe Android și nu există fallback cloud.
+- Transcriptul final este salvat local în IndexedDB store separat `transcripts`, cu sesiune, segmente și timestamp-uri; WORK poate reîncărca sau șterge sesiunile.
+- Microfonul este protejat cu `CollectorMicrophoneLock`, lock OS prin `FileChannel.tryLock()`, folosit atât de serviciul recorder din procesul separat `:collector_recorder`, cât și de pluginul STT. Lock-ul se eliberează la stop/error/destroy și de OS la moartea procesului.
+- Scriptul de Android sync copiază și noul `CollectorMicrophoneLock.java`.
+- Nu pretindem încă legătura segmentului cu fișierul audio: `audioRecordingId=null`, `audioLinkStatus=not-linked`. API-ul Android SpeechRecognizer nu expune fluxul PCM pentru a-l lega de fișierul MediaRecorder existent. Pentru sincronizare reală va fi necesară o arhitectură comună de captură PCM, nu o asociere artificială.
+- Testele statice și regresiile pentru no-cloud, bridge, transcript store, manifest și lock sunt adăugate; nu sunt declarate PASS până la rularea CI pe head-ul final.
+- Validarea pe telefon fizic este încă obligatorie: permisiune, instalarea modelului românesc, dictare, sesiune continuă, stop, aplicație în fundal, concurență recorder/STT și eliberarea lock-ului.
+- Următorul pas: verificare completă a codului/contractelor, CI Quality + Android build, remedierea regresiilor, apoi PR #53.
