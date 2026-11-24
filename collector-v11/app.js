@@ -246,7 +246,7 @@ async function runVoiceBatch(phrases,selections={}){
  const box=document.getElementById('commandResult');
  const entries=(Array.isArray(phrases)?phrases:[]).map(value=>String(value||'').trim()).filter(Boolean);
  if(!entries.length){voiceReadbackPending=false;setAppStatus('Sesiunea vocală s-a încheiat fără fraze finale. Nu s-au modificat datele.');return}
- const operations=[],items=[],summaries=[],unresolved=[];
+ const operations=[],items=[],summaries=[],unresolved=[],warnings=[];
  try{
   for(let index=0;index<entries.length;index++){
    const phrase=entries[index];
@@ -264,6 +264,7 @@ async function runVoiceBatch(phrases,selections={}){
     if(entity){
      const def=definitions[0];
      const value=parseTyped(parsed.value,def.type);
+     const valueWarnings=validateAttribute(def,value);if(valueWarnings.length)warnings.push('Fraza '+(index+1)+' · '+def.name+': '+valueWarnings.join(' și '));
      operations.push({operation:'attribute.set',target:entity.id,data:{name:def.name,value,certainty:'certain',forceHistory:true}});
      items.push({type:'attribute',entityId:entity.id,attribute:def.name,value});
      summaries.push(entity.name+' · '+def.name+' = '+JSON.stringify(value));
@@ -289,8 +290,8 @@ async function runVoiceBatch(phrases,selections={}){
   if(result.status!=='preview_ok'){box.textContent=result.status==='duplicate'?'Acest lot a fost deja procesat.':'Preview-ul lotului a fost respins: '+result.status;voiceReadbackPending=false;return}
   pendingCoreCommand=command;voiceCommandPending=true;voiceReadbackPending=true;
   const summary='Lot vocal · '+entries.length+' fraze';
-  const readbackText=summary+'. '+summaries.join('. ')+'. Modificări estimate: '+result.projectionChanges.entities+' entități, '+result.projectionChanges.relations+' relații, '+result.projectionChanges.stock+' modificări de stoc și '+result.projectionChanges.finance+' modificări financiare. Nu am salvat nimic. Confirmă întregul lot pe ecran.';
-  box.innerHTML='<b>Preview Core Port · lot vocal</b><p>'+esc(summary)+'</p><ol>'+summaries.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ol><p>Operații în lot: '+operations.length+'. Modificări estimate — entități: '+result.projectionChanges.entities+', relații: '+result.projectionChanges.relations+', stoc: '+result.projectionChanges.stock+', financiar: '+result.projectionChanges.finance+'.</p><p class="note">Nicio modificare nu a fost salvată. Confirmarea execută toate operațiile într-un singur eveniment atomic.</p><button class="secondary" id="readbackCoreCommand" type="button">🔊 Redă rezumatul</button> <button class="primary" id="confirmCoreCommand">Confirmă și salvează lotul</button> <button class="secondary" id="cancelCoreCommand">Anulează lotul</button>';
+  const readbackText=summary+'. '+summaries.join('. ')+(warnings.length?'. Atenție: '+warnings.join('. '):'')+'. Modificări estimate: '+result.projectionChanges.entities+' entități, '+result.projectionChanges.relations+' relații, '+result.projectionChanges.stock+' modificări de stoc și '+result.projectionChanges.finance+' modificări financiare. Nu am salvat nimic. Confirmă întregul lot pe ecran.';
+  box.innerHTML='<b>Preview Core Port · lot vocal</b><p>'+esc(summary)+'</p><ol>'+summaries.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ol>'+(warnings.length?'<p class="note"><b>Atenție la valori:</b> '+warnings.map(esc).join('; ')+'. Confirmarea lotului confirmă și aceste valori.</p>':'')+'<p>Operații în lot: '+operations.length+'. Modificări estimate — entități: '+result.projectionChanges.entities+', relații: '+result.projectionChanges.relations+', stoc: '+result.projectionChanges.stock+', financiar: '+result.projectionChanges.finance+'.</p><p class="note">Nicio modificare nu a fost salvată. Confirmarea execută toate operațiile într-un singur eveniment atomic.</p><button class="secondary" id="readbackCoreCommand" type="button">🔊 Redă rezumatul</button> <button class="primary" id="confirmCoreCommand">Confirmă și salvează lotul</button> <button class="secondary" id="cancelCoreCommand">Anulează lotul</button>';
   document.getElementById('readbackCoreCommand').onclick=()=>speakWorkFeedback(readbackText,true);
   document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
   document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;voiceCommandPending=false;voiceReadbackPending=false;cancelSpeechOutput();box.textContent='Lot anulat. Nu s-au modificat date.'};
