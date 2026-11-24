@@ -154,6 +154,8 @@ begin
   if p_user_id is null or not coalesce(p_is_pro_product,false) then
     return jsonb_build_object('processed',true,'ignored',true);
   end if;
+  -- Serialize updates per account so delayed webhooks cannot overwrite newer state.
+  perform pg_advisory_xact_lock(hashtextextended(p_user_id::text,0));
   if exists(select 1 from public.collector_entitlements where user_id=p_user_id
       and updated_at > coalesce(p_event_timestamp,now())) then
     return jsonb_build_object('processed',true,'stale',true);
