@@ -123,10 +123,14 @@ Surse oficiale:
 5. Nu există încă proiect Supabase configurat/deploy și endpoint public. Sync incremental, tenancy/workspaces, backup și conflict handling nu sunt implementate.
 
 ### M4 — Monetizare
-1. Definirea planurilor și limitelor comerciale.
-2. Billing nativ Android/iOS și validare server-side a chitanțelor/entitlements.
-3. Restaurare achiziții și acces cross-platform.
-4. Teste sandbox pentru achiziții, anulare, refund și expirare.
+**Stare: neimplementată; modelul tehnic și estimarea sunt documentate în `MONETIZATION-AND-COST-MODEL.md`.**
+1. Propunere de produs: Free păstrează Core local, Work/Think, audio și notificări locale; Pro deblochează AI cu buget lunar și serviciile cloud după implementarea sync/backup.
+2. Recomandare de evaluat: RevenueCat ca strat de achiziții cross-platform; webhook semnat către Cloud API și entitlement verificat server-side. Core rămâne independent de furnizorul de billing.
+3. Adaugă identitate recuperabilă/cont link-uit; autentificarea anonimă actuală nu este suficientă pentru restaurare robustă între dispozitive.
+4. Adaugă tabele persistente pentru subscriptions/entitlements, ai_usage, usage_budgets și billing_webhook_events; webhook-urile trebuie idempotente.
+5. Măsoară tokenii și costul efectiv înainte/după fiecare cerere AI; plafon lunar și spend caps. Rate limit-ul actual de 20/minut este doar temporar și nu este un buget lunar.
+6. Integrează Google Play Billing + Apple StoreKit prin RevenueCat; teste sandbox pentru achiziție, restore, upgrade/downgrade, refund, anulare și expirare.
+7. Prețurile/planurile din documentul de cost sunt ipoteze, nu decizii aprobate. Calibrează quota și prețul după pilot și costurile reale.
 
 ### M5 — Lansare
 1. TestFlight și Google Play internal/closed testing.
@@ -195,3 +199,12 @@ Surse oficiale:
 - Dependențele Capacitor/plugin sunt instalate cu versiuni fixate în workflow, dar încă nu sunt gestionate complet prin package.json/package-lock.json.
 - Nu există încă backend cloud deployat, proiect Supabase configurat, sesiune reală, apel OpenAI real, sync multi-device, billing, build semnat, privacy policy finală sau testare pe dispozitive fizice.
 - Următorii pași: iOS runner; lockfile reproductibil; decizie și implementare criptare SQLite; deploy backend + Supabase; testare reală Android/iOS; apoi billing și pregătire store. Nu declara aplicația pregătită de store.
+
+
+## Corelare abonament și costuri — 2026-11-24
+- Auditul și estimarea sunt salvate în `MONETIZATION-AND-COST-MODEL.md`.
+- Fundația existentă: Supabase Auth anonim, Cloud API autentificat, OpenAI server-side, context minimizat, Core local-first și audio local.
+- Lipsesc complet billing, entitlement, restore purchases, usage metering lunar, quota/cost cap per utilizator, proiect Supabase real, deployment și sync/backup multi-device.
+- Nu activa endpoint-ul AI public înainte de entitlement server-side și usage budget persistent.
+- Estimare de bază pentru început: ~32 USD/lună pentru Render Starter + Supabase Pro, fără AI, taxe, domeniu și scalare. OpenAI la modelul curent: aproximativ 0,009–0,020 USD per solicitare în scenariile de tokeni documentate.
+- Reduceri sigure: AI numai la cerere, context minim, STT/audio local, model mai economic doar după benchmark de contract/regresie, buget pe tokeni și plafon de cheltuieli. Nu reduce securitatea, validarea Core sau confirmarea utilizatorului.
