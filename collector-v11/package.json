@@ -14,7 +14,8 @@
     "benchmark:replay": "node benchmark-replay.js",
     "start": "node server.js",
     "mobile:build": "node build-mobile.js",
-    "mobile:sync": "npm run mobile:build && npx cap sync"
+    "mobile:sync": "npm run mobile:build && npx cap sync",
+    "mobile:configure": "node configure-native-projects.js"
   },
   "engines": {
     "node": ">=22"

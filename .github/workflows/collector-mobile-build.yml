@@ -51,6 +51,9 @@ jobs:
       - name: Generate Android native project
         working-directory: collector-v11
         run: npx cap add android
+      - name: Configure microphone permission
+        working-directory: collector-v11
+        run: node configure-native-projects.js android
       - name: Sync Android native project
         working-directory: collector-v11
         run: npx cap sync android
@@ -93,6 +96,9 @@ jobs:
       - name: Generate iOS native project
         working-directory: collector-v11
         run: npx cap add ios
+      - name: Configure microphone usage description
+        working-directory: collector-v11
+        run: node configure-native-projects.js ios
       - name: Sync iOS native project
         working-directory: collector-v11
         run: npx cap sync ios
