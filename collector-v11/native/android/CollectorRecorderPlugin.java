@@ -37,6 +37,10 @@ public final class CollectorRecorderPlugin extends Plugin {
 
     @PluginMethod
     public void startRecording(PluginCall call) {
+        if (CollectorMicrophoneArbiter.isOwnedByOther("recorder")) {
+            call.reject("Microfonul este folosit de transcrierea vocală. Oprește sesiunea înainte de a porni reportofonul.");
+            return;
+        }
         File activeStateFile = new File(recordingsDirectory(), "active-state.json");
         JSONObject existing = readActiveState();
         reconcileIfServiceStopped(existing);
@@ -97,6 +101,10 @@ public final class CollectorRecorderPlugin extends Plugin {
     }
 
     private void launchRecordingService(PluginCall call) {
+        if (!CollectorMicrophoneArbiter.tryAcquire("recorder")) {
+            call.reject("Microfonul este deja rezervat de o altă operație Collector.");
+            return;
+        }
         String id = java.util.UUID.randomUUID().toString();
         Intent intent = new Intent(getContext(), CollectorRecordingService.class);
         intent.setAction(CollectorRecordingService.ACTION_START);
@@ -114,6 +122,7 @@ public final class CollectorRecorderPlugin extends Plugin {
             result.put("status", "starting");
             call.resolve(result);
         } catch (Exception error) {
+            CollectorMicrophoneArbiter.release("recorder");
             call.reject("Nu am putut porni serviciul nativ de înregistrare.", error);
         }
     }
