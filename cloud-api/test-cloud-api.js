@@ -132,7 +132,7 @@ test('webhook RevenueCat autentificat mapează achiziția la utilizatorul Collec
   const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
    headers:{Authorization:'Bearer webhook-secret','Content-Type':'application/json'},
    body:JSON.stringify({event:{id:'evt-1',type:'RENEWAL',app_user_id:'$RCAnonymousID:temporary',original_app_user_id:'$RCAnonymousID:temporary',aliases:['123e4567-e89b-42d3-a456-426614174000'],
-    product_id:'unlisted_product',entitlement_ids:['pro'],store:'PLAY_STORE',expiration_at_ms:1893456000000}})});
+    product_id:'collector_pro_monthly',entitlement_ids:['pro'],store:'PLAY_STORE',expiration_at_ms:1893456000000}})});
   assert.equal(response.status,200);assert.equal((await response.json()).processed,true);
   assert.equal(received.userId,'123e4567-e89b-42d3-a456-426614174000');
   assert.equal(received.isProProduct,true);assert.equal(received.store,'play_store');
@@ -186,5 +186,30 @@ test('rate-limit state has a bounded user cache',async()=>{
   // Oldest cache entry was evicted to keep memory bounded.
   const firstAgain=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer user-1'}});
   assert.equal(firstAgain.status,200);
+ });
+});
+
+test('webhook RevenueCat nu acordă Pro unui produs în afara allowlist chiar dacă entitlement-ul este pro',async()=>{
+ let received=null;
+ const billingService={configured:true,applyRevenueCatEvent:async value=>{received=value;return {processed:true,ignored:true}}};
+ const env={...baseEnv,REVENUECAT_WEBHOOK_AUTHORIZATION:'Bearer webhook-secret',REVENUECAT_PRO_PRODUCT_IDS:'collector_pro_monthly'};
+ await withServer({env,fetchImpl:authFetch(),billingService},async base=>{
+  const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
+   headers:{Authorization:'Bearer webhook-secret','Content-Type':'application/json'},
+   body:JSON.stringify({event:{id:'evt-unlisted',type:'INITIAL_PURCHASE',app_user_id:'123e4567-e89b-42d3-a456-426614174000',
+    product_id:'unlisted_product',entitlement_ids:['pro'],store:'PLAY_STORE',expiration_at_ms:1893456000000}})});
+  assert.equal(response.status,200);assert.equal(received.isProProduct,false);
+ });
+});
+test('webhook RevenueCat nu acordă Pro fără entitlement-ul configurat chiar pentru produs allowlisted',async()=>{
+ let received=null;
+ const billingService={configured:true,applyRevenueCatEvent:async value=>{received=value;return {processed:true,ignored:true}}};
+ const env={...baseEnv,REVENUECAT_WEBHOOK_AUTHORIZATION:'Bearer webhook-secret',REVENUECAT_PRO_PRODUCT_IDS:'collector_pro_monthly',REVENUECAT_PRO_ENTITLEMENT_ID:'pro'};
+ await withServer({env,fetchImpl:authFetch(),billingService},async base=>{
+  const response=await fetch(base+'/api/billing/revenuecat-webhook',{method:'POST',
+   headers:{Authorization:'Bearer webhook-secret','Content-Type':'application/json'},
+   body:JSON.stringify({event:{id:'evt-no-entitlement',type:'INITIAL_PURCHASE',app_user_id:'123e4567-e89b-42d3-a456-426614174000',
+    product_id:'collector_pro_monthly',entitlement_ids:['other'],store:'PLAY_STORE',expiration_at_ms:1893456000000}})});
+  assert.equal(response.status,200);assert.equal(received.isProProduct,false);
  });
 });
