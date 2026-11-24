@@ -6,6 +6,56 @@ let db=loadDb(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
+
+const VOICE_CONTEXT_KEY='collector_voice_context_v1';
+const VOICE_CONTEXT_TTL_MS=30*60*1000;
+function getVoiceContext(){
+ try{
+  const context=JSON.parse(localStorage.getItem(VOICE_CONTEXT_KEY)||'null');
+  if(!context||context.version!==1||!Number.isFinite(context.expiresAt)||context.expiresAt<=Date.now()){localStorage.removeItem(VOICE_CONTEXT_KEY);return null}
+  const valid={version:1,updatedAt:context.updatedAt,expiresAt:context.expiresAt};
+  for(const key of ['entityId','populationId','locationId'])if(typeof context[key]==='string'&&db.entities.some(entity=>entity.id===context[key]))valid[key]=context[key];
+  if(!valid.entityId&&!valid.populationId&&!valid.locationId){localStorage.removeItem(VOICE_CONTEXT_KEY);return null}
+  return valid;
+ }catch(error){try{localStorage.removeItem(VOICE_CONTEXT_KEY)}catch{}return null}
+}
+function renderVoiceContext(){
+ const box=document.getElementById('voiceContextCard');if(!box)return;
+ const context=getVoiceContext();
+ if(!context){box.innerHTML='<div><b>Fără context vocal activ</b><p>După o comandă vocală confirmată, țintele folosite vor rămâne disponibile local timp de 30 de minute.</p></div>';box.dataset.active='false';return}
+ const names=[['entityId','Entitate'],['populationId','Populație'],['locationId','Locație']].filter(([key])=>context[key]).map(([key,label])=>{const entity=db.entities.find(item=>item.id===context[key]);return '<span><small>'+label+'</small><b>'+esc(entity?.name||'Indisponibil')+'</b></span>'});
+ const minutes=Math.max(1,Math.ceil((context.expiresAt-Date.now())/60000));
+ box.innerHTML='<div><b>Context vocal activ</b><p>Referințele explicite „aceeași entitate”, „aceeași populație” și „aceeași locație” folosesc numai aceste ținte confirmate.</p><div class="voice-context-targets">'+names.join('')+'</div><small>Expiră în aproximativ '+minutes+' min · stocat numai pe acest dispozitiv</small></div><button class="secondary" id="clearVoiceContext" type="button">Șterge contextul</button>';
+ box.dataset.active='true';
+ document.getElementById('clearVoiceContext').onclick=()=>{localStorage.removeItem(VOICE_CONTEXT_KEY);renderVoiceContext();setAppStatus('Contextul vocal local a fost șters.')};
+}
+function updateVoiceContextFromCommand(command){
+ const next={version:1,updatedAt:Date.now(),expiresAt:Date.now()+VOICE_CONTEXT_TTL_MS};
+ for(const operation of command?.operations||[]){
+  const data=operation.data||{};
+  if(operation.operation==='attribute.set'&&typeof operation.target==='string')next.entityId=operation.target;
+  if(operation.operation==='stock.change'){
+   if(typeof data.populationId==='string')next.populationId=data.populationId;
+   if(typeof data.locationId==='string'&&data.locationId)next.locationId=data.locationId;
+  }
+ }
+ if(!next.entityId&&!next.populationId&&!next.locationId)return false;
+ try{localStorage.setItem(VOICE_CONTEXT_KEY,JSON.stringify(next));renderVoiceContext();return true}catch(error){setAppStatus('Comanda a fost salvată, dar contextul vocal nu a putut fi păstrat local.');return false}
+}
+function resolveVoiceContextReference(name,kind){
+ const aliases={
+  entity:['aceeași entitate','aceeasi entitate','entitatea anterioară','entitatea anterioara'],
+  population:['aceeași populație','aceeasi populatie','populația anterioară','populatia anterioara'],
+  location:['aceeași locație','aceeasi locatie','locația anterioară','locatia anterioara']
+ };
+ const normalized=String(name||'').normalize('NFC').trim().toLocaleLowerCase('ro-RO');
+ if(!aliases[kind]?.includes(normalized))return null;
+ const context=getVoiceContext(),key={entity:'entityId',population:'populationId',location:'locationId'}[kind],id=context?.[key];
+ if(!id)throw Error('Nu există un context vocal activ pentru '+({entity:'entitate',population:'populație',location:'locație'}[kind])+'. Specifică numele complet al țintei.');
+ const entity=db.entities.find(item=>item.id===id);
+ if(!entity)throw Error('Ținta din contextul vocal nu mai există. Specifică numele complet.');
+ return entity;
+}
 function loadDb(){
  let raw=null,rawText=null,parseError=null,sourceKey=KEY;
  try{rawText=localStorage.getItem(KEY);if(rawText!==null)raw=JSON.parse(rawText)}catch(error){parseError=error}
@@ -202,7 +252,7 @@ function renderThinkActivity(){
  chart.innerHTML=days.map(day=>{const count=counts.get(day.key),height=count?Math.max(8,Math.round(count/max*100)):3;return '<div class="think-day" title="'+esc(day.label+': '+count+' evenimente')+'" aria-label="'+esc(day.label+': '+count+' evenimente')+'"><span class="think-day-count">'+count+'</span><div class="think-day-track"><i style="height:'+height+'%"></i></div><small>'+esc(day.label)+'</small></div>'}).join('');
  summary.textContent=total+' '+(total===1?'eveniment':'evenimente')+' în ultimele 7 zile · '+counts.get(days[6].key)+' astăzi';
 }
-function render(){document.getElementById('entityCount').textContent=db.entities.length;document.getElementById('eventCount').textContent=db.events.length;document.getElementById('relationCount').textContent=db.relations.filter(r=>!r.endedAt).length;document.getElementById('stockCount').textContent=E.balances(db).filter(x=>x.disposition==='active').reduce((sum,x)=>sum+Number(x.quantity||0),0);renderEntities();renderRelations();renderInventory();renderFinance();renderAttributes();document.getElementById('eventList').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';document.getElementById('recentEvents').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';renderHistory();renderAudit();renderThinkActivity();if(currentEntityId&&document.getElementById('entityChartBox'))drawEntityChart(currentEntityId)}
+function render(){renderVoiceContext();document.getElementById('entityCount').textContent=db.entities.length;document.getElementById('eventCount').textContent=db.events.length;document.getElementById('relationCount').textContent=db.relations.filter(r=>!r.endedAt).length;document.getElementById('stockCount').textContent=E.balances(db).filter(x=>x.disposition==='active').reduce((sum,x)=>sum+Number(x.quantity||0),0);renderEntities();renderRelations();renderInventory();renderFinance();renderAttributes();document.getElementById('eventList').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';document.getElementById('recentEvents').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';renderHistory();renderAudit();renderThinkActivity();if(currentEntityId&&document.getElementById('entityChartBox'))drawEntityChart(currentEntityId)}
 document.getElementById('quickEvent').onclick=()=>showPage('work');document.getElementById('historyEntityFilter').onchange=renderHistory;document.getElementById('historyTypeFilter').onchange=renderHistory;
 function exportData(){const blob=new Blob([JSON.stringify({exportedAt:E.now(),app:'Collector MVP v6',db:integrityRawBackup||db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='collector-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href)}
 document.getElementById('importFile').addEventListener('change',async ev=>{const file=ev.target.files?.[0];if(!file)return;try{const raw=JSON.parse(await file.text()),candidate=raw.db||raw;const validated=E.validateImport(candidate);if(!confirm('Jurnal valid, fără erori, iar proiecțiile corespund istoricului. Importul va înlocui datele locale curente. Ai exportat o copie de siguranță?'))return;if(!persistRaw(validated))throw Error('Nu s-au putut salva datele importate. Datele locale au rămas neschimbate.');db=validated;integrityBlocked=false;integrityCanRebuild=false;integrityBlockReason=null;integrityRawBackup=null;currentEntityId=null;render();alert('Import reușit: jurnalul și proiecțiile au fost validate.')}catch(err){alert('Import eșuat: '+err.message)}finally{ev.target.value=''}});
@@ -257,7 +307,8 @@ async function runVoiceBatch(phrases,selections={}){
     items.push({type:'note',description:parsed.description});
     summaries.push('Observație '+(index+1)+': „'+parsed.description+'”');
    }else if(parsed.type==='attribute'){
-    const matches=db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
+    const contextualEntity=resolveVoiceContextReference(parsed.entityName,'entity');
+    const matches=contextualEntity?[contextualEntity]:db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
     const entity=voiceBatchResolveTarget(matches,'entity:'+index,'entitatea „'+parsed.entityName+'”',selections,unresolved,index);
     const definitions=db.attributes.filter(a=>a.name.toLowerCase()===parsed.attribute.toLowerCase());
     if(definitions.length!==1)throw Error(definitions.length?'Fraza '+(index+1)+': definiția atributului „'+parsed.attribute+'” nu este unică.':'Fraza '+(index+1)+': atributul „'+parsed.attribute+'” nu este definit. Nu voi modifica schema în tăcere.');
@@ -270,9 +321,11 @@ async function runVoiceBatch(phrases,selections={}){
      summaries.push(entity.name+' · '+def.name+' = '+JSON.stringify(value));
     }
    }else if(parsed.type==='sale'){
-    const populations=db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
+    const contextualPopulation=resolveVoiceContextReference(parsed.populationName,'population');
+    const populations=contextualPopulation?[contextualPopulation]:db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
     const population=voiceBatchResolveTarget(populations,'population:'+index,'populația „'+parsed.populationName+'”',selections,unresolved,index);
-    const locations=parsed.locationName?db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase()):[];
+    const contextualLocation=parsed.locationName?resolveVoiceContextReference(parsed.locationName,'location'):null;
+    const locations=parsed.locationName?(contextualLocation?[contextualLocation]:db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase())):[];
     const location=parsed.locationName?voiceBatchResolveTarget(locations,'location:'+index,'locația „'+parsed.locationName+'”',selections,unresolved,index):null;
     if(population&&(!parsed.locationName||location)){
      operations.push({operation:'stock.change',data:{populationId:population.id,action:'sell',locationId:location?.id||null,quantity:parsed.quantity,disposition:'sold'}});
@@ -305,16 +358,19 @@ async function runCommand(){
  if(parsed.type==='note'){
   operations=[{operation:'event.note',data:{description:parsed.description}}];payload={description:parsed.description,summary:parsed.description};summary=`Observație: „${parsed.description}”`;
  } else if(parsed.type==='attribute'){
-  const matches=db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
+  const contextualEntity=resolveVoiceContextReference(parsed.entityName,'entity');
+  const matches=contextualEntity?[contextualEntity]:db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
   if(matches.length!==1){box.textContent=matches.length?'Există mai multe entități cu acest nume; selectează explicit entitatea.':`Nu găsesc entitatea „${parsed.entityName}”.`;speakWorkFeedback(box.textContent);return}
   const def=db.attributes.find(a=>a.name.toLowerCase()===parsed.attribute.toLowerCase());
   if(!def){box.textContent=`Atributul „${parsed.attribute}” nu este definit. Nu voi modifica schema în tăcere.`;speakWorkFeedback(box.textContent);return}
   let value;try{value=parseTyped(parsed.value,def.type);if(!confirmAttributeWarnings(def,value)){voiceReadbackPending=false;return}}catch(err){box.textContent=err.message;speakWorkFeedback(box.textContent);return}
   operations=[{operation:'attribute.set',target:matches[0].id,data:{name:def.name,value,certainty:'certain',forceHistory:true}}];payload={entityId:matches[0].id,attribute:def.name,value};summary=`${matches[0].name} · ${def.name} = ${JSON.stringify(value)}`;
  } else if(parsed.type==='sale'){
-  const populations=db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
+  const contextualPopulation=resolveVoiceContextReference(parsed.populationName,'population');
+  const populations=contextualPopulation?[contextualPopulation]:db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
   if(populations.length!==1){box.textContent=populations.length?'Există mai multe populații cu acest nume. Selectează una explicit.':'Nu am găsit o singură populație cu acel nume.';speakWorkFeedback(box.textContent);return}
-  const locations=parsed.locationName?db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase()):[];
+  const contextualLocation=parsed.locationName?resolveVoiceContextReference(parsed.locationName,'location'):null;
+  const locations=parsed.locationName?(contextualLocation?[contextualLocation]:db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase())):[];
   if(parsed.locationName&&locations.length!==1){box.textContent='Nu am găsit o singură locație cu acel nume.';speakWorkFeedback(box.textContent);return}
   const locationId=locations[0]?.id||null;
   operations=[{operation:'stock.change',data:{populationId:populations[0].id,action:'sell',locationId,quantity:parsed.quantity,disposition:'sold'}}];payload={populationId:populations[0].id,quantity:parsed.quantity,locationId};summary=`Vânzare ${parsed.quantity} × ${populations[0].name}${locations[0]?' din '+locations[0].name:''}`;
@@ -335,10 +391,11 @@ async function runCommand(){
 }
 async function confirmCoreCommand(){
  const box=document.getElementById('commandResult');if(!pendingCoreCommand)return;
- const command=pendingCoreCommand;pendingCoreCommand=null;
+ const command=pendingCoreCommand;pendingCoreCommand=null;const wasVoiceCommand=voiceCommandPending;
  try{
   const result=await ensureAICorePort().execute(command,{confirmed:true});
   if(result.status==='committed'||result.status==='duplicate'){
+   if(result.status==='committed'&&wasVoiceCommand)updateVoiceContextFromCommand(command);
    box.innerHTML=`<b class="status-ok">${result.status==='committed'?'Salvat cu succes':'Comandă deja procesată'}</b><p>Event ID: ${esc(result.eventId||'—')}</p>`;
    if(voiceCommandPending)speakWorkFeedback(result.status==='committed'?'Comanda a fost salvată cu succes.':'Comanda fusese deja procesată.',true);
    voiceCommandPending=false;
