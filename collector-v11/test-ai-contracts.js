@@ -25,6 +25,7 @@ test('input-ul impune text nenul și limite de dimensiune', () => {
 test('comanda acceptă forma Core {operation, target, data} și respinge data non-object', () => {
   assert.equal(validateCommand(validCommand()).operations[0].data.quantity, 2);
   assert.throws(() => validateCommand({ ...validCommand(), operations: [{ operation: 'event.note', data: [] }] }), /obiect/);
+  assert.throws(() => validateCommand({ ...validCommand(), operations: [{ operation: 'event.note' }] }), /obiect/);
 });
 
 test('comanda respinge operații excesive, idempotency key invalid și certainty necunoscută', () => {
