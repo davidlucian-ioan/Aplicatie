@@ -345,7 +345,7 @@ test('voice context uses only the last confirmed target and expires after 30 min
   await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
   expect(saved.entities.find(entity => entity.id === plantId).attributes.pH).toBe(6.4);
-  expect(saved.events).toHaveLength(3);
+  expect(saved.events).toHaveLength(4);
 
   await page.evaluate(() => {
     const context = JSON.parse(localStorage.getItem('collector_voice_context_v1'));
