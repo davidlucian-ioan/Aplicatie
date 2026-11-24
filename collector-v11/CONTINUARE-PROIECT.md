@@ -219,13 +219,13 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
+
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- HEAD verificat înaintea acestui checkpoint: `7e86d7118d0403ecba1dbbf2cae94a04f260d7ec`.
-- RevenueCat: webhook transmite `cancel_reason` către RPC; `CANCELLATION + CUSTOMER_SUPPORT` revocă Pro imediat; anularea normală, billing issue/grace și `SUBSCRIPTION_PAUSED` păstrează accesul până la expirarea perioadei; `EXPIRATION/REFUND` revocă accesul. Migrarea actualizează semnătura RPC și permisiunile service_role.
-- Teste adăugate: webhook transmite motivul refund-ului; billing service trimite `p_cancel_reason`; contract SQL verifică revocarea imediată și semnătura RPC.
-- CI pentru HEAD `7e86d71`: Cloud API SUCCESS (run `45498395296`); Quality Suite IN PROGRESS (run `45498395288`); Mobile Build PENDING (run `45498395280`). CI complet nu este încă verde.
-- Audit static: allowlist de produs obligatorie; entitlement cerut pentru granturi; evenimentele de revocare pot fi procesate fără entitlement_ids numai pentru produse allowlisted; transferul între conturi rămâne dezactivat intenționat.
-- Nevalidat extern: aplicarea migrării în Supabase/Postgres real, RLS/RPC live, webhook real, purchase/restore/refund/expiry în sandbox.
-- Următorul pas: urmărește CI pentru HEAD final și corectează eșecurile; apoi rulează migrarea într-un proiect Postgres/Supabase de test și scenariile sandbox. PR rămâne draft; nu activa plăți publice înainte de E2E.
-- Regula de continuitate: suprascrie numai acest checkpoint unic după fiecare etapă; răspunsurile din chat rămân succinte.
+- Ultimele commituri: `3082961` și `d7a1e8f` corectează două delimitatoare dollar-quote invalide (`as $`) în funcția PL/pgSQL RevenueCat; `ffbda38` adaugă test static care verifică toate delimitatoarele PL/pgSQL din migrare.
+- Defect important găsit în audit: migrarea SQL avea delimiter invalid pentru funcția RevenueCat, ceea ce ar fi făcut aplicarea migrării să eșueze. Am corectat ambele apariții identificate și am adăugat test de prevenție.
+- RevenueCat lifecycle: CUSTOMER_SUPPORT refund revocă imediat; anulare normală, billing issue/grace și SUBSCRIPTION_PAUSED păstrează accesul până la expirare; expirare/refund revocă. cancel_reason este transmis până la RPC.
+- CI: pe HEAD anterior `5ec2a7d`, Cloud API SUCCESS; Quality și Mobile erau în progres. Noile corecții de migrare/test nu au încă CI confirmat.
+- Nevalidat extern: rularea migrării în Postgres/Supabase real, RLS/RPC live, RevenueCat sandbox și deploy Cloud API.
+- Următorul pas: verifică CI pe HEAD nou; dacă verde, execută migrarea într-un Postgres de test și repară orice eroare reală; apoi sandbox purchase/restore/refund/expiry. PR rămâne draft până la E2E.
+- Regula: suprascrie numai acest checkpoint unic; nu adăuga note succesive.
