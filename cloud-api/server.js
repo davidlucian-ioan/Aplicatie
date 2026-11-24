@@ -99,7 +99,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
     const eventTimestamp=Number.isFinite(Number(event.event_timestamp_ms))&&Number(event.event_timestamp_ms)>0
       ?new Date(Number(event.event_timestamp_ms)).toISOString():new Date(now()).toISOString();
     const result=await billing.applyRevenueCatEvent({eventId:event.id,userId,eventType:event.type,
-      productId,store:storeMap[event.store]||null,expiresAt,eventTimestamp,isProProduct:Boolean(hasProEntitlement||(productId&&allowedProducts.has(productId)))});
+      productId,store:storeMap[event.store]||null,expiresAt,eventTimestamp,isProProduct:Boolean(productId&&allowedProducts.has(productId)&&hasProEntitlement)});
     send(res,200,{ok:true,processed:Boolean(result?.processed),duplicate:Boolean(result?.duplicate),ignored:Boolean(result?.ignored),stale:Boolean(result?.stale)});return;
    }catch(error){send(res,503,{error:'Evenimentul de billing nu a putut fi procesat.'});return}
   }
