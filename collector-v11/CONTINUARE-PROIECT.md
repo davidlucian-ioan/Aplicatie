@@ -231,3 +231,12 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - Referința rămasă a fost înlocuită cu `globalThis` în `f4ea88a`. Acest HEAD trebuie reverificat; nu declara CI verde până la confirmarea Quality, Android și iOS.
 - Codul include și hardening-ul rate-limit cache și verificarea combinată product allowlist + entitlement RevenueCat.
 - Următorul pas imediat: verifică workflow-urile pentru `f4ea88a`, corectează orice nouă eroare, apoi continuă testarea webhook/metering și păstrează PR #55 draft până la sandbox extern.
+
+
+## CHECKPOINT AUTORITATIV — 2026-11-25, accounting hardening
+- HEAD: `bb8ba15dfc4deb1a69abeb78411dbccfc5e39f17`; PR #55 încă draft/open, fără merge.
+- Testul de concurență RevenueCat a fost reparat complet: toate referințele `root` au fost înlocuite cu `globalThis` în commitul `f4ea88a`.
+- Workflow-urile pornite pentru `b627bf3`: Cloud API SUCCESS; Quality Suite și Mobile Build au fost anulate de push-uri ulterioare înainte de finalizare. Eșecurile anterioare de la `7ca0df6` au fost exclusiv `root is not defined` în testul nou.
+- Ultimele schimbări după acele workflow-uri: test de evacuare a rate-limit cache-ului, contabilizarea conservatoare a rezervărilor AI rămase stale și test static al contractului SQL. Acestea nu au încă un rezultat CI confirmat pe HEAD curent.
+- Migrarea SQL: rezervările stale după 10 minute nu mai sunt eliberate gratuit; sunt mutate din reserved în used la valoarea integrală rezervată. Erorile cunoscute ale providerului eliberează în continuare rezervarea prin settlement cu `p_failed=true`. Rațiune: un worker poate cădea după răspunsul billable, înainte de settlement.
+- Următorul pas: obține CI complet pentru HEAD curent; apoi verifică migrarea SQL într-un Postgres/Supabase real și rulează sandbox purchase/restore/webhook. Nu declara monetizarea validată doar prin testele mock.
