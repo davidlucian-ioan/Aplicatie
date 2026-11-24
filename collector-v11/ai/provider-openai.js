@@ -1,5 +1,8 @@
 'use strict';
 
+const { randomUUID } = require('node:crypto');
+const { CONTRACT_VERSION, validateInterpretation } = require('./contracts');
+
 const ALLOWED_OPERATIONS = [
   'entity.create','entity.rename','attribute.set','attribute.define',
   'relation.create','relation.close','relation.move','stock.change',
@@ -122,16 +125,32 @@ class OpenAIProvider {
       const parsed = JSON.parse(extractOutputText(body));
       if (!['answer','propose','clarify','refuse'].includes(parsed.intent)) throw new Error('Intenție AI invalidă.');
       if (!Number.isFinite(parsed.confidence) || parsed.confidence < 0 || parsed.confidence > 1) throw new Error('Confidence AI invalid.');
+      const interpretation = {
+        intent: parsed.intent,
+        confidence: parsed.confidence,
+        ambiguities: parsed.ambiguities || [],
+        answer: parsed.answer || '',
+        question: parsed.question || parsed.clarificationQuestion || '',
+        clarificationQuestion: parsed.clarificationQuestion || ''
+      };
       if (parsed.intent === 'propose') {
         if (!Array.isArray(parsed.operations) || parsed.operations.length === 0) throw new Error('Propunerea AI nu conține operații.');
-        parsed.operations = parsed.operations.map(op => ({
-          operation: op.operation,
-          target: op.target || null,
-          data: JSON.parse(op.data_json || '{}')
-        }));
-        parsed.payload = JSON.parse(parsed.payload_json || '{}');
+        interpretation.command = {
+          contractVersion: CONTRACT_VERSION,
+          intent: parsed.command_intent || 'ai.proposal',
+          source: 'ai-openai',
+          certainty: parsed.certainty === 'uncertain' ? 'uncertain' : 'certain',
+          idempotencyKey: randomUUID(),
+          payload: JSON.parse(parsed.payload_json || '{}'),
+          operations: parsed.operations.map(op => ({
+            operation: op.operation,
+            target: op.target || null,
+            data: JSON.parse(op.data_json || '{}')
+          })),
+          requiresConfirmation: Boolean(parsed.requires_confirmation)
+        };
       }
-      return parsed;
+      return validateInterpretation(interpretation);
     } catch (error) {
       if (error.name === 'AbortError') throw new Error('Cererea către OpenAI a depășit limita de timp.');
       throw error;
