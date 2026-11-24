@@ -343,7 +343,7 @@ async function runVoiceBatch(phrases,selections={}){
  const command={contractVersion:'collector.command.v1',turnId:E.uid(),intent:'voice.batch',idempotencyKey:commandIntentKey(),source:'text',certainty:'certain',payload:{items},operations};
  try{
   const result=await ensureAICorePort().preview(command);
-  if(result.status!=='preview_ok'){box.textContent=result.status==='duplicate'?'Acest lot a fost deja procesat.':'Preview-ul lotului a fost respins: '+result.status;voiceReadbackPending=false;return}
+  if(result.status!=='preview_ok'){box.textContent=result.status==='duplicate'?'Acest lot a fost deja procesat.':'Preview-ul lotului a fost respins: '+(result.errors||[]).join(' ')+(result.errors?.length?'':' ('+result.status+')');voiceReadbackPending=false;return}
   pendingCoreCommand=command;voiceCommandPending=true;voiceReadbackPending=true;
   const summary='Lot vocal · '+entries.length+' fraze';
   const readbackText=summary+'. '+summaries.join('. ')+(warnings.length?'. Atenție: '+warnings.join('. '):'')+'. Modificări estimate: '+result.projectionChanges.entities+' entități, '+result.projectionChanges.relations+' relații, '+result.projectionChanges.stock+' modificări de stoc și '+result.projectionChanges.finance+' modificări financiare. Nu am salvat nimic. Confirmă întregul lot pe ecran.';
@@ -378,7 +378,7 @@ async function runCommand(){
  const command={contractVersion:'collector.command.v1',turnId:E.uid(),intent:parsed.type,idempotencyKey:commandIntentKey(),source:'text',certainty:'certain',payload,operations};
  try{
   const result=await ensureAICorePort().preview(command);
-  if(result.status!=='preview_ok'){box.textContent=result.status==='duplicate'?'Această comandă a fost deja procesată.':'Preview respins: '+result.status;speakWorkFeedback(box.textContent);return}
+  if(result.status!=='preview_ok'){box.textContent=result.status==='duplicate'?'Această comandă a fost deja procesată.':'Preview respins: '+(result.errors||[]).join(' ')+(result.errors?.length?'':' ('+result.status+')');speakWorkFeedback(box.textContent);return}
   pendingCoreCommand=command;
   const readbackText=`${summary}. Modificări estimate: ${result.projectionChanges.entities} entități, ${result.projectionChanges.relations} relații, ${result.projectionChanges.stock} modificări de stoc și ${result.projectionChanges.finance} modificări financiare. Nu am salvat nimic. Pentru înregistrare, confirmă pe ecran.`;
   if(voiceReadbackPending)voiceCommandPending=true;
