@@ -137,23 +137,26 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
     if(reason==='monthly_budget_exceeded'){send(res,429,{error:'Ai atins bugetul AI inclus în abonament pentru această lună.',code:'monthly_budget_exceeded'});return}
     send(res,409,{error:'Cererea AI nu a putut fi rezervată în siguranță.',code:reason||'reservation_rejected'});return;
    }
-   const provider=await providerFactory();
+   let provider=null,interpretation=null;
    try{
-    const interpretation=await provider.interpret({text:body.text,context});
-    const usage=interpretation?.usage||{};
-    const inputTokens=Number.isInteger(usage.inputTokens)&&usage.inputTokens>0?usage.inputTokens:inputEstimate;
-    const outputTokens=Number.isInteger(usage.outputTokens)&&usage.outputTokens>0?usage.outputTokens:MAX_OUTPUT_TOKENS;
-    const actualMicrousd=costMicrousd(inputTokens,outputTokens);
-    const settled=await billing.settle({userId,requestId,actualMicrousd,inputTokens,outputTokens,
-      model:provider.model||env.OPENAI_MODEL||'gpt-6.2-sol'});
-    send(res,200,{provider:'openai',model:provider.model||env.OPENAI_MODEL||'gpt-6.2-sol',
-      interpretation,usage:{inputTokens,outputTokens,estimatedCostUsd:actualMicrousd/1_000_000,
-      monthlyBudgetUsd:budgetMicrousd/1_000_000,usedUsd:Number(settled?.used_microusd||0)/1_000_000}});
+    provider=await providerFactory();
+    interpretation=await provider.interpret({text:body.text,context});
    }catch(error){
     try{await billing.settle({userId,requestId,actualMicrousd:0,inputTokens:0,outputTokens:0,
-      model:provider.model||env.OPENAI_MODEL||'gpt-6.2-sol',failed:true})}catch{}
+      model:provider?.model||env.OPENAI_MODEL||'gpt-6.2-sol',failed:true})}catch{}
     throw error;
    }
+   const usage=interpretation?.usage||{};
+   const inputTokens=Number.isInteger(usage.inputTokens)&&usage.inputTokens>0?usage.inputTokens:inputEstimate;
+   const outputTokens=Number.isInteger(usage.outputTokens)&&usage.outputTokens>0?usage.outputTokens:MAX_OUTPUT_TOKENS;
+   const actualMicrousd=costMicrousd(inputTokens,outputTokens);
+   // If settlement fails, keep the reservation locked; never release budget after a billable OpenAI response.
+   const settled=await billing.settle({userId,requestId,actualMicrousd,inputTokens,outputTokens,
+     model:provider?.model||env.OPENAI_MODEL||'gpt-6.2-sol'});
+   send(res,200,{provider:'openai',model:provider?.model||env.OPENAI_MODEL||'gpt-6.2-sol',
+     interpretation,usage:{inputTokens,outputTokens,estimatedCostUsd:actualMicrousd/1_000_000,
+     monthlyBudgetUsd:budgetMicrousd/1_000_000,usedUsd:Number(settled?.used_microusd||0)/1_000_000}});
+
   }catch(error){
    const status=Number(error?.status)||502;
    send(res,status,{error:status>=500?'Serviciul Collector AI nu a putut procesa cererea. Încearcă din nou mai târziu.':error.message});
