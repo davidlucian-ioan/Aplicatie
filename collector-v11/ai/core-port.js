@@ -1,6 +1,6 @@
 'use strict';
 
-const { validateCommand } = require('./contracts');
+const { validateCommand, validateReadRequest } = require('./contracts');
 
 const DEFAULT_ALLOWED_OPERATIONS = new Set([
   'entity.create', 'entity.rename', 'attribute.set', 'attribute.define',
@@ -44,9 +44,7 @@ class CorePort {
   }
 
   async read(request = {}) {
-    if (!request || typeof request !== 'object' || Array.isArray(request)) {
-      throw new TypeError('Cererea de citire trebuie să fie un obiect.');
-    }
+    validateReadRequest(request);
     const state = this._snapshot();
     switch (request.kind) {
       case 'entities': {
