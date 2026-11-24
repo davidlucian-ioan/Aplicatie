@@ -10,6 +10,7 @@ The WORK recorder and browser speech-capture controls must never intentionally s
 - Live transcription and one-shot dictation are refused while recorder state is `starting`, `recording`, `paused`, or `saving`.
 - Recorder start is refused while one-shot recognition or live recognition is active.
 - A native recorder state reported as `starting`, `recording`, or `paused` also blocks speech capture, even after WebView recreation.
+- Speech capture fails closed until the initial native recorder-state query succeeds. A slow or failed state query never defaults to `inactive` for the purpose of starting STT.
 - The user must explicitly stop the current owner before starting the other operation. The app does not silently stop a recording or discard a transcription session.
 
 ## Scope and limitations
@@ -23,6 +24,7 @@ The WORK recorder and browser speech-capture controls must never intentionally s
 ## Automated regression coverage
 
 The Playwright tests verify:
-1. Native recording blocks live voice transcription.
+1. Native recording blocks live voice transcription and one-shot dictation.
 2. Live voice transcription blocks browser audio recording before `getUserMedia`.
 3. A pending asynchronous native recorder start blocks voice transcription before the service reports its final state.
+4. Speech capture fails closed while the initial native recorder-state query is unresolved.
