@@ -91,6 +91,9 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
     const allowedProducts=new Set(String(env.REVENUECAT_PRO_PRODUCT_IDS||'').split(',').map(x=>x.trim()).filter(Boolean));
     const proEntitlement=String(env.REVENUECAT_PRO_ENTITLEMENT_ID||'pro');
     const hasProEntitlement=Array.isArray(event.entitlement_ids)&&event.entitlement_ids.includes(proEntitlement);
+    // Revocations and lifecycle events must still reach the ledger when RevenueCat omits entitlement_ids.
+    // Product allowlisting remains mandatory for every event.
+    const entitlementIndependentEvents=new Set(['CANCELLATION','BILLING_ISSUE','EXPIRATION','REFUND','SUBSCRIPTION_PAUSED','REFUND_REVERSED']);
     const storeMap={APP_STORE:'app_store',MAC_APP_STORE:'app_store',PLAY_STORE:'play_store',PROMOTIONAL:'promotional'};
     const effectiveExpirationMs=event.type==='BILLING_ISSUE'&&Number(event.grace_period_expiration_at_ms)>0
       ?Number(event.grace_period_expiration_at_ms):Number(event.expiration_at_ms);
@@ -99,7 +102,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
     const eventTimestamp=Number.isFinite(Number(event.event_timestamp_ms))&&Number(event.event_timestamp_ms)>0
       ?new Date(Number(event.event_timestamp_ms)).toISOString():new Date(now()).toISOString();
     const result=await billing.applyRevenueCatEvent({eventId:event.id,userId,eventType:event.type,
-      productId,store:storeMap[event.store]||null,expiresAt,eventTimestamp,isProProduct:Boolean(productId&&allowedProducts.has(productId)&&hasProEntitlement)});
+      productId,store:storeMap[event.store]||null,expiresAt,eventTimestamp,isProProduct:Boolean(productId&&allowedProducts.has(productId)&&(hasProEntitlement||entitlementIndependentEvents.has(event.type)))});
     send(res,200,{ok:true,processed:Boolean(result?.processed),duplicate:Boolean(result?.duplicate),ignored:Boolean(result?.ignored),stale:Boolean(result?.stale)});return;
    }catch(error){send(res,503,{error:'Evenimentul de billing nu a putut fi procesat.'});return}
   }
