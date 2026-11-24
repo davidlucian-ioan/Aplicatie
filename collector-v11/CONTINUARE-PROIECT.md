@@ -222,12 +222,13 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- HEAD înainte de actualizarea checkpoint-ului: `b94aa3a`.
-- Migrarea SQL RevenueCat a fost recitită din GitHub: nu mai există `as $` singular; toate delimitatoarele `as $$` au perechi de închidere.
-- Testele statice pentru migrare au fost extinse: idempotency pe `event_id`, rezultat duplicate, advisory lock per utilizator, respingerea evenimentelor stale și execuție RPC exclusiv prin `service_role`. Pattern-urile au fost verificate separat pe migrarea actuală.
-- Audit Cloud API: autentificare Supabase server-side, CORS allowlist, webhook secret comparat constant-time, product+entitlement allowlist, rate-limit cu cache bounded, rezervare înainte de OpenAI și settlement pe usage confirmate în cod. Testele existente acoperă și ștergerea contului, contextul allowlist, alias UUID și billing grace.
-- Model/API și cost: documentația OpenAI curentă confirmă `gpt-6.2-sol` pentru Responses API și tarife standard de $2/M input, $10/M output; valorile default documentate în Cloud API sunt aliniate. Surse verificate: https://developers.openai.com/api/docs/models și https://developers.openai.com/api/docs/guides/deployment-checklist.
-- CI pe HEAD `939b85d` a rămas pending fără job-uri raportate de GitHub; commiturile ulterioare vor genera run-uri noi. Nu declarăm CI verde până nu există jobs finalizate.
-- Migrarea SQL nu a fost executată într-un PostgreSQL real; RLS/RPC live, deploy Cloud API și tranzacții RevenueCat sandbox rămân nevalidate.
-- Următorii pași: urmărește CI pe HEAD nou; verifică logurile/jobs; continuă auditul de identity switching, purchase/restore și delete-account; validează SQL în PostgreSQL real când există mediu autorizat.
+- Ultimul commit de cod: `57f61f9`; checkpoint-ul va fi actualizat separat.
+- Migrarea SQL RevenueCat a fost recitită din GitHub: nu mai există `as $` singular; delimitatoarele `as $$` sunt echilibrate.
+- Testele statice pentru migrare acoperă delimiter-ele, idempotency pe `event_id`, rezultat duplicate, advisory lock per utilizator, evenimente stale și acces RPC exclusiv prin `service_role`. Pattern-urile au fost verificate pe migrarea curentă.
+- Audit Cloud API: autentificare Supabase, CORS allowlist, webhook secret constant-time, product+entitlement allowlist, rate-limit bounded, rezervare înainte de OpenAI și settlement după usage; există teste pentru cont, sanitizare context, alias UUID și billing grace.
+- Hardening nou: toate operațiile RevenueCat care depind de identitatea curentă (initialize/account switch, refresh, offerings, purchase, restore, logout) sunt acum serializate într-o singură coadă. Motiv: prevenim ca o achiziție/restaurare pornită pe contul A să se execute după ce SDK-ul a trecut pe contul B. Test nou verifică ordinea purchase → account switch.
+- Model/API și cost: documentația OpenAI confirmă `gpt-6.2-sol` pe Responses API și tarife standard $2/M input, $10/M output; valorile default din Cloud API sunt aliniate. Surse: https://developers.openai.com/api/docs/models și https://developers.openai.com/api/docs/guides/deployment-checklist.
+- CI: run-urile pentru commitul `b94aa3a` au rămas pending fără jobs raportate; ultimele modificări de cod trebuie să primească run-uri noi. Nu declarăm CI verde.
+- Migrarea SQL nu a fost executată într-un PostgreSQL real; Supabase live/RLS/RPC, deploy Cloud API și tranzacții RevenueCat sandbox rămân nevalidate.
+- Următorii pași: verifică CI pentru codul nou; inspectează orice eșec; continuă auditul purchase/restore și ștergere cont; rulează migrarea într-un PostgreSQL autorizat înainte de producție.
 - Nu face merge în `main` fără aprobarea explicită și fără CI/E2E complet.
