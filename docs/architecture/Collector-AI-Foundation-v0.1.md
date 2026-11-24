@@ -273,52 +273,48 @@ API logic, independent de transport:
 
 ### 6.3 Formatul propunerii
 
+Comanda AI folosește forma operațiilor acceptată de Core: `{ operation, target?, data }`. Câmpurile de domeniu sunt obligatoriu în `data`; identificatorii trebuie rezolvați înainte de a construi operațiile.
+
 Exemplu ilustrativ pentru „Am mutat cinci Fancy Tiger din B1 în B2”:
 
 ```json
 {
   "contractVersion": "collector.command.v1",
-  "turnId": "turn_example",
-  "intent": "stock.transfer",
-  "source": "user",
+  "turnId": "turn_from_orchestrator",
+  "intent": "stock.move",
   "certainty": "certain",
   "interpretation": {
     "confidence": 0.97,
     "summary": "Transferă 5 Fancy Tiger din B1 în B2"
   },
-  "targets": {
-    "population": {
-      "type": "population",
-      "criteria": {
-        "name": "Fancy Tiger"
-      }
-    },
-    "fromLocation": {
-      "type": "location",
-      "criteria": {
-        "name": "B1"
-      }
-    },
-    "toLocation": {
-      "type": "location",
-      "criteria": {
-        "name": "B2"
-      }
-    }
-  },
   "operations": [
     {
-      "operation": "stock.transfer",
-      "quantity": 5,
-      "disposition": "active"
+      "operation": "stock.change",
+      "data": {
+        "populationId": "population_core_id",
+        "locationId": "location_b1_core_id",
+        "action": "move_out",
+        "destinationId": "location_b2_core_id",
+        "quantity": 5,
+        "disposition": "active",
+        "certainty": "certain"
+      }
     }
   ],
-  "idempotencyKey": "stable-key-for-this-user-intent",
-  "requiresConfirmation": false
+  "idempotencyKey": "ai-turn:trusted-gateway-request-id",
+  "requiresConfirmation": true
 }
 ```
 
-**Important:** acesta este un contract propus, nu forma acceptată în prezent de `engine.js`. Adapterul trebuie să transforme această comandă în operațiile interne reale după ce contractul Core este implementat și testat.
+Reguli:
+- `turnId` este atribuit de Orchestrator; nu este controlat de model.
+- `idempotencyKey` este atribuit de gateway-ul de încredere și rămâne stabil la retry pentru aceeași trimitere; modelul nu îl alege.
+- `source`, `actor`, `event.id` și timestamp-ul sunt stabilite de Core Port, nu acceptate din output-ul modelului.
+- Operațiile folosesc doar allowlist-ul AI. `stock.change`, `stock.adjust`, `relation.move`, `relation.close` și `finance.record` necesită confirmare explicită.
+- Core validează din nou operațiile la preview și la execute. Preview nu persistă; execute persistă înainte să publice noua stare în UI.
+- Modelul nu poate furniza ID-uri arbitrare fără rezolvare prin Core Read Adapter și fără trecerea porții de ambiguitate.
+
+Acesta este contractul logic al comenzii, nu un eveniment Core complet. Core Port construiește envelope-ul de eveniment și mapează `idempotencyKey` la `event.intentKey`.
 
 ### 6.4 Formatul răspunsului Core
 
