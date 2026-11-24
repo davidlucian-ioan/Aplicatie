@@ -44,3 +44,7 @@ Testele Playwright folosesc un server temporar pe portul 4173 și un profil de b
 CI rulează toate nivelurile la fiecare Pull Request și păstrează raportul de coverage și benchmark-ul Replay ca artifact GitHub Actions.
 
 Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile reale în afara intervalului se pot înregistra cu avertisment. Providerul cloud OpenAI este integrat prin serverul local; cheia API rămâne exclusiv pe server. Vezi [OPENAI-INTEGRATION.md](OPENAI-INTEGRATION.md).
+
+## Aplicație mobilă comercială
+
+Direcția de produs confirmată este distribuția ca aplicație instalabilă Android și iOS prin Google Play și Apple App Store. PC-ul este doar unealtă de dezvoltare, nu condiție de utilizare. Arhitectura și etapele de implementare sunt documentate în [MOBILE-APP-AND-COMMERCIAL-ROADMAP.md](MOBILE-APP-AND-COMMERCIAL-ROADMAP.md). Implementarea mobilă și backend-ul multiutilizator sunt încă de realizat.
