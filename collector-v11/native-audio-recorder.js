@@ -38,7 +38,7 @@
   if(!result?.uri)throw new Error('Recorderul nu a returnat un fișier audio.');
   await filesystem.copy({from:result.uri,to:session.filePath,toDirectory:'DATA'});
   const location=await filesystem.getUri({path:session.filePath,directory:'DATA'});
-  try{await filesystem.deleteFile({path:result.uri})}catch{}
+  for(const segment of new Set([result.uri,...(Array.isArray(result.segments)?result.segments:[])])){try{await filesystem.deleteFile({path:segment})}catch{}}
   let size=0;try{const stat=await filesystem.stat({path:session.filePath,directory:'DATA'});size=Number(stat?.size)||0}catch{}
   return {id:session.id,filePath:session.filePath,uri:location.uri,durationMs:Number(result.duration)||Date.now()-session.startedAt,size,mimeType:'audio/aac',mergeFailed:!!result.mergeFailed,recovered:!!result.recovered,warning:result.mergeFailed?'Înregistrarea a fost întreruptă; s-a păstrat segmentul principal.':result.recovered?'Fișierul parțial a fost recuperat după o eroare.':null,segments:Array.isArray(result.segments)?result.segments:[]};
  }
