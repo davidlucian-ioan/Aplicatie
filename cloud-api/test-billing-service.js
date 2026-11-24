@@ -30,3 +30,12 @@ test('billing service fails closed without server-side service role key',async()
  assert.equal(service.configured,false);
  await assert.rejects(()=>service.reserve({userId:'u',periodStart:'2026-11-01',periodEnd:'2026-12-01',budgetMicrousd:1,reserveMicrousd:1}),{status:503});
 });
+
+test('stale reservations are charged conservatively instead of being released unmetered',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const sql=fs.readFileSync(path.join(__dirname,'migrations','001_billing_and_ai_usage.sql'),'utf8');
+ assert.match(sql,/actual_microusd\s*=\s*reserved_microusd/);
+ assert.match(sql,/used_microusd\s*=\s*used_microusd\s*\+\s*v_stale_reserved/);
+ assert.match(sql,/created_at\s*<\s*now\(\)\s*-\s*interval\s+'10 minutes'/);
+});
