@@ -34,6 +34,17 @@ class SupabaseBillingService {
     const rows=await response.json();
     return Array.isArray(rows)?rows[0]||null:null;
   }
+  async getUsage(userId,periodStart){
+    if(!this.configured)throw Object.assign(new Error('Serviciul de buget nu este configurat.'),{status:503});
+    let response;
+    try{
+      response=await this.fetch(this.url+'/rest/v1/collector_ai_budgets?select=budget_microusd,used_microusd,reserved_microusd,period_end&user_id=eq.'+encodeURIComponent(userId)+'&period_start=eq.'+encodeURIComponent(periodStart)+'&limit=1',{
+        headers:{apikey:this.key,Authorization:'Bearer '+this.key,Accept:'application/json'}
+      });
+    }catch{throw Object.assign(new Error('Serviciul de buget nu este disponibil.'),{status:503})}
+    if(!response.ok)throw Object.assign(new Error('Nu am putut verifica utilizarea AI.'),{status:503});
+    const rows=await response.json();return Array.isArray(rows)?rows[0]||null:null;
+  }
   async applyRevenueCatEvent({eventId,userId,eventType,productId,store,expiresAt,eventTimestamp,isProProduct}){
     return this.rpc('collector_apply_revenuecat_event',{
       p_event_id:eventId,p_user_id:userId,p_event_type:eventType,p_product_id:productId,
