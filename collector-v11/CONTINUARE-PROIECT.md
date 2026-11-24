@@ -217,12 +217,13 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
+
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- Implementare curentă: corectată logica RevenueCat `SUBSCRIPTION_PAUSED`; evenimentul indică pauză programată la finalul perioadei, deci Pro rămâne activ până la `expiration_at_ms`. Revocarea are loc la `EXPIRATION`, nu la `SUBSCRIPTION_PAUSED`.
-- Test de regresie static adăugat pentru regula de pauză; README clarifică comportamentul. Ultimul commit de implementare: `16df84063968e9aad4addd1aca6bdd0264051558`; documentație: `60c2e5171666525301b7f8d7c2fa4d8ba476cdfa`.
-- Auditul oficial RevenueCat a confirmat și că TRANSFER are câmpuri separate `transferred_from/transferred_to`; suportul transferului rămâne dezactivat intenționat, conform Restore Behavior Keep with original App User ID și documentației proiectului.
-- CI: la verificarea anterioară, HEAD-ul final nu avea încă runs atașate; trebuie reverificate workflow-urile după actualizarea checkpoint-ului. CI complet nu este declarat verde.
-- Nevalidat extern: migrarea SQL în Supabase real, RLS/RPC live, deploy HTTPS, RevenueCat configurat și purchase/restore/refund/expiry sandbox.
-- Următorul pas: verifică CI pe HEAD; corectează eșecuri; apoi rulează migrarea pe un Postgres/Supabase de test și scenariile sandbox. PR rămâne draft; fără activare plăți publice înainte de E2E.
-- Regulă: suprascrie numai acest checkpoint unic la fiecare etapă; păstrează răspunsurile din chat scurte.
+- Ultimul HEAD de implementare: `ec75d1b83bfbd57afbba8bd85409838afd65eaf4`.
+- RevenueCat lifecycle fix: `SUBSCRIPTION_PAUSED` păstrează Pro până la expirarea perioadei curente; `CANCELLATION` cu `cancel_reason=CUSTOMER_SUPPORT` revocă Pro imediat (refund). Backend-ul transmite acum cancel_reason către RPC; migrarea SQL actualizată cu noua semnătură și permisiuni. Teste adăugate pentru webhook, RPC și contractul SQL.
+- Alte protecții păstrate: cancellation normală/grace period până la expirare; allowlist produse; entitlement pentru granturi; idempotency event ID; serializare update per user; transferul între conturi rămâne dezactivat intenționat.
+- CI: nu au fost returnate workflow runs pentru HEAD `ec75d1b` la ultima verificare; CI complet neconfirmat.
+- External validation încă lipsă: aplicarea migrării în Supabase/Postgres real, RLS/RPC live, webhook RevenueCat real, purchase/restore/refund/expiry sandbox.
+- Următorul pas: verifică declanșarea și rezultatul CI pentru HEAD; apoi testează migrarea SQL în Postgres/Supabase și toate fluxurile sandbox. PR rămâne draft; nu activa plățile publice înainte de E2E.
+- Regulă: suprascrie doar acest checkpoint unic; păstrează chatul succint.
