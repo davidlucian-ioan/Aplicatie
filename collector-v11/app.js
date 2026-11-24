@@ -2,7 +2,7 @@
 const E=window.CollectorEngine, KEY='collector_mvp_v2', OLD_KEY='collector_mvp_v1';
 const titles={work:['WORK','Captură rapidă, înregistrare și remindere în timpul activității.'],dashboard:['THINK','Analize, grafice, date și operații.'],entities:['Entități','Entități universale, atribute temporale și cronologie.'],relations:['Relații & locații','Relații de prim rang, localizare temporală și ierarhie.'],inventory:['Populații & solduri','Cantități anonime și solduri derivate din evenimente.'],finance:['Financiar','Tranzacții pe evenimente și indicatori derivați.'],attributes:['Atribute','Definiții configurabile cu tip, rol, natură, proprietar și reguli.'],events:['Evenimente','Jurnalul de evenimente append-only.'],history:['Istoric','Cronologie completă și filtrabilă.'],assistant:['Introducere rapidă','Comenzi locale și dictare vocală, cu confirmare înainte de commit.'],audit:['Audit & date','Replay, export, import și limitele implementării.']};
 let integrityBlocked=false, integrityBlockReason=null, integrityRawBackup=null, integrityCanRebuild=false;
-let db=loadDb(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null;
+let db=loadDb(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null, pendingCorePreviewSignature=null;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
@@ -345,7 +345,7 @@ async function runVoiceBatch(phrases,selections={}){
  try{
   const result=await ensureAICorePort().preview(command);
   if(result.status!=='preview_ok'){box.textContent=result.status==='duplicate'?'Acest lot a fost deja procesat.':'Preview-ul lotului a fost respins: '+result.status;voiceReadbackPending=false;return}
-  pendingCoreCommand=command;voiceCommandPending=true;voiceReadbackPending=true;
+  pendingCoreCommand=command;pendingCorePreviewSignature=JSON.stringify(db.events);voiceCommandPending=true;voiceReadbackPending=true;
   const summary='Lot vocal · '+entries.length+' fraze';
   const readbackText=summary+'. '+summaries.join('. ')+(warnings.length?'. Atenție: '+warnings.join('. '):'')+'. Modificări estimate: '+result.projectionChanges.entities+' entități, '+result.projectionChanges.relations+' relații, '+result.projectionChanges.stock+' modificări de stoc și '+result.projectionChanges.finance+' modificări financiare. Nu am salvat nimic. Confirmă întregul lot pe ecran.';
   box.innerHTML='<b>Preview Core Port · lot vocal</b><p>'+esc(summary)+'</p><ol>'+summaries.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ol>'+(warnings.length?'<p class="note"><b>Atenție la valori:</b> '+warnings.map(esc).join('; ')+'. Confirmarea lotului confirmă și aceste valori.</p>':'')+'<p>Operații în lot: '+operations.length+'. Modificări estimate — entități: '+result.projectionChanges.entities+', relații: '+result.projectionChanges.relations+', stoc: '+result.projectionChanges.stock+', financiar: '+result.projectionChanges.finance+'.</p><p class="note">Nicio modificare nu a fost salvată. Confirmarea execută toate operațiile într-un singur eveniment atomic.</p><button class="secondary" id="readbackCoreCommand" type="button">🔊 Redă rezumatul</button> <button class="primary" id="confirmCoreCommand">Confirmă și salvează lotul</button> <button class="secondary" id="cancelCoreCommand">Anulează lotul</button>';
@@ -383,7 +383,7 @@ async function runCommand(){
  try{
   const result=await ensureAICorePort().preview(command);
   if(result.status!=='preview_ok'){box.textContent=result.status==='duplicate'?'Această comandă a fost deja procesată.':'Preview respins: '+result.status;speakWorkFeedback(box.textContent);return}
-  pendingCoreCommand=command;
+  pendingCoreCommand=command;pendingCorePreviewSignature=JSON.stringify(db.events);
   const readbackText=`${summary}. Modificări estimate: ${result.projectionChanges.entities} entități, ${result.projectionChanges.relations} relații, ${result.projectionChanges.stock} modificări de stoc și ${result.projectionChanges.finance} modificări financiare. Nu am salvat nimic. Pentru înregistrare, confirmă pe ecran.`;
   if(voiceReadbackPending)voiceCommandPending=true;
   box.innerHTML=`<b>Preview Core Port</b><p>${esc(summary)}</p><p>Modificări estimate — entități: ${result.projectionChanges.entities}, relații: ${result.projectionChanges.relations}, stoc: ${result.projectionChanges.stock}, financiar: ${result.projectionChanges.finance}.</p><p class="note">Nicio modificare nu a fost salvată încă. Confirmarea de mai jos execută atomic comanda și salvează în localStorage.</p><button class="secondary" id="readbackCoreCommand" type="button">🔊 Redă rezumatul</button> <button class="primary" id="confirmCoreCommand">Confirmă și salvează</button> <button class="secondary" id="cancelCoreCommand">Anulează</button>`;
@@ -393,10 +393,43 @@ async function runCommand(){
   speakWorkFeedback(readbackText);
  }catch(err){box.textContent='Preview eșuat: '+err.message}
 }
+function renderRevalidatedCorePreview(command,preview,box){
+ const text='Datele locale s-au modificat după preview. Am revalidat comanda pe starea actuală; verifică din nou înainte de salvare.';
+ box.innerHTML='<b>Preview actualizat · date modificate</b><p>'+esc(text)+'</p><p>Operații: '+command.operations.length+'. Modificări estimate — entități: '+preview.projectionChanges.entities+', relații: '+preview.projectionChanges.relations+', stoc: '+preview.projectionChanges.stock+', financiar: '+preview.projectionChanges.finance+'.</p><p class="note">Nu s-a salvat nimic. Este necesară o nouă confirmare explicită.</p><button class="secondary" id="readbackCoreCommand" type="button">🔊 Redă rezumatul</button> <button class="primary" id="confirmCoreCommand">Confirmă preview-ul actualizat</button> <button class="secondary" id="cancelCoreCommand">Anulează</button>';
+ document.getElementById('readbackCoreCommand').onclick=()=>speakWorkFeedback(text,true);
+ document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
+ document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;pendingCorePreviewSignature=null;voiceCommandPending=false;voiceReadbackPending=false;cancelSpeechOutput();box.textContent='Comandă anulată. Nu s-au modificat date.'};
+ if(voiceCommandPending)speakWorkFeedback(text,true);
+}
 async function confirmCoreCommand(){
  const box=document.getElementById('commandResult');if(!pendingCoreCommand)return;
- const command=pendingCoreCommand;pendingCoreCommand=null;const wasVoiceCommand=voiceCommandPending;
+ const command=pendingCoreCommand,wasVoiceCommand=voiceCommandPending;pendingCoreCommand=null;
  try{
+  let latest;
+  try{
+   const raw=localStorage.getItem(KEY);
+   if(!raw)throw Error('Datele locale au dispărut. Nu am salvat comanda.');
+   latest=E.validateImport(JSON.parse(raw));
+  }catch(error){
+   integrityBlocked=true;integrityBlockReason='Datele locale s-au modificat și nu au putut fi validate: '+error.message;
+   pendingCorePreviewSignature=null;voiceCommandPending=false;render();
+   box.textContent=integrityBlockReason+' Comanda a fost blocată pentru a proteja jurnalul.';
+   return;
+  }
+  const latestSignature=JSON.stringify(latest.events);
+  if(latestSignature!==pendingCorePreviewSignature){
+   db=latest;render();
+   const refreshed=await ensureAICorePort().preview(command);
+   if(refreshed.status!=='preview_ok'){
+    pendingCorePreviewSignature=null;voiceCommandPending=false;
+    box.textContent=refreshed.status==='duplicate'?'Comanda a fost deja procesată într-o altă sesiune.':'Preview-ul actualizat a fost respins: '+refreshed.status+'. Nu s-a salvat nimic.';
+    return;
+   }
+   pendingCoreCommand=command;pendingCorePreviewSignature=JSON.stringify(db.events);
+   renderRevalidatedCorePreview(command,refreshed,box);
+   return;
+  }
+  pendingCorePreviewSignature=null;
   const result=await ensureAICorePort().execute(command,{confirmed:true});
   if(result.status==='committed'||result.status==='duplicate'){
    if(result.status==='committed'&&wasVoiceCommand)updateVoiceContextFromCommand(command);
@@ -404,7 +437,7 @@ async function confirmCoreCommand(){
    if(voiceCommandPending)speakWorkFeedback(result.status==='committed'?'Comanda a fost salvată cu succes.':'Comanda fusese deja procesată.',true);
    voiceCommandPending=false;
   } else {box.textContent=`Execuție nefinalizată (${result.status}): ${(result.errors||[]).join(' ')}`;if(voiceCommandPending)speakWorkFeedback(box.textContent,true);voiceCommandPending=false}
- }catch(err){box.textContent='Execuția a eșuat: '+err.message;if(voiceCommandPending)speakWorkFeedback(box.textContent,true);voiceCommandPending=false}
+ }catch(err){pendingCorePreviewSignature=null;box.textContent='Execuția a eșuat: '+err.message;if(voiceCommandPending)speakWorkFeedback(box.textContent,true);voiceCommandPending=false}
 }
 document.getElementById('parseCommand').onclick=runCommand;
 let activeRecognition=null;
