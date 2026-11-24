@@ -85,6 +85,9 @@ function staticFile(req, res) {
   try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
   catch { res.writeHead(400).end('Bad request'); return; }
   if (pathname === '/') pathname = '/index-server.html';
+  if (pathname === '/.env' || (pathname.startsWith('/.env.') && pathname !== '/.env.example')) {
+    res.writeHead(404).end('Not found'); return;
+  }
   const file = path.resolve(ROOT, '.' + pathname);
   if (!file.startsWith(ROOT + path.sep) || file === ROOT || pathname.includes('..')) {
     res.writeHead(403).end('Forbidden'); return;
