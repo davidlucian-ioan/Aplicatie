@@ -163,10 +163,12 @@ create table if not exists public.collector_billing_events (
   received_at timestamptz not null default now()
 );
 
+drop function if exists public.collector_apply_revenuecat_event(text,uuid,text,text,text,timestamptz,timestamptz,boolean);
 create or replace function public.collector_apply_revenuecat_event(
   p_event_id text, p_user_id uuid, p_event_type text, p_product_id text,
-  p_store text, p_expires_at timestamptz, p_event_timestamp timestamptz, p_is_pro_product boolean
-) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+  p_store text, p_expires_at timestamptz, p_event_timestamp timestamptz,
+  p_is_pro_product boolean, p_cancel_reason text
+) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $
 declare
   v_active boolean;
 begin
@@ -189,9 +191,12 @@ begin
 
   if p_event_type in ('INITIAL_PURCHASE','RENEWAL','PRODUCT_CHANGE','UNCANCELLATION','TEMPORARY_ENTITLEMENT_GRANT','SUBSCRIPTION_EXTENDED','REFUND_REVERSED') then
     v_active := p_expires_at is null or p_expires_at > now();
+  elsif p_event_type = 'CANCELLATION' and p_cancel_reason = 'CUSTOMER_SUPPORT' then
+    -- RevenueCat refunds the latest subscription period with immediate entitlement revocation.
+    v_active := false;
   elsif p_event_type in ('CANCELLATION','BILLING_ISSUE','SUBSCRIPTION_PAUSED') then
-    -- Cancellation only disables renewal; billing issues may have grace time; pause takes effect
-    -- at period end. Preserve Pro until the supplied expiration timestamp.
+    -- Ordinary cancellation disables renewal; billing issues may have grace time; pause takes
+    -- effect at period end. Preserve Pro until the supplied expiration timestamp.
     v_active := p_expires_at is not null and p_expires_at > now();
   elsif p_event_type in ('EXPIRATION','REFUND') then
     v_active := false;
@@ -208,7 +213,7 @@ begin
 end;
 $$;
 
-revoke all on function public.collector_apply_revenuecat_event(text,uuid,text,text,text,timestamptz,timestamptz,boolean) from public, anon, authenticated;
-grant execute on function public.collector_apply_revenuecat_event(text,uuid,text,text,text,timestamptz,timestamptz,boolean) to service_role;
+revoke all on function public.collector_apply_revenuecat_event(text,uuid,text,text,text,timestamptz,timestamptz,boolean,text) from public, anon, authenticated;
+grant execute on function public.collector_apply_revenuecat_event(text,uuid,text,text,text,timestamptz,timestamptz,boolean,text) to service_role;
 alter table public.collector_billing_events enable row level security;
 revoke all on public.collector_billing_events from anon, authenticated;
