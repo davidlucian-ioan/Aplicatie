@@ -213,30 +213,16 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - Nu declara o configurare externă sau tranzacție reală ca reușită doar pentru că testele mock/CI au trecut.
 
 
-## CHECKPOINT AUTORITATIV — 2026-11-25, hardening RevenueCat și Cloud API
-- HEAD de lucru: `1f69b8c2d63b530aebc6e771b9133d92f5bd8393` pe `feature/openai-provider-integration`; PR #55 rămâne draft, deschis, neintegrat în `main`.
-- CI la commit `379e4c7069729e39f05aeef0e4494c3c8cd2be3c`: Cloud API SUCCESS; Quality Suite și Mobile Build au eșuat din cauza unui test nou care folosea `root` nedefinit. Testul a fost corectat la `globalThis` în commitul `379e4c7`; următoarele modificări sunt încă nevalidate pe HEAD final.
-- RevenueCat: apelurile concurente `initialize()` pentru schimbarea utilizatorului sunt serializate; test dedicat adăugat. Eroarea de referință din test a fost corectată.
-- Cloud API: cache-ul in-memory al rate-limit-ului are plafon configurabil prin `COLLECTOR_RATE_LIMIT_MAX_USERS` (implicit 10.000), curăță intrările expirate și evacuează cea mai veche intrare la atingerea plafonului; test dedicat și documentație adăugate.
-- RevenueCat webhook: acordarea Pro cere simultan product ID în allowlist-ul `REVENUECAT_PRO_PRODUCT_IDS` și entitlement-ul configurat `REVENUECAT_PRO_ENTITLEMENT_ID` (implicit `pro`). Teste pentru produs neaprobat și entitlement incorect adăugate.
-- Modelul API implicit `gpt-6.2-sol` și tarifele de bază input/output 2/10 USD per milion tokeni au fost verificate în documentația/pricing-ul oficial OpenAI la 2026-11-25.
-- CI pentru HEAD `1f69b8c` nu a fost încă confirmat prin rezultatele disponibile; nu marca build-urile ca verzi până la verificarea tuturor celor trei workflow-uri.
-- Următorul pas: confirmă CI pe HEAD final; remediază orice eșec; continuă auditul webhook (evenimente de transfer, refund, billing issue/grace period, aliasuri) și validarea metering; păstrează PR draft până la testarea externă Supabase/RevenueCat în sandbox.
 
-
-## CHECKPOINT AUTORITATIV — 2026-11-25, corecție CI
-- HEAD: `f4ea88a30c8dc04d03890f9441bb89b932204347`.
-- Cloud API workflow la checkpointul anterior a trecut SUCCESS.
-- Quality Suite și ambele builduri mobile au eșuat din cauza unei a doua referințe rămase la `root` în testul de concurență RevenueCat; logurile au confirmat exact eroarea.
-- Referința rămasă a fost înlocuită cu `globalThis` în `f4ea88a`. Acest HEAD trebuie reverificat; nu declara CI verde până la confirmarea Quality, Android și iOS.
-- Codul include și hardening-ul rate-limit cache și verificarea combinată product allowlist + entitlement RevenueCat.
-- Următorul pas imediat: verifică workflow-urile pentru `f4ea88a`, corectează orice nouă eroare, apoi continuă testarea webhook/metering și păstrează PR #55 draft până la sandbox extern.
-
-
-## CHECKPOINT AUTORITATIV — 2026-11-25, accounting hardening
-- HEAD: `bb8ba15dfc4deb1a69abeb78411dbccfc5e39f17`; PR #55 încă draft/open, fără merge.
-- Testul de concurență RevenueCat a fost reparat complet: toate referințele `root` au fost înlocuite cu `globalThis` în commitul `f4ea88a`.
-- Workflow-urile pornite pentru `b627bf3`: Cloud API SUCCESS; Quality Suite și Mobile Build au fost anulate de push-uri ulterioare înainte de finalizare. Eșecurile anterioare de la `7ca0df6` au fost exclusiv `root is not defined` în testul nou.
-- Ultimele schimbări după acele workflow-uri: test de evacuare a rate-limit cache-ului, contabilizarea conservatoare a rezervărilor AI rămase stale și test static al contractului SQL. Acestea nu au încă un rezultat CI confirmat pe HEAD curent.
-- Migrarea SQL: rezervările stale după 10 minute nu mai sunt eliberate gratuit; sunt mutate din reserved în used la valoarea integrală rezervată. Erorile cunoscute ale providerului eliberează în continuare rezervarea prin settlement cu `p_failed=true`. Rațiune: un worker poate cădea după răspunsul billable, înainte de settlement.
-- Următorul pas: obține CI complet pentru HEAD curent; apoi verifică migrarea SQL într-un Postgres/Supabase real și rulează sandbox purchase/restore/webhook. Nu declara monetizarea validată doar prin testele mock.
+## CHECKPOINT CURENT — 2026-11-25
+- Branch: `feature/openai-provider-integration`; HEAD: `ddc2f2a1dad6ed8cce36b0a1efa9b1ec53278eb5`.
+- PR #55: open, draft, not merged.
+- CI pentru HEAD curent:
+  - Cloud API: SUCCESS (run `45497309773`).
+  - Quality Suite: IN PROGRESS (run `45497309805`; browser cross-checks Firefox/WebKit).
+  - Mobile: IN PROGRESS (run `45497309817`; Android APK și iOS simulator build).
+- Modificări curente: serializare schimbări de utilizator RevenueCat; acordare Pro numai cu product ID allowlisted și entitlement corect; limitare memorie cache rate-limit; rezervări AI stale contabilizate conservator la suma rezervată după 10 minute; teste de regresie pentru aceste protecții.
+- CI istoric: erorile anterioare au fost cauzate de referințe `root` nedefinite în testul de concurență; corectate la `globalThis`. Nu există încă rezultat final pentru Quality/Mobile pe HEAD curent.
+- Nevalidat extern: migrarea SQL într-un proiect Supabase real, RLS/RPC live, deploy HTTPS, configurarea RevenueCat reală și tranzacții sandbox purchase/restore/refund/expiry.
+- Următorul pas: verifică finalizarea celor trei workflow-uri pentru HEAD curent; remediază eșecurile; apoi validează Supabase și RevenueCat sandbox. Păstrează PR draft până la validarea end-to-end.
+- Regulă: acest bloc este singurul checkpoint curent și se suprascrie la fiecare actualizare; nu se mai adaugă checkpoint-uri succesive. Păstrează istoricul de proiect de deasupra blocului.
