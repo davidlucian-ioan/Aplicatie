@@ -28,14 +28,14 @@ async function configureNativeProjects({root=__dirname,platforms=[]}={}){
     await fs.writeFile(file,xml);
    }
    if(!xml.includes('<key>UIBackgroundModes</key>')){
-    const entry='    <key>UIBackgroundModes</key>\\n    <array>\\n        <string>audio</string>\\n    </array>\\n';
+    const entry='    <key>UIBackgroundModes</key>\n    <array>\n        <string>audio</string>\n    </array>\n';
     const rootClosing=xml.lastIndexOf('</dict>');
     xml=xml.slice(0,rootClosing)+entry+xml.slice(rootClosing);
     await fs.writeFile(file,xml);
-   }else if(!/<key>UIBackgroundModes<\\/key>\\s*<array>[\\s\\S]*?<string>audio<\\/string>/.test(xml)){
-    const block=xml.match(/<key>UIBackgroundModes<\\/key>\\s*<array>([\\s\\S]*?)<\\/array>/);
+   }else if(!/<key>UIBackgroundModes<\/key>\s*<array>[\s\S]*?<string>audio<\/string>/.test(xml)){
+    const block=xml.match(/<key>UIBackgroundModes<\/key>\s*<array>([\s\S]*?)<\/array>/);
     if(!block)throw new Error('UIBackgroundModes există, dar nu este un array valid.');
-    xml=xml.replace(block[0],block[0].replace('</array>','        <string>audio</string>\\n    </array>'));
+    xml=xml.replace(block[0],block[0].replace('</array>','        <string>audio</string>\n    </array>'));
     await fs.writeFile(file,xml);
    }
    completed.push('ios');
