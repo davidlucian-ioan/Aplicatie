@@ -42,6 +42,7 @@ public final class CollectorSpeechPlugin extends Plugin {
 
     private final Handler speechHandler = new Handler(Looper.getMainLooper());
     private SpeechRecognizer activeRecognizer;
+    private CollectorMicrophoneLock microphoneLock;
     private String activeSessionId;
     private String activeLanguage = "ro-RO";
     private boolean activeContinuous;
@@ -229,9 +230,15 @@ public final class CollectorSpeechPlugin extends Plugin {
         }
         SpeechRecognizer recognizer = null;
         try {
+            activeSessionId = java.util.UUID.randomUUID().toString();
+            microphoneLock = CollectorMicrophoneLock.tryAcquire(getContext(), "speech:" + activeSessionId);
+            if (microphoneLock == null) {
+                activeSessionId = null;
+                call.reject("Microfonul este deja folosit de reportofon sau de altă sesiune Collector.");
+                return;
+            }
             recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(getContext());
             activeRecognizer = recognizer;
-            activeSessionId = java.util.UUID.randomUUID().toString();
             activeLanguage = language;
             activeContinuous = continuous;
             speechStopping = false;
@@ -437,6 +444,9 @@ public final class CollectorSpeechPlugin extends Plugin {
             try { recognizer.cancel(); } catch (Exception ignored) {}
             try { recognizer.destroy(); } catch (Exception ignored) {}
         }
+        CollectorMicrophoneLock lock = microphoneLock;
+        microphoneLock = null;
+        if (lock != null) lock.close();
     }
 
     private JSObject speechEventBase() {
