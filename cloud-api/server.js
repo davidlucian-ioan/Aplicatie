@@ -85,8 +85,10 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
     const proEntitlement=String(env.REVENUECAT_PRO_ENTITLEMENT_ID||'pro');
     const hasProEntitlement=Array.isArray(event.entitlement_ids)&&event.entitlement_ids.includes(proEntitlement);
     const storeMap={APP_STORE:'app_store',MAC_APP_STORE:'app_store',PLAY_STORE:'play_store',PROMOTIONAL:'promotional'};
-    const expiresAt=Number.isFinite(Number(event.expiration_at_ms))&&Number(event.expiration_at_ms)>0
-      ?new Date(Number(event.expiration_at_ms)).toISOString():null;
+    const effectiveExpirationMs=event.type==='BILLING_ISSUE'&&Number(event.grace_period_expiration_at_ms)>0
+      ?Number(event.grace_period_expiration_at_ms):Number(event.expiration_at_ms);
+    const expiresAt=Number.isFinite(effectiveExpirationMs)&&effectiveExpirationMs>0
+      ?new Date(effectiveExpirationMs).toISOString():null;
     const eventTimestamp=Number.isFinite(Number(event.event_timestamp_ms))&&Number(event.event_timestamp_ms)>0
       ?new Date(Number(event.event_timestamp_ms)).toISOString():new Date(now()).toISOString();
     const result=await billing.applyRevenueCatEvent({eventId:event.id,userId,eventType:event.type,
