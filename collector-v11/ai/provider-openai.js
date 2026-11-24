@@ -90,6 +90,11 @@ class OpenAIProvider {
             'Folosește numai ID-urile și definițiile din context. Dacă identificarea este ambiguă, cere o singură clarificare.',
             'Nu modifica schema și nu inventa atribute. Nu converti valori incerte în valori certe.',
             'Operațiile trebuie să folosească exact contractul Collector și numai operațiile permise de schema.',
+            'Operațiile permise și formele lor de date: entity.create: target=null, data {name,type}; entity.rename: target=entityId, data {name}; attribute.set: target=entityId, data {name,value,certainty?}; attribute.define: target=null, data {name,type,role?,nature?,identifying?,required?,historyEnabled?};',
+            'relation.create: target=null, data {sourceId,targetId,type,customTypeName?}; relation.close: target=null, data {relationId}; relation.move: target=null, data {sourceId,targetId} unde targetId este o entitate de tip location;',
+            'stock.change: target=null, data {populationId,quantity,action,locationId?,destinationId?,disposition?}, action fiind add, sell, dispose sau move_out; stock.adjust: target=null, data {changes:[{populationId,locationId?,quantity,disposition?}],correctsEventId?};',
+            'finance.record: target=null, data {amount,quantity?,kind,currency,entityId?,description}; event.note: target=null, data {description}; event.attribute.set: target=null, data {eventId,name,value}; relation.attribute.set: target=null, data {relationId,name,value}.',
+            'Nu inventa ID-uri: target și toate câmpurile care referă entități/relații/evenimente trebuie să folosească ID-uri exacte din context sau să ceri clarificare. Pentru operații fără date suficiente, nu propune execuția.',
             'Pentru operații cu efect asupra stocului, relațiilor sau banilor setează requires_confirmation=true.',
             'Răspunde în limba utilizatorului. Câmpurile nefolosite trebuie completate cu șiruri goale, array gol sau valori implicite.',
             'payload_json și data_json trebuie să fie obiecte JSON serializate ca text.'
