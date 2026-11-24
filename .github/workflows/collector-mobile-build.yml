@@ -32,6 +32,8 @@ jobs:
       COLLECTOR_API_BASE_URL: ${{ vars.COLLECTOR_API_BASE_URL }}
       COLLECTOR_SUPABASE_URL: ${{ vars.COLLECTOR_SUPABASE_URL }}
       COLLECTOR_SUPABASE_ANON_KEY: ${{ vars.COLLECTOR_SUPABASE_ANON_KEY }}
+      COLLECTOR_REVENUECAT_APPLE_API_KEY: ${{ vars.COLLECTOR_REVENUECAT_APPLE_API_KEY }}
+      COLLECTOR_REVENUECAT_GOOGLE_API_KEY: ${{ vars.COLLECTOR_REVENUECAT_GOOGLE_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,7 +51,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Capacitor 8 toolchain
         working-directory: collector-v11
-        run: npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/core@8.6.2 @capacitor/cli@8.6.2 @capacitor/android@8.6.2 @capacitor/local-notifications@8.3.1 @capacitor-community/sqlite@8.1.1 @capacitor/filesystem@8.1.5 @capgo/capacitor-audio-recorder@8.4.1 @supabase/supabase-js@2.119.2 @aparajita/capacitor-secure-storage@8.0.1 esbuild@0.28.2
+        run: npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/core@8.6.2 @capacitor/cli@8.6.2 @capacitor/android@8.6.2 @capacitor/local-notifications@8.3.1 @capacitor-community/sqlite@8.1.1 @capacitor/filesystem@8.1.5 @capgo/capacitor-audio-recorder@8.4.1 @supabase/supabase-js@2.119.2 @aparajita/capacitor-secure-storage@8.0.1 @revenuecat/purchases-capacitor@14.1.2 esbuild@0.28.2
       - name: Verify app and native plugin wiring
         working-directory: collector-v11
         run: npm test
