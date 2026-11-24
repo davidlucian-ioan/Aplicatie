@@ -20,10 +20,15 @@ function validateInput(input) {
       (typeof input.userId !== 'string' || input.userId.length > 128)) {
     throw new TypeError('Identificatorul utilizatorului este invalid.');
   }
+  if (input.requestId !== undefined &&
+      (typeof input.requestId !== 'string' || !input.requestId.trim() || input.requestId.length > 128)) {
+    throw new TypeError('requestId este invalid.');
+  }
   return {
     text: input.text.trim(),
     source: typeof input.source === 'string' ? input.source : 'text',
     userId: input.userId || null,
+    requestId: input.requestId || null,
     receivedAt: input.receivedAt || new Date().toISOString(),
     metadata: isObject(input.metadata) ? input.metadata : {}
   };
