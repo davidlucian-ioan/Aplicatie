@@ -49,6 +49,7 @@ test('Android manifest patch is idempotent and declares microphone foreground se
     'FOREGROUND_SERVICE_MICROPHONE',
     'POST_NOTIFICATIONS',
     'WAKE_LOCK',
+    'RECEIVE_BOOT_COMPLETED',
   ]) {
     const declaration = 'android:name="android.permission.' + permission + '"';
     assert.equal(manifest.split(declaration).length - 1, 1);
@@ -57,11 +58,14 @@ test('Android manifest patch is idempotent and declares microphone foreground se
   assert.match(manifest, /android:foregroundServiceType="microphone"/);
   assert.match(manifest, /android:process=":collector_recorder"/);
   assert.match(manifest, /android:stopWithTask="false"/);
+  assert.match(manifest, /CollectorAlarmReceiver/);
+  assert.match(manifest, /CollectorAlarmBootReceiver/);
+  assert.match(manifest, /android.intent.action.BOOT_COMPLETED/);
 
   const icon = await readFile(path.join(resourcePath, 'drawable', 'ic_stat_collector.xml'), 'utf8');
   assert.match(icon, /<vector/);
   assert.match(icon, /fillColor="#FFFFFFFF"/);
-  for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java']) {
+  for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java']) {
     await access(path.join(javaPath, file));
   }
 });
