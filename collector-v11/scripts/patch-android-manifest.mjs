@@ -85,7 +85,7 @@ const icon = [
 await writeFile(iconPath, icon);
 
 await mkdir(javaRoot, { recursive: true });
-for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java', 'CollectorSpeechPlugin.java']) {
+for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java', 'CollectorSpeechPlugin.java', 'CollectorMicrophoneLock.java']) {
   await cp(path.join(root, 'native', 'android', file), path.join(javaRoot, file));
 }
 
