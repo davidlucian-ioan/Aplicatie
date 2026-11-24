@@ -102,7 +102,7 @@ function validateCommand(command) {
         (typeof operation.target !== 'string' || !operation.target.trim() || operation.target.length > 128)) {
       throw new TypeError(`Ținta operației ${index + 1} este invalidă.`);
     }
-    if (operation.data !== undefined && !isObject(operation.data)) {
+    if (!isObject(operation.data)) {
       throw new TypeError(`Datele operației ${index + 1} trebuie să fie un obiect.`);
     }
   }
