@@ -20,6 +20,15 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   assert.ok(html.includes('storage-adapter.js'));
   assert.ok(html.includes('reminders.js'));
   assert.ok(html.includes('ai/core-port-browser.js'));
+  const pluginSource=path.join(__dirname,'node_modules','@capacitor','local-notifications','dist','plugin.js');
+  let pluginInstalled=true;
+  try{await fs.access(pluginSource)}catch{pluginInstalled=false}
+  if(pluginInstalled){
+   await fs.access(path.join(out,'vendor','local-notifications.js'));
+   assert.ok(html.indexOf('vendor/local-notifications.js')<html.indexOf('reminders.js'));
+  }else{
+   await assert.rejects(fs.access(path.join(out,'vendor','local-notifications.js')));
+  }
  }finally{await fs.rm(root,{recursive:true,force:true})}
 });
 
