@@ -168,8 +168,10 @@
             .slice(-limit));
         }
         case 'relations': {
+          const limit = request.limit === undefined ? 50 : Number(request.limit);
+          if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new TypeError('Limită de relații invalidă.');
           const related = state.relations.filter(relation =>
-            relation.sourceId === request.entityId || relation.targetId === request.entityId);
+            relation.sourceId === request.entityId || relation.targetId === request.entityId).slice(-limit);
           return clone(related.map(relation => {
             const source = state.entities.find(entity => entity.id === relation.sourceId);
             const target = state.entities.find(entity => entity.id === relation.targetId);
