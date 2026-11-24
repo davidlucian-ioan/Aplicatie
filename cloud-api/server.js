@@ -47,7 +47,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
  function rateLimit(userId){
   const timestamp=now(),windowMs=60_000,state=hits.get(userId);
   if(!state||timestamp-state.start>=windowMs){
-   const maxUsers=Math.max(100,Math.floor(positiveNumber(env.COLLECTOR_RATE_LIMIT_MAX_USERS,10_000)));
+   const maxUsers=Math.max(1,Math.floor(positiveNumber(env.COLLECTOR_RATE_LIMIT_MAX_USERS,10_000)));
    if(hits.size>=maxUsers){
     for(const [key,value] of hits){if(timestamp-value.start>=windowMs)hits.delete(key)}
     if(hits.size>=maxUsers){const oldest=hits.keys().next();if(!oldest.done)hits.delete(oldest.value)}
