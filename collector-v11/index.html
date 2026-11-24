@@ -5,6 +5,7 @@
   var panel = null;
   var nativeContext = false;
   function render() {
+    if (!nativeContext && location.search.indexOf('diagnostics=1') === -1) return;
     if (!panel) {
       panel = document.createElement('aside');
       panel.id = 'collectorStartupDiagnostics';
@@ -63,6 +64,7 @@
     report('PROMISE_REJECTION', reason && (reason.stack || reason.message) || reason);
   });
   document.addEventListener('click', function (event) {
+    if (!nativeContext) return;
     var target = event.target;
     window.__collectorStartupDiagnostics.lastTap =
       (target && (target.id || target.textContent || target.tagName) || 'unknown').toString().trim().slice(0, 100) +
