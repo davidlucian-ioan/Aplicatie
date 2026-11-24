@@ -164,3 +164,13 @@ Utilizatorul a clarificat explicit că Collector trebuie să fie o aplicație in
 - Webhook-ul rezolvă user-ul din app_user_id, original_app_user_id sau aliases; verifică entitlement_ids=pro sau product ID allowlist.
 - Evenimentele TEMPORARY_ENTITLEMENT_GRANT, SUBSCRIPTION_EXTENDED și REFUND_REVERSED sunt acceptate ca activări dacă entitlement-ul Pro este prezent și expirarea este validă.
 - UI oferă linkul de gestionare a abonamentului din CustomerInfo. Ștergerea contului avertizează că nu anulează automat abonamentul din App Store/Google Play.
+
+
+## Ultima verificare tehnică — 2026-11-24, commit 009b1462
+- Webhook RevenueCat caută UUID-ul Supabase în app_user_id, original_app_user_id și aliases; verifică entitlement_ids (implicit pro) sau product ID allowlist.
+- Evenimentul BILLING_ISSUE folosește grace_period_expiration_at_ms pentru a păstra Pro pe durata perioadei de grație. TEMPORARY_ENTITLEMENT_GRANT, SUBSCRIPTION_EXTENDED și REFUND_REVERSED sunt acceptate.
+- Achizițiile sunt blocate până când utilizatorul asociază contul cu email/parolă și confirmă emailul. Restore Behavior obligatoriu în RevenueCat: Keep with original App User ID; handler-ul TRANSFER nu este implementat.
+- UI afișează linkul de gestionare a abonamentului și avertizează că ștergerea contului nu anulează abonamentul din magazin.
+- Cloud API CI pe commit 009b1462: SUCCESS, inclusiv testele autentificate și Docker build.
+- Quality și Mobile CI pentru commitul 009b1462: în așteptare la ultima verificare; nu declara E2E/browser sau APK final trecute până la finalizarea lor.
+- PR #55 rămâne draft/open, branch feature/openai-provider-integration; main neatins.
