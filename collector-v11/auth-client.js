@@ -36,6 +36,22 @@
    return result.data.session.access_token||null;
   }catch(error){lastError=String(error?.message||error);return null}
  }
+ async function linkEmailPassword(email,password){
+  if(!client||!configured)throw new Error('Activează mai întâi contul cloud.');
+  const result=await client.auth.updateUser({email:String(email||'').trim(),password:String(password||'')});
+  if(result.error)throw result.error;
+  return {userId:result.data.user?.id||null,email:result.data.user?.email||null,isAnonymous:!!result.data.user?.is_anonymous};
+ }
+ async function signInWithPassword(email,password){
+  if(!client||!configured){
+   const initialized=await initialize(root.CollectorConfig||{});
+   if(!initialized.configured)throw new Error(initialized.error||'Serviciile cloud nu sunt configurate.');
+  }
+  const result=await client.auth.signInWithPassword({email:String(email||'').trim(),password:String(password||'')});
+  if(result.error)throw result.error;
+  configured=true;lastError=null;
+  return {userId:result.data.user?.id||null,email:result.data.user?.email||null,isAnonymous:!!result.data.user?.is_anonymous};
+ }
  async function getUser(){
   if(!client||!configured)return null;
   const result=await client.auth.getUser();
@@ -58,5 +74,5 @@
   if(result.error)throw result.error;
   configured=false;return true;
  }
- root.CollectorAuth=Object.freeze({initialize,getAccessToken,getUser,deleteAccount,enableCloud,signOut,isConfigured:()=>configured,isOptedOut,getLastError:()=>lastError});
+ root.CollectorAuth=Object.freeze({initialize,getAccessToken,getUser,linkEmailPassword,signInWithPassword,deleteAccount,enableCloud,signOut,isConfigured:()=>configured,isOptedOut,getLastError:()=>lastError});
 })(typeof window!=='undefined'?window:globalThis);
