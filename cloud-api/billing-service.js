@@ -22,7 +22,7 @@ class SupabaseBillingService {
     if(!response.ok)throw Object.assign(new Error('Nu am putut actualiza bugetul AI.'),{status:503});
     return body;
   }
-  async reserve({userId,requestId=randomUUID(),periodStart,periodEnd,budgetMicrousd,reserveMicrousd}){
+  async applyRevenueCatEvent({eventId,userId,eventType,productId,store,expiresAt,isProProduct}){\n    return this.rpc('collector_apply_revenuecat_event',{p_event_id:eventId,p_user_id:userId,p_event_type:eventType,\n      p_product_id:productId,p_store:store,p_expires_at:expiresAt,p_is_pro_product:isProProduct});\n  }\n  async reserve({userId,requestId=randomUUID(),periodStart,periodEnd,budgetMicrousd,reserveMicrousd}){
     const result=await this.rpc('collector_reserve_ai_usage',{
       p_user_id:userId,p_request_id:requestId,p_period_start:periodStart,p_period_end:periodEnd,
       p_budget_microusd:budgetMicrousd,p_reserve_microusd:reserveMicrousd
