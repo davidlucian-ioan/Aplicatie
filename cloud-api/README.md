@@ -42,7 +42,8 @@ Alte variabile:
 3. Setează App User ID din SDK la UUID-ul utilizatorului Supabase autentificat; aplicația blochează achiziția până când utilizatorul asociază contul anonim cu email/parolă. Webhook-ul caută UUID-ul și în aliases/original_app_user_id, nu doar în app_user_id.
 4. Configurează webhook-ul RevenueCat către `/api/billing/revenuecat-webhook` și aceeași valoare secretă pentru Authorization ca `REVENUECAT_WEBHOOK_AUTHORIZATION`.
 5. Setează lista exactă de product IDs în `REVENUECAT_PRO_PRODUCT_IDS`.
-6. Testează achiziție, reînnoire, anulare, expirare, refund și restore în sandbox.
+6. În Project Settings → General setează Restore Behavior la Keep with original App User ID. Aplicația cere cont recuperabil înainte de cumpărare, iar backend-ul nu transferă entitlement între conturi; utilizatorul trebuie să restaureze după autentificarea în același cont Collector. Ștergerea contului nu anulează abonamentul din magazin.
+7. Testează achiziție, reînnoire, anulare, expirare, refund și restore în sandbox.
 
 Backend-ul tratează achiziția/reînnoirea, schimbarea produsului, reactivarea, anularea până la expirare, billing issue și expirarea/refund-ul. Evenimentele duplicate sunt idempotente. Transferul între conturi este intenționat dezactivat prin Restore Behavior Keep with original App User ID; aliasurile normale sunt rezolvate din webhook. Nu schimba această setare fără implementarea și testarea unui handler TRANSFER.
 
