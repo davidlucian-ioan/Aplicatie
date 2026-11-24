@@ -66,3 +66,26 @@ test('voice transcription is blocked during the asynchronous recorder-start wind
   await expect(page.locator('#commandResult')).toContainText('Reportofonul folosește microfonul');
   expect(await page.evaluate(() => window.__recognitionStarts)).toBe(0);
 });
+
+test('voice capture fails closed until the native recorder state is confirmed', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__recognitionStarts = 0;
+    window.__stateChecks = 0;
+    window.CollectorAndroidRecorder = {
+      isAvailable: () => true,
+      getRecordingState: () => { window.__stateChecks += 1; return new Promise(() => {}); }
+    };
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__recognitionStarts += 1; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#appStatus')).toContainText('Verific starea reportofonului Android');
+  await page.locator('#voiceButton').click();
+  await expect(page.locator('#appStatus')).toContainText('Verific starea reportofonului Android');
+  expect(await page.evaluate(() => window.__stateChecks)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__recognitionStarts)).toBe(0);
+});
