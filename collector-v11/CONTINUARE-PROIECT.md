@@ -211,3 +211,5 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 
 - Încă o cursă nativă eliminată: pluginul refuză un nou `startRecording` cât timp vechiul serviciu foreground încă rulează, chiar dacă manifestul spune deja `complete`/alt status inactiv. Previne suprapunerea dintre `stopSelf()`/teardown și o pornire imediat următoare.
 - Testul static verifică și acest guard. Commituri: native service shutdown guard `21174fd5c7fe99d179caaca76f669286de5b47cc`; test `a418900086bf0e49f99c4f600b0b0ed183d60021`.
+
+- Reverificare a testelor de contract: o aserțiune Node rămăsese pe forma anterioară a condiției native după separarea verificării `serviceRunning`; a fost corectată pentru a reflecta implementarea finală. Commit test: `ba433ad490c81a3a24d1b1a0f7b39f7ca3259920`. Numărul E2E confirmat prin citirea fișierului: 6; testele statice Node: 2.
