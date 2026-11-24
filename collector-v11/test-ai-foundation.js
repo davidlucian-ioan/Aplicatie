@@ -163,3 +163,16 @@ test('CoreAdapter clonează rezultatul read și respinge valori neclonabile', as
   const broken = makeCore({ async read() { return () => 'unsafe'; } });
   await assert.rejects(() => broken.adapter.read({ kind: 'finance' }));
 });
+
+
+test('provider-ul nu primește userId sau requestId din gateway', async () => {
+  const core = makeCore();
+  const { app, provider } = makeApp({ core, responses: [{ intent: 'answer', answer: 'Salut.' }] });
+  let providerInput = null;
+  const original = provider.interpret.bind(provider);
+  provider.interpret = async args => { providerInput = args.input; return original(args); };
+  await app.handle({ text: 'Salut', userId: 'private-user-id', requestId: 'private-request-id' });
+  assert.equal(providerInput.userId, undefined);
+  assert.equal(providerInput.requestId, undefined);
+  assert.equal(providerInput.text, 'Salut');
+});
