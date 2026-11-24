@@ -222,11 +222,10 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- Cod nou: serializare globală pentru operațiile RevenueCat dependente de cont; teste pentru account switching în timpul unei cumpărări și în timpul restaurării. Ultimul commit de cod: `60ea80e`.
-- Migrarea SQL RevenueCat: delimitatoare PL/pgSQL echilibrate; teste statice pentru idempotency, duplicate, lock per user, evenimente stale și privilegii service_role.
-- Cloud API: autentificare Supabase server-side, CORS allowlist, webhook secret constant-time, allowlist produs+entitlement, rate-limit bounded, rezervare cost AI înainte de provider și settlement după usage; teste pentru context sanitizat, cont și webhook.
-- RevenueCat: initialize, refresh, offerings, purchase, restore și logout trec acum prin aceeași coadă, prevenind schimbarea utilizatorului în mijlocul unei tranzacții.
-- CI: ultimele workflow-uri GitHub pentru commiturile recente au fost queued/pending fără job-uri raportate; status final neconfirmat. Nu declarăm build/teste verzi.
+- Hardening RevenueCat: initialize/account switch, refresh, offerings, purchase, restore și logout sunt serializate. Teste noi verifică schimbarea contului în timpul purchase și restore.
+- Bug nou corectat în migrarea RevenueCat: un alias UUID valid sintactic, dar absent/șters din `auth.users`, putea produce FK violation și retry-uri repetate ale webhook-ului. RPC rezolvă acum UUID-ul în `auth.users`, înregistrează evenimentul cu `user_id NULL` dacă utilizatorul nu mai există și îl marchează ignored. Testele statice verifică această cale.
+- SQL: delimiter-ele PL/pgSQL sunt echilibrate; testele acoperă idempotency, duplicate, lock per user, stale events, auth.users lookup și privilegii service_role.
+- Cloud API: CI pentru HEAD `038d387` a trecut complet testele Cloud API și build-ul container. Modificările ulterioare SQL/test au pornit workflow-uri noi, dar unele run-uri au fost anulate de commituri ulterioare; așteptăm un run stabil pe HEAD final.
+- Quality/browser și build mobil: workflow-urile anterioare au fost anulate de concurența push/PR; nu sunt considerate valide. Este necesar un run complet pe HEAD final.
 - Migrarea SQL nu a fost executată într-un PostgreSQL real; Supabase live/RLS/RPC, deploy Cloud API și purchase/restore/refund sandbox rămân nevalidate.
-- Următorii pași: inspectează CI pe commitul nou, apoi continuă auditul fluxului auth și configurației native RevenueCat; validarea externă necesită proiectele/cheile și mediul autorizat.
-- Nu face merge în `main` fără aprobarea explicită și fără CI/E2E complet.
+- Următorii pași: obține CI complet pe HEAD stabil; apoi continuă auditul fluxului de autentificare și configurării native. Nu face merge în `main` fără aprobarea explicită și fără validare externă.
