@@ -29,15 +29,11 @@ test('serverul nu publică fișierul .env prin ruta statică',()=>{
  assert.ok(server.includes("pathname !== '/.env.example'"));
 });
 
-test('serverul transmite către provider doar câmpurile explicite din context',()=>{
+test('serverul folosește modulul dedicat de sanitizare a contextului',()=>{
  const server=fs.readFileSync(path.join(__dirname,'server.js'),'utf8');
- assert.match(server,/name: String\(e\.name \|\| ''\)\.slice\(0, 160\)/);
- assert.match(server,/type: String\(e\.type \|\| 'generic'\)\.slice\(0, 64\)/);
- assert.doesNotMatch(server,/attributes: e\.attributes/);
- assert.match(server,/Number\.isFinite\(a\.min\)/);
- assert.match(server,/Number\.isFinite\(a\.max\)/);
+ assert.ok(server.includes("require('./ai/context-sanitizer')"));
+ assert.ok(server.includes('context: safeContext(body.context || {})'));
 });
-
 test('sanitizerul transmite doar metadate allowlist și elimină datele arbitrare',()=>{
  const input={
   entities:[{id:'e1',name:'Plant',type:'plant',attributes:{privateNote:'do not send'},secret:'x'},null],
