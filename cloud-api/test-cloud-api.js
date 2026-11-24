@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createCloudServer}=require('./server');
 
-const defaultBilling={configured:true,getEntitlement:async()=>({entitlement:'pro',is_active:true,expires_at:null}),reserve:async()=>({allowed:true}),settle:async()=>({settled:true,used_microusd:13000})};
+const defaultBilling={configured:true,getEntitlement:async()=>({entitlement:'pro',is_active:true,expires_at:null}),getUsage:async()=>({budget_microusd:1000000,used_microusd:125000,reserved_microusd:25000,period_end:'2026-12-01'}),reserve:async()=>({allowed:true}),settle:async()=>({settled:true,used_microusd:13000})};
 async function withServer(options,run){
  const server=createCloudServer({...options,billingService:options.billingService||defaultBilling});
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -24,7 +24,7 @@ test('health este public, dar endpoint-urile AI cer sesiune autentificată',asyn
   const health=await fetch(base+'/health');assert.equal(health.status,200);assert.equal((await health.json()).ok,true);
   const status=await fetch(base+'/api/ai/status');assert.equal(status.status,401);
   const authenticated=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer valid-token',Origin:'capacitor://localhost'}});
-  assert.equal(authenticated.status,200);const statusBody=await authenticated.json();assert.equal(statusBody.configured,true);assert.equal(statusBody.accountDeletionEnabled,true);
+  assert.equal(authenticated.status,200);const statusBody=await authenticated.json();assert.equal(statusBody.configured,true);assert.equal(statusBody.accountDeletionEnabled,true);assert.equal(statusBody.aiUsage.usedUsd,0.125);assert.equal(statusBody.aiUsage.remainingUsd,0.85);
   assert.equal(authenticated.headers.get('access-control-allow-origin'),'capacitor://localhost');
  });
 });
