@@ -54,5 +54,5 @@ test('native recorder cancels and deletes partial audio',async()=>{
 });
 test('native recorder refuses to start when microphone permission is denied',async()=>{
  fixture({permission:'denied',request:'denied'});
- await assert.rejects(NativeRecorder.start({id:'note-4'}),/microfonul nu a fost acordată/);
+ await assert.rejects(NativeRecorder.start({id:'note-4'}),/Permisiunea pentru microfon nu a fost acordată/);
 });
