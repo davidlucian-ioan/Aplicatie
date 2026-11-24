@@ -152,3 +152,14 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 4. Testare fizică a reportofonului: ecran blocat, schimbare aplicație, distrugere Activity, Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
 
 Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.
+
+
+### Actualizare 2026-11-24 — Microphone arbitration (PR în lucru)
+- Branch: `feature/android-microphone-arbitration`, bazat pe `feature/android-stt-permission-flow`.
+- WORK refuză acum dictarea one-shot și transcrierea live cât timp reportofonul este în pornire, înregistrare, pauză sau salvare; sunt luate în calcul și stările native Android.
+- Reportofonul refuză pornirea cât timp dictarea sau transcrierea vocală este activă. Mesajul cere oprirea explicită a sesiunii curente; aplicația nu oprește automat o înregistrare și nu aruncă transcrieri.
+- Fereastra asincronă de pornire a reportofonului este tratată ca ocupare a microfonului înainte de confirmarea serviciului nativ.
+- Au fost adăugate teste Playwright dedicate pentru conflictul recorder → STT, STT → recorder și pornire nativă asincronă → STT.
+- Contractul și limitele sunt documentate în `docs/architecture/ANDROID-MICROPHONE-OWNERSHIP.md`.
+- Validarea CI urmează; nu declara remedierea verificată până când testele și build-ul Android nu trec.
+- Nu s-au modificat Collector Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
