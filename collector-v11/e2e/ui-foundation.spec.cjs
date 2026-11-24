@@ -132,6 +132,58 @@ test('voice session preserves separate utterances in one atomic batch preview', 
 });
 
 
+
+test('voice batch requires explicit selection when an entity name is ambiguous', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="entities"]').click();
+  for (let index = 0; index < 2; index++) {
+    await page.locator('#entities .toolbar button.primary').click();
+    await page.locator('#newName').fill('B3 duplicat');
+    await page.locator('#newType').fill(index ? 'aquarium' : 'tank');
+    await page.locator('#modal button.primary').click();
+  }
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#modal button.primary').click();
+
+  const ids = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.filter(entity => entity.name === 'B3 duplicat').map(entity => entity.id));
+  expect(ids).toHaveLength(2);
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrase = [{ transcript: 'setează pH pentru B3 duplicat = 6.4' }];
+    phrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [phrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+
+  await expect(page.locator('#resolveVoiceBatch')).toBeVisible();
+  await expect(page.locator('#commandResult')).toContainText('Nu am ales automat nicio entitate');
+  expect(await page.locator('#commandResult [id^="voiceChoice_entity"]').count()).toBe(1);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(3);
+  await expect(page.locator('#confirmCoreCommand')).toHaveCount(0);
+
+  await page.locator('#commandResult select[data-voice-choice-key^="entity:"]').selectOption(ids[1]);
+  await page.locator('#resolveVoiceBatch').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  await expect(page.locator('#commandResult')).toContainText('B3 duplicat · pH = 6.4');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(3);
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
+  const events = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events);
+  expect(events).toHaveLength(4);
+  expect(events[3].operations[0].target).toBe(ids[1]);
+});
+
 test('voice batch cancellation discards all utterances without committing', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
