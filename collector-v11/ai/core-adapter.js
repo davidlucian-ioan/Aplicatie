@@ -11,7 +11,16 @@ class CoreAdapter {
 
   async read(request) {
     if (typeof this.corePort.read !== 'function') throw new Error('Core read port nu este configurat.');
-    return this.corePort.read(request);
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new TypeError('Cererea de citire trebuie să fie un obiect.');
+    }
+    const result = await this.corePort.read(request);
+    if (result === undefined || result === null ||
+        (typeof result !== 'object')) {
+      throw new TypeError('Core Read Port a returnat un rezultat invalid.');
+    }
+    // Clone also rejects functions and non-cloneable values before they reach a provider.
+    return structuredClone(result);
   }
 
   async preview(command) {
