@@ -88,6 +88,7 @@ function timingSafeTokenMatch(expected, provided) {
 function createAiGateway({
   provider,
   bearerToken = process.env.COLLECTOR_AI_GATEWAY_TOKEN,
+  authorize = null,
   allowedOrigins = [],
   maxBodyBytes = 32768,
   rateLimit = 30,
@@ -98,8 +99,8 @@ function createAiGateway({
   if (!provider || typeof provider.interpret !== 'function' || typeof provider.respond !== 'function') {
     throw new TypeError('Gateway necesită un provider cu interpret() și respond().');
   }
-  if (typeof bearerToken !== 'string' || bearerToken.length < 24) {
-    throw new Error('COLLECTOR_AI_GATEWAY_TOKEN trebuie să aibă minimum 24 de caractere.');
+  if (typeof authorize !== 'function' && (typeof bearerToken !== 'string' || bearerToken.length < 24)) {
+    throw new Error('Configurează authorize() pentru validarea tokenurilor sau COLLECTOR_AI_GATEWAY_TOKEN de minimum 24 de caractere pentru dezvoltare locală.');
   }
   const origins = new Set(allowedOrigins);
   const buckets = new Map();
@@ -147,11 +148,19 @@ function createAiGateway({
     }
     const auth = String(request.headers.authorization || '');
     const providedToken = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    if (!timingSafeTokenMatch(bearerToken, providedToken)) {
+    const remote = request.socket.remoteAddress || 'unknown';
+    let authorized = false;
+    try {
+      authorized = typeof authorize === 'function'
+        ? await authorize({ token: providedToken, request, remoteAddress: remote })
+        : timingSafeTokenMatch(bearerToken, providedToken);
+    } catch {
+      authorized = false;
+    }
+    if (authorized !== true) {
       sendJson(response, 401, { error: 'Autentificare necesară.' }, origin);
       return;
     }
-    const remote = request.socket.remoteAddress || 'unknown';
     if (!rateAllowed(remote)) {
       sendJson(response, 429, { error: 'Limită temporară de cereri depășită.' }, origin);
       return;
