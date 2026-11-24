@@ -270,6 +270,7 @@ async function runAICommand(){
    attributes:db.attributes.slice(0,100).map(a=>({id:a.id,name:a.name,type:a.type,required:Boolean(a.required),identifying:Boolean(a.identifying),temporal:Boolean(a.temporal),min:a.min??null,max:a.max??null}))
   };
   const response=await CollectorOpenAIProvider.interpret(text,context);
+  void refreshAIProviderStatus();
   const ai=response.interpretation||{};
   if(ai.intent==='answer'){box.textContent=ai.answer||'Nu am un răspuns disponibil.';return}
   if(ai.intent==='clarify'||(ai.intent==='propose'&&Array.isArray(ai.ambiguities)&&ai.ambiguities.length)){box.textContent=ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.';return}
@@ -387,7 +388,7 @@ async function enableCloudAccount(){
 async function refreshAIProviderStatus(){
  const status=document.getElementById('aiProviderStatus');if(!status||!window.CollectorOpenAIProvider)return;
  const button=document.getElementById('parseWithAI'),deleteButton=document.getElementById('deleteCloudAccount'),enableButton=document.getElementById('enableCloudAccount');
- try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.unauthenticated?'Autentificarea cloud nu este configurată. AI rămâne dezactivat.':info.configured?'Collector Pro activ · AI disponibil · '+info.model:info.entitlement==='free'?'Plan Free · AI cloud este inclus în Collector Pro.':'AI cloud indisponibil: verifică backend-ul, abonamentul și configurarea providerului.';status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured;if(deleteButton)deleteButton.disabled=!(info.accountDeletionEnabled&&window.CollectorAuth?.isConfigured?.());if(enableButton)enableButton.hidden=!window.CollectorAuth?.isOptedOut?.()}
+ try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.unauthenticated?'Autentificarea cloud nu este configurată. AI rămâne dezactivat.':info.configured?'Collector Pro activ · AI disponibil · '+info.model:info.entitlement==='free'?'Plan Free · AI cloud este inclus în Collector Pro.':'AI cloud indisponibil: verifică backend-ul, abonamentul și configurarea providerului.';const usageLabel=document.getElementById('subscriptionUsage');if(usageLabel){const usage=info.aiUsage;usageLabel.textContent=usage?'Buget AI lunar: '+usage.usedUsd.toFixed(3)+' / '+usage.budgetUsd.toFixed(2)+' USD utilizat · '+usage.remainingUsd.toFixed(3)+' USD rămas.':''}status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured;if(deleteButton)deleteButton.disabled=!(info.accountDeletionEnabled&&window.CollectorAuth?.isConfigured?.());if(enableButton)enableButton.hidden=!window.CollectorAuth?.isOptedOut?.()}
  catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false';if(button)button.disabled=true;if(deleteButton)deleteButton.disabled=true;if(enableButton)enableButton.hidden=!window.CollectorAuth?.isOptedOut?.()}
 }
 document.getElementById('parseCommand').onclick=runCommand;
