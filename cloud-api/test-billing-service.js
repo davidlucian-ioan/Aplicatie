@@ -56,3 +56,15 @@ test('RevenueCat CUSTOMER_SUPPORT refund revokes entitlement immediately',()=>{
  assert.match(sql,/p_cancel_reason text/);
  assert.match(sql,/collector_apply_revenuecat_event\(text,uuid,text,text,text,timestamptz,timestamptz,boolean,text\)/);
 });
+
+test('RevenueCat RPC forwards cancellation reason for refund handling',async()=>{
+ let call=null;
+ const service=new SupabaseBillingService({supabaseUrl:'https://project.supabase.co',serviceRoleKey:'secret',fetchImpl:async(url,options)=>{
+  call={url,body:JSON.parse(options.body)};return {ok:true,json:async()=>({processed:true,active:false})};
+ }});
+ await service.applyRevenueCatEvent({eventId:'evt-refund',userId:'user-uuid',eventType:'CANCELLATION',
+  productId:'collector_pro_monthly',cancelReason:'CUSTOMER_SUPPORT',store:'play_store',
+  expiresAt:'2030-01-01T00:00:00.000Z',eventTimestamp:'2026-11-25T00:00:00.000Z',isProProduct:true});
+ assert.equal(call.url,'https://project.supabase.co/rest/v1/rpc/collector_apply_revenuecat_event');
+ assert.equal(call.body.p_cancel_reason,'CUSTOMER_SUPPORT');
+});
