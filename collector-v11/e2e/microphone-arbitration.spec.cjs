@@ -89,3 +89,19 @@ test('voice capture fails closed until the native recorder state is confirmed', 
   expect(await page.evaluate(() => window.__stateChecks)).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.__recognitionStarts)).toBe(0);
 });
+
+test('native recorder start fails closed until its existing service state is confirmed', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__nativeStarts = 0;
+    window.CollectorAndroidRecorder = {
+      isAvailable: () => true,
+      getRecordingState: () => new Promise(() => {}),
+      startRecording: () => { window.__nativeStarts += 1; return Promise.resolve({ recordingId: 'unexpected' }); }
+    };
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#audioRecordStart').click();
+  await expect(page.locator('#audioRecorderStatus')).toContainText('Verific starea reportofonului Android');
+  expect(await page.evaluate(() => window.__nativeStarts)).toBe(0);
+});
