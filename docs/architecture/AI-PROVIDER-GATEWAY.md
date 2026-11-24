@@ -12,14 +12,14 @@ This branch adds the provider and server transport layers, but does not yet acti
 - Operational answers use a separate `respond()` stage. The only data passed to that stage is the result of the explicit Core Read Adapter request.
 - Responses API calls set `store: false`; the gateway itself does not persist conversation content.
 - `HttpProvider` is a browser-safe transport to the gateway. It requires an injected `getAccessToken()` function; it does not read, persist or embed a static secret.
-- `server/ai-gateway.js` provides authenticated `/v1/interpret` and `/v1/respond` routes, body-size limits, origin allowlisting, bearer authentication and per-IP rate limiting.
+- `server/ai-gateway.js` provides authenticated `/v1/interpret` and `/v1/respond` routes, body-size limits, origin allowlisting and per-IP rate limiting. It supports an injected async `authorize()` verifier for production JWT/session validation; the static bearer token is only the local-development default.
 - `server/start-ai-gateway.js` is the environment-configured entrypoint. `server/.env.example` contains names only, not credentials.
 
 ## Security boundaries
 
 1. `OPENAI_API_KEY` exists only in the server process environment.
 2. `COLLECTOR_AI_GATEWAY_TOKEN` is a server-side secret. It must never be copied into `app.js`, HTML, JavaScript bundles, Android resources or the APK.
-3. A production client must obtain a short-lived access token through an authentication mechanism (for example, an identity-aware reverse proxy or a dedicated auth service). The current project has not yet selected or implemented that identity mechanism.
+3. A production client must obtain a short-lived access token through an authentication mechanism. The gateway's injected `authorize()` callback must validate that token (for example, by verifying a signed JWT or consulting an identity service). The current project has not yet selected or implemented that identity mechanism.
 4. The gateway cannot commit Collector data. It has no Core object, database handle or write port.
 5. Every model proposal remains untrusted. The local Orchestrator and Core Port validate, preview and require explicit user confirmation.
 6. Provider errors do not log prompt bodies, Core data or credentials.
@@ -36,7 +36,7 @@ npm ci
 npm run start:ai-gateway
 ```
 
-The gateway listens on `0.0.0.0:PORT`. Put it behind HTTPS termination and an identity-aware access layer before exposing it outside a trusted development network. The shared bearer token is suitable for controlled local testing, not a substitute for production user authentication.
+The gateway listens on `0.0.0.0:PORT`. Put it behind HTTPS termination and provide an `authorize()` verifier backed by the selected identity provider before exposing it outside a trusted development network. The static `COLLECTOR_AI_GATEWAY_TOKEN` mode is only for controlled local testing, not a substitute for production user authentication. The production verifier should validate short-lived access tokens and enforce user/session status.
 
 ## Not yet connected
 
