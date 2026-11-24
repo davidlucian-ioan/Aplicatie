@@ -40,7 +40,7 @@
   if(!client||!configured)throw new Error('Activează mai întâi contul cloud.');
   const result=await client.auth.updateUser({email:String(email||'').trim(),password:String(password||'')});
   if(result.error)throw result.error;
-  return {userId:result.data.user?.id||null,email:result.data.user?.email||null,isAnonymous:!!result.data.user?.is_anonymous};
+  return {userId:result.data.user?.id||null,email:result.data.user?.email||null,isAnonymous:!!result.data.user?.is_anonymous,emailConfirmedAt:result.data.user?.email_confirmed_at||null};
  }
  async function signInWithPassword(email,password){
   if(!client||!configured){
