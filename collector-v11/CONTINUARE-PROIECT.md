@@ -205,3 +205,6 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 - Playwright microphone arbitration suite now contains 6 E2E scenarios; the new Node test file contains 2 static contract tests. These are added, not yet executed in this environment.
 - Latest code commits: JS state validation `9665fa511a8f69dc2ac213b79f32b2c044e75401`; native plugin explicit unknown/inactive `44328bfc146a8d47c8fe78588777d3a6935ea211`; Node tests `00b5d4ca2389c5409279a4ffca1f8bbe3a8c398a`; E2E unknown-state regression `7a64410ff897cc7c37d51dd4351ac6231e5b900e`.
 - Re-run Quality CI and Android build after the final checkpoint. No PASS claims until run results are available.
+
+- Native-side bypass check added: `CollectorRecorderPlugin.startRecording()` now independently rejects a new recording if the state is unknown (non-empty malformed state, existing unreadable manifest, or service running without readable state). The JavaScript guard is not the only enforcement layer.
+- Static Node contract test expanded to assert the native start guard. Latest native plugin commit: `7e6b67047a0443f45338f399aab5d440ef6ff955`; test commit: `ce020840153649bfadc1e3319b91375d101373d8`.
