@@ -213,3 +213,18 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 - Testul static verifică și acest guard. Commituri: native service shutdown guard `21174fd5c7fe99d179caaca76f669286de5b47cc`; test `a418900086bf0e49f99c4f600b0b0ed183d60021`.
 
 - Reverificare a testelor de contract: o aserțiune Node rămăsese pe forma anterioară a condiției native după separarea verificării `serviceRunning`; a fost corectată pentru a reflecta implementarea finală. Commit test: `ba433ad490c81a3a24d1b1a0f7b39f7ca3259920`. Numărul E2E confirmat prin citirea fișierului: 6; testele statice Node: 2.
+
+
+### Checkpoint AI Foundation — 2026-11-24 — PR #52 în pregătire
+- Branch nou: `feature/ai-foundation-core-contract`, bazat pe `feature/android-microphone-arbitration` (lanțul PR #44–#51 este păstrat; niciun merge automat).
+- Scop: închiderea blocajelor Phase 0 înainte de provider AI real.
+- Contracte: `ai/contracts.js` validează input, output provider, read requests, comenzi și rezultate Core; limitează textul la 4.000 caractere și loturile la maximum 50 operații; verifică tipurile pentru target/data/payload/certainty/idempotency.
+- Orchestrator: nu mai execută dintr-un flag generic. Păstrează propunerea exactă în context, iar `confirm({userId, turnId})` execută doar comanda asociată acelui turn. `cancel()` și expirarea TTL invalidează confirmarea. Cheia de idempotency este derivată din `requestId` furnizat de gateway, nu din output-ul modelului.
+- Grounding: la întrebări despre datele Collector, Core Read Adapter este apelat înainte de sumarizare. Dacă providerul nu are metoda `respond()`, textul pre-retrieval nu este prezentat ca fapt operațional.
+- CoreAdapter: read scope este validat, iar rezultatele sunt clone-izate înainte de a fi transmise providerului.
+- Core Port Node și Browser: allowlist/risk policy paritare; preview fără persistare; execute serializează scrierile; erorile Core devin `rejected`; eșecul persistării devine `unavailable`; publicarea UI eșuată după persistare este raportată ca warning fără a ascunde commit-ul durabil.
+- Documentația AI Foundation are acum forma corectă a operațiilor Core `{ operation, target?, data }` și contractul provider `interpret()` / `respond()`.
+- Auditul Phase 0 actualizat; roadmap nou în `docs/architecture/AI-IMPLEMENTATION-ROADMAP.md`.
+- Teste AI vizate: 41 în 5 fișiere (`test-ai-foundation.js` 13; `test-ai-core-port.js` 10; `test-ai-browser-core-port.js` 9; `test-ai-contracts.js` 5; `test-ai-core-contract.js` 4). Sunt adăugate/modificate, dar nu executate local în această sesiune; așteaptă Quality CI.
+- Nu s-a ales încă provider/model și nu există cheie/API cloud în client. Niciun provider AI real nu este conectat.
+- Următorul gate după CI: actual STT on-device Android pentru română (capability probe există, captură/transcriere efectivă încă nu), transcript segmentat cu timestamp și legătură la audio; apoi benchmark română; după aceea alegerea providerului și gateway server-side.
