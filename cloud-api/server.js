@@ -19,6 +19,12 @@ function monthWindow(now){
  return {periodStart:start.toISOString().slice(0,10),periodEnd:end.toISOString().slice(0,10)};
 }
 function positiveNumber(value,fallback){const n=Number(value);return Number.isFinite(n)&&n>0?n:fallback}
+function timestampToIso(value){
+ const timestamp=Number(value);
+ if(!Number.isFinite(timestamp)||timestamp<=0||timestamp>8.64e15)return null;
+ const date=new Date(timestamp);
+ return Number.isFinite(date.getTime())?date.toISOString():null;
+}
 function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFactory=()=>new OpenAIProvider(),billingService=null,now=()=>Date.now()}={}){
  const hits=new Map();
  const billing=billingService||new SupabaseBillingService({supabaseUrl:env.SUPABASE_URL,serviceRoleKey:env.SUPABASE_SERVICE_ROLE_KEY,fetchImpl});
@@ -99,11 +105,10 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
     const entitlementIndependentEvents=new Set(['CANCELLATION','BILLING_ISSUE','EXPIRATION','REFUND','SUBSCRIPTION_PAUSED','REFUND_REVERSED']);
     const storeMap={APP_STORE:'app_store',MAC_APP_STORE:'app_store',PLAY_STORE:'play_store',PROMOTIONAL:'promotional'};
     const effectiveExpirationMs=event.type==='BILLING_ISSUE'&&Number(event.grace_period_expiration_at_ms)>0
-      ?Number(event.grace_period_expiration_at_ms):Number(event.expiration_at_ms);
-    const expiresAt=Number.isFinite(effectiveExpirationMs)&&effectiveExpirationMs>0
-      ?new Date(effectiveExpirationMs).toISOString():null;
-    const eventTimestamp=Number.isFinite(Number(event.event_timestamp_ms))&&Number(event.event_timestamp_ms)>0
-      ?new Date(Number(event.event_timestamp_ms)).toISOString():new Date(now()).toISOString();
+      ?event.grace_period_expiration_at_ms:event.expiration_at_ms;
+    // RevenueCat payloads are external input; reject out-of-range dates without retrying forever.
+    const expiresAt=timestampToIso(effectiveExpirationMs);
+    const eventTimestamp=timestampToIso(event.event_timestamp_ms)||new Date(now()).toISOString();
     const result=await billing.applyRevenueCatEvent({eventId:event.id,userId,eventType:event.type,
       productId,cancelReason,store:storeMap[event.store]||null,expiresAt,eventTimestamp,isProProduct:Boolean(productId&&allowedProducts.has(productId)&&(hasProEntitlement||entitlementIndependentEvents.has(event.type)))});
     send(res,200,{ok:true,processed:Boolean(result?.processed),duplicate:Boolean(result?.duplicate),ignored:Boolean(result?.ignored),stale:Boolean(result?.stale)});return;
