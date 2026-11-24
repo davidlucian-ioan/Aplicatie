@@ -113,11 +113,15 @@ test('contextul expiră după 30 de minute de inactivitate', () => {
   assert.equal(context.get('u1'), null);
 });
 
-test('contractul respinge comenzi fără idempotency key', async () => {
+test('Orchestrator injectează identitatea de transport și nu cere modelului idempotency key', async () => {
   const core = makeCore();
-  const bad = command(); delete bad.idempotencyKey;
-  const { app } = makeApp({ core, responses: [{ intent: 'propose', command: bad }] });
-  await assert.rejects(() => app.handle({ text: 'Transferă', userId: 'u1' }), /idempotencyKey/);
+  const modelCommand = command();
+  delete modelCommand.idempotencyKey;
+  modelCommand.turnId = 'model-forged-turn';
+  const { app } = makeApp({ core, responses: [{ intent: 'propose', command: modelCommand }] });
+  const proposal = await app.handle({ text: 'Transferă', userId: 'u1', requestId: 'trusted-request-42' });
+  assert.equal(proposal.command.idempotencyKey, 'ai-turn:trusted-request-42');
+  assert.equal(proposal.command.turnId, proposal.turnId);
   assert.equal(core.calls.execute, 0);
 });
 
