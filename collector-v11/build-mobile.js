@@ -10,6 +10,7 @@ const WEB_FILES=[
  'audio-store.js',
  'storage-adapter.js',
  'reminders.js',
+ 'native-audio-recorder.js',
  'app.js',
  'ai/core-port-browser.js',
  'ai/provider-openai-browser.js'
@@ -31,7 +32,9 @@ async function buildMobile(outDir=path.join(ROOT,'www')){
  let html=await fs.readFile(indexPath,'utf8');
  const bridges=[
   {source:path.join(ROOT,'node_modules','@capacitor-community','sqlite','dist','plugin.js'),file:'capacitor-sqlite.js',marker:'<script src="storage-adapter.js?v=0.1"></script>'},
-  {source:path.join(ROOT,'node_modules','@capacitor','local-notifications','dist','plugin.js'),file:'local-notifications.js',marker:'<script src="reminders.js?v=0.1"></script>'}
+  {source:path.join(ROOT,'node_modules','@capacitor','filesystem','dist','plugin.js'),file:'capacitor-filesystem.js',marker:'<script src="audio-store.js?v=0.1"></script>'},
+  {source:path.join(ROOT,'node_modules','@capacitor','local-notifications','dist','plugin.js'),file:'local-notifications.js',marker:'<script src="reminders.js?v=0.1"></script>'},
+  {source:path.join(ROOT,'node_modules','@capgo','capacitor-audio-recorder','dist','plugin.js'),file:'capacitor-audio-recorder.js',marker:'<script src="native-audio-recorder.js?v=0.1"></script>'}
  ];
  for(const bridge of bridges){
   try{

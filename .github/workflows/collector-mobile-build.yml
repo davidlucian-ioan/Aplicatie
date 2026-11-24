@@ -41,7 +41,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Capacitor 8 toolchain
         working-directory: collector-v11
-        run: npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/core@8.6.2 @capacitor/cli@8.6.2 @capacitor/android@8.6.2 @capacitor/local-notifications@8.3.1 @capacitor-community/sqlite@8.1.1
+        run: npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/core@8.6.2 @capacitor/cli@8.6.2 @capacitor/android@8.6.2 @capacitor/local-notifications@8.3.1 @capacitor-community/sqlite@8.1.1 @capacitor/filesystem@8.1.5 @capgo/capacitor-audio-recorder@8.4.1
       - name: Verify app and native plugin wiring
         working-directory: collector-v11
         run: npm test
