@@ -18,6 +18,12 @@ test('Android offline STT probe uses only the on-device recognizer and does not 
   assert.match(source, /audioUploaded", false/);
   assert.match(source, /Build\.VERSION\.SDK_INT < 31/);
   assert.match(source, /Build\.VERSION\.SDK_INT < 33/);
+  assert.match(source, /@Permission\(alias = "microphone"/);
+  assert.match(source, /requestPermissionForAlias\("microphone", call, "microphonePermissionCallback"\)/);
+  assert.match(source, /@PermissionCallback[\s\S]*microphonePermissionCallback/);
+  assert.match(source, /getPermissionState\("microphone"\) != PermissionState\.GRANTED/);
+  assert.match(source, /audioCaptured", false/);
+  assert.match(source, /audioUploaded", false/);
 });
 
 test('Android native bridge exposes the offline speech capability probe without replacing recorder APIs', async () => {
