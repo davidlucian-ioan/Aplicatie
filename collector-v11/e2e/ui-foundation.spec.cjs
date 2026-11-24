@@ -319,9 +319,16 @@ test('voice context persists only after confirmation, expires after 30 minutes a
 });
 test('voice context can be cleared explicitly by the user', async ({ page }) => {
   await page.goto('/index-server.html');
-  await page.evaluate(() => localStorage.setItem('collector_voice_context_v1', JSON.stringify({ entityId: 'entity-1', updatedAt: Date.now(), expiresAt: Date.now() + 60000 })));
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Context de șters');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+  const entityId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Context de șters').id);
+  await page.evaluate(id => localStorage.setItem('collector_voice_context_v1', JSON.stringify({ entityId: id, updatedAt: Date.now(), expiresAt: Date.now() + 60000 })), entityId);
   await page.reload();
   await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#voiceContextLabel')).toContainText('Context de șters');
   await expect(page.locator('#clearVoiceContext')).toBeVisible();
   await page.locator('#clearVoiceContext').click();
   await expect(page.locator('#voiceContextLabel')).toContainText('niciun element selectat');
