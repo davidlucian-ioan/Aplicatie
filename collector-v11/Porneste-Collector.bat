@@ -8,7 +8,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-if "%OPENAI_API_KEY%"=="" (
+if not exist ".env" if "%OPENAI_API_KEY%"=="" (
   echo ATENTIE: OPENAI_API_KEY nu este configurata.
   echo Collector va porni in mod local; AI cloud va ramane indisponibil.
 )
