@@ -121,11 +121,12 @@ Preț de testat în cercetarea de piață: 4,99 EUR/lună și 39,99 EUR/an. Nu e
 ### Ce trebuie făcut în conturile externe
 1. Creează proiect Supabase și activează anonymous sign-in; aplică migrarea cloud-api/migrations/001_billing_and_ai_usage.sql.
 2. Creează proiect RevenueCat și aplicațiile iOS/Android; configurează produse lunare/anuale și entitlement exact pro, apoi un offering curent.
-3. Configurează webhook-ul RevenueCat către /api/billing/revenuecat-webhook, cu același secret în REVENUECAT_WEBHOOK_AUTHORIZATION.
-4. Configurează REVENUECAT_PRO_PRODUCT_IDS cu exact product IDs create în magazine.
-5. Setează variabilele GitHub Actions COLLECTOR_REVENUECAT_APPLE_API_KEY și COLLECTOR_REVENUECAT_GOOGLE_API_KEY; acestea sunt chei publice SDK, nu secrete server-side.
-6. În host configurează SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, OPENAI_MODEL, REVENUECAT_WEBHOOK_AUTHORIZATION, REVENUECAT_PRO_PRODUCT_IDS, AI_MONTHLY_BUDGET_USD și tarifele modelului.
-7. Testează în sandbox achiziție, restore, reînnoire, anulare, refund și expirare pe ambele platforme.
+3. În Project Settings → General setează Restore Behavior la Keep with original App User ID. Aplicația impune cont recuperabil înainte de achiziție; restore trebuie făcut după autentificarea în același cont Collector. Nu folosi Transfer to new App User ID până când nu există handler TRANSFER testat.
+4. Configurează webhook-ul RevenueCat către /api/billing/revenuecat-webhook, cu același secret în REVENUECAT_WEBHOOK_AUTHORIZATION.
+5. Configurează REVENUECAT_PRO_PRODUCT_IDS cu exact product IDs create în magazine și REVENUECAT_PRO_ENTITLEMENT_ID=pro.
+6. Setează variabilele GitHub Actions COLLECTOR_REVENUECAT_APPLE_API_KEY și COLLECTOR_REVENUECAT_GOOGLE_API_KEY; acestea sunt chei publice SDK, nu secrete server-side.
+7. În host configurează SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, OPENAI_MODEL, REVENUECAT_WEBHOOK_AUTHORIZATION, REVENUECAT_PRO_PRODUCT_IDS, AI_MONTHLY_BUDGET_USD și tarifele modelului.
+8. Testează în sandbox achiziție, restore, reînnoire, anulare, refund și expirare pe ambele platforme.
 
 Nu lega Core de RevenueCat. Core nu trebuie să cunoască Apple, Google sau furnizorul billing; UI folosește SDK-ul pentru cumpărare, iar serverul este autoritatea pentru entitlement și buget AI.
 ## 7. Comisioane și costuri de publicare
