@@ -65,7 +65,7 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
    if(req.method==='DELETE'&&url.pathname==='/api/account'){
     if(!env.SUPABASE_SERVICE_ROLE_KEY){send(res,503,{error:'Ștergerea contului cloud nu este configurată pe server.'});return}
     let deleted;
-    try{deleted=await fetchImpl(env.SUPABASE_URL.replace(/\\/+$/,'')+'/auth/v1/admin/users/'+encodeURIComponent(userId),{method:'DELETE',headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,Accept:'application/json'}})}
+    try{deleted=await fetchImpl(env.SUPABASE_URL.replace(/\/+$/,'')+'/auth/v1/admin/users/'+encodeURIComponent(userId),{method:'DELETE',headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,Accept:'application/json'}})}
     catch{send(res,502,{error:'Nu am putut contacta serviciul de ștergere a contului.'});return}
     if(!deleted.ok){send(res,502,{error:'Serviciul cloud nu a putut șterge contul.'});return}
     res.writeHead(204,{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end();return;
