@@ -92,3 +92,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .audio-recording-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #e2e8f0}
 .audio-recording-row small{display:block;color:#64748b;margin-top:3px}
 @media(max-width:560px){.recorder-controls{display:grid;grid-template-columns:1fr 1fr}.recorder-controls #audioRecorderTimer{grid-column:1/-1}.audio-recording-row{align-items:flex-start;flex-direction:column}}
+
+
+/* Work reminders */
+.nav-divider{height:1px;margin:8px 10px;background:#dbe3ed}
+.reminders-panel{border:1px solid #d8e0ea}
+.reminder-form{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(190px,1fr) auto;align-items:end;gap:10px;margin:14px 0}
+.reminder-form label{font-weight:650}
+.reminder-form input{width:100%;min-width:0;min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;background:#fff;color:#172033;font:inherit}
+.reminder-form button{min-height:44px;white-space:nowrap}
+.reminder-row{align-items:center}
+@media(max-width:640px){.reminder-form{grid-template-columns:1fr}.reminder-form button{width:100%}}
