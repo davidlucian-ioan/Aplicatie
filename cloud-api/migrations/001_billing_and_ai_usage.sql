@@ -180,7 +180,7 @@ begin
     return jsonb_build_object('processed',true,'stale',true);
   end if;
 
-  if p_event_type in ('INITIAL_PURCHASE','RENEWAL','PRODUCT_CHANGE','UNCANCELLATION') then
+  if p_event_type in ('INITIAL_PURCHASE','RENEWAL','PRODUCT_CHANGE','UNCANCELLATION','TEMPORARY_ENTITLEMENT_GRANT','SUBSCRIPTION_EXTENDED','REFUND_REVERSED') then
     v_active := p_expires_at is null or p_expires_at > now();
   elsif p_event_type in ('CANCELLATION','BILLING_ISSUE') then
     v_active := p_expires_at is not null and p_expires_at > now();
