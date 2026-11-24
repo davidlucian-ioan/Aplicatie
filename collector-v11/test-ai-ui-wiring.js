@@ -17,3 +17,19 @@ test('UI folosește preview și execute prin Core Port, cu localStorage ca store
  assert.match(s,/\.execute\(command,\{confirmed:true\}\)/);
  assert.match(s,/publishState:async next=>\{db=next;render\(\)\}/);
 });
+
+test('UI expune providerul OpenAI separat de interpretarea locală',()=>{
+ const html=fs.readFileSync('index-server.html','utf8');
+ const app=fs.readFileSync('app.js','utf8');
+ assert.ok(html.includes('id="parseWithAI"'));
+ assert.ok(html.includes('ai/provider-openai-browser.js'));
+ assert.ok(app.includes('CollectorOpenAIProvider.interpret'));
+ assert.ok(app.includes('ensureAICorePort().preview(command)'));
+ assert.ok(app.includes('confirmCoreCommand'));
+});
+test('UI trimite doar metadate de entități și definiții, nu jurnalul complet',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ assert.match(app,/entities:db\.entities\.slice\(0,150\)\.map/);
+ assert.match(app,/attributes:db\.attributes\.slice\(0,100\)\.map/);
+ assert.doesNotMatch(app,/events:db\.events/);
+});
