@@ -57,6 +57,19 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 6. Testează și 7.0, o valoare în interval, valoare inițială goală la atribut opțional și invalidarea minim > maxim.
 7. Verifică problema anterioară de populații/solduri: diferența dintre cantitatea populației și soldul derivat trebuie explicată și validată pe date reale, nu doar presupusă.
 
+## Direcție nouă confirmată — aplicație mobilă comercială (2026-11-24)
+
+Utilizatorul a clarificat explicit că Collector trebuie să fie o aplicație instalabilă pe Android și iPhone, publicată și vândută prin Google Play și Apple App Store. PC-ul nu este mediu de utilizare și nu trebuie să fie necesar pentru funcționarea aplicației; poate rămâne doar unealtă de dezvoltare/build.
+
+- Document de referință: `MOBILE-APP-AND-COMMERCIAL-ROADMAP.md`.
+- Direcție tehnică recomandată: Capacitor 8 pentru a reutiliza UI-ul HTML/CSS/JS și Core-ul existent, cu funcții native reale.
+- Arhitectura de producție trebuie să includă stocare mobilă persistentă (SQLite), audio local, notificări native, backend cloud multiutilizator, autentificare, sincronizare offline-first și endpoint OpenAI securizat.
+- `server.js` actual este doar server local de dezvoltare; nu este backend de producție.
+- Monetizarea trebuie să respecte Apple In-App Purchase și Google Play Billing pentru funcții digitale/abonamente, cu verificarea regulilor regionale.
+- Nu există încă implementare Capacitor, backend multiutilizator, billing sau pregătire finală pentru store. Nu afirma contrariul.
+- Următorul pas: M0 — audit compatibilitate și definirea StorageAdapter; păstrează testele Core ca gate și nu schimba D-001–D-044.
+- Branch-ul curent rămâne `feature/openai-provider-integration`; PR #55 este draft, CI pe commitul `0d97ada1` a trecut pe push și pull_request. Nu merge în main fără aprobare.
+
 ## Instrucțiuni pentru următoarea sesiune
 - Continuă pe branch-ul `feature/openai-provider-integration` până când testele CI trec.
 - Nu modifica direct `main` și nu crea PR înainte de verificarea CI.
