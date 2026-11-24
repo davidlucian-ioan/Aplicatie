@@ -411,7 +411,8 @@ test('offline STT capability probe stays Android-only in the browser build', asy
   await expect(page.locator('#offlineSpeechStatus')).toContainText('numai în aplicația Android');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(initialEvents);
 });
-\ntest('voice session fallback keeps text entry available when speech recognition is unsupported', async ({ page }) => {
+
+test('voice session fallback keeps text entry available when speech recognition is unsupported', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });
     Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
