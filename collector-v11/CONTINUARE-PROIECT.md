@@ -67,7 +67,8 @@ Utilizatorul a clarificat explicit că Collector trebuie să fie o aplicație in
 - `server.js` actual este doar server local de dezvoltare; nu este backend de producție.
 - Monetizarea trebuie să respecte Apple In-App Purchase și Google Play Billing pentru funcții digitale/abonamente, cu verificarea regulilor regionale.
 - Nu există încă implementare Capacitor, backend multiutilizator, billing sau pregătire finală pentru store. Nu afirma contrariul.
-- Următorul pas: M0 — audit compatibilitate și definirea StorageAdapter; păstrează testele Core ca gate și nu schimba D-001–D-044.
+- Auditul static M0 este salvat în `MOBILE-COMPATIBILITY-AUDIT.md`. Confirmat: UI-ul actual încă nu are Work/Think, `app.js` folosește localStorage, audio folosește IndexedDB/MediaRecorder, dictarea folosește SpeechRecognition, notificările native lipsesc, iar serverul actual este local-only.
+- Următorul pas: proiectarea și testarea contractului StorageAdapter, apoi extragerea persistenței din `app.js` fără schimbarea schemei v7. Păstrează testele Core ca gate și nu schimba D-001–D-044.
 - Branch-ul curent rămâne `feature/openai-provider-integration`; PR #55 este draft, CI pe commitul `0d97ada1` a trecut pe push și pull_request. Nu merge în main fără aprobare.
 
 ## Instrucțiuni pentru următoarea sesiune
