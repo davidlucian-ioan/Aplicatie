@@ -73,12 +73,13 @@ test('global action starts a local audio recording without committing an event',
 test('desktop navigation exposes the current section to assistive technology', async ({ page }) => {
   await page.goto('/index-server.html');
   await expect(page.getByRole('navigation', { name: 'Secțiuni Collector' })).toBeVisible();
-  await expect(page.locator('.nav[data-page="dashboard"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.nav[data-page="assistant"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('button', { name: 'Think' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Istoric' }).click();
   await expect(page.locator('#history')).toBeVisible();
   await expect(page.locator('.nav[data-page="history"]')).toHaveAttribute('aria-current', 'page');
-  await expect(page.locator('.nav[data-page="dashboard"]')).not.toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.nav[data-page="assistant"]')).not.toHaveAttribute('aria-current', 'page');
 });
 
 test('voice entry degrades to accessible text input when speech recognition is unavailable', async ({ page }) => {
