@@ -83,7 +83,9 @@ test('RevenueCat webhook ledger is idempotent and ignores stale events',()=>{
  const sql=fs.readFileSync(path.join(__dirname,'migrations','001_billing_and_ai_usage.sql'),'utf8');
  assert.match(sql,/insert into public\.collector_billing_events[\s\S]{0,350}on conflict\(event_id\) do nothing/i);
  assert.match(sql,/if not found then return jsonb_build_object\('processed',true,'duplicate',true\)/i);
- assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(p_user_id::text,0\)\)/i);
+ assert.match(sql,/pg_advisory_xact_lock\(hashtextextended\(v_user_id::text,0\)\)/i);
+ assert.match(sql,/select id into v_user_id from auth\.users where id=p_user_id/i);
+ assert.match(sql,/if v_user_id is null or not coalesce\(p_is_pro_product,false\) then/i);
  assert.match(sql,/updated_at > coalesce\(p_event_timestamp,now\(\)\)/i);
 });
 test('RevenueCat billing RPC is executable only by service_role',()=>{
