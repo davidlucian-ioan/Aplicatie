@@ -1,7 +1,7 @@
 # Collector — aplicație mobilă și lansare comercială
 
 Ultima actualizare: 2026-11-24
-Stare: direcție de produs confirmată; implementarea mobilă nu a început încă.
+Stare: shell mobil și funcții native de bază implementate; Android debug APK validat în CI la commitul a00989d0; iOS Simulator build încă în coada CI. Nu este încă versiune semnată sau pregătită de store.
 
 ## Obiectiv de produs
 
@@ -99,27 +99,28 @@ Surse oficiale:
 5. Menținerea testelor Core actuale ca gate obligatoriu.
 
 ### M1 — Shell nativ
-**Stare: implementat; validarea SQLite este în curs**
+**Stare: implementat în cod; Android debug build trecut, iOS build în așteptare CI; validarea pe dispozitive fizice rămâne deschisă**
 1. Capacitor 8.6.2 și `capacitor.config.json`; `appId` curent `ro.collector.mobile` este provizoriu până la confirmarea identității comerciale.
 2. Bundle web allowlist (`build-mobile.js`) care include numai active runtime, fără server, chei, teste sau documente interne.
 3. Work și Think sunt acum ecrane distincte în UI.
 4. Pluginul Local Notifications 8.3.1 este integrat în shell; reminder-ele sunt salvate local și programate nativ, fără permisiune specială pentru alarme exacte pe Android (se folosește programare inexactă).
-5. Pipeline GitHub Actions construiește Android debug APK și iOS Simulator app. Un build anterior cu Capacitor + Local Notifications a trecut pe ambele platforme; build-ul actual cu SQLite este încă în verificare.
+5. Pipeline GitHub Actions construiește Android debug APK și iOS Simulator app. Pe commitul `a00989d0`, jobul Android a trecut și artifactul `collector-android-debug` a fost generat; jobul iOS era încă `queued` la ultima verificare. Suita de calitate și Cloud API au trecut.
 6. Build-urile curente sunt pentru verificare, nu AAB/IPA semnate pentru distribuție.
 
 ### M2 — Funcții native și persistență
-1. Validare pe dispozitive reale a adapterului SQLite și a migrării v7; testarea reluării conexiunii la revenirea din background.
-2. Mutarea fișierelor audio din IndexedDB în stocare nativă Filesystem și metadate în SQLite.
-3. Verificarea MediaRecorder/microfonului pe iOS și Android; suportul actual pentru audio în background nu este încă garantat.
-4. Teste pentru notificări, restart, permisiuni și comportament Android Doze/iOS Focus.
-5. Import/export nativ prin Files/Share Sheet și recuperare după erori.
+**Stare: implementate în cod, cu validare hardware încă necesară**
+1. Adapter SQLite nativ și migrare v7 implementate; testele automate de contract trec. Rămâne validarea pe dispozitive reale și la reluarea aplicației din background.
+2. Audio nativ AAC, stocare privată Filesystem și metadate SQLite implementate; migrarea IndexedDB păstrează sursa până la persistarea noii copii.
+3. Permisiuni microfon Android/iOS și mod audio background iOS configurate. Înregistrarea lungă Android în background încă necesită validare și posibil foreground service.
+4. Notificări locale native implementate; trebuie testate livrarea după restart, Doze și Focus pe dispozitive reale.
+5. Import/export nativ prin Files/Share Sheet și recuperare după erori rămân de finalizat.
 
 ### M3 — Backend multiutilizator și sincronizare
 1. Serviciu Node cloud separat de serverul local — schelet Docker/API creat în `cloud-api/`.
 2. Validarea tokenurilor Supabase și rate limit per utilizator — implementate în backend.
 3. Client Supabase Auth anonim în build-ul mobil, cu sesiune păstrată prin Secure Storage; tokenul nu este hardcodat — implementat în cod, dar necesită proiect Supabase real și setarea variabilelor.
 4. Endpoint server-side OpenAI și ștergere cont cloud — implementate; ștergerea cere `SUPABASE_SERVICE_ROLE_KEY` exclusiv pe server.
-5. Nu există încă proiect Supabase configurat/deploy, endpoint public, sync incremental, tenancy/workspaces, backup sau conflict handling.
+5. Nu există încă proiect Supabase configurat/deploy și endpoint public. Sync incremental, tenancy/workspaces, backup și conflict handling nu sunt implementate.
 
 ### M4 — Monetizare
 1. Definirea planurilor și limitelor comerciale.
@@ -145,19 +146,17 @@ Surse oficiale:
 - Nu solicita utilizatorului să repete context deja salvat în documentația proiectului.
 
 ## Riscuri tehnice deja identificate
-- `app.js` folosește direct localStorage pentru baza de date; necesită abstractizare înainte ca SQLite să fie sursa mobilă.
-- `audio-store.js` folosește IndexedDB; în versiunea mobilă trebuie stabilit storage nativ pentru fișiere audio și metadate.
-- UI-ul actual folosește browser SpeechRecognition/MediaRecorder; suportul diferă între WebView-uri și necesită implementare/testare nativă.
-- `server.js` ascultă pe 127.0.0.1, folosește .env local și nu are autentificare multiutilizator; nu poate fi expus ca backend de producție.
-- Nu există încă autentificare, sincronizare multi-device, billing, privacy policy sau account deletion.
+- `server.js` ascultă local și nu este backend comercial; `cloud-api/` este scheletul separat de producție, dar nu este încă deployat.
+- Audio și notificările au implementări native; comportamentul real pe dispozitive și în background nu este încă certificat.
+- Nu există încă sync multi-device, billing, privacy policy finală sau testare end-to-end pe cont Supabase real.
+- Dependențele Capacitor sunt instalate în CI cu versiuni fixate, dar nu sunt încă declarate în `package.json`/`package-lock.json`; reproducibilitatea instalării locale și a buildului trebuie îmbunătățită înainte de release.
 - Build-ul iOS necesită Xcode/macOS sau un serviciu CI macOS; build-ul Android necesită Android SDK/Gradle. Acestea sunt cerințe de dezvoltare/publicare, nu cerințe pentru utilizatorul final.
 
 ## Audit M0 — constatări din cod
 - Audit static salvat în `MOBILE-COMPATIBILITY-AUDIT.md`.
-- UI-ul actual încă nu conține navigația Work/Think; aceasta rămâne o cerință de implementat, nu o funcție existentă în branch.
-- `app.js` folosește direct localStorage; `audio-store.js` folosește IndexedDB; înregistrarea depinde de MediaRecorder/getUserMedia; dictarea depinde de SpeechRecognition/webkitSpeechRecognition; export/import folosește Blob/URL/File input; wake lock este best-effort.
-- Nu a fost identificată implementare de notificări locale.
-- `server.js` este exclusiv local și nu poate fi backend comercial.
+- Constatările din auditul inițial de mai sus sunt istorice și au fost remediate parțial ulterior: Work/Think, StorageAdapter/SQLite, recorder AAC/Filesystem, notificări locale și client auth sunt acum în branch.
+- Auditul rămâne static și nu înlocuiește testarea pe dispozitive fizice sau validarea backendului deployat.
+- `server.js` local nu este backend comercial; backendul separat este `cloud-api/`.
 
 ## Configurare build mobil și cloud
 - Variabile publice injectate în build: `COLLECTOR_API_BASE_URL`, `COLLECTOR_SUPABASE_URL`, `COLLECTOR_SUPABASE_ANON_KEY` (GitHub Actions repository variables).
@@ -173,3 +172,12 @@ Surse oficiale:
 - Nu există încă backend cloud multiutilizator, autentificare, sincronizare, billing, ștergere cont sau privacy policy.
 - Nu există încă testare pe dispozitive fizice. Audio folosește încă MediaRecorder + IndexedDB.
 - Nu declara aplicația gata de vânzare/store. Următorul pas: obține CI verde pe SQLite, apoi mută audio în Filesystem nativ și verifică microfonul/notificările pe dispozitive reale.
+
+
+## Verificare CI actualizată — 2026-11-24 seara
+- Commit verificat: `a00989d0b6bb40f409160449fd537a5e7b8af979` (PR draft #55).
+- Workflow `Collector quality suite`: `success`.
+- Workflow `Collector Cloud API`: `success`, inclusiv testele Node și build-ul Docker.
+- Workflow `Collector mobile build`: Android debug job `success`; artifact `collector-android-debug` generat (3.9 MB). iOS Simulator job era încă `queued`, deci nu declarăm build iOS validat.
+- APK-ul Android este debug-only, nu AAB semnat pentru Play Store. iOS Simulator app, chiar după build, nu va fi IPA semnat pentru App Store.
+- Nu s-a făcut merge în `main`.
