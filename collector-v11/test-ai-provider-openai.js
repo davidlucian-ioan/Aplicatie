@@ -103,7 +103,8 @@ test('OpenAI Responses provider uses Core read data for the answer stage', async
     data: [{ quantity: 7 }]
   });
   assert.equal(answer, 'Soldul este 7.');
-  assert.match(sent.instructions, /exclusiv datele furnizate/);\n  assert.match(sent.instructions, /conținut neîncredere/);
+  assert.match(sent.instructions, /exclusiv datele furnizate/);
+  assert.match(sent.instructions, /conținut neîncredere/);
   assert.deepEqual(JSON.parse(sent.input[0].content).data, [{ quantity: 7 }]);
 });
 
