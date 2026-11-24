@@ -11,7 +11,7 @@ Determine whether the Android device exposes a genuine on-device speech recogniz
 - Android API 31+: SpeechRecognizer.isOnDeviceRecognitionAvailable() reports whether an on-device recognition service exists. createOnDeviceSpeechRecognizer() explicitly creates that recognizer; Collector must not substitute the generic createSpeechRecognizer() factory for an offline claim.
 - Android API 33+: checkRecognitionSupport() can report installed, supported-but-not-installed, and pending on-device language models. Collector uses this to classify Romanian support.
 - Android API 31–32: the platform can report that an on-device service exists, but this API surface does not expose the installed language list. Collector reports the language as unverified instead of guessing.
-- Microphone permission is checked before querying the recognition support service. The probe does not request permission automatically.
+- Microphone permission is checked before querying the recognition support service. The Android permission prompt is shown only after the user explicitly taps **Verifică suportul STT offline**; there is no background or automatic prompt. If permission is denied, the probe returns `permission-required` and does not start listening.
 - Model downloads are not started by this implementation. A future download action must be explicit and separately confirmed.
 - Android's SpeechRecognizer API requires RECORD_AUDIO for actual recognition. The current probe does not start listening or produce a transcript.
 
@@ -22,6 +22,7 @@ Determine whether the Android device exposes a genuine on-device speech recogniz
 - WORK diagnostic: **Verifică suportul STT offline**.
 - Manifest package-visibility query for android.speech.RecognitionService.
 - The response identifies provider, Android API level, requested language, service availability, language status, and whether audio was captured/uploaded. Both audio flags remain false.
+- Permission flow uses Capacitor's microphone permission alias and callback; granting permission only enables the support query and never starts recognition or recording.
 
 ## Safety and product constraints
 
