@@ -8,6 +8,7 @@ const INTERPRETATION_SCHEMA = {
   properties: {
     intent: { type: 'string', enum: ['answer', 'propose', 'clarify', 'refuse', 'model_extension'] },
     confidence: { type: ['number', 'null'] },
+    answerSource: { type: 'string', enum: ['general', 'core'] },
     answer: { type: ['string', 'null'] },
     question: { type: ['string', 'null'] },
     reason: { type: ['string', 'null'] },
@@ -18,15 +19,17 @@ const INTERPRETATION_SCHEMA = {
       type: ['object', 'null'],
       additionalProperties: false,
       properties: {
-        kind: { type: 'string', enum: ['entities', 'balances', 'finance', 'events'] },
+        kind: { type: 'string', enum: ['entities', 'entityAttributes', 'balances', 'finance', 'events', 'relations'] },
         type: { type: ['string', 'null'] },
         id: { type: ['string', 'null'] },
+        name: { type: ['string', 'null'] },
         populationId: { type: ['string', 'null'] },
         locationId: { type: ['string', 'null'] },
         entityId: { type: ['string', 'null'] },
+        attributeNames: { type: ['array', 'null'], items: { type: 'string' } },
         limit: { type: ['integer', 'null'] }
       },
-      required: ['kind', 'type', 'id', 'populationId', 'locationId', 'entityId', 'limit']
+      required: ['kind', 'type', 'id', 'name', 'populationId', 'locationId', 'entityId', 'attributeNames', 'limit']
     },
     command: {
       type: ['object', 'null'],
@@ -56,7 +59,7 @@ const INTERPRETATION_SCHEMA = {
       required: ['contractVersion', 'intent', 'certainty', 'requiresConfirmation', 'turnId', 'idempotencyKey', 'payloadJson', 'operations']
     }
   },
-  required: ['intent', 'confidence', 'answer', 'question', 'reason', 'proposal', 'ambiguities', 'clarificationQuestion', 'readRequest', 'command']
+  required: ['intent', 'confidence', 'answerSource', 'answer', 'question', 'reason', 'proposal', 'ambiguities', 'clarificationQuestion', 'readRequest', 'command']
 };
 
 function parseJsonObject(value, label) {
@@ -186,6 +189,7 @@ class OpenAIResponsesProvider {
         'Nu inventa ID-uri, cantități, locații, specii, solduri sau istoric.',
         'Pentru date curente, cere un readRequest permis; răspunsul factual va fi compus separat după citirea Core.',
         'Dacă numele sau locația sunt ambigue, folosește intent=clarify și cere o întrebare scurtă.',
+        'Pentru intent=answer alege answerSource=core dacă răspunsul depinde de datele Collector și furnizează readRequest cu filtre obligatorii; alege answerSource=general numai pentru cunoștințe generale, niciodată pentru solduri sau istoric personal.',
         'Pentru orice modificare propune numai operații Core din allowlist: entity.create, entity.rename, attribute.set, attribute.define, relation.create, relation.close, relation.move, stock.change, stock.adjust, finance.record, event.note, event.attribute.set, relation.attribute.set.',
         'Pentru orice comandă care schimbă date setează requiresConfirmation=true. Nu include idempotencyKey sau turnId propriu.',
         'Operațiile trebuie să folosească forma {operation,target?,dataJson}; dataJson trebuie să fie un obiect JSON valid serializat ca string.',
