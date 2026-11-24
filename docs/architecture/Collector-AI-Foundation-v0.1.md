@@ -278,6 +278,16 @@ API logic, independent de transport:
 
 `preview` este recomandat înainte de `execute` pentru operații cu risc sau ambiguitate. Core trebuie să repete validarea la executare; preview nu este o garanție că starea nu s-a schimbat între timp.
 
+Read scope inițial implementat:
+- `entities`: căutare obligatoriu filtrată după ID, nume sau tip; returnează numai ID, nume, tip și status, maximum 100 candidate.
+- `entityAttributes`: necesită un ID de entitate rezolvat; returnează numai atributele entității cerute, fără istoric intern.
+- `balances`: necesită ID de populație sau locație.
+- `relations`: necesită ID de entitate și returnează numai capetele și tipul relațiilor.
+- `events`: maximum 100 de evenimente, implicit 20.
+- `finance`: returnează agregatul financiar calculat de Core.
+
+Citirea nefiltrată a întregului registru nu este permisă prin AI Read Port.
+
 ### 6.3 Formatul propunerii
 
 Comanda AI folosește forma operațiilor acceptată de Core: `{ operation, target?, data }`. Câmpurile de domeniu sunt obligatoriu în `data`; identificatorii trebuie rezolvați înainte de a construi operațiile.
