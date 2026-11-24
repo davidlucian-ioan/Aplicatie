@@ -67,3 +67,12 @@ npm run android:build
 ```
 
 The app-owned native microphone foreground service and Capacitor bridge are implemented and compile in CI. Physical-device validation is still outstanding; do not rely on screen-off recording until the device acceptance checks pass.
+
+
+## Android on-device Romanian STT
+
+The Android app now includes a native on-device speech recognition runtime for Romanian (`ro-RO`). On Android, WORK dictation and live transcription use `SpeechRecognizer.createOnDeviceSpeechRecognizer` only. There is no browser/cloud fallback when the native runtime is unavailable. The device must have the Romanian on-device language model installed.
+
+Final transcript utterances are timestamped and saved locally in a separate IndexedDB transcript store. Transcript segments are not yet linked to the MediaRecorder audio file; the current Android SpeechRecognizer API does not expose the PCM stream needed for a truthful audio-file association.
+
+The foreground recorder service and speech recognizer share an exclusive OS microphone lock. Physical-device acceptance testing is still required; CI compilation alone does not validate microphone behavior, model availability or Romanian accuracy.
