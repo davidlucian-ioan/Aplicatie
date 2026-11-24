@@ -234,7 +234,7 @@ async function runCommand(){
   operations=[{operation:'attribute.set',target:matches[0].id,data:{name:def.name,value,certainty:'certain',forceHistory:true}}];payload={entityId:matches[0].id,attribute:def.name,value};summary=`${matches[0].name} · ${def.name} = ${JSON.stringify(value)}`;
  } else if(parsed.type==='sale'){
   const populations=db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
-  if(populations.length!==1){box.textContent=populations.length?'Există mai multe populații cu acest nume. Selectează una explicit.':'Nu am găsit o singură populație cu acel nume.';return}
+  if(populations.length!==1){box.textContent=populations.length?'Există mai multe populații cu acest nume. Selectează una explicit.':'Nu am găsit o singură populație cu acel nume.';speakWorkFeedback(box.textContent);return}
   const locations=parsed.locationName?db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase()):[];
   if(parsed.locationName&&locations.length!==1){box.textContent='Nu am găsit o singură locație cu acel nume.';speakWorkFeedback(box.textContent);return}
   const locationId=locations[0]?.id||null;
