@@ -40,6 +40,7 @@ class CorePort {
     this.idFactory = idFactory || (() => core.uid());
     this.clock = clock;
     this.actor = actor;
+    this.executing = false;
   }
 
   async read(request = {}) {
@@ -69,7 +70,9 @@ class CorePort {
   async preview(command) {
     const event = this._buildEvent(command);
     const current = this._snapshot();
-    const result = this.core.commit(current, event);
+    let result;
+    try { result = this.core.commit(current, event); }
+    catch (error) { return { status: 'rejected', errors: [String(error?.message || error)] }; }
     if (result.duplicate) return { status: 'duplicate', eventId: result.event?.id || null };
     return {
       status: 'preview_ok', eventId: result.event.id,
@@ -89,25 +92,31 @@ class CorePort {
     if ((risky || command.requiresConfirmation === true) && confirmed !== true) {
       return { status: 'rejected', errors: ['Este necesară confirmarea explicită a utilizatorului.'] };
     }
-
-    const current = this._snapshot();
-    const result = this.core.commit(current, event);
-    if (result.duplicate) return { status: 'duplicate', eventId: result.event?.id || null };
-
-    // Durable persistence must succeed before in-memory/UI state is published.
-    let persisted;
+    if (this.executing) return { status: 'conflict', errors: ['Există deja o comandă AI în curs de persistare.'] };
+    this.executing = true;
     try {
-      persisted = await this.store.persistState(clone(result.db));
-    } catch (error) {
-      return { status: 'unavailable', errors: [`Persistența a eșuat: ${error.message}`] };
-    }
-    if (persisted !== true) {
-      return { status: 'unavailable', errors: ['Persistența a eșuat; starea activă nu a fost publicată.'] };
-    }
-    if (typeof this.store.publishState === 'function') {
-      await this.store.publishState(clone(result.db));
-    }
-    return {
+      const current = this._snapshot();
+      let result;
+      try { result = this.core.commit(current, event); }
+      catch (error) { return { status: 'rejected', errors: [String(error?.message || error)] }; }
+      if (result.duplicate) return { status: 'duplicate', eventId: result.event?.id || null };
+
+      // Durable persistence must succeed before in-memory/UI state is published.
+      let persisted;
+      try {
+        persisted = await this.store.persistState(clone(result.db));
+      } catch (error) {
+        return { status: 'unavailable', errors: [`Persistența a eșuat: ${error.message}`] };
+      }
+      if (persisted !== true) {
+        return { status: 'unavailable', errors: ['Persistența a eșuat; starea activă nu a fost publicată.'] };
+      }
+      let warnings = [];
+      if (typeof this.store.publishState === 'function') {
+        try { await this.store.publishState(clone(result.db)); }
+        catch (error) { warnings = [`Datele au fost salvate, dar interfața nu a putut fi actualizată: ${error.message}`]; }
+      }
+      return {
       status: 'committed', eventId: result.event.id,
       affectedEntities: this._affectedEntities(event.operations),
       projectionChanges: {
@@ -115,8 +124,11 @@ class CorePort {
         relations: result.db.relations.length - current.relations.length,
         stock: result.db.stock.length - current.stock.length,
         finance: result.db.finance.length - current.finance.length
-      }
-    };
+      }, warnings
+      };
+    } finally {
+      this.executing = false;
+    }
   }
 
   _snapshot() {
