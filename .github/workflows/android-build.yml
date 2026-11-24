@@ -11,6 +11,7 @@ on:
   pull_request:
     branches:
       - main
+      - 'feature/**'
     paths:
       - collector-v11/**
       - .github/workflows/android-build.yml
