@@ -30,8 +30,8 @@ test('providerul trimite Responses API cu Structured Outputs și store=false', a
   assert.equal(payload.store,false);
   assert.equal(payload.text.format.type,'json_schema');
   assert.equal(payload.text.format.strict,true);
-  assert.match(payload.instructions,/stock\\.change/);
-  assert.match(payload.instructions,/relation\\.move/);
+  assert.ok(payload.instructions.includes('stock.change'));
+  assert.ok(payload.instructions.includes('relation.move'));
   assert.equal(result.command.contractVersion,'collector.command.v1');
   assert.equal(result.command.operations[0].data.description,'pH 6.4');
   assert.ok(result.command.idempotencyKey);
