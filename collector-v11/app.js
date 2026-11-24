@@ -1,7 +1,8 @@
 'use strict';
 const E=window.CollectorEngine, KEY='collector_mvp_v2', OLD_KEY='collector_mvp_v1';
 const storageAdapter=window.CollectorStorageAdapter.createWebStorageAdapter();
-const titles={dashboard:['Dashboard','Motor generic, jurnal de evenimente și proiecții locale.'],entities:['Entități','Entități universale, atribute temporale și cronologie.'],relations:['Relații & locații','Relații de prim rang, localizare temporală și ierarhie.'],inventory:['Populații & solduri','Cantități anonime și solduri derivate din evenimente.'],finance:['Financiar','Tranzacții pe evenimente și indicatori derivați.'],attributes:['Atribute','Definiții configurabile cu tip, rol, natură, proprietar și reguli.'],events:['Evenimente','Jurnalul de evenimente append-only.'],history:['Istoric','Cronologie completă și filtrabilă.'],assistant:['Introducere rapidă','Comenzi locale și dictare vocală, cu confirmare înainte de commit.'],audit:['Audit & date','Replay, export, import și limitele implementării.']};
+window.CollectorStorage=storageAdapter;
+const titles={dashboard:['Think','Analize, grafice, configurare și administrarea datelor.'],entities:['Entități','Entități universale, atribute temporale și cronologie.'],relations:['Relații & locații','Relații de prim rang, localizare temporală și ierarhie.'],inventory:['Populații & solduri','Cantități anonime și solduri derivate din evenimente.'],finance:['Financiar','Tranzacții pe evenimente și indicatori derivați.'],attributes:['Atribute','Definiții configurabile cu tip, rol, natură, proprietar și reguli.'],events:['Evenimente','Jurnalul de evenimente append-only.'],history:['Istoric','Cronologie completă și filtrabilă.'],assistant:['Work','Înregistrare rapidă, alarme și introducere vocală, cu confirmare înainte de salvare.'],audit:['Audit & date','Replay, export, import și limitele implementării.']};
 let integrityBlocked=false, integrityBlockReason=null, integrityRawBackup=null, integrityCanRebuild=false;
 let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
@@ -351,6 +352,7 @@ async function initializeCollectorApp(){
  }
  if(main)main.inert=false;
  render();
+ await window.CollectorReminders?.initialize();
  await renderAudioRecordings();
 }
 initializeCollectorApp();
