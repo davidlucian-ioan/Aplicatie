@@ -144,3 +144,18 @@ test('fără provider.respond, AI nu prezintă răspunsul pre-retrieval drept fa
   assert.equal(result.answer, null);
   assert.deepEqual(result.data, { total: 12 });
 });
+
+
+test('CoreAdapter nu permite read requests în afara scope-ului declarat', async () => {
+  const core = makeCore();
+  await assert.rejects(() => core.adapter.read({ kind: 'raw-db' }), /citire AI/);
+  assert.equal(core.calls.read, 0);
+});
+
+test('CoreAdapter clonează rezultatul read și respinge valori neclonabile', async () => {
+  const core = makeCore({ async read() { return { safe: true }; } });
+  const result = await core.adapter.read({ kind: 'finance' });
+  assert.deepEqual(result, { safe: true });
+  const broken = makeCore({ async read() { return () => 'unsafe'; } });
+  await assert.rejects(() => broken.adapter.read({ kind: 'finance' }));
+});
