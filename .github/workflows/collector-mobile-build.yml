@@ -41,7 +41,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Capacitor 8 toolchain
         working-directory: collector-v11
-        run: npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/core@8.6.2 @capacitor/cli@8.6.2 @capacitor/android@8.6.2
+        run: npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/core@8.6.2 @capacitor/cli@8.6.2 @capacitor/android@8.6.2 @capacitor/local-notifications@8.3.1
       - name: Build allowlisted web bundle
         working-directory: collector-v11
         run: npm run mobile:build
@@ -80,7 +80,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Capacitor 8 toolchain
         working-directory: collector-v11
-        run: npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/core@8.6.2 @capacitor/cli@8.6.2 @capacitor/ios@8.6.2
+        run: npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/core@8.6.2 @capacitor/cli@8.6.2 @capacitor/ios@8.6.2 @capacitor/local-notifications@8.3.1
       - name: Build allowlisted web bundle
         working-directory: collector-v11
         run: npm run mobile:build
