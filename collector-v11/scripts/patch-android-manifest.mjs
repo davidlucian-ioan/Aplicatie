@@ -24,6 +24,7 @@ const permissions = [
   'android.permission.FOREGROUND_SERVICE_MICROPHONE',
   'android.permission.POST_NOTIFICATIONS',
   'android.permission.WAKE_LOCK',
+  'android.permission.RECEIVE_BOOT_COMPLETED',
 ];
 const permissionLines = permissions
   .filter((permission) => !manifest.includes('android:name="' + permission + '"'))
@@ -38,6 +39,16 @@ const serviceClass = 'com.collector.app.CollectorRecordingService';
 if (!manifest.includes(serviceClass)) {
   const serviceDeclaration = '    <service android:name="' + serviceClass + '" android:exported="false" android:stopWithTask="false" android:process=":collector_recorder" android:foregroundServiceType="microphone" />';
   manifest = manifest.replace('</application>', serviceDeclaration + '\n  </application>');
+}
+
+const alarmReceiver = 'com.collector.app.CollectorAlarmReceiver';
+if (!manifest.includes(alarmReceiver)) {
+  manifest = manifest.replace('</application>', '    <receiver android:name="' + alarmReceiver + '" android:exported="false" />\\n  </application>');
+}
+const bootReceiver = 'com.collector.app.CollectorAlarmBootReceiver';
+if (!manifest.includes(bootReceiver)) {
+  const declaration = '    <receiver android:name="' + bootReceiver + '" android:enabled="true" android:exported="false">\\n      <intent-filter>\\n        <action android:name="android.intent.action.BOOT_COMPLETED" />\\n        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />\\n        <action android:name="android.intent.action.TIME_SET" />\\n        <action android:name="android.intent.action.TIMEZONE_CHANGED" />\\n      </intent-filter>\\n    </receiver>';
+  manifest = manifest.replace('</application>', declaration + '\\n  </application>');
 }
 
 await writeFile(manifestPath, manifest);
@@ -60,8 +71,8 @@ const icon = [
 await writeFile(iconPath, icon);
 
 await mkdir(javaRoot, { recursive: true });
-for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java']) {
+for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java']) {
   await cp(path.join(root, 'native', 'android', file), path.join(javaRoot, file));
 }
 
-console.log('Applied Collector microphone foreground-service manifest, Java bridge, service, and notification icon.');
+console.log('Applied Collector microphone recorder and local alarm manifest, Java bridges, receivers, and notification icon.');
