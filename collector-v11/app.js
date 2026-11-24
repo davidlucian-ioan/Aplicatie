@@ -302,7 +302,7 @@ async function deleteCloudAccount(){
  if(!window.CollectorAuth?.isConfigured?.()||!window.CollectorAuth?.deleteAccount)return;
  if(!confirm('Ștergi definitiv contul cloud Collector? Datele locale de pe acest telefon nu vor fi șterse.'))return;
  if(button)button.disabled=true;if(status)status.textContent='Se șterge contul cloud…';
- try{await window.CollectorAuth.deleteAccount();if(status)status.textContent='Contul cloud a fost șters. Datele locale au rămas pe acest telefon.'}
+ try{await window.CollectorAuth.deleteAccount();if(status)status.textContent='Contul cloud a fost șters. Datele locale au rămas pe acest telefon.';const enableButton=document.getElementById('enableCloudAccount');if(enableButton)enableButton.hidden=false}
  catch(error){if(status)status.textContent='Nu am putut șterge contul cloud: '+error.message;if(button)button.disabled=false}
 }
 async function enableCloudAccount(){
