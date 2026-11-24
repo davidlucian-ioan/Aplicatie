@@ -23,6 +23,8 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   assert.ok(html.includes('storage-adapter.js'));
   assert.ok(html.includes('reminders.js'));
   assert.ok(html.includes('native-audio-recorder.js'));
+  assert.ok(html.includes('Cheia OpenAI nu este stocată pe telefon.'));
+  assert.ok(!html.includes('OPENAI_API_KEY'));
   const mobileConfig=await fs.readFile(path.join(out,'collector-config.js'),'utf8');
   assert.ok(mobileConfig.includes('apiBaseUrl'));
   assert.ok(mobileConfig.includes('https://api.example.test'));

@@ -12,6 +12,10 @@ on:
       - 'cloud-api/**'
       - 'collector-v11/ai/**'
       - '.github/workflows/collector-cloud-api.yml'
+concurrency:
+  group: collector-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-and-container:
     runs-on: ubuntu-latest
