@@ -127,3 +127,30 @@ test('gateway rejects invalid or short server bearer secrets at construction', (
   assert.throws(() => createAiGateway({ provider: fakeProvider(), bearerToken: 'short' }), /minimum 24/);
   assert.throws(() => createAiGateway({ bearerToken: TOKEN }), /provider/);
 });
+
+
+test('gateway accepts short-lived identity tokens through an injected authorization verifier', async () => {
+  const seen = [];
+  await withGateway({
+    provider: fakeProvider(),
+    authorize: async ({ token, remoteAddress }) => {
+      seen.push({ token, remoteAddress });
+      return token === 'short-lived-user-jwt';
+    }
+  }, async base => {
+    const denied = await fetch(base + '/v1/interpret', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer invalid', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: { text: 'test' }, turnId: 'turn-1' })
+    });
+    assert.equal(denied.status, 401);
+    const allowed = await fetch(base + '/v1/interpret', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer short-lived-user-jwt', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: { text: 'test' }, turnId: 'turn-2' })
+    });
+    assert.equal(allowed.status, 200);
+    assert.equal(seen[1].token, 'short-lived-user-jwt');
+    assert.ok(seen[1].remoteAddress);
+  });
+});
