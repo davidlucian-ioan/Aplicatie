@@ -66,7 +66,7 @@
     await filesystem.writeFile({path:filePath,data:await blobToBase64(old.blob),directory:'DATA',encoding:'base64',recursive:true});
     const location=await filesystem.getUri({path:filePath,directory:'DATA'});
     const row={id:old.id,createdAt:old.createdAt,durationMs:Number(old.durationMs)||0,mimeType:old.mimeType||'audio/webm',size:Number(old.size)||old.blob.size,filePath,uri:location.uri};
-    current=[...current,row];await writeIndex(current);await webStore.remove(old.id);
+    current=[...current,row];await writeIndex(current);await legacyStore.remove(old.id);
    }
   }
   async function initialize(){
