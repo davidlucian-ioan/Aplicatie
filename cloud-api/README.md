@@ -58,11 +58,11 @@ Backend-ul tratează achiziția/reînnoirea, schimbarea produsului, reactivarea,
 ## Limitări încă deschise
 
 - Migrarea trebuie aplicată într-un proiect Supabase real; nu există încă proiect conectat/deploy.
-- Aplicația mobilă nu are încă SDK RevenueCat, ecran de paywall, restore purchases sau login/link de cont recuperabil. Webhook-ul și verificarea server-side sunt fundația backend, nu integrarea completă a plăților.
-- Trebuie validate ordinea evenimentelor webhook, transferul între conturi și recuperarea achizițiilor după reinstalare.
+- Aplicația mobilă include bridge-ul RevenueCat Capacitor 14.1.2, afișarea ofertelor curente, purchase, restore și asocierea/recuperarea contului prin email/parolă. Codul nu este încă validat cu produse și chei reale în sandbox; funcțiile de achiziție rămân dezactivate până la configurarea variabilelor publice din build și a produselor în magazine/RevenueCat.
+- Trebuie validate transferul între conturi, recuperarea achizițiilor după reinstalare, confirmarea emailului și comportamentul webhook-urilor reale. Android launchMode este configurat pentru fluxul de achiziție, iar iOS In-App Purchase capability este activată de scriptul nativ.
 - Sync multi-device, workspace membership, backup cloud și conflict handling nu sunt implementate.
-- Bugetul de 1 USD/lună este default tehnic inițial, nu plan comercial final; recalibrează-l pe baza usage-ului real și a prețului modelului activ.
-- AI status și endpoint-urile trebuie testate cu proiect Supabase, chei, webhook și achiziții sandbox reale înainte de activarea publică.
+- Bugetul de 1 USD/lună este default tehnic inițial, nu plan comercial final; recalibrează-l pe baza usage-ului real și a prețului modelului activ. Tarifele input/output se configurează separat pentru a evita calcularea greșită a costului.
+- Migrarea SQL trebuie aplicată într-un proiect Supabase real; fără aceasta, status-ul, webhook-ul și metering-ul nu vor funcționa. Setează variabilele build `COLLECTOR_REVENUECAT_APPLE_API_KEY` și `COLLECTOR_REVENUECAT_GOOGLE_API_KEY` (publice) și server `REVENUECAT_WEBHOOK_AUTHORIZATION`, `REVENUECAT_PRO_PRODUCT_IDS`.\n- AI status și endpoint-urile trebuie testate cu proiect Supabase, chei, webhook și achiziții sandbox reale înainte de activarea publică.
 
 ## Local
 
