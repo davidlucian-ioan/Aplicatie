@@ -19,6 +19,7 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   const html=await fs.readFile(path.join(out,'index.html'),'utf8');
   assert.ok(html.includes('storage-adapter.js'));
   assert.ok(html.includes('reminders.js'));
+  assert.ok(html.includes('native-audio-recorder.js'));
   assert.ok(html.includes('ai/core-port-browser.js'));
   const capacitorConfig=JSON.parse(await fs.readFile(path.join(__dirname,'capacitor.config.json'),'utf8'));
   assert.equal(capacitorConfig.appName,'Collector');
@@ -33,6 +34,16 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   }else{
    await assert.rejects(fs.access(path.join(out,'vendor','local-notifications.js')));
   }
+  const filesystemSource=path.join(__dirname,'node_modules','@capacitor','filesystem','dist','plugin.js');
+  let filesystemInstalled=true;
+  try{await fs.access(filesystemSource)}catch{filesystemInstalled=false}
+  if(filesystemInstalled){await fs.access(path.join(out,'vendor','capacitor-filesystem.js'));assert.ok(html.indexOf('vendor/capacitor-filesystem.js')<html.indexOf('audio-store.js'))}
+  else await assert.rejects(fs.access(path.join(out,'vendor','capacitor-filesystem.js')));
+  const recorderSource=path.join(__dirname,'node_modules','@capgo','capacitor-audio-recorder','dist','plugin.js');
+  let recorderInstalled=true;
+  try{await fs.access(recorderSource)}catch{recorderInstalled=false}
+  if(recorderInstalled){await fs.access(path.join(out,'vendor','capacitor-audio-recorder.js'));assert.ok(html.indexOf('vendor/capacitor-audio-recorder.js')<html.indexOf('native-audio-recorder.js'))}
+  else await assert.rejects(fs.access(path.join(out,'vendor','capacitor-audio-recorder.js')));
   const sqliteSource=path.join(__dirname,'node_modules','@capacitor-community','sqlite','dist','plugin.js');
   let sqliteInstalled=true;
   try{await fs.access(sqliteSource)}catch{sqliteInstalled=false}
