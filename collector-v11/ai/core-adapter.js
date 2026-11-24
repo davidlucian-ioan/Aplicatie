@@ -1,6 +1,6 @@
 'use strict';
 
-const { validateCommand, validateCoreResult } = require('./contracts');
+const { validateReadRequest, validateCommand, validateCoreResult } = require('./contracts');
 
 // Adapterul nu primește DB-ul și nu importă engine.js. Primește doar porturi explicite.
 class CoreAdapter {
@@ -11,9 +11,7 @@ class CoreAdapter {
 
   async read(request) {
     if (typeof this.corePort.read !== 'function') throw new Error('Core read port nu este configurat.');
-    if (!request || typeof request !== 'object' || Array.isArray(request)) {
-      throw new TypeError('Cererea de citire trebuie să fie un obiect.');
-    }
+    validateReadRequest(request);
     const result = await this.corePort.read(request);
     if (result === undefined || result === null ||
         (typeof result !== 'object')) {
