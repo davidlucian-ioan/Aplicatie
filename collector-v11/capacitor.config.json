@@ -13,6 +13,10 @@
         "banner",
         "list"
       ]
+    },
+    "CapacitorSQLite": {
+      "androidIsEncryption": false,
+      "iosIsEncryption": false
     }
   }
 }
