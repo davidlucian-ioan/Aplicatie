@@ -163,7 +163,7 @@ begin
   end if;
 
   insert into public.collector_entitlements(user_id,entitlement,product_id,store,is_active,expires_at,updated_at)
-    values(p_user_id,case when v_active then 'pro' else 'free' end,p_product_id,p_store,v_active,p_expires_at,now())
+    values(p_user_id,case when v_active then 'pro' else 'free' end,p_product_id,p_store,v_active,p_expires_at,coalesce(p_event_timestamp,now()))
     on conflict(user_id) do update set entitlement=excluded.entitlement,
       product_id=excluded.product_id,store=excluded.store,is_active=excluded.is_active,
       expires_at=excluded.expires_at,updated_at=now();
