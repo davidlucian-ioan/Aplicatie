@@ -13,7 +13,7 @@ test('cheia API nu este inclusă în codul livrat browserului',()=>{
  const browserFiles=['index.html','index-server.html','app.js','ai/provider-openai-browser.js'];
  for(const file of browserFiles){
   const source=fs.readFileSync(path.join(__dirname,file),'utf8');
-  assert.doesNotMatch(source,/OPENAI_API_KEY/);
+  assert.doesNotMatch(source,/sk-[A-Za-z0-9]{20,}/);
   assert.doesNotMatch(source,/Bearer\s+[A-Za-z0-9_-]{20,}/);
  }
 });
