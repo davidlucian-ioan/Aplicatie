@@ -33,7 +33,7 @@ class Orchestrator {
       receivedAt: input.receivedAt,
       metadata: structuredClone(input.metadata)
     };
-    const interpretation = await this.provider.interpret({ input: providerInput, context, turnId });
+    const interpretation = structuredClone(await this.provider.interpret({ input: providerInput, context, turnId }));
     if (interpretation?.intent === 'propose' && interpretation.command &&
         typeof interpretation.command === 'object' && !Array.isArray(interpretation.command)) {
       // Inject trusted transport identity before validating the model's proposal.
