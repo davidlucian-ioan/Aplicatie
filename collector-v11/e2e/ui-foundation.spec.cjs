@@ -182,3 +182,48 @@ test('WORK exposes local reminder controls and explains browser limitation', asy
   await expect(page.locator('#workAlarmStatus')).toContainText('necesită aplicația Android');
   await expect(page.locator('#workAlarmList')).toContainText('disponibilă în aplicația Android');
 });
+
+test('voice read-back waits for microphone release and never commits without explicit confirmation', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__spokenReadbacks = [];
+    window.__speechCancelCount = 0;
+    window.SpeechSynthesisUtterance = class {
+      constructor(text) { this.text = text; }
+    };
+    window.speechSynthesis = {
+      getVoices: () => [{ lang: 'ro-RO', name: 'Romanian test voice' }],
+      cancel() { window.__speechCancelCount += 1; },
+      speak(utterance) {
+        window.__spokenReadbacks.push(utterance.text);
+        utterance.onstart?.();
+        utterance.onend?.();
+      }
+    };
+    window.__collectorRecognition = null;
+    window.SpeechRecognition = class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    };
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const finalPhrase = [{ transcript: 'Pom B3 are frunze noi' }];
+    finalPhrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [finalPhrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__spokenReadbacks.length)).toBe(1);
+  const readback = await page.evaluate(() => window.__spokenReadbacks[0]);
+  expect(readback).toContain('Observație');
+  expect(readback).toContain('Nu am salvat nimic');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
+  await expect.poll(() => page.evaluate(() => window.__spokenReadbacks.length)).toBe(2);
+  expect(await page.evaluate(() => window.__spokenReadbacks[1])).toContain('salvată cu succes');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(1);
+});
