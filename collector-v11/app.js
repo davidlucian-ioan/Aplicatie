@@ -504,9 +504,14 @@ async function finishNativeSpeech(event){
  }else if(mode==='dictation'){
   if(utterances.length){
    document.getElementById('commandInput').value=utterances.join(' ');
-   voiceReadbackPending=true;
-   setAppStatus('Dictare română on-device încheiată. Verifică preview-ul înainte de confirmare.');
-   runCommand();
+   if(event.status==='stopped'){
+    voiceReadbackPending=true;
+    setAppStatus('Dictare română on-device încheiată. Verifică preview-ul înainte de confirmare.');
+    runCommand();
+   }else{
+    voiceReadbackPending=false;
+    setAppStatus('Dictarea s-a întrerupt. Textul final rămâne salvat local pentru verificare; nu am pornit un preview.');
+   }
   }else{
    voiceReadbackPending=false;
    setAppStatus('Nu a fost recunoscut text. Nu s-au modificat datele.');
