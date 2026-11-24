@@ -76,3 +76,18 @@ The Android app now includes a native on-device speech recognition runtime for R
 Final transcript utterances are timestamped and saved locally in a separate IndexedDB transcript store. Transcript segments are not yet linked to the MediaRecorder audio file; the current Android SpeechRecognizer API does not expose the PCM stream needed for a truthful audio-file association.
 
 The foreground recorder service and speech recognizer share an exclusive OS microphone lock. Physical-device acceptance testing is still required; CI compilation alone does not validate microphone behavior, model availability or Romanian accuracy.
+
+
+## AI provider gateway (server-side scaffold)
+
+The project includes a stateless OpenAI Responses API provider and an authenticated Node gateway. It is not yet connected to the WORK UI.
+
+From this folder, configure the server environment (`OPENAI_API_KEY`, `OPENAI_MODEL`, `COLLECTOR_AI_GATEWAY_TOKEN`, `COLLECTOR_ALLOWED_ORIGINS`, `PORT`) and run:
+
+```bash
+npm run start:ai-gateway
+```
+
+The OpenAI key and gateway bearer secret must remain on the server. Never put them in the web bundle, Android resources or APK. The client transport requires an injected short-lived access-token function; the project has not yet selected or implemented the production authentication/hosting mechanism.
+
+See `../docs/architecture/AI-PROVIDER-GATEWAY.md` for the security boundaries and remaining integration gates. The current UI continues to work without a provider and does not make AI requests.
