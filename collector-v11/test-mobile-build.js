@@ -10,7 +10,10 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
  const root=await fs.mkdtemp(path.join(__dirname,'.tmp-mobile-'));
  try{
   const out=path.join(root,'www');
-  const result=await buildMobile(out);
+  const previousApiBase=process.env.COLLECTOR_API_BASE_URL;
+  process.env.COLLECTOR_API_BASE_URL='https://api.example.test';
+  let result;
+  try{result=await buildMobile(out)}finally{if(previousApiBase===undefined)delete process.env.COLLECTOR_API_BASE_URL;else process.env.COLLECTOR_API_BASE_URL=previousApiBase}
   assert.deepEqual(result.files,WEB_FILES);
   for(const relative of WEB_FILES)await fs.access(path.join(out,relative));
   await assert.rejects(fs.access(path.join(out,'server.js')));
@@ -22,6 +25,7 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   assert.ok(html.includes('native-audio-recorder.js'));
   const mobileConfig=await fs.readFile(path.join(out,'collector-config.js'),'utf8');
   assert.ok(mobileConfig.includes('apiBaseUrl'));
+  assert.ok(mobileConfig.includes('https://api.example.test'));
   assert.ok(html.includes('ai/core-port-browser.js'));
   const capacitorConfig=JSON.parse(await fs.readFile(path.join(__dirname,'capacitor.config.json'),'utf8'));
   assert.equal(capacitorConfig.appName,'Collector');
