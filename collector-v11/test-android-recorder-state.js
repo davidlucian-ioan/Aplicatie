@@ -27,3 +27,19 @@ test('web bridge rejects missing or unrecognized native recorder statuses', asyn
   assert.match(source, /validStatuses=\['inactive','complete','interrupted','starting','recording','paused'\]/);
   assert.match(source, /if\(!state\|\|!validStatuses\.includes\(state\.status\)\)throw new Error/);
 });
+
+
+test('native recorder and on-device STT share one exclusive OS microphone lock', async () => {
+  const [lock, recorder, speech] = await Promise.all([
+    readFile(path.join(root, 'native/android/CollectorMicrophoneLock.java'), 'utf8'),
+    readFile(path.join(root, 'native/android/CollectorRecordingService.java'), 'utf8'),
+    readFile(path.join(root, 'native/android/CollectorSpeechPlugin.java'), 'utf8'),
+  ]);
+  assert.match(lock, /FileChannel/);
+  assert.match(lock, /channel\.tryLock\(\)/);
+  assert.match(lock, /lock\.release\(\)/);
+  assert.match(recorder, /CollectorMicrophoneLock\.tryAcquire\(this, "recorder:/);
+  assert.match(recorder, /releaseMicrophoneLock\(\)/);
+  assert.match(speech, /CollectorMicrophoneLock\.tryAcquire\(getContext\(\), "speech:/);
+  assert.match(speech, /lock\.close\(\)/);
+});

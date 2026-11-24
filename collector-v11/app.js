@@ -412,8 +412,8 @@ document.getElementById('checkOfflineSpeech')?.addEventListener('click',async()=
  button.disabled=true;status.textContent='Verific suportul on-device pentru română…';
  try{
   const result=await bridge.getOfflineSpeechSupport('ro-RO');
-  if(result.languageStatus==='installed')status.textContent='Română: model on-device instalat. Recunoașterea efectivă și acuratețea trebuie încă testate pe dispozitiv. Niciun audio nu a fost capturat.';
-  else if(result.languageStatus==='downloadable')status.textContent='Română: model suportat on-device, dar neinstalat. Descărcarea nu a fost pornită. Niciun audio nu a fost capturat.';
+  if(result.languageStatus==='installed')status.textContent='Română: model on-device instalat. Dictarea și transcrierea live folosesc SpeechRecognizer local, fără fallback cloud. Acuratețea trebuie validată pe dispozitiv. Niciun audio nu a fost încărcat.';
+  else if(result.languageStatus==='downloadable')status.textContent='Română: model suportat on-device, dar neinstalat. Instalează pachetul de limbă în setările serviciului de recunoaștere Android; Collector nu pornește descărcări în fundal și nu folosește cloud.';
   else if(result.status==='permission-required')status.textContent='Permisiunea pentru microfon nu a fost acordată. Apasă din nou și acceptă solicitarea Android pentru a verifica limba; nu am pornit microfonul și nu am capturat audio.';
   else if(result.languageStatus==='pending')status.textContent='Română: descărcarea modelului on-device este în așteptare. Niciun audio nu a fost capturat.';
   else if(result.languageStatus==='unsupported')status.textContent='Serviciul on-device nu raportează suport pentru limba română pe acest dispozitiv.';
@@ -453,9 +453,216 @@ function speakWorkFeedback(text,force=false){
 }
 function setVoiceUi(listening){const local=document.getElementById('voiceButton');if(local){local.textContent=listening?'■ Oprește dictarea':'🎙 Dictează comandă';local.setAttribute('aria-label',listening?'Oprește dictarea':'Începe dictarea');local.setAttribute('aria-pressed',String(listening))}}
 function setVoiceSessionUi(listening){const session=document.getElementById('voiceSessionButton');if(session){session.textContent=listening?'■ Oprește transcrierea':'🎙 Transcriere live';session.setAttribute('aria-label',listening?'Oprește transcrierea live':'Începe transcrierea live');session.setAttribute('aria-pressed',String(listening))}}
-function stopVoiceSession(){if(!voiceSessionActive)return;voiceSessionActive=false;setVoiceSessionUi(false);setAppStatus('Oprire sesiune. Pregătesc preview-ul comun al lotului; nimic nu este salvat automat.');try{voiceSessionRecognition?.stop()}catch(error){setAppStatus('Sesiunea s-a oprit: '+error.message)}}
-function startVoiceSession(){if(voiceSessionActive){stopVoiceSession();return}if(activeRecognition){activeRecognition.stop();return}if(nativeAudioAvailable()&&!nativeAudioStateReady){const message='Verific starea reportofonului Android. Transcrierea nu va porni până când starea microfonului nu este confirmată; încearcă din nou în câteva secunde.';setAppStatus(message);document.getElementById('commandResult').textContent=message;refreshNativeAudioState().catch(error=>setAppStatus('Nu pot confirma starea reportofonului Android: '+error.message));return}if(isAudioRecorderBusy()){const message='Reportofonul folosește microfonul. Oprește înregistrarea sau pune-o în starea inactivă înainte de transcriere.';setAppStatus(message);document.getElementById('commandResult').textContent=message;return}cancelSpeechOutput();voiceCommandPending=false;voiceReadbackPending=false;const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){const message='Sesiunea vocală nu este disponibilă în acest browser. Poți introduce observația în câmpul text.';setAppStatus(message);document.getElementById('commandResult').textContent=message;document.getElementById('commandInput').focus();return}if(activeRecognition){try{activeRecognition.stop()}catch{}activeRecognition=null;setVoiceUi(false)}voiceSessionUtterances=[];voiceSessionUtteranceIndexes=new Set();pendingCoreCommand=null;const rec=new SR();voiceSessionRecognition=rec;voiceSessionActive=true;rec.lang='ro-RO';rec.interimResults=true;rec.maxAlternatives=1;rec.continuous=true;rec.onstart=()=>{setVoiceSessionUi(true);setAppStatus('Sesiune vocală activă. Fiecare frază finală este păstrată separat. Oprește sesiunea pentru un preview comun; nimic nu se salvează automat.')} ;rec.onresult=e=>{let interim='';for(let i=e.resultIndex||0;i<(e.results||[]).length;i++){const result=e.results[i],phrase=String(result[0]?.transcript||'').trim();if(!phrase)continue;if(result.isFinal){if(!voiceSessionUtteranceIndexes.has(i)){voiceSessionUtteranceIndexes.add(i);voiceSessionUtterances.push(phrase);}}else interim+=(interim?' ':'')+phrase}const preview=voiceSessionUtterances.join(' · ')+(interim?(voiceSessionUtterances.length?' · ':'')+interim:'');document.getElementById('commandInput').value=preview;setAppStatus('Sesiune vocală: '+(voiceSessionUtterances.length?voiceSessionUtterances.length+' fraze finale capturate.':'ascult.'))};rec.onerror=e=>{voiceSessionActive=false;setVoiceSessionUi(false);const message='Sesiunea vocală s-a întrerupt: '+e.error+'. Frazele finale capturate rămân disponibile pentru verificare.';setAppStatus(message)};rec.onend=()=>{const utterances=voiceSessionUtterances.slice();voiceSessionActive=false;voiceSessionRecognition=null;setVoiceSessionUi(false);if(utterances.length){document.getElementById('commandInput').value=utterances.join('\n');setAppStatus('Sesiunea s-a încheiat. Pregătesc preview-ul comun pentru '+utterances.length+' fraze.');runVoiceBatch(utterances)}else {voiceReadbackPending=false;setAppStatus('Sesiunea vocală s-a încheiat fără fraze finale recunoscute. Nu s-au modificat datele.')}};try{rec.start()}catch(error){voiceSessionActive=false;voiceSessionRecognition=null;setVoiceSessionUi(false);setAppStatus('Nu am putut porni sesiunea vocală: '+error.message)}}
-function startVoiceCapture(){if(activeRecognition){activeRecognition.stop();return}if(voiceSessionActive){stopVoiceSession();return}if(nativeAudioAvailable()&&!nativeAudioStateReady){const message='Verific starea reportofonului Android. Dictarea nu va porni până când starea microfonului nu este confirmată; încearcă din nou în câteva secunde.';setAppStatus(message);document.getElementById('commandResult').textContent=message;refreshNativeAudioState().catch(error=>setAppStatus('Nu pot confirma starea reportofonului Android: '+error.message));return}if(isAudioRecorderBusy()){const message='Reportofonul folosește microfonul. Oprește înregistrarea înainte de dictare.';setAppStatus(message);document.getElementById('commandResult').textContent=message;return}cancelSpeechOutput();voiceCommandPending=false;voiceReadbackPending=false;const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){const message='Dictarea vocală nu este disponibilă în acest browser. Poți scrie comanda sau folosi dictarea sistemului de operare.';setAppStatus(message);document.getElementById('commandResult').textContent=message;document.getElementById('commandInput').focus();return}const rec=new SR();activeRecognition=rec;rec.lang='ro-RO';rec.interimResults=false;rec.maxAlternatives=1;rec.continuous=false;rec.onstart=()=>{setVoiceUi(true);setAppStatus('Ascult o comandă. Nu se salvează nimic fără confirmarea Core.')} ;let oneShotTranscript='';rec.onresult=e=>{oneShotTranscript=Array.from(e.results||[]).map(result=>result[0]?.transcript||'').join(' ').trim();if(!oneShotTranscript)return;voiceReadbackPending=true;document.getElementById('commandInput').value=oneShotTranscript;setAppStatus('Am recepționat dictarea. Aștept eliberarea microfonului înainte de preview și citirea rezumatului.')};rec.onerror=e=>{activeRecognition=null;voiceReadbackPending=false;setVoiceUi(false);const message='Dictarea nu a reușit: '+e.error+'. Poți încerca din nou sau poți introduce textul.';setAppStatus(message);document.getElementById('commandResult').textContent=message};rec.onend=()=>{activeRecognition=null;setVoiceUi(false);if(oneShotTranscript){setAppStatus('Dictarea s-a încheiat. Verifică preview-ul înainte de salvare.');runCommand()}else setAppStatus('Dictarea s-a încheiat fără text recunoscut. Nu s-au modificat datele.')};try{rec.start()}catch(error){activeRecognition=null;setVoiceUi(false);setAppStatus('Nu am putut porni microfonul: '+error.message)}}
+
+let nativeSpeechMode=null,nativeSpeechSessionId=null,nativeSpeechListenerHandles=[];
+let nativeSpeechSegments=[],nativeTranscriptSession=null,nativeSpeechStopRequested=false;
+let nativeDictationText='';
+async function removeNativeSpeechListeners(){
+ const handles=nativeSpeechListenerHandles.splice(0);
+ await Promise.all(handles.map(async handle=>{try{await handle?.remove?.()}catch(error){console.warn('Nu am putut elimina listenerul STT:',error)}}));
+}
+function nativeSpeechText(){
+ return nativeSpeechSegments.map(segment=>segment.text).filter(Boolean).join(nativeSpeechMode==='session'?'\\n':' ');
+}
+function ensureNativeTranscriptSession(sessionId){
+ if(!nativeTranscriptSession&&sessionId){
+  nativeTranscriptSession={id:sessionId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),language:'ro-RO',provider:'android-speech-recognizer-on-device',source:'microphone',audioRecordingId:null,audioLinkStatus:'not-linked',segments:[]};
+ }
+ return nativeTranscriptSession;
+}
+async function persistNativeTranscriptSession(){
+ if(!nativeTranscriptSession||!window.CollectorAudioStore?.saveTranscriptSession)return;
+ nativeTranscriptSession.segments=nativeSpeechSegments.map(segment=>({...segment}));
+ nativeTranscriptSession.updatedAt=new Date().toISOString();
+ try{await window.CollectorAudioStore.saveTranscriptSession(nativeTranscriptSession);await renderVoiceTranscriptHistory()}
+ catch(error){setAppStatus('Transcrierea rămâne pe ecran, dar nu am putut salva copia locală: '+error.message)}
+}
+function renderNativeTranscriptInput(partial=''){
+ const finalText=nativeSpeechMode==='dictation'?nativeSpeechSegments.map(x=>x.text).join(' '):nativeSpeechSegments.map(x=>x.text).join('\\n');
+ const input=document.getElementById('commandInput');
+ if(input)input.value=finalText+(partial?(finalText?(nativeSpeechMode==='dictation'?' ':'\\n'):'')+partial:'');
+}
+async function finishNativeSpeech(event){
+ const mode=nativeSpeechMode,shouldProcess=nativeSpeechStopRequested;
+ const utterances=nativeSpeechSegments.map(segment=>segment.text).filter(Boolean);
+ await persistNativeTranscriptSession();
+ nativeSpeechMode=null;nativeSpeechSessionId=null;nativeSpeechStopRequested=false;
+ voiceSessionActive=false;voiceSessionRecognition=null;activeRecognition=null;
+ setVoiceSessionUi(false);setVoiceUi(false);
+ await removeNativeSpeechListeners();
+ if(event.status==='cancelled')return;
+ if(mode==='session'){
+  if(utterances.length){
+   document.getElementById('commandInput').value=utterances.join('\\n');
+   if(event.status==='stopped'&&shouldProcess){
+    setAppStatus('Transcrierea s-a încheiat. Pregătesc preview-ul comun pentru '+utterances.length+' fraze.');
+    runVoiceBatch(utterances);
+   }else{
+    setAppStatus('Textul recunoscut a fost păstrat local. Nu s-a creat niciun preview și nu s-au modificat datele.');
+   }
+  }else setAppStatus('Sesiunea on-device s-a încheiat fără fraze finale. Nu s-au modificat datele.');
+ }else if(mode==='dictation'){
+  if(utterances.length){
+   document.getElementById('commandInput').value=utterances.join(' ');
+   if(event.status==='stopped'){
+    voiceReadbackPending=true;
+    setAppStatus('Dictare română on-device încheiată. Verifică preview-ul înainte de confirmare.');
+    runCommand();
+   }else{
+    voiceReadbackPending=false;
+    setAppStatus('Dictarea s-a întrerupt. Textul final rămâne salvat local pentru verificare; nu am pornit un preview.');
+   }
+  }else{
+   voiceReadbackPending=false;
+   setAppStatus('Nu a fost recunoscut text. Nu s-au modificat datele.');
+  }
+ }
+}
+async function startNativeSpeech(mode){
+ const bridge=window.CollectorAndroidSpeech;
+ if(!bridge?.isAvailable?.())return false;
+ if(nativeSpeechMode)return false;
+ nativeSpeechMode=mode;nativeSpeechSessionId=null;nativeSpeechSegments=[];
+ nativeTranscriptSession=null;nativeSpeechStopRequested=false;nativeDictationText='';
+ voiceSessionUtterances=[];voiceSessionUtteranceIndexes=new Set();
+ pendingCoreCommand=null;voiceCommandPending=false;voiceReadbackPending=false;
+ cancelSpeechOutput();
+ if(mode==='session'){voiceSessionActive=true;setVoiceSessionUi(true);setAppStatus('Solicit recunoaștere vocală locală în română…')}
+ else{activeRecognition={native:true};setVoiceUi(true);setAppStatus('Solicit recunoaștere vocală locală în română…')}
+ try{
+  const handlers={
+   speechSegment:event=>{
+    if(nativeSpeechSessionId&&event.sessionId!==nativeSpeechSessionId)return;
+    if(!nativeSpeechSessionId)nativeSpeechSessionId=event.sessionId;
+    ensureNativeTranscriptSession(event.sessionId);
+    if(nativeSpeechSegments.some(segment=>segment.id===event.segmentId))return;
+    const segment={id:String(event.segmentId||crypto.randomUUID()),text:String(event.text||'').trim(),
+     startOffsetMs:Number(event.startOffsetMs),endOffsetMs:Number(event.endOffsetMs),
+     startedAt:Number(event.startedAt),endedAt:Number(event.endedAt),
+     confidence:Number(event.confidence),language:event.language||'ro-RO',provider:event.provider||'android-speech-recognizer-on-device'};
+    if(!segment.text||!Number.isFinite(segment.startOffsetMs)||!Number.isFinite(segment.endOffsetMs)||
+       segment.startOffsetMs<0||segment.endOffsetMs<segment.startOffsetMs)return;
+    nativeSpeechSegments.push(segment);
+    if(nativeSpeechMode==='session')voiceSessionUtterances.push(segment.text);
+    renderNativeTranscriptInput();
+    persistNativeTranscriptSession();
+    setAppStatus('STT on-device: '+nativeSpeechSegments.length+' segmente finale. Transcriptul este salvat local; audio nu a fost încărcat.');
+   },
+   speechPartial:event=>{
+    if(nativeSpeechSessionId&&event.sessionId!==nativeSpeechSessionId)return;
+    const partial=String(event.text||'').trim();
+    if(partial)renderNativeTranscriptInput(partial);
+   },
+   speechState:event=>{
+    if(nativeSpeechSessionId&&event.sessionId!==nativeSpeechSessionId)return;
+    if(event.status==='listening'){
+     if(nativeSpeechMode==='session')setAppStatus('Transcriere on-device activă în română. Fiecare frază finală este salvată local cu timestamp.');
+     else setAppStatus('Dictare on-device activă în română. Microfonul rămâne exclusiv pentru STT.');
+     return;
+    }
+    if(['stopped','error','cancelled'].includes(event.status))finishNativeSpeech(event);
+   },
+   speechError:event=>{
+    const message=event.message||'Eroare la recunoașterea vocală on-device.';
+    setAppStatus(message);
+    const box=document.getElementById('commandResult');if(box)box.textContent=message;
+   }
+  };
+  nativeSpeechListenerHandles=[];
+  for(const [name,handler] of Object.entries(handlers))nativeSpeechListenerHandles.push(await bridge.addListener(name,handler));
+  const started=await bridge.startListening('ro-RO',mode==='session');
+  if(nativeSpeechMode!==mode)return true;
+  nativeSpeechSessionId=started.sessionId;
+  ensureNativeTranscriptSession(started.sessionId);
+  if(mode==='session')voiceSessionRecognition={native:true,stop:()=>bridge.stopListening(nativeSpeechSessionId)};
+  else activeRecognition={native:true,stop:()=>bridge.stopListening(nativeSpeechSessionId)};
+  setAppStatus(mode==='session'?'Transcriere live Android on-device activă. Apasă din nou pentru oprire și preview.':'Dictare Android on-device activă. Vorbește în română.');
+  return true;
+ }catch(error){
+  const failedMode=nativeSpeechMode;nativeSpeechMode=null;nativeSpeechSessionId=null;
+  voiceSessionActive=false;voiceSessionRecognition=null;activeRecognition=null;
+  setVoiceSessionUi(false);setVoiceUi(false);await removeNativeSpeechListeners();
+  const message='STT on-device nu a putut porni: '+error.message+'. Nu am folosit un serviciu cloud.';
+  setAppStatus(message);const box=document.getElementById('commandResult');if(box)box.textContent=message;
+  return false;
+ }
+}
+async function stopNativeSpeech(){
+ if(!nativeSpeechSessionId)return;
+ nativeSpeechStopRequested=true;
+ setAppStatus('Oprire transcriere on-device. Aștept ultimul segment final…');
+ try{await window.CollectorAndroidSpeech.stopListening(nativeSpeechSessionId)}
+ catch(error){setAppStatus('Nu am putut opri elegant transcrierea: '+error.message)}
+}
+function stopVoiceSession(){if(!voiceSessionActive)return;if(nativeSpeechMode==='session'){stopNativeSpeech();return}voiceSessionActive=false;setVoiceSessionUi(false);setAppStatus('Oprire sesiune. Pregătesc preview-ul comun al lotului; nimic nu este salvat automat.');try{voiceSessionRecognition?.stop()}catch(error){setAppStatus('Sesiunea s-a oprit: '+error.message)}}
+function startVoiceSession(){
+ if(voiceSessionActive){stopVoiceSession();return}
+ if(activeRecognition){activeRecognition.stop?.();return}
+ if(nativeAudioAvailable()&&!nativeAudioStateReady){
+  const message='Verific starea reportofonului Android. Transcrierea nu va porni până când starea microfonului nu este confirmată; încearcă din nou în câteva secunde.';
+  setAppStatus(message);document.getElementById('commandResult').textContent=message;
+  refreshNativeAudioState().catch(error=>setAppStatus('Nu pot confirma starea reportofonului Android: '+error.message));return;
+ }
+ if(isAudioRecorderBusy()){
+  const message='Reportofonul folosește microfonul. Oprește înregistrarea înainte de transcriere.';
+  setAppStatus(message);document.getElementById('commandResult').textContent=message;return;
+ }
+ cancelSpeechOutput();voiceCommandPending=false;voiceReadbackPending=false;
+ if(window.CollectorAndroidSpeech?.isAvailable?.()){startNativeSpeech('session');return}
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){
+  const message='Sesiunea vocală nu este disponibilă în acest browser. Poți introduce observația în câmpul text.';
+  setAppStatus(message);document.getElementById('commandResult').textContent=message;document.getElementById('commandInput').focus();return;
+ }
+ voiceSessionUtterances=[];voiceSessionUtteranceIndexes=new Set();pendingCoreCommand=null;
+ const rec=new SR();voiceSessionRecognition=rec;voiceSessionActive=true;rec.lang='ro-RO';rec.interimResults=true;rec.maxAlternatives=1;rec.continuous=true;
+ rec.onstart=()=>{setVoiceSessionUi(true);setAppStatus('Sesiune vocală activă. Fiecare frază finală este păstrată separat. Oprește sesiunea pentru un preview comun; nimic nu se salvează automat.')};
+ rec.onresult=e=>{
+  let interim='';
+  for(let i=e.resultIndex||0;i<(e.results||[]).length;i++){
+   const result=e.results[i],phrase=String(result[0]?.transcript||'').trim();if(!phrase)continue;
+   if(result.isFinal){if(!voiceSessionUtteranceIndexes.has(i)){voiceSessionUtteranceIndexes.add(i);voiceSessionUtterances.push(phrase)}}
+   else interim+=(interim?' ':'')+phrase;
+  }
+  const preview=voiceSessionUtterances.join(' · ')+(interim?(voiceSessionUtterances.length?' · ':'')+interim:'');
+  document.getElementById('commandInput').value=preview;
+  setAppStatus('Sesiune vocală: '+(voiceSessionUtterances.length?voiceSessionUtterances.length+' fraze finale capturate.':'ascult.'));
+ };
+ rec.onerror=e=>{voiceSessionActive=false;setVoiceSessionUi(false);const message='Sesiunea vocală s-a întrerupt: '+e.error+'. Frazele finale capturate rămân disponibile pentru verificare.';setAppStatus(message)};
+ rec.onend=()=>{
+  const utterances=voiceSessionUtterances.slice();voiceSessionActive=false;voiceSessionRecognition=null;setVoiceSessionUi(false);
+  if(utterances.length){document.getElementById('commandInput').value=utterances.join('\\n');setAppStatus('Sesiunea s-a încheiat. Pregătesc preview-ul comun pentru '+utterances.length+' fraze.');runVoiceBatch(utterances)}
+  else{voiceReadbackPending=false;setAppStatus('Sesiunea vocală s-a încheiat fără fraze finale recunoscute. Nu s-au modificat date.')}
+ };
+ try{rec.start()}catch(error){voiceSessionActive=false;voiceSessionRecognition=null;setVoiceSessionUi(false);setAppStatus('Nu am putut porni sesiunea vocală: '+error.message)}
+}
+function startVoiceCapture(){
+ if(activeRecognition){activeRecognition.stop?.();return}
+ if(voiceSessionActive){stopVoiceSession();return}
+ if(nativeAudioAvailable()&&!nativeAudioStateReady){
+  const message='Verific starea reportofonului Android. Dictarea nu va porni până când starea microfonului nu este confirmată; încearcă din nou în câteva secunde.';
+  setAppStatus(message);document.getElementById('commandResult').textContent=message;
+  refreshNativeAudioState().catch(error=>setAppStatus('Nu pot confirma starea reportofonului Android: '+error.message));return;
+ }
+ if(isAudioRecorderBusy()){
+  const message='Reportofonul folosește microfonul. Oprește înregistrarea înainte de dictare.';
+  setAppStatus(message);document.getElementById('commandResult').textContent=message;return;
+ }
+ cancelSpeechOutput();voiceCommandPending=false;voiceReadbackPending=false;
+ if(window.CollectorAndroidSpeech?.isAvailable?.()){startNativeSpeech('dictation');return}
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){
+  const message='Dictarea vocală nu este disponibilă în acest browser. Poți scrie comanda sau folosi dictarea sistemului de operare.';
+  setAppStatus(message);document.getElementById('commandResult').textContent=message;document.getElementById('commandInput').focus();return;
+ }
+ const rec=new SR();activeRecognition=rec;rec.lang='ro-RO';rec.interimResults=false;rec.maxAlternatives=1;rec.continuous=false;
+ rec.onstart=()=>{setVoiceUi(true);setAppStatus('Ascult o comandă. Nu se salvează nimic fără confirmarea Core.')};
+ let oneShotTranscript='';
+ rec.onresult=e=>{oneShotTranscript=Array.from(e.results||[]).map(result=>result[0]?.transcript||'').join(' ').trim();if(!oneShotTranscript)return;voiceReadbackPending=true;document.getElementById('commandInput').value=oneShotTranscript;setAppStatus('Am recepționat dictarea. Aștept eliberarea microfonului înainte de preview și citirea rezumatului.')};
+ rec.onerror=e=>{activeRecognition=null;voiceReadbackPending=false;setVoiceUi(false);const message='Dictarea nu a reușit: '+e.error+'. Poți încerca din nou sau poți introduce textul.';setAppStatus(message);document.getElementById('commandResult').textContent=message};
+ rec.onend=()=>{activeRecognition=null;setVoiceUi(false);if(oneShotTranscript){setAppStatus('Dictarea s-a încheiat. Verifică preview-ul înainte de salvare.');runCommand()}else setAppStatus('Dictarea s-a încheiat fără text recunoscut. Nu s-au modificat datele.')};
+ try{rec.start()}catch(error){activeRecognition=null;setVoiceUi(false);setAppStatus('Nu am putut porni microfonul: '+error.message)}
+}
 document.getElementById('voiceButton').onclick=startVoiceCapture;
 document.getElementById('voiceSessionButton').onclick=startVoiceSession;
 let audioRecorder=null,audioStream=null,audioStartPending=false,audioChunks=[],audioStartedAt=0,audioPausedMs=0,audioPauseStartedAt=0,audioTimer=null,audioObjectUrl=null;
@@ -486,11 +693,35 @@ function stopAudioRecording(){if(audioRecorder?.native){stopNativeAudioRecording
 async function playAudioRecording(recordId){try{const player=document.getElementById('audioPlayback');if(nativeAudioAvailable()){const record=await window.CollectorAndroidRecorder.getRecording(recordId);if(!record?.uri)throw Error('Fișierul audio nativ nu mai există.');if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}player.src=window.CollectorAndroidRecorder.toPlaybackUrl(record.uri);player.hidden=false;await player.play();return}const record=await CollectorAudioStore.get(recordId);if(!record?.blob)throw Error('Fișierul audio nu mai există.');if(audioObjectUrl)URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=URL.createObjectURL(record.blob);player.src=audioObjectUrl;player.hidden=false;await player.play()}catch(error){setAudioUi('idle','Nu pot reda înregistrarea: '+error.message)}}
 async function deleteAudioRecording(recordId){if(!confirm('Ștergi definitiv această înregistrare audio locală?'))return;try{if(nativeAudioAvailable())await window.CollectorAndroidRecorder.deleteRecording(recordId);else await CollectorAudioStore.remove(recordId);await renderAudioRecordings();setAudioUi('idle','Înregistrarea audio a fost ștearsă din stocarea locală.')}catch(error){setAudioUi('idle','Nu am putut șterge înregistrarea: '+error.message)}}
 async function renderAudioRecordings(){const list=document.getElementById('audioRecordingList');if(!list||(!nativeAudioAvailable()&&!window.CollectorAudioStore))return;try{const records=nativeAudioAvailable()?(await window.CollectorAndroidRecorder.listRecordings()).recordings:await CollectorAudioStore.list();list.replaceChildren();if(!records.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nu există înregistrări audio locale.';list.append(empty);return}for(const record of records){const row=document.createElement('div');row.className='audio-recording-row';const info=document.createElement('div'),name=document.createElement('b'),meta=document.createElement('small');name.textContent=new Date(record.createdAt).toLocaleString('ro-RO');meta.textContent=formatAudioDuration(record.durationMs)+' · '+Math.round((record.sizeBytes??record.size??0)/1024)+' KB'+(record.status==='interrupted'?' · Întreruptă':'');info.append(name,meta);const actions=document.createElement('div');actions.className='row-actions';const play=document.createElement('button');play.className='secondary';play.type='button';play.textContent='Redă';if(nativeAudioAvailable()&&(['starting','recording','paused'].includes(record.status)||(record.status==='interrupted'&&!record.recoverable))){play.disabled=true;play.title=record.status==='interrupted'?'Fișierul întrerupt nu este garantat redabil.':'Înregistrarea este încă activă.'}play.setAttribute('aria-label','Redă înregistrarea din '+name.textContent);play.addEventListener('click',()=>playAudioRecording(record.id));const remove=document.createElement('button');remove.className='secondary';remove.type='button';remove.textContent='Șterge';remove.setAttribute('aria-label','Șterge înregistrarea din '+name.textContent);remove.addEventListener('click',()=>deleteAudioRecording(record.id));if(nativeAudioAvailable()&&['starting','recording','paused'].includes(record.status))remove.disabled=true;actions.append(play,remove);row.append(info,actions);list.append(row)}}catch(error){list.textContent='Nu pot citi înregistrările locale: '+error.message}}
+async function renderVoiceTranscriptHistory(){
+ const list=document.getElementById('voiceTranscriptHistory');if(!list)return;
+ if(!window.CollectorAudioStore?.listTranscriptSessions){list.textContent='Stocarea locală a transcrierilor nu este disponibilă.';return}
+ try{
+  const sessions=(await window.CollectorAudioStore.listTranscriptSessions()).slice(0,10);
+  list.replaceChildren();
+  if(!sessions.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nu există transcrieri salvate.';list.append(empty);return}
+  for(const session of sessions){
+   const row=document.createElement('div');row.className='audio-recording-row';
+   const info=document.createElement('div'),title=document.createElement('b'),summary=document.createElement('small');
+   title.textContent='Transcriere · '+new Date(session.createdAt).toLocaleString('ro-RO');
+   const text=session.segments.map(segment=>segment.text).join(' ');
+   summary.textContent=session.segments.length+' segmente · '+text.slice(0,150)+(text.length>150?'…':'');
+   info.append(title,summary);
+   const actions=document.createElement('div');actions.className='audio-recording-actions';
+   const load=document.createElement('button');load.className='secondary';load.type='button';load.textContent='Reîncarcă text';
+   load.addEventListener('click',()=>{document.getElementById('commandInput').value=session.segments.map(segment=>segment.text).join('\\n');setAppStatus('Transcrierea locală a fost reîncărcată. Verifică textul înainte de interpretare.')});
+   const remove=document.createElement('button');remove.className='secondary';remove.type='button';remove.textContent='Șterge';
+   remove.addEventListener('click',async()=>{try{await window.CollectorAudioStore.removeTranscriptSession(session.id);await renderVoiceTranscriptHistory()}catch(error){setAppStatus('Nu am putut șterge transcrierea: '+error.message)}});
+   actions.append(load,remove);row.append(info,actions);list.append(row);
+  }
+ }catch(error){list.textContent='Nu pot citi transcrierile locale: '+error.message}
+}
 document.getElementById('audioRecordStart').addEventListener('click',startAudioRecording);
 document.getElementById('audioRecordPause').addEventListener('click',pauseAudioRecording);
 document.getElementById('audioRecordResume').addEventListener('click',resumeAudioRecording);
 document.getElementById('audioRecordStop').addEventListener('click',stopAudioRecording);
 renderAudioRecordings();
+renderVoiceTranscriptHistory();
 initializeNativeAudioRecorder();
 
 async function renderWorkAlarms(){

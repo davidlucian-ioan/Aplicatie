@@ -66,7 +66,7 @@ test('Android manifest patch is idempotent and declares microphone foreground se
   const icon = await readFile(path.join(resourcePath, 'drawable', 'ic_stat_collector.xml'), 'utf8');
   assert.match(icon, /<vector/);
   assert.match(icon, /fillColor="#FFFFFFFF"/);
-  for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java', 'CollectorSpeechPlugin.java']) {
+  for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java', 'CollectorSpeechPlugin.java', 'CollectorMicrophoneLock.java']) {
     await access(path.join(javaPath, file));
   }
 });
