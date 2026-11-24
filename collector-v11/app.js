@@ -311,7 +311,10 @@ async function refreshSubscriptionStatus(){
    if(restoreButton)restoreButton.disabled=true;if(refreshButton)refreshButton.disabled=true;return;
   }
   if(restoreButton)restoreButton.disabled=false;if(refreshButton)refreshButton.disabled=false;
-  if(state.isPro){status.textContent='Collector Pro activ'+(state.expiresAt?' · expiră '+new Date(state.expiresAt).toLocaleDateString('ro-RO'):'')+'.';}
+  if(state.isPro){
+   status.textContent='Collector Pro activ'+(state.expiresAt?' · expiră '+new Date(state.expiresAt).toLocaleDateString('ro-RO'):'')+'.';
+   if(state.managementUrl){const manage=document.createElement('a');manage.href=state.managementUrl;manage.target='_blank';manage.rel='noopener noreferrer';manage.textContent='Gestionează abonamentul în magazin';list.append(manage)}
+  }
   else{
    status.textContent='Plan Free · datele și funcțiile locale rămân disponibile. Alege Collector Pro pentru AI și servicii cloud.';
    const packages=await window.CollectorSubscriptions.offerings();
@@ -370,7 +373,7 @@ document.getElementById('enableCloudAccount')?.addEventListener('click',enableCl
 async function deleteCloudAccount(){
  const button=document.getElementById('deleteCloudAccount'),status=document.getElementById('cloudAccountStatus');
  if(!window.CollectorAuth?.isConfigured?.()||!window.CollectorAuth?.deleteAccount)return;
- if(!confirm('Ștergi definitiv contul cloud Collector? Datele locale de pe acest telefon nu vor fi șterse.'))return;
+ if(!confirm('Ștergi definitiv contul cloud Collector? Datele locale rămân pe telefon. Ștergerea contului NU anulează abonamentul din Google Play/App Store. Anulează mai întâi abonamentul din magazin; după ștergere nu vei mai putea recupera accesul Pro cu acest cont. Continui?'))return;
  if(button)button.disabled=true;if(status)status.textContent='Se șterge contul cloud…';
  try{await window.CollectorAuth.deleteAccount();await window.CollectorSubscriptions?.logOut?.();if(status)status.textContent='Contul cloud a fost șters. Datele locale au rămas pe acest telefon.';const enableButton=document.getElementById('enableCloudAccount');if(enableButton)enableButton.hidden=false}
  catch(error){if(status)status.textContent='Nu am putut șterge contul cloud: '+error.message;if(button)button.disabled=false}
