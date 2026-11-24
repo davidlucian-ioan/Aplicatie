@@ -55,6 +55,7 @@ test('purchase este serializat înaintea schimbării contului RevenueCat',async(
  };
  globalThis.CollectorPurchasesBundle.logIn=async({appUserID})=>{events.push('login:'+appUserID)};
  await globalThis.CollectorSubscriptions.initialize('purchase-user-A');
+ events.length=0;
  const purchase=globalThis.CollectorSubscriptions.purchase('monthly');
  const switchUser=globalThis.CollectorSubscriptions.initialize('purchase-user-B');
  await Promise.all([purchase,switchUser]);
