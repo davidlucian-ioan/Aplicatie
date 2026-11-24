@@ -191,3 +191,6 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 - Acest lucru permite verificarea PR-urilor intermediare, nu doar a celor care țintesc `main`.
 - CI pentru noul head: încă în așteptare; connectorul disponibil pentru workflow runs filtrează numai evenimente PR și nu a returnat încă o rulare. Nu declara PASS până când GitHub Actions confirmă rezultatul.
 - Head după corecția workflow-urilor urmează a fi verificat din metadata PR.
+
+- Clarificare de execuție GitHub Actions: la un eveniment `pull_request`, GitHub evaluează workflow-ul din branch-ul de bază. Modificarea filtrelor aflată numai pe head-ul PR #51 nu poate activa retroactiv trigger-ul PR pentru acest PR; ea activează trigger-ul pentru push-urile pe `feature/**` și va fi disponibilă pentru PR-uri viitoare după ce ajunge în branch-ul lor de bază. PR #51 are în continuare target branch intermediar. Tool-ul GitHub disponibil pentru workflow runs expune numai evenimente PR, deci nu poate confirma rulările de tip push. Nu raporta CI PASS/FAIL fără acces la run-ul efectiv.
+- Configurația Playwright confirmată: `testDir: ./e2e`, `testMatch: **/*.spec.cjs`, proiect Chromium inclus; fișierul nou este inclus de pattern-ul existent. Workflow-ul Quality CI rulează `npm run test:e2e` pe Chromium.
