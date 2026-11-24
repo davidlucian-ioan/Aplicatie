@@ -168,13 +168,17 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 ### Checkpoint automat — 2026-11-24 — PR #51 reverificat și extins
 - PR #51: https://github.com/davidlucian-ioan/Aplicatie/pull/51
 - Branch: `feature/android-microphone-arbitration`; base: `feature/android-stt-permission-flow` (lanț PR intenționat, nu `main`).
-- Head la checkpoint: `6a8481493482fd0387706cffa9a0d5e607f5e4d8`.
+- Head la checkpoint-ul intermediar: `6a8481493482fd0387706cffa9a0d5e607f5e4d8`; actualizat ulterior prin fixurile și testele de mai jos.
 - Reverificarea a găsit o cursă la pornirea WebView: STT putea fi apăsat înainte ca starea reportofonului Android să fie citită.
 - Remediere: `nativeAudioStateReady` pornește false; `refreshNativeAudioState` îl setează true numai după un răspuns reușit; `isAudioRecorderBusy` blochează STT cât timp bridge-ul Android este disponibil, dar starea încă nu este confirmată. Butoanele one-shot și live declanșează o nouă citire și refuză pornirea în acel interval.
 - Test Playwright suplimentar: starea nativă rămâne pending, ambele controale STT sunt apăsate, iar recognizerul nu pornește.
-- Total teste noi în `microphone-arbitration.spec.cjs`: 4 scenarii (native recorder → live/one-shot STT; live STT → browser recorder; pending native start → STT; initial native-state pending → fail closed).
+- Total teste noi în `microphone-arbitration.spec.cjs`: 5 scenarii (native recorder → live/one-shot STT; live STT → browser recorder; pending native start → STT; initial native-state pending → fail closed pentru STT; initial native-state pending → fail closed pentru recorder).
 - Documentația `docs/architecture/ANDROID-MICROPHONE-OWNERSHIP.md` actualizată cu regula fail-closed și limitările.
 - Validare locală/CI pentru noul head: NEEXECUTATĂ / NECONFIRMATĂ. Nu declara PASS până la rularea Quality CI și Android debug build.
 - Nu au fost modificate Collector Core, jurnalul, Replay, idempotency, schema sau D-001–D-044.
 - Limite rămase: arbitrare la nivelul aceleiași aplicații/WebView; nu este lock OS-wide și nu garantează coordonare între două instanțe/taburi independente. Testarea fizică rămâne obligatorie.
 - Următoarea acțiune: verifică PR status și CI; inspectează logurile dacă apar eșecuri; apoi continuă hardening pentru lifecycle, stop/error cleanup și testarea Android. Păstrează acest fișier actualizat la fiecare etapă.
+
+- Reverificare suplimentară: și pornirea reportofonului nativ este acum fail-closed cât timp verificarea inițială a serviciului este pending; testul confirmă că `startRecording` nu este apelat.
+- Butoanele STT verifică întâi dacă există o sesiune activă și permit oprirea ei; blocarea reportofonului se aplică numai la inițierea unei sesiuni noi.
+- Head curent înainte de acest checkpoint: `3a4acd191b05f51f7f9b955a2bd8e9810a7c055a`; urmează actualizarea documentației și a descrierii PR.
