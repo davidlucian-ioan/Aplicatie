@@ -174,3 +174,40 @@ Utilizatorul a clarificat explicit că Collector trebuie să fie o aplicație in
 - Cloud API CI pe commit 009b1462: SUCCESS, inclusiv testele autentificate și Docker build.
 - Quality și Mobile CI pentru commitul 009b1462: în așteptare la ultima verificare; nu declara E2E/browser sau APK final trecute până la finalizarea lor.
 - PR #55 rămâne draft/open, branch feature/openai-provider-integration; main neatins.
+
+
+## CHECKPOINT AUTORITATIV — 2026-11-24, verificare continuare din sesiune nouă
+
+Acest checkpoint supersedează orice afirmație anterioară din document care descrie starea curentă ca și cum billing/RevenueCat/usage metering nu ar fi implementate. Secțiunile istorice se păstrează ca istoric, nu ca stare actuală.
+
+### Repository și CI verificate
+- Repository: `davidlucian-ioan/Aplicatie`.
+- Branch activ: `feature/openai-provider-integration`.
+- PR #55: deschis, draft, target `main`; nu este merged. Nu modifica `main` și nu face merge fără aprobarea explicită a utilizatorului.
+- HEAD verificat: `9a781896cce13410aaa14f982ff3fee05bb76bfb`.
+- La acest HEAD, toate cele 3 workflow-uri GitHub Actions au status completed/conclusion success: Collector Cloud API (run 161), Collector quality suite (run 1204), Collector mobile build (run 309).
+- Fișierele modificate în PR #55 includ Cloud API, migrarea billing, testele cloud, clientul RevenueCat, configurarea nativă Android/iOS și documentația monetizării.
+
+### Starea tehnică actuală
+- OpenAI provider server-side este implementat; cheia API rămâne server-side.
+- Cloud API validează sesiunea Supabase, aplică rate limiting, verifică entitlement Pro și rezervă atomic bugetul lunar înainte de apelul OpenAI; după răspuns face settlement pe baza usage.
+- RevenueCat Capacitor SDK, UI de oferte, purchase/restore și verificare CustomerInfo sunt implementate în branch.
+- Webhook RevenueCat este autentificat, mapează UUID Supabase din app_user_id/original_app_user_id/aliases, verifică entitlement/product allowlist și persistă evenimente idempotent.
+- Migrarea `cloud-api/migrations/001_billing_and_ai_usage.sql` definește entitlements, usage budgets, usage records, billing events, RLS și RPC-uri de rezervare/settlement/webhook.
+- Asocierea contului anonim la identitate recuperabilă, login și avertizarea la ștergerea contului privind abonamentul magazinului sunt implementate în branch.
+- CI verde nu înseamnă că integrarea externă este activată: nu există confirmare că un proiect Supabase live a fost configurat, migrarea aplicată, Cloud API deployat, RevenueCat configurat cu produse reale sau tranzacții sandbox validate.
+
+### Următoarea etapă — fără achiziție de hosting înainte de validare
+1. Audit static țintit pentru fluxurile de restore/purchase, asociere cont, ștergere cont și webhook; verifică explicit scenariile de alias, email neconfirmat, expirare, refund, billing issue/grace period și cont schimbat.
+2. Verifică dependențele mobile și build-urile native pe ultimul HEAD; CI verde este necesar, dar nu înlocuiește testarea pe dispozitive fizice.
+3. Pregătește configurarea Supabase: proiect, Auth, URL/anon key, aplicarea migrației SQL și verificarea RLS/RPC. Nu introduce secrete în repository sau chat.
+4. Pregătește RevenueCat: aplicații, produse lunare/anuale, entitlement exact `pro`, offering, chei publice SDK și webhook cu secret server-side; păstrează Restore Behavior = Keep with original App User ID până când transferul este implementat și testat.
+5. Abia apoi deploy HTTPS pentru Cloud API și teste sandbox end-to-end Android/iOS: purchase, restore după reinstalare, reînnoire, anulare, refund, expirare, billing issue/grace period și ștergerea contului.
+6. Înainte de release: validează backup/sync multi-device (încă neimplementate), criptarea SQLite at-rest, privacy/GDPR, builduri store semnate și metadata de store.
+7. Actualizează acest checkpoint după fiecare etapă majoră, cu commit SHA și workflow IDs; păstrează istoricul, dar marchează clar secțiunile superseded.
+
+### Reguli de continuitate
+- Repository + acest document sunt sursa de adevăr; nu te baza pe memoria conversației pentru status.
+- La începutul fiecărei sesiuni: citește ultimul checkpoint, verifică HEAD/PR și workflow-urile acelui SHA.
+- Înainte de limita conversației: actualizează checkpoint-ul cu ce s-a schimbat, ce a trecut CI și următorul pas concret.
+- Nu declara o configurare externă sau tranzacție reală ca reușită doar pentru că testele mock/CI au trecut.
