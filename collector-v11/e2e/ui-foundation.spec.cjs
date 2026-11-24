@@ -660,3 +660,36 @@ test('Android STT failure never falls back to browser or cloud recognition', asy
   expect(await page.evaluate(() => window.__browserRecognitionStarts)).toBe(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
 });
+
+
+test('Android one-shot STT error preserves final transcript but does not start a Core preview', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__nativeSpeechListeners = {};
+    window.CollectorAndroidSpeech = {
+      isAvailable: () => true,
+      addListener: async (name, listener) => {
+        window.__nativeSpeechListeners[name] = listener;
+        return { remove: async () => { delete window.__nativeSpeechListeners[name]; } };
+      },
+      startListening: async () => ({ sessionId: 'native-dictation-error', startedAt: Date.now() }),
+      stopListening: async () => {},
+    };
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceButton').click();
+  await page.evaluate(() => {
+    window.__nativeSpeechListeners.speechSegment({
+      sessionId: 'native-dictation-error', segmentId: 'dictation-final',
+      text: 'Observație: transcriere parțială', startOffsetMs: 0, endOffsetMs: 700,
+      startedAt: 3000000, endedAt: 3000700, confidence: 0.7,
+      language: 'ro-RO', provider: 'android-speech-recognizer-on-device',
+    });
+    window.__nativeSpeechListeners.speechState?.({
+      sessionId: 'native-dictation-error', status: 'error', message: 'recognizer disconnected'
+    });
+  });
+  await expect(page.locator('#commandInput')).toHaveValue('Observație: transcriere parțială');
+  await expect(page.locator('#confirmCoreCommand')).toHaveCount(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+});
