@@ -24,7 +24,7 @@ test('configurează descrierea microfonului iOS fără duplicate',async()=>{
  try{
   const dir=path.join(root,'ios','App','App');await fs.mkdir(dir,{recursive:true});
   const file=path.join(dir,'Info.plist');
-  await fs.writeFile(file,'<?xml version="1.0"?><plist><dict><key>CFBundleName</key><string>Collector</string></dict></plist>');
+  await fs.writeFile(file,'<?xml version="1.0"?><plist><dict><key>CFBundleName</key><string>Collector</string><key>UILaunchScreen</key><dict><key>UIColorName</key><string>Launch</string></dict></dict></plist>');
   await configureNativeProjects({root,platforms:['ios']});
   await configureNativeProjects({root,platforms:['ios']});
   const xml=await fs.readFile(file,'utf8');

@@ -23,7 +23,8 @@ async function configureNativeProjects({root=__dirname,platforms=[]}={}){
    if(!xml.includes('<key>'+key+'</key>')){
     const entry='    <key>'+key+'</key>\n    <string>Collector folosește microfonul pentru înregistrări audio inițiate de tine.</string>\n';
     if(!xml.includes('</dict>'))throw new Error('Info.plist nu conține dicționarul principal.');
-    xml=xml.replace('</dict>',entry+'</dict>');
+    const closing=xml.lastIndexOf('</dict>');
+    xml=xml.slice(0,closing)+entry+xml.slice(closing);
     await fs.writeFile(file,xml);
    }
    completed.push('ios');
