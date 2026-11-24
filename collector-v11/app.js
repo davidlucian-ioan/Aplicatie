@@ -313,6 +313,15 @@ async function addWorkAlarm(){
  finally{button.disabled=false}
 }
 document.getElementById('workAlarmAdd')?.addEventListener('click',addWorkAlarm);
+document.querySelectorAll('[data-alarm-minutes]').forEach(button=>button.addEventListener('click',async()=>{
+ const status=document.getElementById('workAlarmStatus');
+ if(!window.CollectorAndroidRecorder?.isAvailable?.()){status.textContent='Alarmele locale necesită aplicația Android.';return}
+ button.disabled=true;
+ const minutes=Number(button.dataset.alarmMinutes);
+ try{const triggerAtMs=Date.now()+minutes*60000;await window.CollectorAndroidRecorder.scheduleAlarm('Reminder în '+minutes+' minute',triggerAtMs);status.textContent='Reminder programat pentru '+new Date(triggerAtMs).toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'});await renderWorkAlarms()}
+ catch(error){status.textContent='Nu am putut programa reminderul: '+error.message}
+ finally{button.disabled=false}
+}));
 (function setAlarmMin(){const input=document.getElementById('workAlarmWhen');if(input){const now=new Date(Date.now()-new Date().getTimezoneOffset()*60000);input.min=now.toISOString().slice(0,16)}})();
 renderWorkAlarms();
 
