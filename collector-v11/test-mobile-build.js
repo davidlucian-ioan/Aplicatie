@@ -20,6 +20,10 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   assert.ok(html.includes('storage-adapter.js'));
   assert.ok(html.includes('reminders.js'));
   assert.ok(html.includes('ai/core-port-browser.js'));
+  const capacitorConfig=JSON.parse(await fs.readFile(path.join(__dirname,'capacitor.config.json'),'utf8'));
+  assert.equal(capacitorConfig.appName,'Collector');
+  assert.equal(capacitorConfig.plugins.CapacitorSQLite.androidIsEncryption,false);
+  assert.equal(capacitorConfig.plugins.CapacitorSQLite.iosIsEncryption,false);
   const notificationSource=path.join(__dirname,'node_modules','@capacitor','local-notifications','dist','plugin.js');
   let notificationsInstalled=true;
   try{await fs.access(notificationSource)}catch{notificationsInstalled=false}
