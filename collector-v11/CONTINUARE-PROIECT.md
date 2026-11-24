@@ -222,12 +222,11 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- HEAD: `6898fe60f9ba946f4e62a589bad0def8e991b4e4`.
-- Auditul a găsit că funcția `collector_apply_revenuecat_event` avea încă `as $` invalid. Corecția este în commitul `563adc5`; verificarea fișierului confirmă delimitatorul `as $$`.
-- Testul static a fost întărit în `6898fe6`: respinge orice `as $` singular, nu doar forma urmată de newline, și verifică perechile de delimitatori.
-- CI pentru HEAD curent: încă nu sunt returnate workflow runs prin endpointul filtrat PR; nu declarăm build/test green. Verifică din nou înainte de următorul pas.
-- Migrarea nu a fost executată într-un PostgreSQL real. Testul static nu înlocuiește validarea parserului și a permisiunilor/RLS.
+- Corecția finală a delimiterului PL/pgSQL este în commitul `80a61a4`. Atenție: prima tentativă a produs tot un singur `$` din cauza regulii de substituție JavaScript; am detectat asta prin recitirea fișierului din GitHub și am corectat folosind înlocuire prin callback.
+- Migrarea verificată acum nu mai conține niciun `as $` singular; testul static respinge explicit orice delimiter singular după `AS` și verifică perechile `$$`.
+- CI pentru HEAD anterior `3e085d0`: Quality Suite și Mobile Build pending; Cloud API pending pe commitul anterior `6898fe6`. Commitul SQL nou trebuie să primească propriile workflow-uri.
+- Migrarea SQL încă nu a fost executată într-un PostgreSQL real; validarea regex/static nu substituie rularea parserului și verificarea RLS/RPC.
 - RevenueCat lifecycle: CUSTOMER_SUPPORT refund revocă imediat; anulare normală, billing issue/grace și SUBSCRIPTION_PAUSED păstrează accesul până la expirare; expirare/refund revocă.
 - Nevalidat extern: Supabase live/RLS/RPC, deploy Cloud API și tranzacții RevenueCat sandbox.
-- Următorii pași: verifică workflow runs pe HEAD; rulează testele Cloud API; dacă există acces la Postgres de test, aplică migrarea; continuă auditul purchase/restore/webhook și corectează orice defect confirmat.
+- Următorii pași: verifică workflow runs pe HEAD curent; rulează testele Cloud API; aplică migrarea într-un PostgreSQL de test dacă există mediu autorizat; continuă auditul purchase/restore/webhook și repară defectele confirmate.
 - Nu face merge în `main` fără aprobarea explicită și fără CI/E2E complet.
