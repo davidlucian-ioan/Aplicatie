@@ -127,7 +127,11 @@ test('Orchestrator injectează identitatea de transport și nu cere modelului id
 
 
 test('răspunsurile despre datele operaționale sunt compuse numai după citirea Core', async () => {
-  const core = makeCore({ async read(request) { return { balances: [{ quantity: 7 }], request }; } });
+  const core = makeCore();
+  core.adapter.corePort.read = async request => {
+    core.calls.read++;
+    return { balances: [{ quantity: 7 }], request };
+  };
   const { app, provider } = makeApp({ core, responses: [{
     intent: 'answer', answer: 'Am 100 de exemplare.', readRequest: { kind: 'balances', populationId: 'p1' }
   }] });
