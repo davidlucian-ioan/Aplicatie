@@ -38,8 +38,16 @@ async function configureNativeProjects({root=__dirname,platforms=[]}={}){
     const manifest=xml.match(/<manifest\b[^>]*>/);
     if(!manifest)throw new Error('AndroidManifest.xml nu conține elementul manifest.');
     xml=xml.replace(manifest[0],manifest[0]+'\n    <uses-permission android:name="'+permission+'" />');
-    await fs.writeFile(file,xml);
    }
+   const activity=xml.match(/<activity\b[^>]*android:name="[^"]*MainActivity"[^>]*>/);
+   if(!activity)throw new Error('AndroidManifest.xml nu conține activitatea MainActivity.');
+   if(!/android:launchMode="(?:standard|singleTop)"/.test(activity[0])){
+    const updated=activity[0].includes('android:launchMode=')
+      ?activity[0].replace(/android:launchMode="[^"]*"/,'android:launchMode="standard"')
+      :activity[0].replace(/>$/,' android:launchMode="standard">');
+    xml=xml.replace(activity[0],updated);
+   }
+   await fs.writeFile(file,xml);
    completed.push('android');
   }else if(platform==='ios'){
    const file=path.join(root,'ios','App','App','Info.plist');
