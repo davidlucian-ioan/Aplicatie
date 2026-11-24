@@ -73,7 +73,7 @@ test('mobile bundle respinge directoare de ieșire în afara proiectului',async(
 
 test('iOS build installs Supabase Secure Storage and esbuild for the native auth bundle',async()=>{
  const workflow=await fs.readFile(path.join(__dirname,'..','.github','workflows','collector-mobile-build.yml'),'utf8');
- const iosSection=workflow.split('\\n  ios:\\n')[1];
+ const iosSection=workflow.split('\n  ios:\n')[1];
  assert.ok(iosSection,'iOS workflow job must exist');
  for(const dependency of ['@supabase/supabase-js@2.119.2','@aparajita/capacitor-secure-storage@8.0.1','esbuild@0.28.2']){
   assert.ok(iosSection.includes(dependency),'iOS build must install '+dependency);
