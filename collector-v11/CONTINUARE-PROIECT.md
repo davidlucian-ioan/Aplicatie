@@ -105,13 +105,13 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Teste E2E pentru referință contextuală, lipsă de context, TTL, comenzi manuale care nu reîmprospătează contextul și păstrarea confirmării explicite.
 - Confirmarea Core revalidează jurnalul local înainte de commit. Dacă o altă sesiune a modificat jurnalul după preview, preview-ul este refăcut și se cere o nouă confirmare; store-ul refuză să suprascrie un jurnal mai nou.
 - Test E2E cu vânzare concurentă între preview și confirmare: prima confirmare reface preview-ul, a doua confirmă noua stare; nu se pierde evenimentul extern.
-- Teste E2E pentru ținte inexistente, entități de tip greșit și destinații care nu sunt locații; lotul este respins integral.
-- Quality CI: PASS, run 45404826835; 45 teste Chromium au trecut.
-- Android debug build: PASS, run 45404826831.
-- Head verificat: `d4aad67713ab41cc1713c4faa1aad8ca0d145285`; PR #47 rămâne deschis și mergeable, fără integrare în `main`.
+- Teste E2E pentru ținte inexistente, entități de tip greșit și destinații care nu sunt locații; lotul este respins integral. Eșecul de persistență în confirmare nu publică starea nouă și nu creează context vocal.
+- Quality CI: PASS, run 45405242939; 46 teste Chromium au trecut.
+- Android debug build: PASS, run 45405242929.
+- Head verificat: `1eb403b333ccb8c15030fedbc4d7d9cb13450dfa`; PR #47 rămâne deschis și mergeable, fără integrare în `main`.
 
 ### Următorii pași
-1. Extinde testele de consistență pentru concurență între două sesiuni și eșecuri de persistență în timpul commit-ului.
+1. Extinde testele de consistență pentru concurență simultană între două sesiuni și recuperarea după eșec de persistență.
 2. Evaluează STT offline pe Android separat de browser SpeechRecognition; nu declara suport offline înainte de testare pe dispozitiv.
 3. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
 4. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
