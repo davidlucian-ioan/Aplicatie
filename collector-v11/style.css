@@ -474,3 +474,7 @@ header p{font-size:13px;line-height:1.4}
 .think-recent-panel .link{white-space:nowrap}
 @media(max-width:850px){.think-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.think-hero{align-items:flex-start;flex-direction:column;padding:20px 17px}.think-return-work{width:100%}.think-shortcuts{grid-template-columns:1fr 1fr}.think-panel-heading{gap:8px}.think-period{font-size:9px}.think-activity-chart{gap:5px}.think-day{height:112px}.think-day-track i{width:65%}.think-recent-panel .think-panel-heading{align-items:flex-start;flex-direction:column}}
+
+.voice-context{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.voice-context span{min-width:0;flex:1}
+.voice-context button{flex:0 0 auto}
