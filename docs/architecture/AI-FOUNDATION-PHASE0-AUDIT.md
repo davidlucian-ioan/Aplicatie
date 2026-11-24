@@ -2,8 +2,8 @@
 
 **Bază auditată:** Collector MVP v11 + AI Foundation scaffold Faza 1  
 **Contract analizat:** `collector.command.v1`  
-**Data:** 21 noiembrie 2026  
-**Scop:** verificarea contractului propus față de `engine.js` și fluxul actual din `app.js`, fără conectarea unui provider AI real și fără activarea write path-ului.
+**Data:** 24 noiembrie 2026  
+**Scop:** verificarea contractului față de `engine.js`, hardening Core Port și delimitarea condițiilor pentru conectarea unui provider AI real.
 
 ## 1. Rezumat executiv
 
@@ -26,7 +26,7 @@ Scheletul AI este separat de motor și testele existente trec. Totuși, contract
 
 `commit` primește **starea curentă și un eveniment complet**, aplică toate operațiile pe o copie și returnează noua stare. Nu persistă singur datele.
 
-În aplicația actuală, `app.js` deține starea `db` în memorie și o persistă în `localStorage`. Nu există încă un port public stabil de citire/scriere pentru AI.
+În aplicația actuală, `app.js` deține starea `db` și o persistă în `localStorage`. `ensureAICorePort()` expune către fluxul local de preview/confirmare numai `getState`, `persistState` și `publishState`; `ai/core-port-browser.js` este încărcat separat, iar scrierea publică starea numai după persistența reușită.
 
 ## 3. Maparea obligatorie a comenzii AI
 
@@ -74,12 +74,13 @@ Câmpurile specifice unei operații se află în `operation.data`. Exemplul ilus
 
 ## 5. Limite de contract care trebuie rezolvate înainte de write path
 
-1. `validateCommand` verifică doar existența câtorva câmpuri și tipul numelui operației. Nu validează schema `data`, ID-urile țintelor sau allowlist-ul operațiilor.
-2. `requiresConfirmation` nu este impus de `decision-gate.js` sau `orchestrator.js`. Opțiunea `{ execute: true }` execută orice propunere validă structural. Confirmarea trebuie impusă de politica Core/aplicației, nu lăsată la discreția modelului.
-3. `CoreAdapter.read` nu validează forma datelor returnate.
-4. Nu există încă un `CorePort` care să expună controlat citirea stării, preview-ul și persistarea.
-5. În `app.js`, funcția curentă `commit` atribuie `db = result.db` înainte să verifice succesul `localStorage.setItem`. La eșecul persistenței, starea din memorie poate rămâne diferită de starea persistentă. Portul nou trebuie să persiste cu succes înainte de publicarea noii stări în UI.
-6. Comenzile AI trebuie limitate la operațiile Core permise. Faptul că motorul respinge operațiile necunoscute nu înlocuiește allowlist-ul de securitate.
+1. Rezolvat în cod: `validateCommand` verifică forma obiectelor, `operation.data`, lungimea și numărul operațiilor, `idempotencyKey`, `turnId`, `payload`, `certainty` și `requiresConfirmation`. Validarea structurală este completată de allowlist-ul Core Port și de validarea de domeniu din Core.
+2. Rezolvat în orchestrator: propunerea nu poate executa direct. Se păstrează comanda exactă în context și `confirm()` execută numai comanda aferentă aceluiași `turnId`, cu `confirmed: true`. `idempotencyKey` este înlocuit cu un identificator venit din gateway-ul de încredere, nu din output-ul modelului.
+3. Rezolvat: `CoreAdapter.read` verifică cererea și clonează rezultatul; read requests sunt limitate la `entities`, `balances`, `finance`, `events`, iar istoricul are limită 1–100.
+4. Core Port există în variante Node și browser. Ambele au allowlist/risk policy aliniate, preview fără persistare, execute cu idempotency, persistență înainte de publicare și serializare a scrierilor concurente.
+5. Corecție de audit: implementarea curentă `app.js` persistă candidatul prin `persistRaw(result.db)` înainte de `db = result.db`; vechea observație că UI-ul era actualizat înaintea persistenței nu mai descrie codul curent. Core Port respectă aceeași ordine.
+6. Allowlist explicit: `entity.create`, `entity.rename`, `attribute.set`, `attribute.define`, `relation.create`, `relation.close`, `relation.move`, `stock.change`, `stock.adjust`, `finance.record`, `event.note`, `event.attribute.set`, `relation.attribute.set`. Operațiile cu impact ridicat cer confirmare; operațiile în afara allowlist-ului sunt respinse înainte de Core.
+7. Răspunsurile despre datele operaționale nu mai pot folosi textul generat înainte de citire: dacă există `readRequest`, Orchestrator citește întâi Core și solicită `provider.respond` cu rezultatul. Fără această metodă, întoarce datele Core fără a prezenta răspunsul inițial ca fapt.
 
 ## 6. Operații recunoscute de `engine.js`
 
@@ -111,9 +112,21 @@ Faza 0 poate fi închisă numai după ce:
 - [x] forma reală a operațiilor și envelope-ul evenimentului au fost identificate;
 - [x] maparea idempotency a fost testată;
 - [x] atomicitatea operațiilor compuse a fost testată;
-- [ ] schema `collector.command.v1` este actualizată cu forma Core reală;
-- [ ] allowlist-ul operațiilor AI și politica de confirmare sunt definite;
-- [ ] Core Port read/preview/execute este proiectat și testat cu persistența aplicației;
-- [ ] testele negative confirmă că un model nu poate ocoli confirmarea sau autorizarea.
+- [x] schema `collector.command.v1` este actualizată cu forma Core reală;
+- [x] allowlist-ul operațiilor AI și politica de confirmare sunt definite;
+- [x] Core Port read/preview/execute este implementat și are teste pentru persistență, concurență și parity Node/browser;
+- [x] testele negative verifică propunerea fără execuție, confirmarea explicită, expirarea/anularea propunerii, read scope și respingerea operațiilor nepermise.
 
-**Concluzie:** nu conectăm încă providerul AI și nu activăm write path-ul. Următoarea lucrare este să actualizăm contractul și să implementăm un Core Port controlat, cu preview fără persistare și execute cu idempotency, validare și persistență atomică.
+**Concluzie actualizată:** principalele blocaje de contract și Core Port au fost rezolvate în branch-ul `feature/ai-foundation-core-contract`, iar testele de regresie au fost adăugate. Faza 0 rămâne în așteptarea CI pentru branch-ul curent. Nu există încă provider real și nu este activată interpretarea AI în UI. Următoarea fază este provider adapter + gateway server-side, după alegerea providerului și stabilirea politicii de date.
+
+
+## 9. Implementare hardening 2026-11-24 — branch `feature/ai-foundation-core-contract`
+
+- Contractele de input, interpretare, read request, comandă și rezultat Core au validare strictă și limite explicite.
+- Orchestratorul nu mai execută printr-un flag generic `execute`. Păstrează propunerea și confirmă numai comanda exactă pentru `turnId)-ul afișat.
+- ID-ul de idempotency este generat din `requestId` furnizat de gateway-ul de încredere; modelul nu îl poate alege sau reutiliza arbitrar.
+- Întrebările despre starea Collector sunt grounding-first: Core read precede orice sumarizare. Textul modelului generat înainte de retrieval nu este prezentat drept fapt.
+- Core Port Node și Browser serializează scrierile, returnează `rejected` pentru erorile Core, `unavailable` pentru eșec de persistare, și `committed` cu warning dacă UI publication eșuează după persistarea durabilă.
+- Browser și Node au allowlist și high-risk policy verificate prin test de parity.
+- Teste noi: validarea contractului, confirmarea exactă, anulare/expirare, grounding după retrieval, erori Core, concurență, eșec de persistare și parity browser/Node.
+- Rezultatele CI pentru noul branch sunt încă pending; testele nu sunt declarate PASS până la confirmarea GitHub Actions.
