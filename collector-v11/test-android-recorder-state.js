@@ -15,7 +15,7 @@ test('native recorder distinguishes a clean inactive state from a missing or cor
   assert.match(source, /unknown\.put\("status", "unknown"\)/);
   assert.match(source, /unknown\.put\("status", "inactive"\)/);
   assert.match(source, /boolean knownInactive = "inactive"\.equals\(status\)[\s\S]*"complete"\.equals\(status\)[\s\S]*"interrupted"\.equals\(status\)/);
-  assert.match(source, /if \(!knownInactive && \(existing\.length\(\) > 0 \|\| activeStateFile\.exists\(\) \|\| isRecorderServiceRunning\(\)\)\)/);
+  assert.match(source, /if \(!knownInactive && \(existing\.length\(\) > 0 \|\| activeStateFile\.exists\(\)\)\)/);
   assert.match(source, /Nu pot confirma în siguranță starea reportofonului/);
   assert.match(source, /boolean serviceRunning = isRecorderServiceRunning\(\)/);
   assert.match(source, /if \(serviceRunning\) \{[\s\S]*Serviciul reportofonului încă rulează/);
