@@ -1,6 +1,6 @@
 (function(global){
  'use strict';
- const DB_NAME='collector-audio-assets',DB_VERSION=1,STORE='recordings';
+ const DB_NAME='collector-audio-assets',DB_VERSION=1,STORE='recordings',INDEX_KEY='collector_audio_index_v1';
  let opening=null;
  function openDb(){
   if(!('indexedDB' in global))return Promise.reject(new Error('IndexedDB nu este disponibil în acest browser.'));
@@ -28,18 +28,99 @@
   const {audioData,...metadata}=record;
   return {...metadata,blob:new Blob([audioData],{type:record.mimeType||'application/octet-stream'})};
  }
- const api={
+ const webStore={
+  async initialize(){return true},
   async save(record){
-   if(!record?.id||!(record.blob instanceof Blob)||!record.blob.size)return Promise.reject(new Error('Înregistrarea audio este invalidă sau goală.'));
-   // Store bytes rather than Blob objects: WebKit has had inconsistent Blob structured-clone
-   // behavior in IndexedDB. ArrayBuffer is consistently structured-cloneable across engines.
-   const {blob,...metadata}=record;
-   const audioData=await blob.arrayBuffer();
+   if(!record?.id||!(record.blob instanceof Blob)||!record.blob.size)throw new Error('Înregistrarea audio este invalidă sau goală.');
+   const {blob,...metadata}=record,audioData=await blob.arrayBuffer();
    return transaction('readwrite',store=>store.put({...metadata,audioData}));
   },
   get(id){return transaction('readonly',store=>store.get(id)).then(restoreBlob)},
   list(){return transaction('readonly',store=>store.getAll()).then(records=>records.map(restoreBlob).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))))},
   remove(id){return transaction('readwrite',store=>store.delete(id))}
  };
- global.CollectorAudioStore=Object.freeze(api);
-})(window);
+ function safeFileName(id){return String(id).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,100)||'audio'}
+ async function blobToBase64(blob){
+  const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';
+  for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));
+  return global.btoa(binary);
+ }
+ function createNativeStore({filesystem,storage}={}){
+  if(!filesystem||!storage)throw new TypeError('Filesystem sau StorageAdapter nu este disponibil pentru audio nativ.');
+  let initialization=null;
+  async function readIndex(){
+   const raw=await storage.readRaw(INDEX_KEY);
+   if(raw===null)return [];
+   const rows=JSON.parse(raw);
+   if(!Array.isArray(rows)||rows.some(row=>!row||typeof row.id!=='string'||typeof row.filePath!=='string'||typeof row.uri!=='string'||typeof row.createdAt!=='string'))throw new Error('Indexul audio nativ este invalid. Datele nu au fost suprascrise.');
+   return rows;
+  }
+  async function writeIndex(rows){await storage.writeRaw(INDEX_KEY,JSON.stringify(rows));return rows}
+  async function ensureDirectory(){await filesystem.mkdir({path:'collector-audio',directory:'DATA',recursive:true})}
+  async function migrateLegacy(){
+   const rows=await readIndex(),legacy=await webStore.list();let current=rows.slice();
+   for(const old of legacy){
+    if(current.some(row=>row.id===old.id)){await webStore.remove(old.id);continue}
+    if(!(old.blob instanceof Blob)||!old.blob.size)continue;
+    const filePath='collector-audio/legacy-'+safeFileName(old.id)+'.webm';
+    await filesystem.writeFile({path:filePath,data:await blobToBase64(old.blob),directory:'DATA',encoding:'base64',recursive:true});
+    const location=await filesystem.getUri({path:filePath,directory:'DATA'});
+    const row={id:old.id,createdAt:old.createdAt,durationMs:Number(old.durationMs)||0,mimeType:old.mimeType||'audio/webm',size:Number(old.size)||old.blob.size,filePath,uri:location.uri};
+    current=[...current,row];await writeIndex(current);await webStore.remove(old.id);
+   }
+  }
+  async function initialize(){
+   if(!initialization)initialization=(async()=>{await ensureDirectory();await migrateLegacy();return true})().catch(error=>{initialization=null;throw error});
+   return initialization;
+  }
+  async function saveNative(record){
+   await initialize();
+   if(!record?.id||!record.filePath||!record.uri)throw new Error('Referința fișierului audio nativ este invalidă.');
+   const rows=await readIndex(),next=rows.filter(row=>row.id!==record.id);
+   const metadata={id:record.id,createdAt:record.createdAt||new Date().toISOString(),durationMs:Number(record.durationMs)||0,mimeType:record.mimeType||'audio/aac',size:Number(record.size)||0,filePath:record.filePath,uri:record.uri};
+   await writeIndex([...next,metadata]);return metadata;
+  }
+  return Object.freeze({
+   initialize,
+   async save(record){
+    await initialize();
+    if(!record?.id||!(record.blob instanceof Blob)||!record.blob.size)throw new Error('Înregistrarea audio este invalidă sau goală.');
+    const filePath='collector-audio/'+safeFileName(record.id)+'.webm';
+    await filesystem.writeFile({path:filePath,data:await blobToBase64(record.blob),directory:'DATA',encoding:'base64',recursive:true});
+    const location=await filesystem.getUri({path:filePath,directory:'DATA'});
+    return saveNative({...record,filePath,uri:location.uri});
+   },
+   async saveNative,
+   async get(id){await initialize();const row=(await readIndex()).find(item=>item.id===id);return row||webStore.get(id)},
+   async list(){
+    await initialize();
+    const rows=await readIndex(),legacy=await webStore.list(),known=new Set(rows.map(row=>row.id));
+    return [...rows,...legacy.filter(row=>!known.has(row.id))].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+   },
+   async remove(id){
+    await initialize();
+    const rows=await readIndex(),row=rows.find(item=>item.id===id);
+    if(!row)return webStore.remove(id);
+    try{await filesystem.deleteFile({path:row.filePath,directory:'DATA'})}catch(error){if(!/not.?found|does not exist|no such file/i.test(String(error?.message||error)))throw error}
+    await writeIndex(rows.filter(item=>item.id!==id));return true;
+   }
+  });
+ }
+ let activeStore=webStore;
+ const api=Object.freeze({
+  async initialize({capacitor=global.Capacitor,filesystem=capacitor?.Plugins?.Filesystem,storage=global.CollectorStorage}={}){
+   if(typeof capacitor?.isNativePlatform==='function'&&capacitor.isNativePlatform()){
+    activeStore=createNativeStore({filesystem,storage});
+    await activeStore.initialize();
+   }else{activeStore=webStore;await activeStore.initialize()}
+   return true;
+  },
+  save(record){return activeStore.save(record)},
+  saveNative(record){if(typeof activeStore.saveNative!=='function')return Promise.reject(new Error('Stocarea audio nativă nu este inițializată.'));return activeStore.saveNative(record)},
+  get(id){return activeStore.get(id)},
+  list(){return activeStore.list()},
+  remove(id){return activeStore.remove(id)}
+ });
+ global.CollectorAudioStore=api;
+ if(typeof module!=='undefined'&&module.exports)module.exports={createNativeStore,webStore};
+})(typeof window!=='undefined'?window:globalThis);
