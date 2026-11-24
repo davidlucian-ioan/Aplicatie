@@ -368,6 +368,83 @@ test('voice context uses only the last confirmed target and expires after 30 min
   expect(await page.evaluate(() => localStorage.getItem('collector_voice_context_v1'))).toBeNull();
 });
 
+test('voice preview is revalidated and requires confirmation again after another session changes stock', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Plantă concurență');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+  const plantId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Plantă concurență').id);
+
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('.nav[data-page="inventory"]').click();
+  await page.locator('#inventory .toolbar button.secondary').click();
+  await page.locator('#popName').fill('Fancy Tiger concurență');
+  await page.locator('#popType').fill('Caridina');
+  await page.locator('#popQty').fill('3');
+  await page.locator('#modal button.primary').click();
+  const populationId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Fancy Tiger concurență').id);
+  const baselineCount = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length);
+
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrases = ['setează pH pentru Plantă concurență = 6.4', 'am vândut 1 Fancy Tiger concurență'].map(transcript => {
+      const result = [{ transcript }]; result.isFinal = true; return result;
+    });
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: phrases });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(baselineCount);
+
+  await page.evaluate((population) => {
+    const state = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    const event = {
+      id: 'external-concurrent-stock-sale',
+      type: 'external.stock.sale',
+      timestamp: new Date().toISOString(),
+      source: 'user',
+      actor: 'other-session',
+      certainty: 'certain',
+      operations: [{ operation: 'stock.change', data: { populationId: population, action: 'sell', locationId: null, quantity: 1, disposition: 'sold' } }]
+    };
+    const result = window.CollectorEngine.commit(state, event);
+    localStorage.setItem('collector_mvp_v2', JSON.stringify(result.db));
+  }, populationId);
+
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Preview actualizat');
+  await expect(page.locator('#confirmCoreCommand')).toContainText('Confirmă preview-ul actualizat');
+  const afterRefresh = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(afterRefresh.events).toHaveLength(baselineCount + 1);
+  expect(afterRefresh.entities.find(entity => entity.id === plantId).attributes?.pH).toBeUndefined();
+  const balanceAfterExternalSale = await page.evaluate((population) => window.CollectorEngine.balances(JSON.parse(localStorage.getItem('collector_mvp_v2'))).filter(row => row.populationId === population && row.disposition === 'active').reduce((sum, row) => sum + row.quantity, 0), populationId);
+  expect(balanceAfterExternalSale).toBe(2);
+
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(saved.events).toHaveLength(baselineCount + 2);
+  expect(saved.entities.find(entity => entity.id === plantId).attributes.pH).toBe(6.4);
+  const finalBalance = await page.evaluate((population) => window.CollectorEngine.balances(JSON.parse(localStorage.getItem('collector_mvp_v2'))).filter(row => row.populationId === population && row.disposition === 'active').reduce((sum, row) => sum + row.quantity, 0), populationId);
+  expect(finalBalance).toBe(1);
+});
+
 test('voice batch fails closed for missing populations and non-location targets', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
