@@ -27,6 +27,13 @@ function addPrivacyManifestToProject(project){
  return project;
 }
 
+function enableInAppPurchaseCapability(project){
+ if(project.includes('com.apple.InAppPurchase'))return project;
+ const pattern=/(TargetAttributes = \{\s*[A-F0-9]{24} = \{)/;
+ if(!pattern.test(project))throw new Error('TargetAttributes iOS nu a putut fi identificat pentru In-App Purchase.');
+ return project.replace(pattern,'$1\n\t\t\t\tSystemCapabilities = {\n\t\t\t\t\tcom.apple.InAppPurchase = { enabled = 1; };\n\t\t\t\t};');
+}
+
 async function configureNativeProjects({root=__dirname,platforms=[]}={}){
  const completed=[];
  for(const platform of platforms){
@@ -73,7 +80,7 @@ async function configureNativeProjects({root=__dirname,platforms=[]}={}){
    await fs.writeFile(privacyPath,PRIVACY_MANIFEST);
    const projectPath=path.join(root,'ios','App','App.xcodeproj','project.pbxproj');
    const project=await fs.readFile(projectPath,'utf8');
-   await fs.writeFile(projectPath,addPrivacyManifestToProject(project));
+   await fs.writeFile(projectPath,enableInAppPurchaseCapability(addPrivacyManifestToProject(project)));
    completed.push('ios');
   }else{
    throw new Error('Platformă nativă necunoscută: '+platform);
@@ -91,4 +98,4 @@ if(require.main===module){
   process.exitCode=1;
  });
 }
-module.exports={configureNativeProjects,addPrivacyManifestToProject,PRIVACY_MANIFEST};
+module.exports={configureNativeProjects,addPrivacyManifestToProject,enableInAppPurchaseCapability,PRIVACY_MANIFEST};
