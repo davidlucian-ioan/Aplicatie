@@ -43,7 +43,7 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - OpenAI primește textul comenzii și metadate limitate de entități/atribute, nu jurnalul complet.
 - Propunerile trec prin BrowserCorePort preview și confirmare explicită. Nu există execuție automată.
 - Endpoint-ul folosește `store:false`, limită de corp, rate limit și verificare Origin.
-- Teste provider cu fetch mock adăugate; CI GitHub Actions este în curs de verificare. Nu s-a efectuat încă un apel cu o cheie API reală.
+- Teste provider cu fetch mock și teste de wiring/siguranță adăugate; CI a identificat și a ghidat corectarea unei regresii în testul nou. Ultimul run trebuie reverificat după commitul curent. Nu s-a efectuat încă un apel cu o cheie API reală.
 
 ## Ce nu este încă finalizat
 1. Verifică finalizarea GitHub Actions pentru branch-ul `feature/openai-provider-integration`; remediază orice regresie înainte de PR.
@@ -55,11 +55,10 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 7. Verifică problema anterioară de populații/solduri: diferența dintre cantitatea populației și soldul derivat trebuie explicată și validată pe date reale, nu doar presupusă.
 
 ## Instrucțiuni pentru următoarea sesiune
-- Începe prin a citi acest fișier și `README.md`.
-- Nu cere utilizatorului să reexplice proiectul, deciziile, arhitectura sau istoricul versiunilor.
-- Nu cere să repete pași deja efectuați.
-- Prima acțiune tehnică: conectează/verifică GitHub și inspectează repository-ul `Aplicatie`, branch-ul implicit și ultimul commit; apoi compară cu pachetul v0.7.
-- Nu pretinde că v0.7 este în GitHub până când un commit/PR este confirmat.
+- Continuă pe branch-ul `feature/openai-provider-integration` până când testele CI trec.
+- Nu modifica direct `main` și nu crea PR înainte de verificarea CI.
+- Păstrează D-001–D-044 și separarea strictă AI/Core.
+- Nu cere utilizatorului să repete contextul sau pașii deja documentați.
 - Utilizatorul nu este programator: explică pașii operaționali în română, unul câte unul, fără jargon inutil.
 
 ## Fișiere de pornire locală
