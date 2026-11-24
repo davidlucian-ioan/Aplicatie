@@ -45,6 +45,7 @@ create or replace function public.collector_reserve_ai_usage(
 declare
   v_entitlement public.collector_entitlements%rowtype;
   v_budget public.collector_ai_budgets%rowtype;
+  v_stale_reserved bigint := 0;
 begin
   if p_budget_microusd < 0 or p_reserve_microusd <= 0 or p_period_end <= p_period_start then
     raise exception 'invalid_usage_budget';
@@ -62,6 +63,19 @@ begin
   select * into v_budget from public.collector_ai_budgets
     where user_id=p_user_id and period_start=p_period_start for update;
 
+  -- Release reservations abandoned by crashed/timed-out workers after a 10-minute safety window.
+  select coalesce(sum(reserved_microusd),0) into v_stale_reserved
+    from public.collector_ai_usage
+    where user_id=p_user_id and period_start=p_period_start and status='reserved'
+      and created_at < now()-interval '10 minutes';
+  if v_stale_reserved > 0 then
+    update public.collector_ai_usage set status='failed',settled_at=now()
+      where user_id=p_user_id and period_start=p_period_start and status='reserved'
+        and created_at < now()-interval '10 minutes';
+    update public.collector_ai_budgets set reserved_microusd=greatest(0,reserved_microusd-v_stale_reserved),
+      updated_at=now() where user_id=p_user_id and period_start=p_period_start;
+    v_budget.reserved_microusd := greatest(0,v_budget.reserved_microusd-v_stale_reserved);
+  end if;
   if exists(select 1 from public.collector_ai_usage where request_id=p_request_id) then
     return jsonb_build_object('allowed', false, 'reason', 'duplicate_request');
   end if;
