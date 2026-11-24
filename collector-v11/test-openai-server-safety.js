@@ -21,3 +21,9 @@ test('secretul local este exclus din Git',()=>{
  const ignore=fs.readFileSync(path.join(__dirname,'.gitignore'),'utf8');
  assert.match(ignore,/^\.env$/m);
 });
+
+test('serverul nu publică fișierul .env prin ruta statică',()=>{
+ const server=fs.readFileSync(path.join(__dirname,'server.js'),'utf8');
+ assert.ok(server.includes("pathname === '/.env'"));
+ assert.ok(server.includes("pathname !== '/.env.example'"));
+});
