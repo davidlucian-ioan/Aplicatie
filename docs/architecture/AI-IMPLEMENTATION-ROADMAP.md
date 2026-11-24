@@ -31,7 +31,7 @@ Status: implemented in `feature/ai-foundation-core-contract`; CI validation pend
 
 ## Gate B — reliable voice input
 
-Status: partially implemented.
+Status: native on-device Romanian STT runtime implemented in the working branch; CI and physical-device validation pending.
 
 - [x] Local audio capture and playback.
 - [x] Android foreground recorder architecture and permission flow.
@@ -74,8 +74,27 @@ Status: not started; provider choice intentionally remains open.
 ## Next execution order
 
 1. Merge/validate the safe Core boundary PR after CI.
-2. Finish actual Android on-device Romanian STT and timestamp-linked transcript.
-3. Run a Romanian quality benchmark and document the result.
-4. Select provider mode and data policy.
-5. Implement the server-side provider gateway and connect the Orchestrator.
-6. Add AI UI to WORK, then expand to THINK/read-only analytics.
+2. Validate the native STT runtime and microphone lock on physical Android devices; fix any device-specific issues.
+3. Design and implement a unified PCM capture pipeline if transcript-to-audio linking is required; do not claim current `SpeechRecognizer` segments are linked to the recorder file.
+4. Run a Romanian quality benchmark and document the result.
+5. Select provider mode and data policy.
+6. Implement the server-side provider gateway and connect the Orchestrator.
+7. Add AI UI to WORK, then expand to THINK/read-only analytics.
+
+
+## 2026-11-24 — native Android STT runtime implementation branch
+
+Branch: `feature/android-ondevice-stt-runtime`, based on the PR #52 head.
+
+Implemented:
+- `CollectorSpeechPlugin` now starts real Romanian on-device recognition with `createOnDeviceSpeechRecognizer`, emits partial/final events and automatically restarts between utterances in continuous mode.
+- The Android path accepts only `ro-RO`; it never falls back to generic `SpeechRecognizer.createSpeechRecognizer`, browser recognition or cloud services.
+- WORK routes Android dictation and live transcription through the native bridge. Non-Android browser behavior remains separate.
+- Final utterance events include session-relative start/end offsets, epoch timestamps and confidence where Android supplies it.
+- Transcript sessions are persisted separately in IndexedDB and can be reloaded/deleted from WORK.
+- A shared `FileChannel.tryLock()` microphone lock is held by either the STT plugin or foreground recorder service. The OS releases it if the owning process dies.
+- Generated Android sync copies the new lock class.
+
+Not yet complete:
+- The Android platform SpeechRecognizer does not expose the PCM stream to Collector. Therefore these transcript segments are not yet linked to the corresponding MediaRecorder audio file. The schema explicitly records `audioRecordingId: null` and `audioLinkStatus: not-linked`.
+- No claim of physical-device validation or Romanian accuracy benchmark is made until those tests are run.
