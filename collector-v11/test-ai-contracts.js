@@ -20,6 +20,13 @@ test('input-ul impune text nenul și limite de dimensiune', () => {
   assert.throws(() => validateInput({ text: '   ' }), /obligatoriu/);
   assert.throws(() => validateInput({ text: 'x'.repeat(4001) }), /4.000/);
   assert.equal(validateInput({ text: '  Bună  ', requestId: 'r1' }).text, 'Bună');
+  const metadata = validateInput({ text: 'dictare', metadata: {
+    language: 'ro-RO', transcriptionConfidence: 0.92, segmentStartMs: 10,
+    segmentEndMs: 900, privateNote: 'do-not-forward'
+  } }).metadata;
+  assert.equal(metadata.language, 'ro-RO');
+  assert.equal(metadata.transcriptionConfidence, 0.92);
+  assert.equal(metadata.privateNote, undefined);
 });
 
 test('comanda acceptă forma Core {operation, target, data} și respinge data non-object', () => {
