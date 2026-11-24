@@ -74,6 +74,9 @@ function normalizeInterpretation(raw, turnId) {
     throw new TypeError('Provider-ul nu a returnat o interpretare structurată.');
   }
   const result = { ...raw };
+  for (const key of ['confidence', 'answer', 'question', 'reason', 'readRequest']) {
+    if (result[key] === null) delete result[key];
+  }
   if (result.readRequest) validateReadRequest(result.readRequest);
   if (result.command) {
     const draft = result.command;
