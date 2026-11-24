@@ -211,3 +211,14 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - La începutul fiecărei sesiuni: citește ultimul checkpoint, verifică HEAD/PR și workflow-urile acelui SHA.
 - Înainte de limita conversației: actualizează checkpoint-ul cu ce s-a schimbat, ce a trecut CI și următorul pas concret.
 - Nu declara o configurare externă sau tranzacție reală ca reușită doar pentru că testele mock/CI au trecut.
+
+
+## CHECKPOINT AUTORITATIV — 2026-11-25, hardening RevenueCat și Cloud API
+- HEAD de lucru: `1f69b8c2d63b530aebc6e771b9133d92f5bd8393` pe `feature/openai-provider-integration`; PR #55 rămâne draft, deschis, neintegrat în `main`.
+- CI la commit `379e4c7069729e39f05aeef0e4494c3c8cd2be3c`: Cloud API SUCCESS; Quality Suite și Mobile Build au eșuat din cauza unui test nou care folosea `root` nedefinit. Testul a fost corectat la `globalThis` în commitul `379e4c7`; următoarele modificări sunt încă nevalidate pe HEAD final.
+- RevenueCat: apelurile concurente `initialize()` pentru schimbarea utilizatorului sunt serializate; test dedicat adăugat. Eroarea de referință din test a fost corectată.
+- Cloud API: cache-ul in-memory al rate-limit-ului are plafon configurabil prin `COLLECTOR_RATE_LIMIT_MAX_USERS` (implicit 10.000), curăță intrările expirate și evacuează cea mai veche intrare la atingerea plafonului; test dedicat și documentație adăugate.
+- RevenueCat webhook: acordarea Pro cere simultan product ID în allowlist-ul `REVENUECAT_PRO_PRODUCT_IDS` și entitlement-ul configurat `REVENUECAT_PRO_ENTITLEMENT_ID` (implicit `pro`). Teste pentru produs neaprobat și entitlement incorect adăugate.
+- Modelul API implicit `gpt-6.2-sol` și tarifele de bază input/output 2/10 USD per milion tokeni au fost verificate în documentația/pricing-ul oficial OpenAI la 2026-11-25.
+- CI pentru HEAD `1f69b8c` nu a fost încă confirmat prin rezultatele disponibile; nu marca build-urile ca verzi până la verificarea tuturor celor trei workflow-uri.
+- Următorul pas: confirmă CI pe HEAD final; remediază orice eșec; continuă auditul webhook (evenimente de transfer, refund, billing issue/grace period, aliasuri) și validarea metering; păstrează PR draft până la testarea externă Supabase/RevenueCat în sandbox.
