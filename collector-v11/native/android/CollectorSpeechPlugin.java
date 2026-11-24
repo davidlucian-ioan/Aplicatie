@@ -1,8 +1,15 @@
 package com.collector.app;
 
 import android.Manifest;
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+import android.speech.RecognitionListener;
 import android.speech.RecognitionSupport;
 import android.speech.RecognitionSupportCallback;
 import android.speech.RecognizerIntent;
@@ -16,6 +23,11 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -26,6 +38,18 @@ import java.util.Locale;
     }
 )
 public final class CollectorSpeechPlugin extends Plugin {
+
+    private final Handler speechHandler = new Handler(Looper.getMainLooper());
+    private SpeechRecognizer activeRecognizer;
+    private String activeSessionId;
+    private String activeLanguage = "ro-RO";
+    private boolean activeContinuous;
+    private boolean speechStopping;
+    private long sessionStartedAtMs;
+    private long sessionStartedElapsedMs;
+    private long utteranceStartedElapsedMs;
+    private static final long RESTART_DELAY_MS = 300L;
+    private static final long STOP_TIMEOUT_MS = 2200L;
 
     @PluginMethod
     public void getOfflineSupport(PluginCall call) {
@@ -151,6 +175,308 @@ public final class CollectorSpeechPlugin extends Plugin {
             }
             call.reject("Nu am putut verifica suportul STT on-device.", error);
         }
+    }
+
+    @PluginMethod
+    public void startListening(PluginCall call) {
+        String language = call.getString("language", "ro-RO").trim();
+        boolean continuous = call.getBoolean("continuous", true);
+        if (!"ro-RO".equalsIgnoreCase(language)) {
+            call.reject("În această versiune este acceptată numai recunoașterea locală în limba română (ro-RO).");
+            return;
+        }
+        if (Build.VERSION.SDK_INT < 31 || !SpeechRecognizer.isOnDeviceRecognitionAvailable(getContext())) {
+            call.reject("Recunoașterea vocală on-device nu este disponibilă pe acest dispozitiv. Nu există fallback cloud.");
+            return;
+        }
+        if (isRecorderBusy()) {
+            call.reject("Reportofonul folosește sau poate folosi microfonul. Oprește înregistrarea înainte de transcriere.");
+            return;
+        }
+        if (activeRecognizer != null || activeSessionId != null) {
+            call.reject("Există deja o sesiune de transcriere activă.");
+            return;
+        }
+        call.getData().put("collectorSpeechLanguage", language);
+        call.getData().put("collectorSpeechContinuous", continuous);
+        if (getPermissionState("microphone") != PermissionState.GRANTED) {
+            requestPermissionForAlias("microphone", call, "speechMicrophonePermissionCallback");
+            return;
+        }
+        startListeningAfterPermission(call, language, continuous);
+    }
+
+    @PermissionCallback
+    public void speechMicrophonePermissionCallback(PluginCall call) {
+        String language = call.getString("collectorSpeechLanguage", "ro-RO");
+        boolean continuous = call.getBoolean("collectorSpeechContinuous", true);
+        if (getPermissionState("microphone") != PermissionState.GRANTED) {
+            call.reject("Permisiunea pentru microfon nu a fost acordată. Nu am pornit transcrierea.");
+            return;
+        }
+        startListeningAfterPermission(call, language, continuous);
+    }
+
+    private void startListeningAfterPermission(PluginCall call, String language, boolean continuous) {
+        if (isRecorderBusy()) {
+            call.reject("Reportofonul folosește sau poate folosi microfonul. Oprește înregistrarea înainte de transcriere.");
+            return;
+        }
+        if (activeRecognizer != null || activeSessionId != null) {
+            call.reject("Există deja o sesiune de transcriere activă.");
+            return;
+        }
+        SpeechRecognizer recognizer = null;
+        try {
+            recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(getContext());
+            activeRecognizer = recognizer;
+            activeSessionId = java.util.UUID.randomUUID().toString();
+            activeLanguage = language;
+            activeContinuous = continuous;
+            speechStopping = false;
+            sessionStartedAtMs = System.currentTimeMillis();
+            sessionStartedElapsedMs = SystemClock.elapsedRealtime();
+            utteranceStartedElapsedMs = 0L;
+            recognizer.setRecognitionListener(createRecognitionListener());
+            Intent intent = recognitionIntent();
+            recognizer.startListening(intent);
+
+            JSObject result = new JSObject();
+            result.put("sessionId", activeSessionId);
+            result.put("status", "listening");
+            result.put("language", activeLanguage);
+            result.put("provider", "android-speech-recognizer-on-device");
+            result.put("continuous", activeContinuous);
+            result.put("startedAt", sessionStartedAtMs);
+            result.put("audioUploaded", false);
+            call.resolve(result);
+            notifySpeechState("listening", "Transcriere on-device activă. Audio nu este trimis în cloud.");
+        } catch (Exception error) {
+            destroyRecognizer();
+            call.reject("Nu am putut porni recunoașterea vocală on-device.", error);
+        }
+    }
+
+    @PluginMethod
+    public void stopListening(PluginCall call) {
+        String requestedId = call.getString("sessionId");
+        if (activeRecognizer == null || activeSessionId == null ||
+            (requestedId != null && !activeSessionId.equals(requestedId))) {
+            call.reject("Nu există o sesiune de transcriere activă pentru acest identificator.");
+            return;
+        }
+        speechStopping = true;
+        try {
+            activeRecognizer.stopListening();
+            speechHandler.removeCallbacks(stopTimeout);
+            speechHandler.postDelayed(stopTimeout, STOP_TIMEOUT_MS);
+            call.resolve();
+        } catch (Exception error) {
+            finishSpeechSession("stopped", "Sesiunea a fost oprită; ultimul segment poate fi incomplet.");
+            call.reject("Nu am putut opri elegant recunoașterea vocală.", error);
+        }
+    }
+
+    @PluginMethod
+    public void cancelListening(PluginCall call) {
+        String requestedId = call.getString("sessionId");
+        if (activeRecognizer == null || activeSessionId == null ||
+            (requestedId != null && !activeSessionId.equals(requestedId))) {
+            call.resolve();
+            return;
+        }
+        try { activeRecognizer.cancel(); } catch (Exception ignored) {}
+        finishSpeechSession("cancelled", "Sesiunea de transcriere a fost anulată.");
+        call.resolve();
+    }
+
+    private final Runnable stopTimeout = () ->
+        finishSpeechSession("stopped", "Transcriere oprită.");
+
+    private Intent recognitionIntent() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, activeLanguage);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, activeLanguage);
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
+        return intent;
+    }
+
+    private RecognitionListener createRecognitionListener() {
+        return new RecognitionListener() {
+            @Override public void onReadyForSpeech(Bundle params) {
+                notifySpeechState("listening", "Microfonul este pregătit pentru recunoaștere locală.");
+            }
+
+            @Override public void onBeginningOfSpeech() {
+                utteranceStartedElapsedMs = SystemClock.elapsedRealtime();
+            }
+
+            @Override public void onRmsChanged(float rmsdB) {}
+            @Override public void onBufferReceived(byte[] buffer) {}
+            @Override public void onEndOfSpeech() {}
+
+            @Override public void onError(int error) {
+                if (activeRecognizer == null) return;
+                if (speechStopping) {
+                    finishSpeechSession("stopped", "Transcriere oprită.");
+                    return;
+                }
+                if (activeContinuous &&
+                    (error == SpeechRecognizer.ERROR_NO_MATCH ||
+                     error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT)) {
+                    scheduleRecognitionRestart();
+                    return;
+                }
+                JSObject event = speechEventBase();
+                event.put("errorCode", error);
+                event.put("message", "Recunoașterea on-device s-a întrerupt (cod Android " + error + ").");
+                notifyListeners("speechError", event);
+                finishSpeechSession("error", "Recunoașterea on-device s-a întrerupt. Nu a fost folosit un serviciu cloud.");
+            }
+
+            @Override public void onResults(Bundle results) {
+                if (activeRecognizer == null) return;
+                emitFinalResult(results);
+                if (speechStopping || !activeContinuous) {
+                    finishSpeechSession("stopped", "Transcriere încheiată.");
+                } else {
+                    scheduleRecognitionRestart();
+                }
+            }
+
+            @Override public void onPartialResults(Bundle partialResults) {
+                if (activeRecognizer == null) return;
+                ArrayList<String> matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (matches == null || matches.isEmpty()) return;
+                if (utteranceStartedElapsedMs == 0L) utteranceStartedElapsedMs = SystemClock.elapsedRealtime();
+                JSObject event = speechEventBase();
+                event.put("text", matches.get(0));
+                event.put("offsetMs", Math.max(0L, utteranceStartedElapsedMs - sessionStartedElapsedMs));
+                event.put("receivedAt", System.currentTimeMillis());
+                notifyListeners("speechPartial", event);
+            }
+
+            @Override public void onEvent(int eventType, Bundle params) {}
+        };
+    }
+
+    private void emitFinalResult(Bundle results) {
+        ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+        if (matches == null || matches.isEmpty()) return;
+        String text = matches.get(0) == null ? "" : matches.get(0).trim();
+        if (text.isEmpty()) return;
+        long endElapsed = SystemClock.elapsedRealtime();
+        long startElapsed = utteranceStartedElapsedMs > 0L ? utteranceStartedElapsedMs : endElapsed;
+        float confidence = -1f;
+        float[] scores = results.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES);
+        if (scores != null && scores.length > 0) confidence = scores[0];
+        JSObject event = speechEventBase();
+        event.put("segmentId", java.util.UUID.randomUUID().toString());
+        event.put("text", text);
+        event.put("startOffsetMs", Math.max(0L, startElapsed - sessionStartedElapsedMs));
+        event.put("endOffsetMs", Math.max(0L, endElapsed - sessionStartedElapsedMs));
+        event.put("startedAt", sessionStartedAtMs + Math.max(0L, startElapsed - sessionStartedElapsedMs));
+        event.put("endedAt", System.currentTimeMillis());
+        event.put("confidence", confidence);
+        event.put("final", true);
+        notifyListeners("speechSegment", event);
+        utteranceStartedElapsedMs = 0L;
+    }
+
+    private void scheduleRecognitionRestart() {
+        speechHandler.removeCallbacks(restartRecognition);
+        speechHandler.postDelayed(restartRecognition, RESTART_DELAY_MS);
+    }
+
+    private final Runnable restartRecognition = () -> {
+        if (activeRecognizer == null || speechStopping) return;
+        if (isRecorderBusy()) {
+            JSObject event = speechEventBase();
+            event.put("message", "Reportofonul a preluat microfonul. Transcrierea a fost oprită pentru a evita captură concurentă.");
+            notifyListeners("speechError", event);
+            finishSpeechSession("error", "Microfonul a fost revendicat de reportofon.");
+            return;
+        }
+        try {
+            utteranceStartedElapsedMs = 0L;
+            activeRecognizer.startListening(recognitionIntent());
+        } catch (Exception error) {
+            JSObject event = speechEventBase();
+            event.put("message", "Nu am putut relua recunoașterea on-device: " + error.getMessage());
+            notifyListeners("speechError", event);
+            finishSpeechSession("error", "Recunoașterea locală nu a putut fi reluată.");
+        }
+    };
+
+    private void finishSpeechSession(String status, String message) {
+        if (activeSessionId == null) return;
+        speechHandler.removeCallbacks(restartRecognition);
+        speechHandler.removeCallbacks(stopTimeout);
+        JSObject event = speechEventBase();
+        event.put("status", status);
+        event.put("message", message);
+        event.put("endedAt", System.currentTimeMillis());
+        event.put("durationMs", Math.max(0L, SystemClock.elapsedRealtime() - sessionStartedElapsedMs));
+        destroyRecognizer();
+        notifyListeners("speechState", event);
+    }
+
+    private void destroyRecognizer() {
+        speechHandler.removeCallbacks(restartRecognition);
+        speechHandler.removeCallbacks(stopTimeout);
+        SpeechRecognizer recognizer = activeRecognizer;
+        activeRecognizer = null;
+        activeSessionId = null;
+        speechStopping = false;
+        utteranceStartedElapsedMs = 0L;
+        if (recognizer != null) {
+            try { recognizer.cancel(); } catch (Exception ignored) {}
+            try { recognizer.destroy(); } catch (Exception ignored) {}
+        }
+    }
+
+    private JSObject speechEventBase() {
+        JSObject event = new JSObject();
+        event.put("sessionId", activeSessionId);
+        event.put("language", activeLanguage);
+        event.put("provider", "android-speech-recognizer-on-device");
+        event.put("audioUploaded", false);
+        return event;
+    }
+
+    private void notifySpeechState(String status, String message) {
+        JSObject event = speechEventBase();
+        event.put("status", status);
+        event.put("message", message);
+        notifyListeners("speechState", event);
+    }
+
+    private boolean isRecorderBusy() {
+        File activeFile = new File(getContext().getFilesDir(), "recordings/active-state.json");
+        if (activeFile.exists()) {
+            try (FileInputStream input = new FileInputStream(activeFile);
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[1024];
+                int read;
+                while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+                JSONObject state = new JSONObject(new String(output.toByteArray(), StandardCharsets.UTF_8));
+                String status = state.optString("status", "unknown");
+                if ("starting".equals(status) || "recording".equals(status) || "paused".equals(status)) return true;
+                if (!("inactive".equals(status) || "complete".equals(status) || "interrupted".equals(status))) return true;
+            } catch (Exception error) {
+                return true; // Fail closed if recorder ownership cannot be established.
+            }
+        }
+        ActivityManager manager = (ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
+        if (manager != null) {
+            for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(1000)) {
+                if (CollectorRecordingService.class.getName().equals(service.service.getClassName())) return true;
+            }
+        }
+        return false;
     }
 
     private JSObject baseResult(String language) {
