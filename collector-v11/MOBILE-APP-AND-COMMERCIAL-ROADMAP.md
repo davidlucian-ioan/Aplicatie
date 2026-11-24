@@ -123,14 +123,18 @@ Surse oficiale:
 5. Nu există încă proiect Supabase configurat/deploy și endpoint public. Sync incremental, tenancy/workspaces, backup și conflict handling nu sunt implementate.
 
 ### M4 — Monetizare
-**Stare: neimplementată; modelul tehnic și estimarea sunt documentate în `MONETIZATION-AND-COST-MODEL.md`.**
-1. Propunere de produs: Free păstrează Core local, Work/Think, audio și notificări locale; Pro deblochează AI cu buget lunar și serviciile cloud după implementarea sync/backup.
-2. Recomandare de evaluat: RevenueCat ca strat de achiziții cross-platform; webhook semnat către Cloud API și entitlement verificat server-side. Core rămâne independent de furnizorul de billing.
-3. Adaugă identitate recuperabilă/cont link-uit; autentificarea anonimă actuală nu este suficientă pentru restaurare robustă între dispozitive.
-4. Adaugă tabele persistente pentru subscriptions/entitlements, ai_usage, usage_budgets și billing_webhook_events; webhook-urile trebuie idempotente.
-5. Măsoară tokenii și costul efectiv înainte/după fiecare cerere AI; plafon lunar și spend caps. Rate limit-ul actual de 20/minut este doar temporar și nu este un buget lunar.
-6. Integrează Google Play Billing + Apple StoreKit prin RevenueCat; teste sandbox pentru achiziție, restore, upgrade/downgrade, refund, anulare și expirare.
-7. Prețurile/planurile din documentul de cost sunt ipoteze, nu decizii aprobate. Calibrează quota și prețul după pilot și costurile reale.
+**Stare: fundația backend și clientul mobil RevenueCat sunt implementate în cod; configurarea externă și testarea sandbox sunt încă deschise.** Detalii: MONETIZATION-AND-COST-MODEL.md.
+
+1. Implementat: Supabase Auth anonim + asociere email/parolă și autentificare recuperabilă; RevenueCat Capacitor SDK 14.1.2, încărcare offering, purchase, restore și asocierea SDK cu UUID-ul Supabase.
+2. Implementat: UI Collector Pro, afișarea prețurilor din offering, restore purchases și afișarea consumului AI lunar.
+3. Implementat: Cloud API verifică entitlement Pro înainte de AI și rezervă buget lunar atomic; tokenii/costul sunt regularizați după răspuns.
+4. Implementat în migrare SQL: tabele entitlements, AI budgets/usage și billing events; RPC pentru rezervare, regularizare și procesare idempotentă RevenueCat.
+5. Implementat: webhook RevenueCat autentificat, product ID allowlist și protecție contra evenimentelor întârziate.
+6. Încă necesar: proiect Supabase real și aplicarea migrației; deploy Cloud API și setarea secretelor.
+7. Încă necesar: proiect RevenueCat, produse/entitlement pro/offering, API keys publice în GitHub Actions variables și webhook secret/product allowlist în host.
+8. Încă necesar: teste sandbox pe achiziție, reînnoire, anulare, refund, expirare și restore pe Android/iOS; confirmare email și recuperare cont.
+9. Sync/backup multi-device nu este implementat; Pro nu trebuie să promită sincronizare până la finalizarea și testarea acesteia.
+10. Prețurile și cotele din documentul de cost sunt ipoteze, nu decizii aprobate; calibrare după pilot și usage real.
 
 ### M5 — Lansare
 1. TestFlight și Google Play internal/closed testing.
