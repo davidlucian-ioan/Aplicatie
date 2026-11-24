@@ -148,3 +148,11 @@ test('webhook RevenueCat respinge sem secret corect',async()=>{
   assert.equal(response.status,401);assert.equal(called,false);
  });
 });
+
+test('status-ul AI nu expune Pro pentru un utilizator fără abonament activ',async()=>{
+ const billingService={configured:true,getEntitlement:async()=>({entitlement:'free',is_active:false}),reserve:async()=>({allowed:false,reason:'subscription_required'}),settle:async()=>({})};
+ await withServer({env:baseEnv,fetchImpl:authFetch(),billingService},async base=>{
+  const response=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer valid-token'}});
+  const status=await response.json();assert.equal(status.entitlement,'free');assert.equal(status.configured,false);assert.equal(status.aiAvailable,false);
+ });
+});
