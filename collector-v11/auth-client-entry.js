@@ -1,12 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
 import { SecureStorage, KeychainAccess } from '@aparajita/capacitor-secure-storage';
 
 let storageReady=null;
 async function prepareStorage(){
  if(!storageReady)storageReady=(async()=>{
   await SecureStorage.setKeyPrefix('collector-auth');
-  await SecureStorage.setSynchronize(false);
-  await SecureStorage.setDefaultKeychainAccess(KeychainAccess.whenUnlockedThisDeviceOnly);
+  if(Capacitor.getPlatform()==='ios'){
+   await SecureStorage.setSynchronize(false);
+   await SecureStorage.setDefaultKeychainAccess(KeychainAccess.whenUnlockedThisDeviceOnly);
+  }
  })().catch(error=>{storageReady=null;throw error});
  return storageReady;
 }
