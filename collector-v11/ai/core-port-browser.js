@@ -31,7 +31,7 @@
       if (op.target !== undefined && (typeof op.target !== 'string' || !op.target.trim() || op.target.length > 128)) {
         throw new TypeError(`Ținta operației ${index + 1} este invalidă.`);
       }
-      if (op.data !== undefined && !isObject(op.data)) {
+      if (!isObject(op.data)) {
         throw new TypeError(`Datele operației ${index + 1} trebuie să fie un obiect.`);
       }
     }
