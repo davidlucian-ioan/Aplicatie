@@ -14,6 +14,8 @@ function setup(){
   async getSession(){return {data:{session},error:null}},
   async signInAnonymously(){session={access_token:'access-token',user:{id:'user-1',is_anonymous:true}};return {data:{session},error:null}},
   async getUser(){return {data:{user:{id:'user-1'}},error:null}},
+  async updateUser({email}){return {data:{user:{id:'user-1',email,is_anonymous:false}},error:null}},
+  async signInWithPassword({email}){session={access_token:'signed-in-token',user:{id:'stable-user-id',email,is_anonymous:false}};return {data:{session,user:session.user},error:null}},
   async signOut(){signedOut++;session=null;return {error:null}}
  }}}};
 }
@@ -42,4 +44,16 @@ test('account deletion calls authenticated backend and persists opt-out',async()
  assert.equal(request.url,'https://api.example.test/api/account');
  assert.equal(request.options.method,'DELETE');assert.equal(request.options.headers.Authorization,'Bearer access-token');
  assert.equal(root.CollectorAuth.isOptedOut(),true);assert.equal(signedOut,1);
+});
+
+test('anonymous account can be linked to email and password without changing its user id',async()=>{
+ setup();await root.CollectorAuth.initialize(root.CollectorConfig);
+ const result=await root.CollectorAuth.linkEmailPassword('person@example.com','strong-password');
+ assert.equal(result.userId,'user-1');assert.equal(result.email,'person@example.com');assert.equal(result.isAnonymous,false);
+});
+test('existing account can sign in and returns its stable user id',async()=>{
+ setup();await root.CollectorAuth.initialize(root.CollectorConfig);
+ const result=await root.CollectorAuth.signInWithPassword('person@example.com','strong-password');
+ assert.equal(result.userId,'stable-user-id');assert.equal(result.email,'person@example.com');
+ assert.equal(await root.CollectorAuth.getAccessToken(),'signed-in-token');
 });
