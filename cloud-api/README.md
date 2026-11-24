@@ -27,6 +27,7 @@ Alte variabile:
 - `PORT` — implicit 8080.
 - `OPENAI_MODEL` — implicit `gpt-6.2-sol`.
 - `COLLECTOR_ALLOWED_ORIGINS` — listă separată prin virgulă, de ex. `capacitor://localhost,https://localhost,https://app.example.com`.
+- `COLLECTOR_RATE_LIMIT_MAX_USERS` — capacitatea maximă a cache-ului rate-limit per utilizator; implicit 10.000. Intrările expirate sunt curățate, iar la atingerea plafonului este eliminată cea mai veche intrare.
 
 ## Configurare Supabase — obligatoriu înainte de deploy
 
