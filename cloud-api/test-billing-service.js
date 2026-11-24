@@ -68,3 +68,11 @@ test('RevenueCat RPC forwards cancellation reason for refund handling',async()=>
  assert.equal(call.url,'https://project.supabase.co/rest/v1/rpc/collector_apply_revenuecat_event');
  assert.equal(call.body.p_cancel_reason,'CUSTOMER_SUPPORT');
 });
+
+test('billing migration uses valid PL/pgSQL dollar-quote delimiters',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const sql=fs.readFileSync(path.join(__dirname,'migrations','001_billing_and_ai_usage.sql'),'utf8');
+ assert.doesNotMatch(sql,/as \$\s*\n\s*declare/i);
+ assert.equal((sql.match(/as \$\$/g)||[]).length,(sql.match(/^\$\$;$/gm)||[]).length);
+});
