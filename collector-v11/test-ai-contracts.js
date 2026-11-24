@@ -43,7 +43,7 @@ test('comanda respinge operații excesive, idempotency key invalid și certainty
 
 test('cererile de citire sunt limitate la tipuri și intervale permise', () => {
   assert.throws(() => validateInterpretation({ intent: 'answer', answer: 'ok', readRequest: { kind: 'raw-db' } }), /citire AI/);
-  assert.throws(() => validateInterpretation({ intent: 'answer', answer: 'ok', readRequest: { kind: 'events', limit: 1000 } }), /Limita/);
+  assert.throws(() => validateInterpretation({ intent: 'answer', answer: 'ok', readRequest: { kind: 'events', entityId: 'entity-1', limit: 1000 } }), /Limita/);
   assert.throws(() => validateInterpretation({ intent: 'answer', answer: 'ok', readRequest: { kind: 'entities' } }), /întregului registru/);
   assert.throws(() => validateInterpretation({ intent: 'answer', answer: 'ok', readRequest: { kind: 'relations' } }), /ID de entitate/);
   assert.doesNotThrow(() => validateInterpretation({ intent: 'answer', answer: 'ok', readRequest: { kind: 'entities', name: 'Monstera' } }));
