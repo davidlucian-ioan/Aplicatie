@@ -46,8 +46,8 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Teste provider cu fetch mock și teste de wiring/siguranță adăugate; CI a identificat și a ghidat corectarea unei regresii în testul nou. Ultimul run trebuie reverificat după commitul curent. Nu s-a efectuat încă un apel cu o cheie API reală.
 
 ## Ce nu este încă finalizat
-1. Verifică finalizarea GitHub Actions pentru branch-ul `feature/openai-provider-integration`; remediază orice regresie înainte de PR.
-2. Creează PR către `main` după trecerea testelor și revizuirea schimbărilor.
+1. Urmărește PR draft #55 și verifică finalizarea workflow-urilor GitHub Actions; schimbă PR în Ready for review numai după toate verificările.
+2. Nu îl merge automat în `main`; păstrează deciziile și așteaptă revizuirea.
 3. Configurează `OPENAI_API_KEY` pe calculatorul unde rulează Collector și efectuează un test real de interpretare.
 4. Testează refuzuri, clarificări, intenții ambigue, operații nepermise, limite/rate limit și indisponibilitatea rețelei.
 5. Test manual: creează/folosește atributul pH cu limite recomandate 5.5–6.5 și încearcă o măsurătoare 5.2. Așteptat: avertisment + opțiune de continuare; după confirmare, valoarea 5.2 trebuie să fie înregistrată și vizibilă în cronologie/valoarea curentă.
