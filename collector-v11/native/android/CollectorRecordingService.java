@@ -387,6 +387,7 @@ public final class CollectorRecordingService extends Service {
             } catch (Exception ignored) {}
         }
         releaseWakeLock();
+        CollectorMicrophoneArbiter.release("recorder");
         super.onDestroy();
     }
 
