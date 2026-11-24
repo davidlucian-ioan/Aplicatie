@@ -45,7 +45,7 @@
   for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));
   return global.btoa(binary);
  }
- function createNativeStore({filesystem,storage}={}){
+ function createNativeStore({filesystem,storage,legacyStore=webStore}={}){
   if(!filesystem||!storage)throw new TypeError('Filesystem sau StorageAdapter nu este disponibil pentru audio nativ.');
   let initialization=null;
   async function readIndex(){
@@ -58,9 +58,9 @@
   async function writeIndex(rows){await storage.writeRaw(INDEX_KEY,JSON.stringify(rows));return rows}
   async function ensureDirectory(){await filesystem.mkdir({path:'collector-audio',directory:'DATA',recursive:true})}
   async function migrateLegacy(){
-   const rows=await readIndex(),legacy=await webStore.list();let current=rows.slice();
+   const rows=await readIndex(),legacy=await legacyStore.list();let current=rows.slice();
    for(const old of legacy){
-    if(current.some(row=>row.id===old.id)){await webStore.remove(old.id);continue}
+    if(current.some(row=>row.id===old.id)){await legacyStore.remove(old.id);continue}
     if(!(old.blob instanceof Blob)||!old.blob.size)continue;
     const filePath='collector-audio/legacy-'+safeFileName(old.id)+'.webm';
     await filesystem.writeFile({path:filePath,data:await blobToBase64(old.blob),directory:'DATA',encoding:'base64',recursive:true});
@@ -91,16 +91,16 @@
     return saveNative({...record,filePath,uri:location.uri});
    },
    async saveNative,
-   async get(id){await initialize();const row=(await readIndex()).find(item=>item.id===id);return row||webStore.get(id)},
+   async get(id){await initialize();const row=(await readIndex()).find(item=>item.id===id);return row||legacyStore.get(id)},
    async list(){
     await initialize();
-    const rows=await readIndex(),legacy=await webStore.list(),known=new Set(rows.map(row=>row.id));
+    const rows=await readIndex(),legacy=await legacyStore.list(),known=new Set(rows.map(row=>row.id));
     return [...rows,...legacy.filter(row=>!known.has(row.id))].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
    },
    async remove(id){
     await initialize();
     const rows=await readIndex(),row=rows.find(item=>item.id===id);
-    if(!row)return webStore.remove(id);
+    if(!row)return legacyStore.remove(id);
     try{await filesystem.deleteFile({path:row.filePath,directory:'DATA'})}catch(error){if(!/not.?found|does not exist|no such file/i.test(String(error?.message||error)))throw error}
     await writeIndex(rows.filter(item=>item.id!==id));return true;
    }
