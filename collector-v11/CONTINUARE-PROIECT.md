@@ -208,3 +208,6 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 
 - Native-side bypass check added: `CollectorRecorderPlugin.startRecording()` now independently rejects a new recording if the state is unknown (non-empty malformed state, existing unreadable manifest, or service running without readable state). The JavaScript guard is not the only enforcement layer.
 - Static Node contract test expanded to assert the native start guard. Latest native plugin commit: `7e6b67047a0443f45338f399aab5d440ef6ff955`; test commit: `ce020840153649bfadc1e3319b91375d101373d8`.
+
+- Încă o cursă nativă eliminată: pluginul refuză un nou `startRecording` cât timp vechiul serviciu foreground încă rulează, chiar dacă manifestul spune deja `complete`/alt status inactiv. Previne suprapunerea dintre `stopSelf()`/teardown și o pornire imediat următoare.
+- Testul static verifică și acest guard. Commituri: native service shutdown guard `21174fd5c7fe99d179caaca76f669286de5b47cc`; test `a418900086bf0e49f99c4f600b0b0ed183d60021`.
