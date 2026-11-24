@@ -15,13 +15,13 @@ const speechQueryIntent = `    <intent>
       <action android:name="android.speech.RecognitionService" />
     </intent>`;
 if (!manifest.includes('android.speech.RecognitionService')) {
-  if (/<queries\\b/.test(manifest)) {
-    manifest = manifest.replace('</queries>', speechQueryIntent + '\\n  </queries>');
+  if (/<queries\b/.test(manifest)) {
+    manifest = manifest.replace('</queries>', speechQueryIntent + '\n  </queries>');
   } else {
     const speechQueries = `  <queries>
 ${speechQueryIntent}
   </queries>`;
-    manifest = manifest.replace(/<application\\b/, speechQueries + '\\n  <application');
+    manifest = manifest.replace(/<application\b/, speechQueries + '\n  <application');
   }
 }
 
