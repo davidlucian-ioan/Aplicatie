@@ -38,7 +38,10 @@
     }else{
      await sqlite.createConnection({database,encrypted:false,mode:'no-encryption',version:1,readonly:false});
     }
-    await sqlite.open(connection);
+    if(typeof sqlite.isDBOpen==='function'){
+     const openState=await sqlite.isDBOpen(connection);
+     if(!openState?.result)await sqlite.open(connection);
+    }else await sqlite.open(connection);
     await sqlite.execute({database,statements:'CREATE TABLE IF NOT EXISTS '+TABLE+' (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)'});
     return true;
    })().catch(error=>{initialization=null;throw error});
@@ -63,7 +66,7 @@
     await initialize();
     const name=String(key),serialized=String(value);
     return enqueue(async()=>{
-     await sqlite.run({database,statement:'INSERT INTO '+TABLE+' (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',values:[name,serialized]});
+     await sqlite.run({database,statement:'INSERT OR REPLACE INTO '+TABLE+' (key,value) VALUES (?,?)',values:[name,serialized]});
      return true;
     });
    },
