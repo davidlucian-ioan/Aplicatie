@@ -88,6 +88,6 @@ From this folder, configure the server environment (`OPENAI_API_KEY`, `OPENAI_MO
 npm run start:ai-gateway
 ```
 
-The OpenAI key and gateway bearer secret must remain on the server. Never put them in the web bundle, Android resources or APK. The client transport requires an injected short-lived access-token function; the project has not yet selected or implemented the production authentication/hosting mechanism.
+The OpenAI key and gateway bearer secret must remain on the server. Never put them in the web bundle, Android resources or APK. The client transport requires an injected short-lived access-token function. The gateway supports an injected `authorize()` verifier for production; the default static bearer token is only for controlled local testing. The project has not yet selected or implemented the production authentication/hosting mechanism.
 
 See `../docs/architecture/AI-PROVIDER-GATEWAY.md` for the security boundaries and remaining integration gates. The current UI continues to work without a provider and does not make AI requests.
