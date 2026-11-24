@@ -42,13 +42,13 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - UI are buton separat „Interpretează cu AI”; interpretarea locală existentă rămâne disponibilă.
 - OpenAI primește textul comenzii și metadate limitate de entități/atribute, nu jurnalul complet.
 - Providerul validează răspunsul cu `ai/contracts.js`; propunerile trec prin BrowserCorePort preview și confirmare explicită. Nu există execuție automată.
-- `ai/context-sanitizer.js` aplică allowlist pentru contextul AI: numai ID/nume/tip pentru entități și definiții de atribute permise, fără atribute arbitrare sau date suplimentare; limitează numărul și lungimea câmpurilor.
-- Promptul providerului include formele de date exacte pentru fiecare operație Core permisă, pentru a reduce propunerile invalide.
+- `ai/context-sanitizer.js` aplică allowlist pentru contextul AI: numai ID/nume/tip pentru entități și definiții de atribute permise, fără atribute arbitrare sau date suplimentare; limitează numărul și lungimea câmpurilor. Modulul are teste unitare pentru eliminarea câmpurilor arbitrare și pentru limite.
+- Promptul providerului include formele de date exacte pentru fiecare operație Core permisă, pentru a reduce propunerile invalide; testele verifică existența instrucțiunilor de contract.
 - Endpoint-ul folosește `store:false`, limită de corp, rate limit și verificare Origin; serverul static blochează accesul la `.env`.
 - Teste provider cu fetch mock și teste de wiring/siguranță adăugate; CI a identificat și a ghidat corectarea unei regresii în testul nou. Ultimul run trebuie reverificat după commitul curent. Nu s-a efectuat încă un apel cu o cheie API reală.
 
 ## Ce nu este încă finalizat
-1. Urmărește PR draft #55 și verifică finalizarea workflow-urilor GitHub Actions pentru ultimele commituri de sanitizare și prompt; schimbă PR în Ready for review numai după toate verificările.
+1. Urmărește PR draft #55 și verifică finalizarea workflow-urilor GitHub Actions pentru commitul `4ed7d229` și commiturile ulterioare; schimbă PR în Ready for review numai după toate verificările.
 2. Nu îl merge automat în `main`; păstrează deciziile și așteaptă revizuirea.
 3. Configurează `OPENAI_API_KEY` pe calculatorul unde rulează Collector și efectuează un test real de interpretare.
 4. Testează refuzuri, clarificări, intenții ambigue, operații nepermise, limite/rate limit și indisponibilitatea rețelei.
