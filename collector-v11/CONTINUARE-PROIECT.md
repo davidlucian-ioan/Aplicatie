@@ -139,7 +139,9 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Acordarea permisiunii permite doar interogarea suportului on-device; nu pornește `startListening`, nu capturează audio, nu pornește reportofonul și nu descarcă modele.
 - Refuzul este returnat ca stare `permission-required`; interfața explică faptul că nu s-a capturat audio.
 - Au fost adăugate verificări automate pentru aliasul de permisiune, callback și contractul fără captură.
-- Quality CI și Android build sunt în curs la momentul acestui checkpoint: runs 45396786157 și 45396786190. Nu declara PASS până la concluzia GitHub `success`.
+- Quality CI: PASS, run 45396795785, pentru head `d8ed34a5c3b57aa7caa7a5f613a9a2d703cb7604`.
+- Android debug build: PASS, run 45396786190, pentru commitul de cod `67e5a0b2c9fe9edc621afa5d94e8ea83bf12f5b3`; ultimul commit după acesta schimbă doar documentația.
+- PR #50 este deschis și mergeable, dar nu este integrat. Verificările CI confirmă testele și compilarea, nu funcționarea pe un telefon fizic.
 - Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
 - STT efectiv rămâne blocat până la verificarea modelului românesc pe un dispozitiv fizic.
 
