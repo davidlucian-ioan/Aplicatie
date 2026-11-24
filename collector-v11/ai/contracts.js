@@ -103,6 +103,9 @@ function validateReadRequest(request) {
   if (request.kind === 'entityAttributes' && !request.id) {
     throw new TypeError('Citirea atributelor necesită un ID de entitate rezolvat.');
   }
+  if (request.kind === 'relations' && !request.entityId) {
+    throw new TypeError('Citirea relațiilor necesită un ID de entitate rezolvat.');
+  }
   if (request.kind === 'balances' && !request.populationId && !request.locationId) {
     throw new TypeError('Citirea soldurilor necesită o populație sau o locație.');
   }
