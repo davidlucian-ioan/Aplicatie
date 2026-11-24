@@ -19,7 +19,7 @@
   if(permission?.recordAudio!=='granted')throw new Error('Permisiunea pentru microfon nu a fost acordată.');
   await ensureDirectory();
   const filePath='collector-audio/'+safeName(id)+'.aac';
-  await plugin.startRecording({format:'aac',bitRate:128000,sampleRate:44100,resetToPlaybackOnStop:true});
+  await plugin.startRecording({format:'aac',bitRate:16000,sampleRate:44100,resetToPlaybackOnStop:true});
   active={id,filePath,startedAt:Date.now()};
   return {...active};
  }
@@ -40,7 +40,7 @@
   const location=await filesystem.getUri({path:session.filePath,directory:'DATA'});
   try{await filesystem.deleteFile({path:result.uri})}catch{}
   let size=0;try{const stat=await filesystem.stat({path:session.filePath,directory:'DATA'});size=Number(stat?.size)||0}catch{}
-  return {id:session.id,filePath:session.filePath,uri:location.uri,durationMs:Number(result.duration)||Date.now()-session.startedAt,size,mimeType:'audio/aac',mergeFailed:!!result.mergeFailed,recovered:!!result.recovered,segments:Array.isArray(result.segments)?result.segments:[]};
+  return {id:session.id,filePath:session.filePath,uri:location.uri,durationMs:Number(result.duration)||Date.now()-session.startedAt,size,mimeType:'audio/aac',mergeFailed:!!result.mergeFailed,recovered:!!result.recovered,warning:result.mergeFailed?'Înregistrarea a fost întreruptă; s-a păstrat segmentul principal.':result.recovered?'Fișierul parțial a fost recuperat după o eroare.':null,segments:Array.isArray(result.segments)?result.segments:[]};
  }
  async function cancel(){
   if(!active)return false;
