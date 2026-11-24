@@ -12,7 +12,9 @@
     "test:core-properties": "node --test property-core-sequences.test.js",
     "test:coverage": "node --experimental-test-coverage --test test-*.js property-*.test.js",
     "benchmark:replay": "node benchmark-replay.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "mobile:build": "node build-mobile.js",
+    "mobile:sync": "npm run mobile:build && npx cap sync"
   },
   "engines": {
     "node": ">=22"
