@@ -1,6 +1,6 @@
 (function(root){
   'use strict';
-  function apiBase(){return String(root.CollectorConfig?.apiBaseUrl||'').trim().replace(/\\/+$/,'')}
+  function apiBase(){return String(root.CollectorConfig?.apiBaseUrl||'').trim().replace(/\/+$/,'')}
   function apiUrl(path){return apiBase()+path}
   function isNative(){return typeof root.Capacitor?.isNativePlatform==='function'&&root.Capacitor.isNativePlatform()}
   async function status(){
