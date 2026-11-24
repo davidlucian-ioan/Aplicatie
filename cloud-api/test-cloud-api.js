@@ -113,7 +113,8 @@ test('AI înregistrează usage după răspuns și returnează costul estimat',as
   assert.equal(response.status,200);const result=await response.json();
   assert.equal(result.usage.inputTokens,1200);assert.equal(result.usage.outputTokens,300);
   assert.equal(result.usage.estimatedCostUsd,0.0054);
-  assert.ok(reserved.reserveMicrousd>0);assert.equal(settled.inputTokens,1200);assert.equal(settled.outputTokens,300);
+  assert.ok(reserved.reserveMicrousd>=58_000); // 20k fixed prompt/schema bytes at $2/M + 1,800 output tokens at $10/M
+  assert.equal(settled.inputTokens,1200);assert.equal(settled.outputTokens,300);
  });
 });
 test('AI status indică indisponibilitatea când metering-ul persistent lipsește',async()=>{
