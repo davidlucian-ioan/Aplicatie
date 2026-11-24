@@ -10,6 +10,26 @@ function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+function normalizeMetadata(value) {
+  if (!isObject(value)) return {};
+  const metadata = {};
+  if (typeof value.language === 'string' && value.language.length <= 35) metadata.language = value.language;
+  if (typeof value.transcriptionSource === 'string' && value.transcriptionSource.length <= 64) {
+    metadata.transcriptionSource = value.transcriptionSource;
+  }
+  if (typeof value.transcriptionConfidence === 'number' && Number.isFinite(value.transcriptionConfidence) &&
+      value.transcriptionConfidence >= 0 && value.transcriptionConfidence <= 1) {
+    metadata.transcriptionConfidence = value.transcriptionConfidence;
+  }
+  for (const key of ['segmentStartMs', 'segmentEndMs', 'durationMs']) {
+    if (typeof value[key] === 'number' && Number.isFinite(value[key]) && value[key] >= 0) metadata[key] = value[key];
+  }
+  if (Number.isInteger(value.segmentIndex) && value.segmentIndex >= 0) metadata.segmentIndex = value.segmentIndex;
+  if (typeof value.observedAt === 'string' && value.observedAt.length <= 80 &&
+      Number.isFinite(Date.parse(value.observedAt))) metadata.observedAt = value.observedAt;
+  return metadata;
+}
+
 function validateInput(input) {
   if (!isObject(input)) throw new TypeError('Input-ul trebuie să fie un obiect.');
   if (typeof input.text !== 'string' || !input.text.trim()) {
@@ -30,7 +50,7 @@ function validateInput(input) {
     userId: input.userId || null,
     requestId: input.requestId || null,
     receivedAt: input.receivedAt || new Date().toISOString(),
-    metadata: isObject(input.metadata) ? input.metadata : {}
+    metadata: normalizeMetadata(input.metadata)
   };
 }
 
@@ -142,6 +162,6 @@ function validateCoreResult(result) {
 }
 
 module.exports = {
-  CONTRACT_VERSION, MAX_TEXT, MAX_OPERATIONS,
+  CONTRACT_VERSION, MAX_TEXT, MAX_OPERATIONS, normalizeMetadata,
   validateInput, validateInterpretation, validateReadRequest, validateCommand, validateCoreResult
 };
