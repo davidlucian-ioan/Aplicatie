@@ -35,6 +35,7 @@
   window.__collectorStartupDiagnostics = {
     errors: errors,
     lastTap: null,
+    ready: false,
     snapshot: function () {
       return {
         appReady: window.__collectorAppReady === true,
@@ -86,6 +87,7 @@
       report('MISSING_DOM', 'menuToggle sau mainContent');
     }
     if (window.__collectorAppReady !== true) report('APP_NOT_READY', 'scriptul aplicației nu a ajuns la finalul inițializării.');
+    window.__collectorStartupDiagnostics.ready = true;
     render();
   });
 })();
