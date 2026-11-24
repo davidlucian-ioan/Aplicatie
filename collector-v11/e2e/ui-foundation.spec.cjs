@@ -187,10 +187,10 @@ test('voice read-back waits for microphone release and never commits without exp
   await page.addInitScript(() => {
     window.__spokenReadbacks = [];
     window.__speechCancelCount = 0;
-    window.SpeechSynthesisUtterance = class {
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: class {
       constructor(text) { this.text = text; }
-    };
-    window.speechSynthesis = {
+    } });
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: {
       getVoices: () => [{ lang: 'ro-RO', name: 'Romanian test voice' }],
       cancel() { window.__speechCancelCount += 1; },
       speak(utterance) {
@@ -198,7 +198,7 @@ test('voice read-back waits for microphone release and never commits without exp
         utterance.onstart?.();
         utterance.onend?.();
       }
-    };
+    } });
     window.__collectorRecognition = null;
     window.SpeechRecognition = class {
       start() { window.__collectorRecognition = this; this.onstart?.(); }
