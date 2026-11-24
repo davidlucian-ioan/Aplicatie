@@ -19,6 +19,7 @@ Obligatorii pentru AI și billing:
 - `OPENAI_API_KEY` — secret OpenAI server-side.
 - `REVENUECAT_WEBHOOK_AUTHORIZATION` — valoarea exactă a headerului Authorization configurat în webhook-ul RevenueCat.
 - `REVENUECAT_PRO_PRODUCT_IDS` — lista separată prin virgulă a product ID-urilor care acordă Collector Pro. Nu acceptăm automat orice produs din RevenueCat.
+- `REVENUECAT_PRO_ENTITLEMENT_ID` — identificatorul entitlement-ului din RevenueCat; implicit `pro`.
 - `AI_MONTHLY_BUDGET_USD` — buget maxim AI inclus per utilizator/lună; implicit 1 USD.
 - `OPENAI_INPUT_USD_PER_MILLION` și `OPENAI_OUTPUT_USD_PER_MILLION` — tarifele modelului configurat, exprimate în USD per milion tokeni; defaulturile sunt 2 și 10 și trebuie sincronizate cu tariful real al modelului.
 
