@@ -373,6 +373,55 @@ test('voice context uses only the last confirmed target and expires after 30 min
   expect(await page.evaluate(() => localStorage.getItem('collector_voice_context_v1'))).toBeNull();
 });
 
+test('voice confirmation does not publish or retain context when local persistence fails', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Plantă fără persistență');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#modal button.primary').click();
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrase = [{ transcript: 'setează pH pentru Plantă fără persistență = 6.4' }]; phrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [phrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key === 'collector_mvp_v2') throw new Error('simulated quota failure');
+      return original.call(this, key, value);
+    };
+  });
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Execuție nefinalizată (unavailable)');
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(after.events).toEqual(before.events);
+  expect(after.entities.find(entity => entity.name === 'Plantă fără persistență').attributes?.pH).toBeUndefined();
+  expect(await page.evaluate(() => localStorage.getItem('collector_voice_context_v1'))).toBeNull();
+
+  await page.evaluate(() => { Storage.prototype.setItem = Storage.prototype.__originalSetItem || Storage.prototype.setItem; });
+});
+
 test('voice preview is revalidated and requires confirmation again after another session changes stock', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
