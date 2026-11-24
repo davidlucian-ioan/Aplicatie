@@ -52,7 +52,7 @@ Backend-ul tratează achiziția/reînnoirea, schimbarea produsului, reactivarea,
 ## Protecție costuri
 
 - AI este refuzat dacă lipsește entitlement-ul Pro activ.
-- Bugetul lunar este rezervat atomic înainte de apelul OpenAI; cererile concurente nu pot depăși plafonul printr-un simplu race.
+- Bugetul lunar este rezervat atomic înainte de apelul OpenAI; cererile concurente nu pot depăși plafonul printr-un simplu race. Rezerva include și 20.000 bytes de overhead conservator pentru instrucțiunile fixe și schema JSON trimise la fiecare apel, pe lângă text/context și plafonul de output.
 - După răspuns, tokenii raportați de OpenAI și costul estimat sunt salvați. Dacă providerul nu returnează usage, se taxează conservator rezerva calculată.
 - La buget epuizat, API răspunde cu `429 monthly_budget_exceeded`; Work/Think și datele locale nu sunt afectate.
 - Rate limit-ul de 20 cereri/minut este suplimentar și în memorie; nu înlocuiește bugetul lunar persistent.
