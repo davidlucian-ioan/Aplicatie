@@ -294,6 +294,74 @@ async function runAICommand(){
  }catch(error){box.textContent='Interpretarea AI nu a putut fi finalizată: '+error.message}
  finally{if(button){button.disabled=false;button.textContent='Interpretează cu AI'}}
 }
+async function refreshSubscriptionStatus(){
+ const status=document.getElementById('subscriptionStatus'),list=document.getElementById('subscriptionPackages');
+ const restoreButton=document.getElementById('restorePurchases'),refreshButton=document.getElementById('refreshSubscription');
+ if(!status||!list)return;
+ list.replaceChildren();
+ if(!window.CollectorSubscriptions){status.textContent='Modulul de abonamente nu este încărcat.';return}
+ try{
+  const user=await window.CollectorAuth?.getUser?.();
+  if(!user?.id){status.textContent='Activează contul cloud pentru a verifica abonamentul.';return}
+  const state=await window.CollectorSubscriptions.initialize(user.id);
+  if(!state.available){
+   status.textContent=state.reason==='native_only'?'Achizițiile sunt disponibile în aplicația Android/iOS.': 'Sistemul de achiziții nu este încă configurat pentru această versiune.';
+   if(restoreButton)restoreButton.disabled=true;if(refreshButton)refreshButton.disabled=true;return;
+  }
+  if(restoreButton)restoreButton.disabled=false;if(refreshButton)refreshButton.disabled=false;
+  if(state.isPro){status.textContent='Collector Pro activ'+(state.expiresAt?' · expiră '+new Date(state.expiresAt).toLocaleDateString('ro-RO'):'')+'.';}
+  else{
+   status.textContent='Plan Free · datele și funcțiile locale rămân disponibile. Alege Collector Pro pentru AI și servicii cloud.';
+   const packages=await window.CollectorSubscriptions.offerings();
+   if(!packages.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nu există oferte active în RevenueCat. Configurează offering-ul curent și produsele din dashboard.';list.append(empty)}
+   for(const item of packages){
+    const button=document.createElement('button');button.type='button';button.className='secondary';
+    button.textContent=(item.title||'Collector Pro')+(item.priceString?' · '+item.priceString:'');
+    button.addEventListener('click',()=>purchaseCollectorPackage(item.identifier,button));list.append(button);
+   }
+  }
+ }catch(error){status.textContent='Nu am putut verifica abonamentul: '+error.message;if(restoreButton)restoreButton.disabled=true}
+}
+async function purchaseCollectorPackage(identifier,button){
+ const status=document.getElementById('subscriptionStatus');
+ if(button)button.disabled=true;if(status)status.textContent='Se procesează achiziția prin magazin…';
+ try{
+  const result=await window.CollectorSubscriptions.purchase(identifier);
+  if(status)status.textContent=result.isPro?'Collector Pro a fost activat.':'Achiziția a fost procesată; verific drepturile pe server.';
+  await refreshSubscriptionStatus();await refreshAIProviderStatus();
+ }catch(error){if(status)status.textContent='Achiziția nu a fost finalizată: '+error.message}
+ finally{if(button)button.disabled=false}
+}
+async function restoreCollectorPurchases(){
+ const status=document.getElementById('subscriptionStatus'),button=document.getElementById('restorePurchases');
+ if(button)button.disabled=true;if(status)status.textContent='Se restaurează achizițiile din magazin…';
+ try{
+  const result=await window.CollectorSubscriptions.restore();
+  if(status)status.textContent=result.isPro?'Abonamentul Collector Pro a fost restaurat.':'Nu am găsit un abonament Pro activ pentru contul magazinului.';
+  await refreshSubscriptionStatus();await refreshAIProviderStatus();
+ }catch(error){if(status)status.textContent='Restaurarea nu a reușit: '+error.message}
+ finally{if(button)button.disabled=false}
+}
+document.getElementById('restorePurchases')?.addEventListener('click',restoreCollectorPurchases);
+document.getElementById('refreshSubscription')?.addEventListener('click',refreshSubscriptionStatus);
+document.getElementById('cloudAccountLinkForm')?.addEventListener('submit',async event=>{
+ event.preventDefault();const status=document.getElementById('cloudIdentityStatus');
+ const email=document.getElementById('cloudAccountEmail').value,password=document.getElementById('cloudAccountPassword').value;
+ status.textContent='Asociez emailul contului cloud curent…';
+ try{const account=await window.CollectorAuth.linkEmailPassword(email,password);document.getElementById('cloudAccountPassword').value='';
+  status.textContent='Contul curent este asociat cu '+account.email+'. Verifică emailul dacă Supabase solicită confirmare.';
+  await refreshSubscriptionStatus();await refreshAIProviderStatus();
+ }catch(error){status.textContent='Nu am putut asocia contul: '+error.message}
+});
+document.getElementById('cloudAccountLoginForm')?.addEventListener('submit',async event=>{
+ event.preventDefault();const status=document.getElementById('cloudIdentityStatus');
+ const email=document.getElementById('cloudLoginEmail').value,password=document.getElementById('cloudLoginPassword').value;
+ status.textContent='Autentificare în contul Collector…';
+ try{const account=await window.CollectorAuth.signInWithPassword(email,password);document.getElementById('cloudLoginPassword').value='';
+  await refreshSubscriptionStatus();await refreshAIProviderStatus();
+  status.textContent='Autentificat în contul '+account.email+'. Datele locale existente rămân pe dispozitiv; sincronizarea cloud se implementează separat.';
+ }catch(error){status.textContent='Autentificarea a eșuat: '+error.message}
+});
 document.getElementById('parseWithAI')?.addEventListener('click',runAICommand);
 document.getElementById('deleteCloudAccount')?.addEventListener('click',deleteCloudAccount);
 document.getElementById('enableCloudAccount')?.addEventListener('click',enableCloudAccount);
@@ -302,7 +370,7 @@ async function deleteCloudAccount(){
  if(!window.CollectorAuth?.isConfigured?.()||!window.CollectorAuth?.deleteAccount)return;
  if(!confirm('Ștergi definitiv contul cloud Collector? Datele locale de pe acest telefon nu vor fi șterse.'))return;
  if(button)button.disabled=true;if(status)status.textContent='Se șterge contul cloud…';
- try{await window.CollectorAuth.deleteAccount();if(status)status.textContent='Contul cloud a fost șters. Datele locale au rămas pe acest telefon.';const enableButton=document.getElementById('enableCloudAccount');if(enableButton)enableButton.hidden=false}
+ try{await window.CollectorAuth.deleteAccount();await window.CollectorSubscriptions?.logOut?.();if(status)status.textContent='Contul cloud a fost șters. Datele locale au rămas pe acest telefon.';const enableButton=document.getElementById('enableCloudAccount');if(enableButton)enableButton.hidden=false}
  catch(error){if(status)status.textContent='Nu am putut șterge contul cloud: '+error.message;if(button)button.disabled=false}
 }
 async function enableCloudAccount(){
@@ -312,14 +380,14 @@ async function enableCloudAccount(){
   const result=await window.CollectorAuth?.enableCloud?.();
   if(!result?.configured)throw new Error(result?.error||'Configurarea cloud nu este completă.');
   if(status)status.textContent='Sesiunea cloud a fost reactivată.';
-  await refreshAIProviderStatus();
+  await refreshSubscriptionStatus();await refreshAIProviderStatus();
  }catch(error){if(status)status.textContent='Nu am putut activa serviciile cloud: '+error.message}
  finally{if(button)button.disabled=false}
 }
 async function refreshAIProviderStatus(){
  const status=document.getElementById('aiProviderStatus');if(!status||!window.CollectorOpenAIProvider)return;
  const button=document.getElementById('parseWithAI'),deleteButton=document.getElementById('deleteCloudAccount'),enableButton=document.getElementById('enableCloudAccount');
- try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.unauthenticated?'Autentificarea cloud nu este configurată. AI rămâne dezactivat.':info.configured?'OpenAI configurat · '+info.model:'OpenAI selectat · cheia API nu este configurată pe server';status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured;if(deleteButton)deleteButton.disabled=!(info.accountDeletionEnabled&&window.CollectorAuth?.isConfigured?.());if(enableButton)enableButton.hidden=!window.CollectorAuth?.isOptedOut?.()}
+ try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.unauthenticated?'Autentificarea cloud nu este configurată. AI rămâne dezactivat.':info.configured?'Collector Pro activ · AI disponibil · '+info.model:info.entitlement==='free'?'Plan Free · AI cloud este inclus în Collector Pro.':'AI cloud indisponibil: verifică backend-ul, abonamentul și configurarea providerului.';status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured;if(deleteButton)deleteButton.disabled=!(info.accountDeletionEnabled&&window.CollectorAuth?.isConfigured?.());if(enableButton)enableButton.hidden=!window.CollectorAuth?.isOptedOut?.()}
  catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false';if(button)button.disabled=true;if(deleteButton)deleteButton.disabled=true;if(enableButton)enableButton.hidden=!window.CollectorAuth?.isOptedOut?.()}
 }
 document.getElementById('parseCommand').onclick=runCommand;
@@ -496,6 +564,6 @@ async function initializeCollectorApp(){
  if(!audioStorageReady)setAudioUi('idle','Stocarea audio nativă nu a putut fi inițializată. Funcțiile Core rămân disponibile, dar înregistrarea audio este dezactivată.');
  await window.CollectorReminders?.initialize();
  await renderAudioRecordings();
- void (async()=>{try{await window.CollectorAuth?.initialize(window.CollectorConfig||{})}catch(authError){setAppStatus('Autentificarea cloud nu a putut fi inițializată: '+String(authError?.message||authError))}await refreshAIProviderStatus()})();
+ void (async()=>{try{const auth=await window.CollectorAuth?.initialize(window.CollectorConfig||{});if(auth?.configured&&auth.userId)await refreshSubscriptionStatus()}catch(authError){setAppStatus('Autentificarea cloud nu a putut fi inițializată: '+String(authError?.message||authError))}await refreshAIProviderStatus()})();
 }
 initializeCollectorApp();
