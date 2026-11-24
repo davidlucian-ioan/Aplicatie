@@ -3,6 +3,8 @@
 const CONTRACT_VERSION = 'collector.command.v1';
 const INTENTS = new Set(['answer', 'propose', 'clarify', 'refuse', 'model_extension']);
 const CORE_STATUSES = new Set(['preview_ok', 'committed', 'duplicate', 'rejected', 'conflict', 'unavailable']);
+const MAX_TEXT = 4000;
+const MAX_OPERATIONS = 50;
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -13,9 +15,14 @@ function validateInput(input) {
   if (typeof input.text !== 'string' || !input.text.trim()) {
     throw new TypeError('Mesajul utilizatorului este obligatoriu.');
   }
+  if (input.text.length > MAX_TEXT) throw new TypeError('Mesajul depășește limita de 4.000 de caractere.');
+  if (input.userId !== undefined && input.userId !== null &&
+      (typeof input.userId !== 'string' || input.userId.length > 128)) {
+    throw new TypeError('Identificatorul utilizatorului este invalid.');
+  }
   return {
     text: input.text.trim(),
-    source: input.source || 'text',
+    source: typeof input.source === 'string' ? input.source : 'text',
     userId: input.userId || null,
     receivedAt: input.receivedAt || new Date().toISOString(),
     metadata: isObject(input.metadata) ? input.metadata : {}
@@ -28,12 +35,17 @@ function validateInterpretation(value) {
   }
   const result = { ...value };
   if (result.confidence !== undefined &&
-      (typeof result.confidence !== 'number' || result.confidence < 0 || result.confidence > 1)) {
+      (typeof result.confidence !== 'number' || !Number.isFinite(result.confidence) ||
+       result.confidence < 0 || result.confidence > 1)) {
     throw new TypeError('Confidence trebuie să fie un număr între 0 și 1.');
   }
   if (result.intent === 'clarify' &&
       (typeof result.question !== 'string' || !result.question.trim())) {
     throw new TypeError('O clarificare trebuie să conțină o întrebare.');
+  }
+  if (result.intent === 'refuse' &&
+      result.reason !== undefined && typeof result.reason !== 'string') {
+    throw new TypeError('Motivul refuzului trebuie să fie text.');
   }
   if (result.intent === 'propose') {
     if (!isObject(result.command)) throw new TypeError('Propunerea nu conține command.');
@@ -49,19 +61,43 @@ function validateCommand(command) {
   if (!isObject(command) || command.contractVersion !== CONTRACT_VERSION) {
     throw new TypeError(`Comanda trebuie să folosească ${CONTRACT_VERSION}.`);
   }
-  if (typeof command.intent !== 'string' || !command.intent.trim()) {
-    throw new TypeError('Comanda nu are intent.');
+  if (typeof command.intent !== 'string' || !command.intent.trim() || command.intent.length > 128) {
+    throw new TypeError('Comanda nu are un intent valid.');
   }
-  if (!Array.isArray(command.operations) || command.operations.length === 0) {
-    throw new TypeError('Comanda trebuie să conțină cel puțin o operație.');
+  if (!Array.isArray(command.operations) || command.operations.length === 0 ||
+      command.operations.length > MAX_OPERATIONS) {
+    throw new TypeError('Comanda trebuie să conțină între 1 și 50 de operații.');
   }
   for (const [index, operation] of command.operations.entries()) {
-    if (!isObject(operation) || typeof operation.operation !== 'string' || !operation.operation.trim()) {
+    if (!isObject(operation) || typeof operation.operation !== 'string' ||
+        !operation.operation.trim() || operation.operation.length > 128) {
       throw new TypeError(`Operația ${index + 1} este invalidă.`);
     }
+    if (operation.target !== undefined &&
+        (typeof operation.target !== 'string' || !operation.target.trim() || operation.target.length > 128)) {
+      throw new TypeError(`Ținta operației ${index + 1} este invalidă.`);
+    }
+    if (operation.data !== undefined && !isObject(operation.data)) {
+      throw new TypeError(`Datele operației ${index + 1} trebuie să fie un obiect.`);
+    }
   }
-  if (typeof command.idempotencyKey !== 'string' || !command.idempotencyKey.trim()) {
-    throw new TypeError('Comanda nu are idempotencyKey.');
+  if (typeof command.idempotencyKey !== 'string' || !command.idempotencyKey.trim() ||
+      command.idempotencyKey.length > 200) {
+    throw new TypeError('Comanda nu are un idempotencyKey valid.');
+  }
+  if (command.turnId !== undefined &&
+      (typeof command.turnId !== 'string' || command.turnId.length > 128)) {
+    throw new TypeError('turnId este invalid.');
+  }
+  if (command.payload !== undefined && !isObject(command.payload)) {
+    throw new TypeError('Payload-ul comenzii trebuie să fie un obiect.');
+  }
+  if (command.requiresConfirmation !== undefined && typeof command.requiresConfirmation !== 'boolean') {
+    throw new TypeError('requiresConfirmation trebuie să fie boolean.');
+  }
+  if (command.certainty !== undefined &&
+      !['certain', 'uncertain', 'unknown'].includes(command.certainty)) {
+    throw new TypeError('certainty trebuie să fie certain, uncertain sau unknown.');
   }
   return command;
 }
@@ -70,13 +106,17 @@ function validateCoreResult(result) {
   if (!isObject(result) || !CORE_STATUSES.has(result.status)) {
     throw new TypeError('Core a returnat un status necunoscut.');
   }
+  if (result.eventId !== undefined && result.eventId !== null && typeof result.eventId !== 'string') {
+    throw new TypeError('Core a returnat un eventId invalid.');
+  }
+  if (result.errors !== undefined &&
+      (!Array.isArray(result.errors) || result.errors.some(error => typeof error !== 'string'))) {
+    throw new TypeError('Core a returnat o listă de erori invalidă.');
+  }
   return result;
 }
 
 module.exports = {
-  CONTRACT_VERSION,
-  validateInput,
-  validateInterpretation,
-  validateCommand,
-  validateCoreResult
+  CONTRACT_VERSION, MAX_TEXT, MAX_OPERATIONS,
+  validateInput, validateInterpretation, validateCommand, validateCoreResult
 };
