@@ -25,6 +25,7 @@ Status: implemented in `feature/ai-foundation-core-contract`; CI validation pend
 - [x] Proposal is stored and explicit confirmation executes the exact pending command.
 - [x] Operational answers are generated only after Core retrieval.
 - [x] Browser and Node Core Port parity tests.
+- [x] Provider payload excludes gateway identifiers and forwards only whitelisted transcript metadata.
 - [ ] GitHub Quality CI and Android build pass on the final PR head.
 
 ## Gate B — reliable voice input
