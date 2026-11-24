@@ -43,4 +43,4 @@ Testele Playwright folosesc un server temporar pe portul 4173 și un profil de b
 
 CI rulează toate nivelurile la fiecare Pull Request și păstrează raportul de coverage și benchmark-ul Replay ca artifact GitHub Actions.
 
-Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile reale în afara intervalului se pot înregistra cu avertisment. AI Foundation folosește un provider mock; nu există încă provider AI real conectat.
+Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile reale în afara intervalului se pot înregistra cu avertisment. Providerul cloud OpenAI este integrat prin serverul local; cheia API rămâne exclusiv pe server. Vezi [OPENAI-INTEGRATION.md](OPENAI-INTEGRATION.md).
