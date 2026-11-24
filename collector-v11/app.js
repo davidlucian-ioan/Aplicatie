@@ -219,39 +219,70 @@ function parseCommand(text){
  if((m=s.match(/^(?:am vândut|am vandut|vinde)\s+(\d+)\s+(.+?)(?:\s+din\s+(.+))?$/iu)))return {type:'sale',quantity:Number(m[1]),populationName:m[2].trim(),locationName:m[3]?.trim()||null};
  return {error:'Nu pot interpreta această comandă fără să ghicesc. Folosește „Observație: ...” sau „Înregistrează [atribut] pentru [entitate] = [valoare]”.'};
 }
-async function runVoiceBatch(phrases){
+function voiceBatchResolveTarget(matches,key,label,selections,unresolved,index){
+ const selectedId=selections[key];
+ if(matches.length===0)throw Error('Fraza '+(index+1)+': nu am găsit '+label+'. Verifică numele și încearcă din nou.');
+ if(selectedId){
+  const selected=matches.find(entity=>entity.id===selectedId);
+  if(!selected)throw Error('Selecția pentru '+label+' nu mai este validă. Reia alegerea.');
+  return selected;
+ }
+ if(matches.length===1)return matches[0];
+ unresolved.push({key,label,index,matches});
+ return null;
+}
+function renderVoiceBatchDisambiguation(entries,unresolved,selections){
+ const box=document.getElementById('commandResult');
+ const controls=unresolved.map(item=>'<label for="voiceChoice_'+esc(item.key)+'">Fraza '+(item.index+1)+' · '+esc(item.label)+'</label><select id="voiceChoice_'+esc(item.key)+'" data-voice-choice-key="'+esc(item.key)+'"><option value="">Selectează explicit…</option>'+item.matches.map(entity=>'<option value="'+esc(entity.id)+'" '+(selections[item.key]===entity.id?'selected':'')+'>'+esc(entity.name)+' · '+esc(entity.type)+' · …'+esc(entity.id.slice(-6))+'</option>').join('')+'</select>').join('');
+ box.innerHTML='<b>Este necesară o alegere explicită</b><p>Am găsit mai multe potriviri. Nu am ales automat nicio entitate și nu am salvat nimic.</p>'+controls+'<p class="note">Selectează ținta corectă pentru fiecare frază. Lotul complet va fi revalidat și previzualizat numai după ce toate alegerile sunt clare.</p><button class="primary" id="resolveVoiceBatch">Reverifică lotul</button> <button class="secondary" id="cancelVoiceBatchResolution">Anulează lotul</button>';
+ document.getElementById('resolveVoiceBatch').onclick=()=>{
+  const next={...selections};
+  box.querySelectorAll('[data-voice-choice-key]').forEach(select=>{next[select.dataset.voiceChoiceKey]=select.value});
+  runVoiceBatch(entries,next);
+ };
+ document.getElementById('cancelVoiceBatchResolution').onclick=()=>{pendingCoreCommand=null;voiceCommandPending=false;voiceReadbackPending=false;cancelSpeechOutput();box.textContent='Lot anulat. Nu s-au modificat date.'};
+}
+async function runVoiceBatch(phrases,selections={}){
  const box=document.getElementById('commandResult');
  const entries=(Array.isArray(phrases)?phrases:[]).map(value=>String(value||'').trim()).filter(Boolean);
  if(!entries.length){voiceReadbackPending=false;setAppStatus('Sesiunea vocală s-a încheiat fără fraze finale. Nu s-au modificat datele.');return}
- const operations=[],items=[],summaries=[];
- for(let index=0;index<entries.length;index++){
-  const phrase=entries[index];
-  let parsed=parseCommand(phrase);
-  if(parsed.error)parsed={type:'note',description:phrase};
-  if(parsed.type==='note'){
-   operations.push({operation:'event.note',data:{description:parsed.description}});
-   items.push({type:'note',description:parsed.description});
-   summaries.push('Observație '+(index+1)+': „'+parsed.description+'”');
-  }else if(parsed.type==='attribute'){
-   const matches=db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
-   if(matches.length!==1){box.textContent=matches.length?'Fraza '+(index+1)+': există mai multe entități cu acest nume; selectează explicit entitatea.':'Fraza '+(index+1)+': nu găsesc entitatea „'+parsed.entityName+'”.';voiceReadbackPending=false;return}
-   const def=db.attributes.find(a=>a.name.toLowerCase()===parsed.attribute.toLowerCase());
-   if(!def){box.textContent='Fraza '+(index+1)+': atributul „'+parsed.attribute+'” nu este definit. Nu voi modifica schema în tăcere.';voiceReadbackPending=false;return}
-   let value;try{value=parseTyped(parsed.value,def.type);if(!confirmAttributeWarnings(def,value)){voiceReadbackPending=false;return}}catch(error){box.textContent='Fraza '+(index+1)+': '+error.message;voiceReadbackPending=false;return}
-   operations.push({operation:'attribute.set',target:matches[0].id,data:{name:def.name,value,certainty:'certain',forceHistory:true}});
-   items.push({type:'attribute',entityId:matches[0].id,attribute:def.name,value});
-   summaries.push(matches[0].name+' · '+def.name+' = '+JSON.stringify(value));
-  }else if(parsed.type==='sale'){
-   const populations=db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
-   if(populations.length!==1){box.textContent=populations.length?'Fraza '+(index+1)+': există mai multe populații cu acest nume. Selectează una explicit.':'Fraza '+(index+1)+': nu am găsit o singură populație cu acel nume.';voiceReadbackPending=false;return}
-   const locations=parsed.locationName?db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase()):[];
-   if(parsed.locationName&&locations.length!==1){box.textContent='Fraza '+(index+1)+': nu am găsit o singură locație cu acel nume.';voiceReadbackPending=false;return}
-   const locationId=locations[0]?.id||null;
-   operations.push({operation:'stock.change',data:{populationId:populations[0].id,action:'sell',locationId,quantity:parsed.quantity,disposition:'sold'}});
-   items.push({type:'sale',populationId:populations[0].id,quantity:parsed.quantity,locationId});
-   summaries.push('Vânzare '+parsed.quantity+' × '+populations[0].name+(locations[0]?' din '+locations[0].name:''));
+ const operations=[],items=[],summaries=[],unresolved=[];
+ try{
+  for(let index=0;index<entries.length;index++){
+   const phrase=entries[index];
+   let parsed=parseCommand(phrase);
+   if(parsed.error)parsed={type:'note',description:phrase};
+   if(parsed.type==='note'){
+    operations.push({operation:'event.note',data:{description:parsed.description}});
+    items.push({type:'note',description:parsed.description});
+    summaries.push('Observație '+(index+1)+': „'+parsed.description+'”');
+   }else if(parsed.type==='attribute'){
+    const matches=db.entities.filter(x=>x.name.toLowerCase()===parsed.entityName.toLowerCase());
+    const entity=voiceBatchResolveTarget(matches,'entity:'+index,'entitatea „'+parsed.entityName+'”',selections,unresolved,index);
+    const definitions=db.attributes.filter(a=>a.name.toLowerCase()===parsed.attribute.toLowerCase());
+    if(definitions.length!==1)throw Error(definitions.length?'Fraza '+(index+1)+': definiția atributului „'+parsed.attribute+'” nu este unică.':'Fraza '+(index+1)+': atributul „'+parsed.attribute+'” nu este definit. Nu voi modifica schema în tăcere.');
+    if(entity){
+     const def=definitions[0];
+     const value=parseTyped(parsed.value,def.type);
+     operations.push({operation:'attribute.set',target:entity.id,data:{name:def.name,value,certainty:'certain',forceHistory:true}});
+     items.push({type:'attribute',entityId:entity.id,attribute:def.name,value});
+     summaries.push(entity.name+' · '+def.name+' = '+JSON.stringify(value));
+    }
+   }else if(parsed.type==='sale'){
+    const populations=db.entities.filter(x=>x.name.toLowerCase()===parsed.populationName.toLowerCase()&&(x.type==='population'||x.type==='group'));
+    const population=voiceBatchResolveTarget(populations,'population:'+index,'populația „'+parsed.populationName+'”',selections,unresolved,index);
+    const locations=parsed.locationName?db.entities.filter(x=>x.type==='location'&&x.name.toLowerCase()===parsed.locationName.toLowerCase()):[];
+    const location=parsed.locationName?voiceBatchResolveTarget(locations,'location:'+index,'locația „'+parsed.locationName+'”',selections,unresolved,index):null;
+    if(population&&(!parsed.locationName||location)){
+     operations.push({operation:'stock.change',data:{populationId:population.id,action:'sell',locationId:location?.id||null,quantity:parsed.quantity,disposition:'sold'}});
+     items.push({type:'sale',populationId:population.id,quantity:parsed.quantity,locationId:location?.id||null});
+     summaries.push('Vânzare '+parsed.quantity+' × '+population.name+(location?' din '+location.name:''));
+    }
+   }
   }
- }
+  if(unresolved.length){voiceReadbackPending=false;renderVoiceBatchDisambiguation(entries,unresolved,selections);return}
+  if(!operations.length)throw Error('Lotul nu conține operații valide.');
+ }catch(error){voiceReadbackPending=false;box.textContent=error.message+' Nu s-a salvat nimic.';return}
  const command={contractVersion:'collector.command.v1',turnId:E.uid(),intent:'voice.batch',idempotencyKey:commandIntentKey(),source:'text',certainty:'certain',payload:{items},operations};
  try{
   const result=await ensureAICorePort().preview(command);
