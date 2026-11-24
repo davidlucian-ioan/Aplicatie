@@ -78,17 +78,19 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
    try{
     const payload=await readJson(req),event=payload?.event||{};
     if(typeof event.id!=='string'||typeof event.type!=='string'){send(res,400,{error:'Eveniment RevenueCat invalid.'});return}
-    const appUserId=String(event.app_user_id||'');
-    const userId=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(appUserId)?appUserId:null;
+    const identityCandidates=[event.app_user_id,event.original_app_user_id,...(Array.isArray(event.aliases)?event.aliases:[])].filter(value=>typeof value==='string');
+    const userId=identityCandidates.find(value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))||null;
     const productId=typeof event.product_id==='string'?event.product_id:null;
     const allowedProducts=new Set(String(env.REVENUECAT_PRO_PRODUCT_IDS||'').split(',').map(x=>x.trim()).filter(Boolean));
+    const proEntitlement=String(env.REVENUECAT_PRO_ENTITLEMENT_ID||'pro');
+    const hasProEntitlement=Array.isArray(event.entitlement_ids)&&event.entitlement_ids.includes(proEntitlement);
     const storeMap={APP_STORE:'app_store',MAC_APP_STORE:'app_store',PLAY_STORE:'play_store',PROMOTIONAL:'promotional'};
     const expiresAt=Number.isFinite(Number(event.expiration_at_ms))&&Number(event.expiration_at_ms)>0
       ?new Date(Number(event.expiration_at_ms)).toISOString():null;
     const eventTimestamp=Number.isFinite(Number(event.event_timestamp_ms))&&Number(event.event_timestamp_ms)>0
       ?new Date(Number(event.event_timestamp_ms)).toISOString():new Date(now()).toISOString();
     const result=await billing.applyRevenueCatEvent({eventId:event.id,userId,eventType:event.type,
-      productId,store:storeMap[event.store]||null,expiresAt,eventTimestamp,isProProduct:Boolean(productId&&allowedProducts.has(productId))});
+      productId,store:storeMap[event.store]||null,expiresAt,eventTimestamp,isProProduct:Boolean(hasProEntitlement||(productId&&allowedProducts.has(productId)))});
     send(res,200,{ok:true,processed:Boolean(result?.processed),duplicate:Boolean(result?.duplicate),ignored:Boolean(result?.ignored),stale:Boolean(result?.stale)});return;
    }catch(error){send(res,503,{error:'Evenimentul de billing nu a putut fi procesat.'});return}
   }
