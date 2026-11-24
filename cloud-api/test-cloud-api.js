@@ -87,3 +87,37 @@ test('rate limit este aplicat per utilizator autentificat',async()=>{
   assert.equal(last.status,429);
  });
 });
+
+test('AI refuză utilizatorii fără entitlement Pro înainte să apeleze providerul',async()=>{
+ let providerCalled=false;
+ const billingService={configured:true,reserve:async()=>({allowed:false,reason:'subscription_required'}),settle:async()=>({})};
+ await withServer({env:baseEnv,fetchImpl:authFetch(),billingService,providerFactory:()=>{providerCalled=true;return {interpret:async()=>({})}}},async base=>{
+  const response=await fetch(base+'/api/ai/interpret',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'application/json'},body:JSON.stringify({text:'test'})});
+  assert.equal(response.status,403);assert.equal((await response.json()).code,'subscription_required');assert.equal(providerCalled,false);
+ });
+});
+test('AI oprește solicitările când bugetul lunar este epuizat',async()=>{
+ let providerCalled=false;
+ const billingService={configured:true,reserve:async()=>({allowed:false,reason:'monthly_budget_exceeded'}),settle:async()=>({})};
+ await withServer({env:baseEnv,fetchImpl:authFetch(),billingService,providerFactory:()=>{providerCalled=true;return {interpret:async()=>({})}}},async base=>{
+  const response=await fetch(base+'/api/ai/interpret',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'application/json'},body:JSON.stringify({text:'test'})});
+  assert.equal(response.status,429);assert.equal((await response.json()).code,'monthly_budget_exceeded');assert.equal(providerCalled,false);
+ });
+});
+test('AI înregistrează usage după răspuns și returnează costul estimat',async()=>{
+ let reserved=null,settled=null;
+ const billingService={configured:true,reserve:async value=>{reserved=value;return {allowed:true}},settle:async value=>{settled=value;return {settled:true,used_microusd:value.actualMicrousd}}};
+ await withServer({env:baseEnv,fetchImpl:authFetch(),billingService,providerFactory:()=>({model:'test-model',interpret:async()=>({kind:'answer',usage:{inputTokens:1200,outputTokens:300}})})},async base=>{
+  const response=await fetch(base+'/api/ai/interpret',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'application/json'},body:JSON.stringify({text:'test'})});
+  assert.equal(response.status,200);const result=await response.json();
+  assert.equal(result.usage.inputTokens,1200);assert.equal(result.usage.outputTokens,300);
+  assert.equal(result.usage.estimatedCostUsd,0.0054);
+  assert.ok(reserved.reserveMicrousd>0);assert.equal(settled.inputTokens,1200);assert.equal(settled.outputTokens,300);
+ });
+});
+test('AI status indică indisponibilitatea când metering-ul persistent lipsește',async()=>{
+ await withServer({env:baseEnv,fetchImpl:authFetch(),billingService:{configured:false}},async base=>{
+  const response=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer valid-token'}});
+  const status=await response.json();assert.equal(status.configured,true);assert.equal(status.billingConfigured,false);assert.equal(status.aiAvailable,false);
+ });
+});
