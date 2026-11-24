@@ -1,6 +1,6 @@
 'use strict';
 const http=require('node:http');
-const {randomUUID}=require('node:crypto');
+const {randomUUID,timingSafeEqual}=require('node:crypto');
 const {OpenAIProvider}=require('../collector-v11/ai/provider-openai');
 const {safeContext}=require('../collector-v11/ai/context-sanitizer');
 const {SupabaseBillingService}=require('./billing-service');
@@ -69,6 +69,27 @@ function createCloudServer({env=process.env,fetchImpl=global.fetch,providerFacto
   if(!cors(req,res)){send(res,403,{error:'Origine nepermisă.'});return}
   if(req.method==='OPTIONS'){res.writeHead(204,{'Cache-Control':'no-store'}).end();return}
   if(req.method==='GET'&&url.pathname==='/health'){send(res,200,{ok:true,service:'collector-api'});return}
+  if(req.method==='POST'&&url.pathname==='/api/billing/revenuecat-webhook'){
+   const expected=String(env.REVENUECAT_WEBHOOK_AUTHORIZATION||'');
+   const supplied=String(req.headers.authorization||'');
+   const validSecret=expected&&supplied&&Buffer.byteLength(expected)===Buffer.byteLength(supplied)&&timingSafeEqual(Buffer.from(expected),Buffer.from(supplied));
+   if(!validSecret){send(res,expected?401:503,{error:'Webhook-ul de billing nu este autorizat sau configurat.'});return}
+   if(!billing.configured||typeof billing.applyRevenueCatEvent!=='function'){send(res,503,{error:'Persistența evenimentelor de billing nu este configurată.'});return}
+   try{
+    const payload=await readJson(req),event=payload?.event||{};
+    if(typeof event.id!=='string'||typeof event.type!=='string'){send(res,400,{error:'Eveniment RevenueCat invalid.'});return}
+    const appUserId=String(event.app_user_id||'');
+    const userId=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(appUserId)?appUserId:null;
+    const productId=typeof event.product_id==='string'?event.product_id:null;
+    const allowedProducts=new Set(String(env.REVENUECAT_PRO_PRODUCT_IDS||'').split(',').map(x=>x.trim()).filter(Boolean));
+    const storeMap={APP_STORE:'app_store',MAC_APP_STORE:'app_store',PLAY_STORE:'play_store',PROMOTIONAL:'promotional'};
+    const expiresAt=Number.isFinite(Number(event.expiration_at_ms))&&Number(event.expiration_at_ms)>0
+      ?new Date(Number(event.expiration_at_ms)).toISOString():null;
+    const result=await billing.applyRevenueCatEvent({eventId:event.id,userId,eventType:event.type,
+      productId,store:storeMap[event.store]||null,expiresAt,isProProduct:Boolean(productId&&allowedProducts.has(productId))});
+    send(res,200,{ok:true,processed:Boolean(result?.processed),duplicate:Boolean(result?.duplicate),ignored:Boolean(result?.ignored)});return;
+   }catch(error){send(res,503,{error:'Evenimentul de billing nu a putut fi procesat.'});return}
+  }
   if(!['GET','POST','DELETE'].includes(req.method)||!['/api/ai/status','/api/ai/interpret','/api/account'].includes(url.pathname)){send(res,404,{error:'Endpoint inexistent.'});return}
   try{
    const userId=await authenticate(req);
