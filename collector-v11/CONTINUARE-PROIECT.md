@@ -218,12 +218,14 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
+
 ## CHECKPOINT CURENT — 2026-11-25
 - Branch: `feature/openai-provider-integration`; PR #55 open/draft; `main` unchanged.
-- Ultimul HEAD de implementare: `ec75d1b83bfbd57afbba8bd85409838afd65eaf4`.
-- RevenueCat lifecycle fix: `SUBSCRIPTION_PAUSED` păstrează Pro până la expirarea perioadei curente; `CANCELLATION` cu `cancel_reason=CUSTOMER_SUPPORT` revocă Pro imediat (refund). Backend-ul transmite acum cancel_reason către RPC; migrarea SQL actualizată cu noua semnătură și permisiuni. Teste adăugate pentru webhook, RPC și contractul SQL.
-- Alte protecții păstrate: cancellation normală/grace period până la expirare; allowlist produse; entitlement pentru granturi; idempotency event ID; serializare update per user; transferul între conturi rămâne dezactivat intenționat.
-- CI: nu au fost returnate workflow runs pentru HEAD `ec75d1b` la ultima verificare; CI complet neconfirmat.
-- External validation încă lipsă: aplicarea migrării în Supabase/Postgres real, RLS/RPC live, webhook RevenueCat real, purchase/restore/refund/expiry sandbox.
-- Următorul pas: verifică declanșarea și rezultatul CI pentru HEAD; apoi testează migrarea SQL în Postgres/Supabase și toate fluxurile sandbox. PR rămâne draft; nu activa plățile publice înainte de E2E.
-- Regulă: suprascrie doar acest checkpoint unic; păstrează chatul succint.
+- HEAD verificat înaintea acestui checkpoint: `7e86d7118d0403ecba1dbbf2cae94a04f260d7ec`.
+- RevenueCat: webhook transmite `cancel_reason` către RPC; `CANCELLATION + CUSTOMER_SUPPORT` revocă Pro imediat; anularea normală, billing issue/grace și `SUBSCRIPTION_PAUSED` păstrează accesul până la expirarea perioadei; `EXPIRATION/REFUND` revocă accesul. Migrarea actualizează semnătura RPC și permisiunile service_role.
+- Teste adăugate: webhook transmite motivul refund-ului; billing service trimite `p_cancel_reason`; contract SQL verifică revocarea imediată și semnătura RPC.
+- CI pentru HEAD `7e86d71`: Cloud API SUCCESS (run `45498395296`); Quality Suite IN PROGRESS (run `45498395288`); Mobile Build PENDING (run `45498395280`). CI complet nu este încă verde.
+- Audit static: allowlist de produs obligatorie; entitlement cerut pentru granturi; evenimentele de revocare pot fi procesate fără entitlement_ids numai pentru produse allowlisted; transferul între conturi rămâne dezactivat intenționat.
+- Nevalidat extern: aplicarea migrării în Supabase/Postgres real, RLS/RPC live, webhook real, purchase/restore/refund/expiry în sandbox.
+- Următorul pas: urmărește CI pentru HEAD final și corectează eșecurile; apoi rulează migrarea într-un proiect Postgres/Supabase de test și scenariile sandbox. PR rămâne draft; nu activa plăți publice înainte de E2E.
+- Regula de continuitate: suprascrie numai acest checkpoint unic după fiecare etapă; răspunsurile din chat rămân succinte.
