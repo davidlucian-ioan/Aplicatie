@@ -77,7 +77,7 @@
    await initialize();
    if(!record?.id||!record.filePath||!record.uri)throw new Error('Referința fișierului audio nativ este invalidă.');
    const rows=await readIndex(),next=rows.filter(row=>row.id!==record.id);
-   const metadata={id:record.id,createdAt:record.createdAt||new Date().toISOString(),durationMs:Number(record.durationMs)||0,mimeType:record.mimeType||'audio/aac',size:Number(record.size)||0,filePath:record.filePath,uri:record.uri};
+   const metadata={id:record.id,createdAt:record.createdAt||new Date().toISOString(),durationMs:Number(record.durationMs)||0,mimeType:record.mimeType||'audio/aac',size:Number(record.size)||0,filePath:record.filePath,uri:record.uri,warning:record.warning||null};
    await writeIndex([...next,metadata]);return metadata;
   }
   return Object.freeze({
