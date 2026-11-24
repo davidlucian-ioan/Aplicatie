@@ -130,3 +130,13 @@ Utilizatorul a clarificat explicit că Collector trebuie să fie o aplicație in
 - Dependențele mobile sunt încă instalate în workflow cu versiuni fixate prin comandă, fără declarare completă în package.json/lockfile.
 - APK-ul generat este DEBUG, nu AAB semnat pentru Play Store. Nu este versiune de producție.
 - Următorii pași: urmărește iOS runner; declară dependențele mobile într-un lockfile reproductibil; evaluează criptarea SQLite; configurează proiect Supabase și hosting HTTPS; apoi testează pe dispozitive fizice. Nu solicita chei secrete în chat.
+
+
+## Monetizare și estimare cost — 2026-11-24
+- Document nou: `MONETIZATION-AND-COST-MODEL.md`; include auditul componentelor deja implementate, lipsurile billing, costuri furnizori, scenarii AI, măsuri de economisire și arhitectura recomandată.
+- Model recomandat: un singur abonament Collector Pro; utilizatorul nu plătește separat OpenAI. Free păstrează Core/Work/Think local, audio și notificări locale. Pro poate include AI cu quota măsurată și cloud sync/backup după implementare.
+- Niciun billing/RevenueCat/entitlement/restore/usage metering nu este implementat în cod la acest moment.
+- Cloud API validează Supabase Auth și aplică 20 cereri/minut în memorie, dar nu verifică abonamentul și nu aplică un buget lunar persistent. Acesta este un blocaj înainte de activarea AI publică.
+- Estimare orientativă: Render Starter ~7 USD/lună + Supabase Pro 25 USD/lună; OpenAI gpt-6.2-sol ~0,009–0,020 USD/interpretare în scenariile din document. RevenueCat este recomandat pentru evaluare, gratuit până la 2.500 USD MTR conform tarifului consultat, apoi 1% MTR.
+- Nu cumpăra hosting și nu activa plăți până la finalizarea proiectului Supabase, a identității recuperabile, deploy-ului, sync/backup-ului, entitlement-ului și usage metering-ului.
+- PR #55 rămâne draft/open; nu se face merge în main fără aprobare.
