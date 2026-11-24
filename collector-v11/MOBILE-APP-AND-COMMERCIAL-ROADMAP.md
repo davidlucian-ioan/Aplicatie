@@ -84,7 +84,7 @@ Surse oficiale:
 ## Etape de implementare
 
 ### M0 — Audit de compatibilitate și contracte
-<badge>În mare parte implementat</badge>
+**Stare: în mare parte implementat**
 - Audit static și contract de stocare asincron.
 - `app.js` folosește acum StorageAdapter, fără apeluri directe `localStorage.getItem/setItem`.
 - Adapter web și adapter nativ SQLite; pe mobil, SQLite este sursa principală, iar localStorage este citit doar ca sursă legacy până când Core validează și rescrie schema v7.
@@ -99,7 +99,7 @@ Surse oficiale:
 5. Menținerea testelor Core actuale ca gate obligatoriu.
 
 ### M1 — Shell nativ
-<badge>Implementat; validarea SQLite este în curs</badge>
+**Stare: implementat; validarea SQLite este în curs**
 1. Capacitor 8.6.2 și `capacitor.config.json`; `appId` curent `ro.collector.mobile` este provizoriu până la confirmarea identității comerciale.
 2. Bundle web allowlist (`build-mobile.js`) care include numai active runtime, fără server, chei, teste sau documente interne.
 3. Work și Think sunt acum ecrane distincte în UI.
