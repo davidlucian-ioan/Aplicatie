@@ -296,6 +296,89 @@ test('voice batch rejects atomically when a sale exceeds available stock', async
 });
 
 
+test('voice context uses only the last confirmed target and expires after 30 minutes', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Plantă context vocal');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+  const plantId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Plantă context vocal').id);
+
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrase = [{ transcript: 'setează pH pentru Plantă context vocal = 6.1' }]; phrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [phrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('collector_voice_context_v1'))).toBeNull();
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
+  await expect(page.locator('#voiceContextCard')).toContainText('Context vocal activ');
+  await expect(page.locator('#voiceContextCard')).toContainText('Plantă context vocal');
+
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrase = [{ transcript: 'setează pH pentru aceeași entitate = 6.4' }]; phrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [phrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  await expect(page.locator('#commandResult')).toContainText('Plantă context vocal · pH = 6.4');
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(saved.entities.find(entity => entity.id === plantId).attributes.pH).toBe(6.4);
+  expect(saved.events).toHaveLength(3);
+
+  await page.evaluate(() => {
+    const context = JSON.parse(localStorage.getItem('collector_voice_context_v1'));
+    context.expiresAt = Date.now() - 1;
+    localStorage.setItem('collector_voice_context_v1', JSON.stringify(context));
+  });
+  await page.reload();
+  await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#voiceContextCard')).toContainText('Fără context vocal activ');
+  expect(await page.evaluate(() => localStorage.getItem('collector_voice_context_v1'))).toBeNull();
+});
+
+test('voice contextual reference fails closed when no confirmed local context exists', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrase = [{ transcript: 'setează pH pentru aceeași entitate = 6.4' }]; phrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [phrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#commandResult')).toContainText('Nu există un context vocal activ');
+  await expect(page.locator('#confirmCoreCommand')).toHaveCount(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+});
+
 test('voice batch cancellation discards all utterances without committing', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
