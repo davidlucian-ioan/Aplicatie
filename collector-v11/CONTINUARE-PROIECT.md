@@ -230,7 +230,7 @@ Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără soli
 - Următorul gate după CI: actual STT on-device Android pentru română (capability probe există, captură/transcriere efectivă încă nu), transcript segmentat cu timestamp și legătură la audio; apoi benchmark română; după aceea alegerea providerului și gateway server-side.
 
 - Hardening suplimentar după deschiderea PR #52: output-ul providerului este clonat înainte de validare; providerul nu primește `userId` sau `requestId`; metadata transmisă este allowlistată la limbă, sursă STT, confidence, index/durată/timestamp segment, fără câmpuri arbitrare. Idempotency/turn IDs sunt injectate înainte de validarea propunerii, deci modelul nu trebuie să inventeze aceste identificatoare și nu le poate controla.
-- Test AI total actualizat: 42 cazuri în 5 fișiere (Foundation 14, Core Port Node 10, Core Port Browser 9, contracte 5, Core contract 4). Rămân neexecutate local; CI este autoritatea pentru rezultat.
+- Test AI total actualizat: 44 cazuri în 5 fișiere (Foundation 14, Core Port Node 11, Core Port Browser 10, contracte 5, Core contract 4). Rămân neexecutate local; CI este autoritatea pentru rezultat.
 
 - Core Read Port extins pentru AI: `entities` cere filtru ID/nume/tip și returnează doar metadate minime; `entityAttributes` cere ID rezolvat; `balances` cere populație/locație; `relations` cere ID de entitate; `events` are limită 1–100; `finance` returnează agregatul Core. Citirea nefiltrată a întregului registru este respinsă. Browser și Node sunt aliniate.
 - Teste AI extinse pentru citiri minimizate și filtrate în ambele Core Port-uri. Numărul testelor AI urmează a fi recalculat înainte de checkpoint-ul următor.
