@@ -181,3 +181,17 @@ Surse oficiale:
 - Workflow `Collector mobile build`: Android debug job `success`; artifact `collector-android-debug` generat (3.9 MB). iOS Simulator job era încă `queued`, deci nu declarăm build iOS validat.
 - APK-ul Android este debug-only, nu AAB semnat pentru Play Store. iOS Simulator app, chiar după build, nu va fi IPA semnat pentru App Store.
 - Nu s-a făcut merge în `main`.
+
+
+## Verificare build curent 0b751ee4 — 2026-11-24
+
+- Commit: `0b751ee4c62a86c6daf5e8f07370fb1e3ff988f8`, branch `feature/openai-provider-integration`, PR #55 draft/deschis, fără merge în main.
+- Quality Suite: SUCCESS; testele Core, invariants, benchmark și E2E Chromium/Firefox/WebKit au trecut. Mutation baseline nightly a fost skipped, nu este gate-ul acestei rulari.
+- Cloud API: SUCCESS; testele și Docker build au trecut.
+- Android debug APK: SUCCESS; artifact descărcat și verificat ca pachet Android valid (4,278,250 bytes). Este build de debug, nu AAB de producție.
+- Scanare bundle APK: nu conține `server.js`; nu au fost găsite fișiere .env sau chei secrete în asset-urile inspectate. `collector-config.js` are câmpurile API/Supabase goale, astfel încât AI/cloud sunt dezactivate în acest APK. App ID `ro.collector.mobile` este încă provizoriu.
+- iOS Simulator job: QUEUED la ultima verificare; nu există încă rezultat de build iOS.
+- SQLite encryption este setată false pentru Android și iOS. Este un risc deschis înainte de lansarea comercială și trebuie evaluată criptarea at-rest.
+- Dependențele Capacitor/plugin sunt instalate cu versiuni fixate în workflow, dar încă nu sunt gestionate complet prin package.json/package-lock.json.
+- Nu există încă backend cloud deployat, proiect Supabase configurat, sesiune reală, apel OpenAI real, sync multi-device, billing, build semnat, privacy policy finală sau testare pe dispozitive fizice.
+- Următorii pași: iOS runner; lockfile reproductibil; decizie și implementare criptare SQLite; deploy backend + Supabase; testare reală Android/iOS; apoi billing și pregătire store. Nu declara aplicația pregătită de store.
