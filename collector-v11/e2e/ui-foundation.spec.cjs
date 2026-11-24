@@ -184,6 +184,66 @@ test('voice batch requires explicit selection when an entity name is ambiguous',
   expect(events[3].operations[0].target).toBe(ids[1]);
 });
 
+
+test('voice batch previews and commits mixed attribute and stock operations atomically', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__collectorRecognition = null;
+    Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    } });
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Plantă test');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+  const plantId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Plantă test').id);
+
+  await page.locator('.nav[data-page="attributes"]').click();
+  await page.locator('#attributes .toolbar button.primary').click();
+  await page.locator('#attrName').fill('pH');
+  await page.locator('#attrType').selectOption('number');
+  await page.locator('#modal button.primary').click();
+
+  await page.locator('.nav[data-page="inventory"]').click();
+  await page.locator('#inventory .toolbar button.secondary').click();
+  await page.locator('#popName').fill('Fancy Tiger');
+  await page.locator('#popType').fill('Caridina');
+  await page.locator('#popQty').fill('10');
+  await page.locator('#modal button.primary').click();
+  const populationId = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Fancy Tiger').id);
+  const initialEvents = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length);
+
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const first = [{ transcript: 'setează pH pentru Plantă test = 6.4' }]; first.isFinal = true;
+    const second = [{ transcript: 'am vândut 2 Fancy Tiger' }]; second.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [first, second] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  await expect(page.locator('#commandResult')).toContainText('Plantă test · pH = 6.4');
+  await expect(page.locator('#commandResult')).toContainText('Vânzare 2 × Fancy Tiger');
+  await expect(page.locator('#commandResult')).toContainText('Operații în lot: 2');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(initialEvents);
+
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')));
+  expect(saved.events).toHaveLength(initialEvents + 1);
+  const event = saved.events[saved.events.length - 1];
+  expect(event.operations.map(operation => operation.operation)).toEqual(['attribute.set', 'stock.change']);
+  expect(event.operations[0].target).toBe(plantId);
+  expect(event.operations[1].data.populationId).toBe(populationId);
+  expect(event.operations[1].data.quantity).toBe(2);
+  expect(saved.entities.find(entity => entity.id === plantId).attributes.pH).toBe(6.4);
+  const activeBalance = await page.evaluate(() => window.CollectorEngine.balances(JSON.parse(localStorage.getItem('collector_mvp_v2'))).filter(balance => balance.populationId === JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.find(entity => entity.name === 'Fancy Tiger').id && balance.disposition === 'active').reduce((sum, balance) => sum + balance.quantity, 0));
+  expect(activeBalance).toBe(8);
+});
+
 test('voice batch cancellation discards all utterances without committing', async ({ page }) => {
   await page.addInitScript(() => {
     window.__collectorRecognition = null;
