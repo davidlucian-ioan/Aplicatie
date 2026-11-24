@@ -25,8 +25,10 @@ test('secretul local este exclus din Git',()=>{
 
 test('serverul nu publică fișierul .env prin ruta statică',()=>{
  const server=fs.readFileSync(path.join(__dirname,'server.js'),'utf8');
- assert.ok(server.includes("pathname === '/.env'"));
- assert.ok(server.includes("pathname !== '/.env.example'"));
+ assert.ok(server.includes("segments.some(segment => segment.startsWith('.'))"));
+ assert.ok(server.includes("privateFiles.has(basename)"));
+ assert.ok(server.includes("'Content-Security-Policy'"));
+ assert.ok(server.includes("'X-Frame-Options':'DENY'"));
 });
 
 test('serverul folosește modulul dedicat de sanitizare a contextului',()=>{
