@@ -104,3 +104,19 @@ test('Core Port respinge forma incorectă a data și operațiile nepermise înai
   await assert.rejects(() => x.port.preview(command([{ operation: 'entity.create', data: [] }])), /Datele operației/);
   await assert.rejects(() => x.port.preview(command([{ operation: 'event.invalidate', data: { eventId: 'old' } }])), /nu este permisă/);
 });
+
+
+test('Core Read Port caută entități cu rezultate minimizate și detalii doar după ID', async () => {
+  const x = setup();
+  const cmd = command([
+    { operation: 'entity.create', target: 'plant-1', data: { name: 'Monstera', type: 'plant' } },
+    { operation: 'attribute.set', target: 'plant-1', data: { name: 'pH', value: 5.8 } }
+  ]);
+  assert.equal((await x.port.execute(cmd)).status, 'committed');
+  const matches = await x.port.read({ kind: 'entities', name: 'Monstera' });
+  assert.deepEqual(matches, [{ id: 'plant-1', name: 'Monstera', type: 'plant', status: 'active' }]);
+  const detail = await x.port.read({ kind: 'entityAttributes', id: 'plant-1', attributeNames: ['pH'] });
+  assert.equal(detail.attributes.pH, 5.8);
+  assert.equal(detail.attributeHistory, undefined);
+  await assert.rejects(() => x.port.read({ kind: 'entities' }), /nu este permisă citirea întregului registru/);
+});
