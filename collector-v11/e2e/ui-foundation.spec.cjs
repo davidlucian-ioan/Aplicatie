@@ -541,3 +541,100 @@ test('voice preview remains usable when speech synthesis is unavailable', async 
   await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(1);
 });
+
+
+test('Android live STT uses native on-device events and persists timestamped transcripts locally', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__nativeSpeechListeners = {};
+    window.__nativeSpeechStarts = [];
+    window.__browserRecognitionStarts = 0;
+    window.CollectorAndroidSpeech = {
+      isAvailable: () => true,
+      addListener: async (name, listener) => {
+        window.__nativeSpeechListeners[name] = listener;
+        return { remove: async () => { delete window.__nativeSpeechListeners[name]; } };
+      },
+      startListening: async (language, continuous) => {
+        window.__nativeSpeechStarts.push({ language, continuous });
+        return { sessionId: 'native-session-e2e', startedAt: Date.now() };
+      },
+      stopListening: async sessionId => {
+        window.__nativeSpeechListeners.speechState?.({ sessionId, status: 'stopped' });
+      },
+    };
+    window.SpeechRecognition = class {
+      start() { window.__browserRecognitionStarts += 1; }
+    };
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#voiceSessionButton')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => window.__nativeSpeechStarts.length)).toBe(1);
+  expect(await page.evaluate(() => window.__nativeSpeechStarts[0])).toEqual({ language: 'ro-RO', continuous: true });
+  await page.evaluate(() => window.__nativeSpeechListeners.speechSegment({
+    sessionId: 'native-session-e2e',
+    segmentId: 'segment-1',
+    text: 'Pom B3 are frunze noi',
+    startOffsetMs: 120,
+    endOffsetMs: 980,
+    startedAt: 1000120,
+    endedAt: 1000980,
+    confidence: 0.94,
+    language: 'ro-RO',
+    provider: 'android-speech-recognizer-on-device',
+  }));
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  expect(await page.evaluate(() => window.__browserRecognitionStarts)).toBe(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+  const stored = await page.evaluate(async () => window.CollectorAudioStore.listTranscriptSessions());
+  expect(stored).toHaveLength(1);
+  expect(stored[0].audioRecordingId).toBeNull();
+  expect(stored[0].audioLinkStatus).toBe('not-linked');
+  expect(stored[0].segments[0].startOffsetMs).toBe(120);
+  expect(stored[0].segments[0].endOffsetMs).toBe(980);
+  await page.locator('#cancelCoreCommand').click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+});
+
+test('Android one-shot dictation uses native on-device STT and does not call browser recognition', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__nativeSpeechListeners = {};
+    window.__nativeSpeechStarts = [];
+    window.__browserRecognitionStarts = 0;
+    window.CollectorAndroidSpeech = {
+      isAvailable: () => true,
+      addListener: async (name, listener) => {
+        window.__nativeSpeechListeners[name] = listener;
+        return { remove: async () => { delete window.__nativeSpeechListeners[name]; } };
+      },
+      startListening: async (language, continuous) => {
+        window.__nativeSpeechStarts.push({ language, continuous });
+        return { sessionId: 'native-dictation-e2e', startedAt: Date.now() };
+      },
+      stopListening: async () => {},
+    };
+    window.SpeechRecognition = class {
+      start() { window.__browserRecognitionStarts += 1; }
+    };
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceButton').click();
+  await expect(page.locator('#voiceButton')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => window.__nativeSpeechStarts.length)).toBe(1);
+  expect(await page.evaluate(() => window.__nativeSpeechStarts[0])).toEqual({ language: 'ro-RO', continuous: false });
+  await page.evaluate(() => {
+    window.__nativeSpeechListeners.speechSegment({
+      sessionId: 'native-dictation-e2e', segmentId: 'dictation-segment',
+      text: 'Pom B3 are frunze noi', startOffsetMs: 0, endOffsetMs: 900,
+      startedAt: 2000000, endedAt: 2000900, confidence: 0.91,
+      language: 'ro-RO', provider: 'android-speech-recognizer-on-device',
+    });
+    window.__nativeSpeechListeners.speechState?.({ sessionId: 'native-dictation-e2e', status: 'stopped' });
+  });
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  expect(await page.evaluate(() => window.__browserRecognitionStarts)).toBe(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+});
