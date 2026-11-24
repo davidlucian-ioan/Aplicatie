@@ -247,7 +247,7 @@ function setVoiceContext(entityId){
  }catch(error){clearVoiceContext('Nu am putut păstra contextul vocal local: '+error.message)}
 }
 function updateVoiceContextFromCommand(command){
- if(command?.intent!=='voice.batch')return;
+ if(!command)return;
  const ids=new Set();
  for(const operation of command.operations||[]){
   if(operation.operation==='attribute.set'&&operation.target)ids.add(operation.target);
@@ -395,7 +395,7 @@ async function confirmCoreCommand(){
  try{
   const result=await ensureAICorePort().execute(command,{confirmed:true});
   if(result.status==='committed'||result.status==='duplicate'){
-   if(result.status==='committed')updateVoiceContextFromCommand(command);
+   if(result.status==='committed'&&voiceCommandPending)updateVoiceContextFromCommand(command);
    box.innerHTML=`<b class="status-ok">${result.status==='committed'?'Salvat cu succes':'Comandă deja procesată'}</b><p>Event ID: ${esc(result.eventId||'—')}</p>`;
    if(voiceCommandPending)speakWorkFeedback(result.status==='committed'?'Comanda a fost salvată cu succes.':'Comanda fusese deja procesată.',true);
    voiceCommandPending=false;
