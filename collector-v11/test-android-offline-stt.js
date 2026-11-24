@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const root = __dirname;
 
-test('Android offline STT probe uses only the on-device recognizer and does not capture audio', async () => {
+test('Android offline STT uses the on-device recognizer for real Romanian speech sessions without cloud fallback', async () => {
   const source = await readFile(path.join(root, 'native/android/CollectorSpeechPlugin.java'), 'utf8');
   assert.match(source, /SpeechRecognizer\.isOnDeviceRecognitionAvailable/);
   assert.match(source, /SpeechRecognizer\.createOnDeviceSpeechRecognizer/);
@@ -30,7 +30,29 @@ test('Android native bridge exposes the offline speech capability probe without 
   const source = await readFile(path.join(root, 'android-native-entry.js'), 'utf8');
   assert.match(source, /registerPlugin\('CollectorSpeech'\)/);
   assert.match(source, /window\.CollectorAndroidSpeech/);
-  assert.match(source, /getOfflineSpeechSupport/);
+  assert.match(source, /getOfflineSpeechSupport/);\n  assert.match(source, /startListening\(language = 'ro-RO', continuous = true\)/);\n  assert.match(source, /stopListening\(sessionId\)/);\n  assert.match(source, /addListener\(eventName, listener\)/);
   assert.match(source, /window\.CollectorAndroidRecorder/);
   assert.match(source, /startRecording\(options = \{\}\)/);
+});
+
+
+test('Android WORK routes speech to native STT and never falls back to browser recognition on Android', async () => {
+  const app = await readFile(path.join(root, 'app.js'), 'utf8');
+  assert.match(app, /if\(window\.CollectorAndroidSpeech\?\.isAvailable\?\.\(\)\)\{startNativeSpeech\('session'\);return\}/);
+  assert.match(app, /if\(window\.CollectorAndroidSpeech\?\.isAvailable\?\.\(\)\)\{startNativeSpeech\('dictation'\);return\}/);
+  assert.match(app, /STT on-device nu a putut porni:[\s\S]*Nu am folosit un serviciu cloud/);
+  assert.match(app, /speechSegment/);
+  assert.match(app, /saveTranscriptSession/);
+  assert.match(app, /runVoiceBatch\(utterances\)/);
+});
+
+test('transcript sessions are persisted separately from the original audio recordings', async () => {
+  const store = await readFile(path.join(root, 'audio-store.js'), 'utf8');
+  assert.match(store, /DB_VERSION=2/);
+  assert.match(store, /TRANSCRIPTS='transcripts'/);
+  assert.match(store, /saveTranscriptSession/);
+  assert.match(store, /startOffsetMs/);
+  assert.match(store, /endOffsetMs/);
+  assert.match(store, /listTranscriptSessions/);
+  assert.match(store, /removeTranscriptSession/);
 });
