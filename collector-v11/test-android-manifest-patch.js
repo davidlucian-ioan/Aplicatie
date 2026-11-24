@@ -60,7 +60,8 @@ test('Android manifest patch is idempotent and declares microphone foreground se
   assert.match(manifest, /android:stopWithTask="false"/);
   assert.match(manifest, /CollectorAlarmReceiver/);
   assert.match(manifest, /CollectorAlarmBootReceiver/);
-  assert.match(manifest, /android.intent.action.BOOT_COMPLETED/);\n  assert.match(manifest, /android.speech.RecognitionService/);
+  assert.match(manifest, /android.intent.action.BOOT_COMPLETED/);
+  assert.match(manifest, /android.speech.RecognitionService/);
 
   const icon = await readFile(path.join(resourcePath, 'drawable', 'ic_stat_collector.xml'), 'utf8');
   assert.match(icon, /<vector/);
