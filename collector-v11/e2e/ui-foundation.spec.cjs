@@ -227,3 +227,30 @@ test('voice read-back waits for microphone release and never commits without exp
   expect(await page.evaluate(() => window.__spokenReadbacks[1])).toContain('salvată cu succes');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(1);
 });
+
+test('voice preview remains usable when speech synthesis is unavailable', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: undefined });
+    window.__collectorRecognition = null;
+    window.SpeechRecognition = class {
+      start() { window.__collectorRecognition = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+    };
+  });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await page.locator('#voiceSessionButton').click();
+  await page.evaluate(() => {
+    const phrase = [{ transcript: 'Observație fără sinteză vocală' }];
+    phrase.isFinal = true;
+    window.__collectorRecognition.onresult({ resultIndex: 0, results: [phrase] });
+  });
+  await page.locator('#voiceSessionButton').click();
+  await expect(page.locator('#confirmCoreCommand')).toBeVisible();
+  await expect(page.locator('#commandResult')).toContainText('Observație');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+  await page.locator('#confirmCoreCommand').click();
+  await expect(page.locator('#commandResult')).toContainText('Salvat cu succes');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(1);
+});
