@@ -35,6 +35,7 @@ public final class CollectorRecordingService extends Service {
     private static final int NOTIFICATION_ID = 4107;
 
     private MediaRecorder recorder;
+    private CollectorMicrophoneLock microphoneLock;
     private PowerManager.WakeLock wakeLock;
     private File outputFile;
     private File manifestFile;
@@ -89,9 +90,21 @@ public final class CollectorRecordingService extends Service {
             recordingId = UUID.randomUUID().toString();
         }
 
+        File directory = recordingsDirectory();
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw new IllegalStateException("Nu pot crea directorul local pentru înregistrări.");
+        }
         boolean supportsAdts = Build.VERSION.SDK_INT >= 26;
         format = supportsAdts ? "aac" : "m4a";
         String extension = supportsAdts ? ".aac" : ".m4a";
+        outputFile = new File(directory, "recording-" + recordingId + extension);
+        manifestFile = new File(directory, recordingId + ".json");
+        microphoneLock = CollectorMicrophoneLock.tryAcquire(this, "recorder:" + recordingId);
+        if (microphoneLock == null) {
+            throw new IllegalStateException("Microfonul este folosit de o sesiune de transcriere. Oprește transcrierea înainte de a înregistra.");
+        }
+
+        
         startedAtMs = System.currentTimeMillis();
         pausedDurationMs = 0L;
         pauseStartedAtMs = 0L;
@@ -108,12 +121,6 @@ public final class CollectorRecordingService extends Service {
             startForeground(NOTIFICATION_ID, notification);
         }
 
-        File directory = recordingsDirectory();
-        if (!directory.exists() && !directory.mkdirs()) {
-            throw new IllegalStateException("Nu pot crea directorul local pentru înregistrări.");
-        }
-        outputFile = new File(directory, "recording-" + recordingId + extension);
-        manifestFile = new File(directory, recordingId + ".json");
         persistManifest(null);
 
         MediaRecorder nextRecorder = new MediaRecorder();
@@ -201,6 +208,7 @@ public final class CollectorRecordingService extends Service {
         }
 
         releaseWakeLock();
+        releaseMicrophoneLock();
         status = finalStatus;
         try {
             persistManifest(errorMessage);
@@ -227,6 +235,7 @@ public final class CollectorRecordingService extends Service {
             recorder = null;
         }
         releaseWakeLock();
+        releaseMicrophoneLock();
         if (recordingId != null) {
             status = "interrupted";
             try {
@@ -292,6 +301,12 @@ public final class CollectorRecordingService extends Service {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
         format.setTimeZone(TimeZone.getTimeZone("UTC"));
         return format.format(new Date(timestamp));
+    }
+
+    private void releaseMicrophoneLock() {
+        CollectorMicrophoneLock lock = microphoneLock;
+        microphoneLock = null;
+        if (lock != null) lock.close();
     }
 
     private void acquireWakeLock() {
@@ -387,6 +402,7 @@ public final class CollectorRecordingService extends Service {
             } catch (Exception ignored) {}
         }
         releaseWakeLock();
+        releaseMicrophoneLock();
         super.onDestroy();
     }
 
