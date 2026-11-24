@@ -41,7 +41,8 @@ Status: partially implemented.
 - [ ] Implement actual Android on-device `SpeechRecognizer` capture using only `createOnDeviceSpeechRecognizer`; no generic/cloud fallback.
 - [ ] Stream interim/final transcript updates to WORK without committing events.
 - [ ] Preserve segment-level timestamps, language, recognition confidence and source metadata.
-- [ ] Link each transcript segment to its originating audio recording and time range.
+- [ ] Link each transcript segment to its STT session ID and wall-clock/monotonic time range. Do not claim it belongs to a separately saved recorder file unless both are produced by the same audio pipeline.
+- [ ] If transcript-to-recording linkage is required, benchmark a local model that can transcribe the saved audio file; Android SpeechRecognizer live capture cannot be assumed to process the recorder's existing file.
 - [ ] Test pause/resume/stop, Activity recreation, screen-off, app switching, interruptions and recorder handoff on physical Android devices.
 - [ ] Validate Romanian transcription quality on a representative local test set.
 
