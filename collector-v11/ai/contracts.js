@@ -56,10 +56,30 @@ function validateInterpretation(value) {
     if (!isObject(result.command)) throw new TypeError('Propunerea nu conține command.');
     validateCommand(result.command);
   }
-  if (result.intent === 'answer' && typeof result.answer !== 'string') {
-    throw new TypeError('Răspunsul trebuie să fie text.');
+  if (result.intent === 'answer') {
+    if (typeof result.answer !== 'string' || result.answer.length > MAX_TEXT) {
+      throw new TypeError('Răspunsul trebuie să fie text de maximum 4.000 de caractere.');
+    }
+    if (result.readRequest !== undefined) validateReadRequest(result.readRequest);
   }
   return result;
+}
+
+function validateReadRequest(request) {
+  if (!isObject(request) || !['entities', 'balances', 'finance', 'events'].includes(request.kind)) {
+    throw new TypeError('Cererea de citire AI este invalidă.');
+  }
+  for (const key of ['type', 'id', 'populationId', 'locationId', 'entityId']) {
+    if (request[key] !== undefined &&
+        (typeof request[key] !== 'string' || request[key].length > 128)) {
+      throw new TypeError(`Filtrul ${key} este invalid.`);
+    }
+  }
+  if (request.limit !== undefined &&
+      (!Number.isInteger(request.limit) || request.limit < 1 || request.limit > 100)) {
+    throw new TypeError('Limita cererii de istoric trebuie să fie între 1 și 100.');
+  }
+  return request;
 }
 
 function validateCommand(command) {
@@ -123,5 +143,5 @@ function validateCoreResult(result) {
 
 module.exports = {
   CONTRACT_VERSION, MAX_TEXT, MAX_OPERATIONS,
-  validateInput, validateInterpretation, validateCommand, validateCoreResult
+  validateInput, validateInterpretation, validateReadRequest, validateCommand, validateCoreResult
 };
