@@ -44,3 +44,26 @@ Testele Playwright folosesc un server temporar pe portul 4173 și un profil de b
 CI rulează toate nivelurile la fiecare Pull Request și păstrează raportul de coverage și benchmark-ul Replay ca artifact GitHub Actions.
 
 Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile reale în afara intervalului se pot înregistra cu avertisment. AI Foundation folosește un provider mock; nu există încă provider AI real conectat.
+
+## Android (development scaffold)
+
+Requires JDK 21, Android SDK, and an Android Studio installation.
+
+From this folder:
+
+```bash
+npm ci
+npm run android:add
+npm run android:open
+```
+
+The first command generates the local Capacitor Android project, adds the microphone and foreground-service manifest declarations, and syncs the native plugins. The generated `android/` directory is intentionally ignored by Git; its creation and manifest patch are reproducible from the committed config and scripts.
+
+After changing web assets or native dependencies:
+
+```bash
+npm run android:sync
+npm run android:build
+```
+
+The app-owned native microphone foreground service and Capacitor bridge are implemented and compile in CI. Physical-device validation is still outstanding; do not rely on screen-off recording until the device acceptance checks pass.

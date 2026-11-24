@@ -13,9 +13,11 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
   await session.send('Profiler.startPreciseCoverage', { callCount: true, detailed: true });
 
   await page.goto('/index-server.html');
+  await expect(page.locator('#work')).toBeVisible();
+  await page.locator('.nav[data-page="dashboard"]').click();
   await expect(page.locator('#dashboard')).toBeVisible();
 
-  for (const pageName of ['entities', 'relations', 'inventory', 'finance', 'attributes', 'events', 'history', 'assistant', 'audit', 'dashboard']) {
+  for (const pageName of ['entities', 'relations', 'inventory', 'finance', 'attributes', 'events', 'history', 'work', 'audit', 'dashboard']) {
     await page.locator('.nav[data-page="' + pageName + '"]').click();
     await expect(page.locator('#' + pageName)).toBeVisible();
   }
@@ -107,7 +109,7 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
   await page.locator('#eventAttrValue').fill('sunny');
   await page.locator('#modal button.primary').click();
 
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await page.locator('#commandInput').fill('Observație: coverage assistant note');
   await page.locator('#parseCommand').click();
   await expect(page.locator('#confirmCoreCommand')).toBeVisible();
@@ -154,7 +156,7 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
     totalBytes,
     coveragePercent: Number((totalBytes ? coveredBytes / totalBytes * 100 : 0).toFixed(2)),
     measuredAt: new Date().toISOString(),
-    exercisedViews: ['dashboard', 'entities', 'relations', 'inventory', 'finance', 'attributes', 'events', 'history', 'assistant', 'audit'],
+    exercisedViews: ['dashboard', 'entities', 'relations', 'inventory', 'finance', 'attributes', 'events', 'history', 'work', 'audit'],
     threshold: null
   };
 

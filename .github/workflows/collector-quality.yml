@@ -70,6 +70,10 @@ jobs:
         working-directory: collector-v11
         run: npm run benchmark:replay
 
+      - name: Build the exact Android WebView asset bundle
+        working-directory: collector-v11
+        run: npm run build:android:web
+
       - name: Install Chromium for Playwright
         working-directory: collector-v11
         run: npx playwright install --with-deps chromium

@@ -40,9 +40,9 @@ test('global action starts a local audio recording without committing an event',
     };
   });
   await page.goto('/index-server.html');
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await page.locator('#globalVoice').click();
-  await expect(page.locator('#assistant')).toBeVisible();
+  await expect(page.locator('#work')).toBeVisible();
   await expect(page.locator('#audioRecorderStatus')).toContainText('Înregistrare audio activă');
   await expect(page.locator('#audioRecorderStatus')).toContainText('Ecranul este menținut activ');
   expect(await page.evaluate(() => window.__wakeLockRequests)).toBe(1);
@@ -61,7 +61,7 @@ test('global action starts a local audio recording without committing an event',
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
   expect(await page.evaluate(() => window.__audioTrackStopped)).toBe(true);
   await page.reload();
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await expect(page.locator('#audioRecordingList')).toContainText('KB');
   expect(await page.evaluate(async () => (await window.CollectorAudioStore.list()).length)).toBe(1);
   page.once('dialog', dialog => dialog.accept());
@@ -73,7 +73,7 @@ test('global action starts a local audio recording without committing an event',
 test('desktop navigation exposes the current section to assistive technology', async ({ page }) => {
   await page.goto('/index-server.html');
   await expect(page.getByRole('navigation', { name: 'Secțiuni Collector' })).toBeVisible();
-  await expect(page.locator('.nav[data-page="dashboard"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.nav[data-page="work"]')).toHaveAttribute('aria-current', 'page');
 
   await page.getByRole('button', { name: 'Istoric' }).click();
   await expect(page.locator('#history')).toBeVisible();
@@ -87,10 +87,10 @@ test('voice entry degrades to accessible text input when speech recognition is u
     Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
   });
   await page.goto('/index-server.html');
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await page.locator('#voiceSessionButton').click();
 
-  await expect(page.locator('#assistant')).toBeVisible();
+  await expect(page.locator('#work')).toBeVisible();
   await expect(page.locator('#commandResult')).toContainText('Sesiunea vocală nu este disponibilă');
   await expect(page.locator('#commandInput')).toBeFocused();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
@@ -106,7 +106,7 @@ test('voice session accumulates multiple phrases and previews one note without a
     } });
   });
   await page.goto('/index-server.html');
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await page.locator('#voiceSessionButton').click();
   await expect(page.locator('#voiceSessionButton')).toContainText('Oprește transcrierea');
   await page.evaluate(() => {
@@ -131,7 +131,7 @@ test('voice session fallback keeps text entry available when speech recognition 
     Object.defineProperty(window, 'webkitSpeechRecognition', { configurable: true, value: undefined });
   });
   await page.goto('/index-server.html');
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await page.locator('#voiceSessionButton').click();
   await expect(page.locator('#commandResult')).toContainText('Sesiunea vocală nu este disponibilă');
   await expect(page.locator('#commandInput')).toBeFocused();
@@ -148,7 +148,7 @@ test('one-shot dictation remains available for structured commands', async ({ pa
     } });
   });
   await page.goto('/index-server.html');
-  await page.locator('.nav[data-page="assistant"]').click();
+  await page.locator('.nav[data-page="work"]').click();
   await page.getByRole('button', { name: 'Începe dictarea' }).click();
   await expect(page.locator('#voiceButton')).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate(() => window.__oneShotStarts)).toBe(1);
@@ -168,4 +168,17 @@ test('audio recorder reports denied microphone permission and keeps Core journal
   await expect(page.locator('#audioRecorderStatus')).toContainText('Accesul la microfon a fost refuzat');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
   expect(await page.evaluate(async () => (await window.CollectorAudioStore.list()).length)).toBe(0);
+});
+
+
+test('WORK exposes local reminder controls and explains browser limitation', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  await expect(page.locator('#workAlarmTitle')).toBeVisible();
+  await expect(page.locator('#workAlarmWhen')).toBeVisible();
+  await page.locator('#workAlarmTitle').fill('Verifică B3');
+  await page.locator('#workAlarmWhen').fill('2030-01-01T10:00');
+  await page.locator('#workAlarmAdd').click();
+  await expect(page.locator('#workAlarmStatus')).toContainText('necesită aplicația Android');
+  await expect(page.locator('#workAlarmList')).toContainText('disponibilă în aplicația Android');
 });

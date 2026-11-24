@@ -4,14 +4,19 @@
   "private": true,
   "description": "Collector MVP with an isolated AI Foundation scaffold",
   "scripts": {
-    "test": "node --test test-*.js",
+    "test": "node --check app.js && node --test test-*.js",
     "test:properties": "node --test property-stock-sequences.test.js",
     "test:e2e": "playwright test --project=chromium",
     "test:ui-coverage": "playwright test --project=chromium e2e/app-ui-coverage.spec.cjs",
     "test:all": "npm test && npm run test:properties && npm run test:core-properties && npm run test:coverage && npm run benchmark:replay && npm run test:e2e",
     "test:core-properties": "node --test property-core-sequences.test.js",
     "test:coverage": "node --experimental-test-coverage --test test-*.js property-*.test.js",
-    "benchmark:replay": "node benchmark-replay.js"
+    "benchmark:replay": "node benchmark-replay.js",
+    "build:android:web": "node scripts/build-android-web.mjs",
+    "android:add": "npm run build:android:web && npx --yes --package=@capacitor/cli@8.6.0 cap add android && node scripts/patch-android-manifest.mjs && npx --yes --package=@capacitor/cli@8.6.0 cap sync android",
+    "android:sync": "npm run build:android:web && node scripts/patch-android-manifest.mjs && npx --yes --package=@capacitor/cli@8.6.0 cap sync android",
+    "android:open": "npx --yes --package=@capacitor/cli@8.6.0 cap open android",
+    "android:build": "npm run android:sync && cd android && ./gradlew --no-daemon assembleDebug"
   },
   "engines": {
     "node": ">=22"
@@ -19,5 +24,9 @@
   "devDependencies": {
     "@playwright/test": "1.65.1",
     "fast-check": "4.11.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0"
   }
 }
