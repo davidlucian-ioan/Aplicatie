@@ -12,7 +12,7 @@ if "%OPENAI_API_KEY%"=="" (
   echo ATENTIE: OPENAI_API_KEY nu este configurata.
   echo Collector va porni in mod local; AI cloud va ramane indisponibil.
 )
-start "Collector server" cmd /k "cd /d "%~dp0" && node server.js"
+start "Collector server" cmd /k "node server.js"
 timeout /t 2 /nobreak >nul
 start "" "http://127.0.0.1:8000/index-server.html"
 endlocal
