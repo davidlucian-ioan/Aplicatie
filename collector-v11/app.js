@@ -56,6 +56,8 @@ function resolveVoiceContextReference(name,kind){
  if(!entity)throw Error('Ținta din contextul vocal nu mai există. Specifică numele complet.');
  return entity;
 }
+window.addEventListener('focus',renderVoiceContext);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)renderVoiceContext()});
 function loadDb(){
  let raw=null,rawText=null,parseError=null,sourceKey=KEY;
  try{rawText=localStorage.getItem(KEY);if(rawText!==null)raw=JSON.parse(rawText)}catch(error){parseError=error}
