@@ -1,7 +1,7 @@
 # Collector — punct unic de continuare
 
-Ultima actualizare: 2026-11-21
-Versiune de lucru: v0.7 — Attribute Range Policy Fix
+Ultima actualizare: 2026-11-24
+Versiune de lucru: v0.8 — OpenAI Provider Integration (branch separat)
 
 ## Scopul acestui fișier
 Acesta este punctul unic de reluare pentru sesiunile viitoare. Citește-l înainte de orice modificare. Nu relua audituri sau pași deja finalizați fără un motiv concret și fără să verifici starea actuală.
@@ -33,11 +33,23 @@ Comanda: `npm test` (Node.js >=18).
 
 Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser a cazului pH 5.2. Acesta rămâne testul manual de acceptanță imediat următor.
 
+## Integrare OpenAI — 2026-11-24
+- Provider ales: OpenAI API, Responses API cu Structured Outputs.
+- Branch: `feature/openai-provider-integration`.
+- Server local: `server.js`, ascultă implicit pe `127.0.0.1:8000`.
+- Cheia API este citită exclusiv din `OPENAI_API_KEY`; `.env` este ignorat de Git.
+- Model implicit: `gpt-6.2-sol`, suprascris prin `OPENAI_MODEL`.
+- UI are buton separat „Interpretează cu AI”; interpretarea locală existentă rămâne disponibilă.
+- OpenAI primește textul comenzii și metadate limitate de entități/atribute, nu jurnalul complet.
+- Propunerile trec prin BrowserCorePort preview și confirmare explicită. Nu există execuție automată.
+- Endpoint-ul folosește `store:false`, limită de corp, rate limit și verificare Origin.
+- Teste provider cu fetch mock adăugate; CI GitHub Actions este în curs de verificare. Nu s-a efectuat încă un apel cu o cheie API reală.
+
 ## Ce nu este încă finalizat
-1. Publicarea/integrarea efectivă a stării v0.7 în repository-ul GitHub `Aplicatie` NU este confirmată. ZIP-ul este un pachet local de lucru, nu dovada unui commit sau merge.
-2. Trebuie conectat GitHub în ChatGPT, apoi inspectat repository-ul și branch-ul real înainte de orice push.
-3. Compară repository-ul cu acest pachet; păstrează modificările existente și D-001–D-044. Preferă un branch/commit sau PR verificabil, nu suprascriere oarbă.
-4. După integrare, verifică CI/testele din repository și consemnează commit SHA și branch-ul aici.
+1. Verifică finalizarea GitHub Actions pentru branch-ul `feature/openai-provider-integration`; remediază orice regresie înainte de PR.
+2. Creează PR către `main` după trecerea testelor și revizuirea schimbărilor.
+3. Configurează `OPENAI_API_KEY` pe calculatorul unde rulează Collector și efectuează un test real de interpretare.
+4. Testează refuzuri, clarificări, intenții ambigue, operații nepermise, limite/rate limit și indisponibilitatea rețelei.
 5. Test manual: creează/folosește atributul pH cu limite recomandate 5.5–6.5 și încearcă o măsurătoare 5.2. Așteptat: avertisment + opțiune de continuare; după confirmare, valoarea 5.2 trebuie să fie înregistrată și vizibilă în cronologie/valoarea curentă.
 6. Testează și 7.0, o valoare în interval, valoare inițială goală la atribut opțional și invalidarea minim > maxim.
 7. Verifică problema anterioară de populații/solduri: diferența dintre cantitatea populației și soldul derivat trebuie explicată și validată pe date reale, nu doar presupusă.
