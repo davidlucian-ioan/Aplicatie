@@ -94,14 +94,15 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Țintele inexistente, definițiile de atribut absente/duplicate și selecțiile devenite invalide blochează întregul lot; nu există fallback la prima potrivire.
 - Avertismentele pentru valori în afara limitelor recomandate apar în preview, înainte de confirmarea atomică.
 - Parserul atributelor folosește delimitatori lexicali cu word-boundary pentru `este`/`la`; a fost prinsă și corectată regresia în care „la” din „Plantă” trunchia numele entității la „P”.
-- Teste E2E: disambiguare explicită pentru două entități cu același nume și lot mixt `attribute.set` + `stock.change`, verificând un singur eveniment și soldul rămas.
-- Quality CI: PASS, run 45389796885; 40 teste Chromium au trecut.
-- Android debug build pentru head `68c905ffbdc20dfb9153356356a89ef5d9da4734`: în curs la momentul actualizării.
+- Teste E2E: disambiguare explicită pentru două entități cu același nume; lot mixt `attribute.set` + `stock.change` cu un singur eveniment; respingere atomică atunci când vânzarea depășește stocul, verificând că jurnalul, atributul și stocul rămân nemodificate.
+- Quality CI: PASS, run 45401723053 pentru head `23c10fe76ba6d6014551d8fff8a3239e2dba665e`.
+- Android debug build: PASS, run 45401722974 pentru același head.
+- PR #47: deschis, mergeable, bazat pe PR #46; fără integrare în `main`.
 - Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
 
 ### Următorii pași
 1. Context vocal vizibil, persistent local și cu TTL de 30 de minute; se activează numai din operații confirmate, iar țintele explicite continuă să aibă prioritate.
-2. Teste pentru refuz atomic al loturilor cu sold insuficient sau țintă invalidă.
+2. Extinde testele de refuz atomic pentru alte ținte invalide și operații de stoc.
 3. Evaluarea STT offline pe Android separat de browser SpeechRecognition.
 4. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
 5. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
