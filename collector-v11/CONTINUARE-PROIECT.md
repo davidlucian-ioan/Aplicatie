@@ -221,19 +221,53 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 ## CHECKPOINT CURENT — 2026-11-25
-- Branch: `feature/openai-provider-integration`; PR #55 deschis/draft către `main`; `main` neatins. HEAD verificat: `94dd442ab5a40a2c338dd5e62ccd1fa08c28c284`. Nu face merge fără aprobarea explicită a utilizatorului.
-- CI complet verde pe același HEAD:
-  - Collector Cloud API — run `45501256957`: SUCCESS; testele autentificate și build-ul container au trecut.
-  - Collector quality suite — run `45501256947`: SUCCESS; testele Node/Core, invariants, regressions, benchmark Replay 100/1k/10k/50k și E2E real-browser Chromium, Firefox și WebKit au trecut. Mutation baseline Stryker a fost skipped (nightly-only), nu este declarat trecut.
-  - Collector mobile build — run `45501256824`: SUCCESS; build iOS Simulator și Android debug APK au trecut, iar ambele artefacte au fost încărcate:
-    - iOS artifact `14971715114` (`collector-ios-simulator`).
-    - Android artifact `14971233265` (`collector-android-debug`).
-- Hardening RevenueCat: toate operațiile dependente de identitate (initialize/account switch, refresh, offerings, purchase, restore, logout) sunt serializate. Testele acoperă schimbarea contului în timpul purchase și restore.
-- Webhook RevenueCat: alias UUID valid sintactic, dar absent din `auth.users`, este înregistrat cu `user_id NULL` și ignorat, evitând FK violation și retry-uri repetate. RPC rezolvă identitatea în `auth.users`; evenimentele sunt idempotente. Refund `CUSTOMER_SUPPORT` revocă imediat; cancellation/billing issue/grace/pause păstrează Pro doar până la expirarea furnizată.
-- Migrarea SQL: delimitere PL/pgSQL corectate; teste statice verifică idempotency, duplicate, advisory lock per user, evenimente stale, lookup `auth.users`, privilegii service_role. **Nu** este încă validată prin execuție într-un PostgreSQL/Supabase real.
-- Autentificare: contul anonim poate fi asociat cu email/parolă; achiziția este blocată pentru cont anonim sau email neconfirmat; login existent și ștergere cont sunt implementate. Ștergerea avertizează că abonamentul magazinului nu este anulat automat.
-- AI/cost: API server-side validează sesiunea Supabase și entitlement Pro; rezervă bugetul lunar înainte de OpenAI și regularizează pe baza usage; rate limit per user; context allowlist; rezervările nefinalizate sunt contabilizate conservator. Cheia OpenAI rămâne exclusiv server-side.
-- Configurările externe rămân neefectuate/nevalidate: proiect Supabase live, aplicarea migrării și verificarea RLS/RPC în DB reală, deploy Cloud API, secrete reale, produse/entitlement/offering RevenueCat, webhook live și tranzacții sandbox purchase/renewal/restore/refund/expiry. Nu activa serviciile publice și nu cumpăra hosting înainte de stabilirea acestor dependențe.
-- Lipsuri de produs/release: sync multi-device, workspace membership, backup cloud și conflict handling; verificare pe dispozitive fizice; builduri store semnate AAB/IPA; criptare SQLite at-rest; privacy/GDPR, store metadata și testare completă de release.
-- Următorii pași: (1) verifică review/diff și toate workflow-urile rămase pe HEAD; (2) pregătește checklist-ul Supabase și RevenueCat fără a introduce secrete în repository/chat; (3) aplică migrarea într-un proiect Supabase real și verifică RPC/RLS; (4) deploy HTTPS și teste sandbox end-to-end; (5) abia apoi planifică hosting/release. Nu pretinde validare externă pe baza CI mock/static.
-- Continuitate: repository + acest checkpoint sunt sursa de adevăr. La următoarea sesiune verifică HEAD/PR/workflows înainte de modificări. Păstrează istoricul anterior; înlocuiește doar această secțiune curentă la următorul checkpoint.
+
+### Repository și CI — stare verificată la închiderea sesiunii
+- Repository: `davidlucian-ioan/Aplicatie`.
+- Branch activ: `feature/openai-provider-integration`.
+- PR #55: deschis, draft, către `main`; nu este merged. `main` a rămas neatins. Nu face merge și nu marca PR Ready fără aprobarea explicită a utilizatorului.
+- HEAD verificat: `9e04fd9e095d94bfb9d7e5e238717f19cbbd9281`.
+- Ultima modificare: hardening pentru timestamp-urile primite din webhook RevenueCat, cu test de regresie.
+- CI pentru HEAD-ul exact de mai sus este complet verde:
+  - Collector Cloud API — run `45502772138`: SUCCESS; testele API și build-ul container au trecut.
+  - Collector quality suite — run `45502772027`: SUCCESS; suitea completă de calitate și testele browser configurate au trecut.
+  - Collector mobile build — run `45502771880`: SUCCESS; Android debug APK și iOS Simulator build au trecut.
+- Artefacte pentru HEAD-ul curent:
+  - Android `collector-android-debug`, artifact ID `14972910483`, aproximativ 3.93 MB.
+  - iOS `collector-ios-simulator`, artifact ID `14972285449`, aproximativ 1.73 MB.
+  - Artefactele expiră la 2026-12-08 UTC. Sunt builduri de debug/simulator, nu pachete semnate pentru distribuție în magazine.
+
+### Modificarea nouă verificată
+- `cloud-api/server.js`: timestamp-urile externe RevenueCat sunt convertite printr-un helper defensiv. Datele invalide sau în afara intervalului acceptat nu mai aruncă RangeError și nu declanșează retry-uri inutile ale webhook-ului.
+- Pentru expirare invalidă se transmite `null`; pentru timestamp-ul evenimentului invalid se folosește timpul curent al serverului.
+- `cloud-api/test-cloud-api.js`: test de regresie pentru valori numerice imposibile; verifică răspuns HTTP 200, expirare null și fallback timestamp.
+- Commiturile modificării: `894d5d9320170945f1eb0f3f863f53d629d82640` (server) și `9e04fd9e095d94bfb9d7e5e238717f19cbbd9281` (test; HEAD curent).
+- Toate cele trei workflow-uri au trecut pe HEAD-ul rezultat.
+
+### Starea tehnică de păstrat
+- OpenAI Responses API este apelat numai server-side; cheia OpenAI nu este inclusă în aplicația mobilă.
+- Cloud API validează tokenul Supabase, verifică entitlement Pro, rezervă bugetul AI înainte de apel și face settlement după răspuns. Contextul este filtrat prin allowlist; există rate limit și buget lunar configurabil.
+- RevenueCat purchase/restore, asocierea contului, webhook autentificat, allowlist pentru produse/entitlement, idempotency și tratarea evenimentelor de lifecycle sunt implementate în branch.
+- Operațiile RevenueCat dependente de identitate sunt serializate; protecțiile pentru schimbarea contului în timpul purchase/restore sunt testate.
+- SQL-ul pentru billing/AI usage are teste statice pentru delimitere, idempotency, lock-uri, evenimente stale, lookup în `auth.users` și privilegii service_role. **Nu** există încă validare prin rularea migrării într-un PostgreSQL/Supabase real.
+- CI verde confirmă build și teste automate, nu confirmă configurare live, achiziții reale sau lansare.
+
+### Blocaje externe și lipsuri înainte de producție
+- Nu este confirmat un proiect Supabase live, migrarea aplicată, verificarea RLS/RPC în DB reală, Cloud API deployat sau chei/secrete de producție configurate.
+- Nu sunt validate produse, entitlement, offering, webhook și tranzacții RevenueCat sandbox reale (purchase, renewal, restore, cancellation, refund, expiry).
+- Sync multi-device, workspace membership, backup cloud și conflict handling nu sunt implementate.
+- Rămân necesare testarea pe telefoane fizice, criptarea SQLite at-rest, builduri semnate AAB/IPA, privacy/GDPR, store metadata și testarea completă de release.
+- Nu cumpăra hosting înainte de a închide dependențele Supabase/RevenueCat și de a confirma arhitectura de deploy. Nu pune chei secrete în repository sau chat.
+
+### Primii pași pentru următoarea sesiune
+1. Verifică mai întâi HEAD-ul branch-ului, PR #55 și workflow-urile CI; nu presupune că starea a rămas neschimbată.
+2. Continuă auditul static al fluxurilor purchase/restore, auth, account deletion, webhook și cost metering; modifică numai dacă identifici o problemă concretă și adaugă teste.
+3. Pregătește checklist-ul operațional Supabase (Auth, migrare, RLS/RPC, chei) și RevenueCat (apps, products, entitlement `pro`, offering, webhook, restore behavior).
+4. Când există proiectele/creditele reale, aplică migrarea și rulează teste live înainte de deploy public.
+5. Păstrează PR #55 draft și `main` neatins până la aprobarea explicită.
+
+### Reguli de continuitate
+- Acest fișier și repository-ul sunt sursa de adevăr; citește acest checkpoint la începutul următoarei sesiuni.
+- Păstrează toate secțiunile istorice de mai sus. La următoarea salvare înlocuiește numai această secțiune `CHECKPOINT CURENT`, nu adăuga checkpoint-uri duplicate.
+- Utilizatorul a cerut continuarea autonomă; nu te opri pentru un simplu „Ok”. Oprește-te numai la o instrucțiune explicită de stop.
+- Nu declara configurări externe sau tranzacții reale validate doar pe baza testelor mock/CI.
