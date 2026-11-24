@@ -472,6 +472,7 @@ async function initializeCollectorApp(){
  }
  if(main)main.inert=false;
  render();
+ if(!audioStorageReady)setAudioUi('idle','Stocarea audio nativă nu a putut fi inițializată. Funcțiile Core rămân disponibile, dar înregistrarea audio este dezactivată.');
  await window.CollectorReminders?.initialize();
  await renderAudioRecordings();
 }
