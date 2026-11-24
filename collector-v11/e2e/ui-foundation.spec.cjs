@@ -402,6 +402,16 @@ test('voice batch cancellation discards all utterances without committing', asyn
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
 });
 
+
+test('offline STT capability probe stays Android-only in the browser build', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="work"]').click();
+  const initialEvents = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length);
+  await page.locator('#checkOfflineSpeech').click();
+  await expect(page.locator('#offlineSpeechStatus')).toContainText('numai în aplicația Android');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(initialEvents);
+});
+
 test('voice session fallback keeps text entry available when speech recognition is unsupported', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'SpeechRecognition', { configurable: true, value: undefined });

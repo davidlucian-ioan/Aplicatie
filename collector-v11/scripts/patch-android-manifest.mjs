@@ -11,6 +11,20 @@ const javaRoot = process.env.COLLECTOR_ANDROID_JAVA
   || path.join(root, 'android', 'app', 'src', 'main', 'java', 'com', 'collector', 'app');
 
 let manifest = await readFile(manifestPath, 'utf8');
+const speechQueryIntent = `    <intent>
+      <action android:name="android.speech.RecognitionService" />
+    </intent>`;
+if (!manifest.includes('android.speech.RecognitionService')) {
+  if (/<queries\b/.test(manifest)) {
+    manifest = manifest.replace('</queries>', speechQueryIntent + '\n  </queries>');
+  } else {
+    const speechQueries = `  <queries>
+${speechQueryIntent}
+  </queries>`;
+    manifest = manifest.replace(/<application\b/, speechQueries + '\n  <application');
+  }
+}
+
 if (!manifest.includes('xmlns:android=')) {
   throw new Error('AndroidManifest.xml is missing the android namespace.');
 }
@@ -71,7 +85,7 @@ const icon = [
 await writeFile(iconPath, icon);
 
 await mkdir(javaRoot, { recursive: true });
-for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java']) {
+for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java', 'CollectorSpeechPlugin.java']) {
   await cp(path.join(root, 'native', 'android', file), path.join(javaRoot, file));
 }
 

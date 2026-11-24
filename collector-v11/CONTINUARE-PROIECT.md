@@ -100,7 +100,7 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Android debug build: PASS, run 45389797002.
 - Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
 
-### Actualizare 2026-11-24 — Context vocal cu TTL (PR #48 în pregătire)
+### Actualizare 2026-11-24 — Context vocal cu TTL (PR #48)
 - Branch: `feature/voice-context-ttl`, bazat pe `feature/voice-entity-disambiguation`.
 - Contextul activ este păstrat într-o cheie locală separată, cu ID-ul entității și expirare la 30 de minute; numele și tipul sunt citite din proiecția verificată.
 - Contextul se setează numai după o comandă vocală confirmată. Comenzile cu țintă explicită rămân prioritare; contextul este folosit doar când o comandă de atribut omite entitatea.
@@ -112,9 +112,24 @@ Atenție: testele automate trecute nu înlocuiesc testarea manuală în browser 
 - Ultimul cod validat: `9fd244eaf77a5d016a1e05712820268e4e6bfe6c`. Documentația checkpoint este actualizată în commitul următor.
 - Nu s-a modificat Core, schema jurnalului, Replay, idempotency sau D-001–D-044.
 
+### Actualizare 2026-11-24 — Android on-device STT capability probe (PR #49)
+- Branch: `feature/android-offline-stt-probe`, bazat pe `feature/voice-context-ttl`.
+- A fost adăugat pluginul nativ `CollectorSpeechPlugin`, care verifică numai disponibilitatea serviciului Android on-device și suportul modelului pentru `ro-RO`.
+- API 31–32: raportează existența serviciului, dar marchează limba ca neverificată, deoarece lista limbilor instalate nu este expusă de acest API.
+- API 33+: folosește `SpeechRecognizer.checkRecognitionSupport` pentru a clasifica modelul ca instalat, în așteptare, descărcabil sau nesuportat.
+- Folosește exclusiv `createOnDeviceSpeechRecognizer`; nu există fallback la recognizerul Android generic. Nu pornește ascultarea, nu capturează audio și nu descarcă modele.
+- WORK are o acțiune diagnostică explicită. În browser raportează că verificarea este disponibilă doar în aplicația Android.
+- Manifest patcher adaugă query-ul pentru `android.speech.RecognitionService` și îl îmbină într-un bloc `queries` existent; pluginul este înregistrat și copiat în proiectul Capacitor generat.
+- Teste automate noi: probele verifică folosirea exclusivă a API-ului on-device, lipsa capturii audio, bridge-ul nativ, manifestul și fallback-ul browser.
+- Build Android la commitul `4d0f63f870b806cde692199b0927d06a14a957ec`: PASS, confirmă compilarea pluginului nativ. Quality CI pe acel commit a fost blocat de teste de integrare cu newline escapate; corecțiile sunt incluse în head-ul curent.
+- PR: https://github.com/davidlucian-ioan/Aplicatie/pull/49 — deschis, mergeable; nu este integrat.\n- Quality CI: PASS, run 45393056286; 44 teste Chromium au trecut. Android debug build: PASS, run 45393056339.\n- Ultimul cod validat: `cc086275d09d91645ebb89758ba3ee2fb4e2e7c8`. Nu declara limba română disponibilă până când verificarea pe un telefon fizic nu confirmă modelul instalat.
+- Recunoașterea efectivă nu este încă activată. Următoarea implementare trebuie să fie exclusiv on-device și să nu concureze cu serviciul nativ de înregistrare pentru microfon.
+
 ### Următorii pași
-1. Evaluarea STT offline pe Android separat de browser SpeechRecognition; nu promite funcționare offline până la măsurare pe dispozitiv.
-2. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
-3. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
+1. Finalizează CI pentru PR #49 și verifică pe un dispozitiv Android fizic dacă modelul românesc este instalat/suportat.
+2. Numai după confirmarea limbii, implementează sesiunea STT on-device, cu oprire/distrugere corectă a recognizerului și integrare în batch preview.
+3. Blochează explicit STT când serviciul de înregistrare audio ține microfonul; nu porni două capturi concurente.
+4. Testare fizică Android: ecran blocat, schimbare aplicație, distrugere Activity, acțiunea Stop din notificare, întreruperi și recuperarea fișierelor parțiale.
+5. Pentru THINK: extinde analizele numai pe baza proiecțiilor/jurnalului local și cu definiții clare ale indicatorilor.
 
 Nu relua audituri finalizate și nu modifica deciziile arhitecturale fără solicitare explicită și analiză de impact.

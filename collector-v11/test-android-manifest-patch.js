@@ -61,11 +61,12 @@ test('Android manifest patch is idempotent and declares microphone foreground se
   assert.match(manifest, /CollectorAlarmReceiver/);
   assert.match(manifest, /CollectorAlarmBootReceiver/);
   assert.match(manifest, /android.intent.action.BOOT_COMPLETED/);
+  assert.match(manifest, /android.speech.RecognitionService/);
 
   const icon = await readFile(path.join(resourcePath, 'drawable', 'ic_stat_collector.xml'), 'utf8');
   assert.match(icon, /<vector/);
   assert.match(icon, /fillColor="#FFFFFFFF"/);
-  for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java']) {
+  for (const file of ['MainActivity.java', 'CollectorRecorderPlugin.java', 'CollectorRecordingService.java', 'CollectorAlarmPlugin.java', 'CollectorAlarmReceiver.java', 'CollectorAlarmBootReceiver.java', 'CollectorSpeechPlugin.java']) {
     await access(path.join(javaPath, file));
   }
 });
@@ -82,4 +83,34 @@ test('Android manifest patch refuses an unknown manifest template', async (t) =>
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /android namespace/);
+});
+
+
+test('Android speech recognition query merges into an existing queries block', async (t) => {
+  const temp = await mkdtemp(path.join(os.tmpdir(), 'collector-android-speech-query-'));
+  t.after(() => rm(temp, { recursive: true, force: true }));
+  const manifestPath = path.join(temp, 'AndroidManifest.xml');
+  const resourcePath = path.join(temp, 'res');
+  const javaPath = path.join(temp, 'java');
+  await mkdir(resourcePath, { recursive: true });
+  await writeFile(manifestPath, `<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <queries>
+    <package android:name="com.example.existing" />
+  </queries>
+  <application android:label="Collector">
+    <activity android:name=".MainActivity" />
+  </application>
+</manifest>
+`);
+  const result = spawnSync(process.execPath, ['scripts/patch-android-manifest.mjs'], {
+    cwd: root,
+    env: { ...process.env, COLLECTOR_ANDROID_MANIFEST: manifestPath, COLLECTOR_ANDROID_RES: resourcePath, COLLECTOR_ANDROID_JAVA: javaPath },
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const manifest = await readFile(manifestPath, 'utf8');
+  assert.equal((manifest.match(/<queries>/g) || []).length, 1);
+  assert.match(manifest, /com.example.existing/);
+  assert.match(manifest, /android.speech.RecognitionService/);
 });
