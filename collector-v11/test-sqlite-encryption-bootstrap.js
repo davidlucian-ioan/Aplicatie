@@ -163,6 +163,20 @@ test('backup corupt fail-closed înainte de accesul la DB',async()=>{
  assert.equal(m.calls.some(c=>c[0]==='createConnection'),false,'must not open or mutate DB when backup cannot be parsed');
  assert.equal(backup.getItem(BACKUP_KEY),'{broken-json','corrupt recovery data must be preserved');
 });
+test('recovery backup cu duplicate sau chei goale este respins fără acces la DB',async()=>{
+ for(const entries of [
+  [{key:'collector_a',value:'1'},{key:'collector_a',value:'2'}],
+  [{key:'',value:'empty-key'}]
+ ]){
+  const m=mockSQLite({exists:true,encrypted:true,secret:true});
+  const raw=JSON.stringify({version:1,database:'collector',phase:'prepared',createdAt:'x',entries});
+  const backup=mockStorage({[BACKUP_KEY]:raw});
+  await assert.rejects(prepareSQLiteEncryption({sqlite:m.sqlite,backupStorage:backup}),/invalid KV rows|duplicate KV keys/);
+  assert.equal(m.calls.some(call=>call[0]==='createConnection'),false,'invalid recovery snapshot must block DB opening');
+  assert.equal(backup.getItem(BACKUP_KEY),raw,'invalid snapshot remains intact for manual recovery');
+ }
+});
+
 test('cleanup migrare nu șterge legacy keys modificate după snapshot',()=>{
  const {completeSQLiteEncryptionMigration}=require('./sqlite-encryption-bootstrap');
  const backup=mockStorage({
