@@ -37,7 +37,10 @@
     throw error;
    }
   }
-  async function snooze(id,minutes){\n   if(![5,10,30,60].includes(minutes))throw new Error('Durata amânării nu este acceptată.');const rows=await list(),target=rows.find(row=>row.id===id);if(!target)throw new Error('Alarma nu mai există.');const replacement=await create({title:target.title,at:new Date(now().getTime()+minutes*60_000).toISOString()});try{await cancel(id);return replacement}catch(error){try{await cancel(replacement.id)}catch(rollbackError){throw new Error('Amânarea a eșuat, iar alarma nouă nu a putut fi anulată: '+error.message+'; '+rollbackError.message)}throw error}\n  }\n  async function cancel(id){
+  async function snooze(id,minutes){
+   if(![5,10,30,60].includes(minutes))throw new Error('Durata amânării nu este acceptată.');const rows=await list(),target=rows.find(row=>row.id===id);if(!target)throw new Error('Alarma nu mai există.');const replacement=await create({title:target.title,at:new Date(now().getTime()+minutes*60_000).toISOString()});try{await cancel(id);return replacement}catch(error){try{await cancel(replacement.id)}catch(rollbackError){throw new Error('Amânarea a eșuat, iar alarma nouă nu a putut fi anulată: '+error.message+'; '+rollbackError.message)}throw error}
+  }
+  async function cancel(id){
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target)return false;
    await plugin.cancel({notifications:[{id:target.notificationId}]});
