@@ -29,7 +29,7 @@ test('Work draft controls and quick templates exist in every UI entry point',()=
   assert.match(source,/id=\"workDraftStatus\"[^>]*role=\"status\"/);
   assert.match(source,/id=\"clearWorkDraft\"/);
   assert.match(source,/data-command-template=\"Observație: \"/);
-  assert.match(source,/data-command-template=\"Înregistrează \\[atribut\\] pentru \\[entitate\\] = \\[valoare\\]\"/);
+  assert.ok(source.includes('data-command-template="Înregistrează [atribut] pentru [entitate] = [valoare]"'));
  }
  const app=fs.readFileSync('app.js','utf8');
  const clearHandler=app.indexOf("clear?.addEventListener('click',async()=>{");
