@@ -426,3 +426,12 @@ Next actions:
 - Added static regression coverage to `test-mobile-build.js` asserting native stop uses the shared lifecycle helper.
 - Commits: `87d51d74fef769ad9fee877b4e0b034f98e6e1ee` and `ac5f66d693f28d5c9a504e8787381165eac98d6d`.
 - Await CI verdict on the latest HEAD; no merge/deploy.
+
+
+## Work draft autosave race fix — 2026-11-25
+
+- Found a race where quick typing followed by clearing could let an earlier asynchronous `writeRaw` finish after the `removeRaw`, resurrecting stale draft text on next launch.
+- Draft persistence now serializes write/remove operations through a promise queue; clearing is enqueued behind pending autosaves, and version guards continue to protect status/restore updates.
+- Added regression/static coverage to `test-mobile-build.js` for queue ordering and clear-after-pending-write behavior.
+- Commit: `720b4a48fc2da6a214926884c221a9de3f86b640` (implementation), `2298812ecfd4a37212604493058b0d4575dc8e70` (test).
+- CI has not yet been confirmed for the latest HEAD.
