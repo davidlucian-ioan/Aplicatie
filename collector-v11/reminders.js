@@ -37,14 +37,14 @@
     throw error;
    }
   }
-  async function cancel(id){
+  async function snooze(id,minutes){\n   if(![5,10,30,60].includes(minutes))throw new Error('Durata amânării nu este acceptată.');const rows=await list(),target=rows.find(row=>row.id===id);if(!target)throw new Error('Alarma nu mai există.');const replacement=await create({title:target.title,at:new Date(now().getTime()+minutes*60_000).toISOString()});try{await cancel(id);return replacement}catch(error){try{await cancel(replacement.id)}catch(rollbackError){throw new Error('Amânarea a eșuat, iar alarma nouă nu a putut fi anulată: '+error.message+'; '+rollbackError.message)}throw error}\n  }\n  async function cancel(id){
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target)return false;
    await plugin.cancel({notifications:[{id:target.notificationId}]});
    await storage.writeRaw(KEY,JSON.stringify(rows.filter(row=>row.id!==id)));
    return true;
   }
-  return Object.freeze({list,create,cancel});
+  return Object.freeze({list,create,cancel,snooze});
  }
  let service=null,initialized=false;
  async function render(){
@@ -52,7 +52,7 @@
   if(!listElement||!service)return;
   try{
    const rows=(await service.list()).filter(row=>new Date(row.at).getTime()>Date.now()).sort((a,b)=>a.at.localeCompare(b.at));
-   listElement.innerHTML=rows.length?rows.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">'+esc(new Date(row.at).toLocaleString('ro-RO'))+'</div></div><button class="secondary" type="button" data-reminder-cancel="'+esc(row.id)+'">Anulează</button></div>').join():'<p class="muted">Nu ai alarme programate.</p>';
+   listElement.innerHTML=rows.length?rows.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">'+esc(new Date(row.at).toLocaleString('ro-RO'))+'</div></div><div class="row-actions"><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="10">+10 min</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="60">+1 h</button><button class="secondary" type="button" data-reminder-cancel="'+esc(row.id)+'">Anulează</button></div></div>').join():'<p class="muted">Nu ai alarme programate.</p>';
   }catch(error){listElement.textContent='Nu pot încărca alarmele: '+error.message}
  }
  async function initialize(){
