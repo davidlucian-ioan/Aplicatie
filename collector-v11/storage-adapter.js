@@ -122,7 +122,7 @@
   const native=typeof capacitor?.isNativePlatform==='function'&&capacitor.isNativePlatform();
   if(!native)return createWebStorageAdapter(legacyStorage);
   if(!sqlite)throw new Error('Collector mobil necesită pluginul SQLite nativ. Build-ul nu este configurat corect.');
-  return createSQLiteStorageAdapter({sqlite,legacyStorage});
+  return createSQLiteStorageAdapter({sqlite,legacyStorage,encryptionBootstrap,requireEncryption});
  }
  const api=Object.freeze({classifySQLiteEncryptionState,createWebStorageAdapter,createSQLiteStorageAdapter,createAutoStorageAdapter});
  root.CollectorStorageAdapter=api;
