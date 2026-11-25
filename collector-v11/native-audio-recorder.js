@@ -8,6 +8,7 @@
   plugin=options.plugin||capacitor?.Plugins?.CapacitorAudioRecorder||null;
   filesystem=options.filesystem||capacitor?.Plugins?.Filesystem||null;
   storage=options.storage||root.CollectorStorage||null;
+  active=null;
   return isAvailable();
  }
  function isAvailable(){return typeof capacitor?.isNativePlatform==='function'&&capacitor.isNativePlatform()&&!!plugin&&!!filesystem}
