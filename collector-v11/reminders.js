@@ -92,13 +92,13 @@
  }
  async function initialize(){
   if(initialized)return;
-  initialized=true;
   const form=root.document?.getElementById('reminderForm');
   if(!form)return;
   const status=root.document.getElementById('reminderStatus'),listElement=root.document.getElementById('reminderList');
   const capacitor=root.Capacitor,plugin=capacitor?.Plugins?.LocalNotifications;
   const native=typeof capacitor?.isNativePlatform==='function'&&capacitor.isNativePlatform()&&['android','ios'].includes(capacitor.getPlatform?.());
   if(!native||!plugin){
+   initialized=true;
    form.querySelectorAll('input,button').forEach(control=>control.disabled=true);
    if(status)status.textContent='Alarmele native vor fi disponibile după instalarea aplicației Collector pe Android sau iPhone.';
    if(listElement)listElement.textContent='Nu există încă alarme pe acest dispozitiv.';
@@ -107,6 +107,7 @@
   const storage=root.CollectorStorage||root.CollectorStorageAdapter?.createWebStorageAdapter();
   try{service=createService({storage,plugin})}
   catch(error){if(status)status.textContent=error.message;return}
+  initialized=true;
   const dateInput=root.document.getElementById('reminderAt');
   if(dateInput){const min=new Date(Date.now()+60_000);dateInput.min=new Date(min.getTime()-min.getTimezoneOffset()*60_000).toISOString().slice(0,16)}
   form.addEventListener('submit',async event=>{
