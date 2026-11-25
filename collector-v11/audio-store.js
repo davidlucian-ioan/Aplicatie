@@ -176,12 +176,18 @@
     const rows=await readIndex(),files=[];
     const totalBytes=rows.reduce((sum,row)=>sum+Number(row.size||0),0);
     if(rows.length>100||totalBytes>100*1024*1024)throw new Error('Backup audio depășește limita de 100 înregistrări sau 100 MB.');
+    let verifiedTotal=0;
     for(const row of rows){
      if(!isSafeAudioFilePath(row.filePath))throw new Error('Backup audio blocat: index invalid.');
+     const stat=await filesystem.stat({path:row.filePath,directory:'DATA'}),actualSize=Number(stat?.size);
+     if(!Number.isFinite(actualSize)||actualSize<=0||actualSize>50*1024*1024)throw new Error('Fișier audio invalid sau peste limita de 50 MB.');
+     verifiedTotal+=actualSize;if(verifiedTotal>100*1024*1024)throw new Error('Backup audio depășește limita totală de 100 MB.');
      const content=await filesystem.readFile({path:row.filePath,directory:'DATA'});
      const data=typeof content?.data==='string'?content.data:null;
      if(!data)throw new Error('Nu pot citi fișierul audio '+row.id+' pentru backup.');
-     files.push({id:row.id,createdAt:row.createdAt,durationMs:Number(row.durationMs)||0,mimeType:row.mimeType||'audio/aac',size:Number(row.size)||0,title:row.title||null,warning:row.warning||null,data});
+     const decodedSize=Math.floor(data.length*3/4)-(data.endsWith('==')?2:data.endsWith('=')?1:0);
+     if(decodedSize!==actualSize)throw new Error('Dimensiunea fișierului audio nu corespunde cu datele exportate.');
+     files.push({id:row.id,createdAt:row.createdAt,durationMs:Number(row.durationMs)||0,mimeType:row.mimeType||'audio/aac',size:actualSize,title:row.title||null,warning:row.warning||null,data});
     }
     return {format:'collector-audio-backup.v1',exportedAt:new Date().toISOString(),recordings:files};
    },
