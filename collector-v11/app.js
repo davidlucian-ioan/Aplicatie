@@ -553,8 +553,9 @@ function initializeWorkDraft(){
  if(!input)return;
  let writeVersion=0;
  (async()=>{
-  try{const saved=await storageAdapter.readRaw(WORK_DRAFT_KEY);if(saved&&input.value===''){input.value=saved;status.textContent='Draft recuperat automat de pe acest dispozitiv.'}}
-  catch(error){status.textContent='Salvarea draftului local nu este disponibilă.'}
+  const version=writeVersion;
+  try{const saved=await storageAdapter.readRaw(WORK_DRAFT_KEY);if(version===writeVersion&&saved&&input.value===''){input.value=saved;status.textContent='Draft recuperat automat de pe acest dispozitiv.'}}
+  catch(error){if(version===writeVersion)status.textContent='Salvarea draftului local nu este disponibilă.'}
  })();
  input.addEventListener('input',()=>{
   const version=++writeVersion,value=input.value;
