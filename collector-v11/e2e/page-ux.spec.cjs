@@ -31,6 +31,9 @@ test('generic list filters are case-insensitive and restore rows when cleared', 
   await filter.fill('GREENHOUSE');
   await expect(list.locator('.row:visible')).toHaveCount(1);
   await expect(list).toContainText('Greenhouse PH check');
+  await filter.fill('no-match');
+  await expect(list.locator('.filter-empty')).toContainText('Nu exista rezultate pentru: no-match');
+  await expect(list.locator('.filter-empty')).toBeVisible();
   await filter.clear();
   await expect(list.locator('.row:visible')).toHaveCount(2);
 });
