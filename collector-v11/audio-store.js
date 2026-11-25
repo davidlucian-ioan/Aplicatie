@@ -171,6 +171,46 @@
     }
    },
    saveNative,
+   async exportBackup(){
+    await initialize();
+    const rows=await readIndex(),files=[];
+    for(const row of rows){
+     if(!isSafeAudioFilePath(row.filePath))throw new Error('Backup audio blocat: index invalid.');
+     const content=await filesystem.readFile({path:row.filePath,directory:'DATA'});
+     const data=typeof content?.data==='string'?content.data:null;
+     if(!data)throw new Error('Nu pot citi fișierul audio '+row.id+' pentru backup.');
+     files.push({id:row.id,createdAt:row.createdAt,durationMs:Number(row.durationMs)||0,mimeType:row.mimeType||'audio/aac',size:Number(row.size)||0,title:row.title||null,warning:row.warning||null,data});
+    }
+    const totalBytes=files.reduce((sum,row)=>sum+Number(row.size||0),0);
+    if(files.length>100||totalBytes>100*1024*1024)throw new Error('Backup audio depășește limita de 100 înregistrări sau 100 MB.');
+    return {format:'collector-audio-backup.v1',exportedAt:new Date().toISOString(),recordings:files};
+   },
+   async importBackup(backup){
+    await initialize();
+    if(!backup||backup.format!=='collector-audio-backup.v1'||!Array.isArray(backup.recordings)||backup.recordings.length>100)throw new Error('Format backup audio invalid sau prea mare.');
+    const rows=await readIndex(),known=new Set(rows.map(row=>row.id)),prepared=[],totalBytes=0;
+    for(const item of backup.recordings){
+     if(!item||typeof item.id!=='string'||!item.id.trim()||known.has(item.id)||typeof item.data!=='string'||!item.data||!/^(?:audio\\/(?:aac|webm|mp4|mpeg|ogg)|application\\/octet-stream)$/i.test(item.mimeType||''))continue;
+     if(!/^[A-Za-z0-9+/]*={0,2}$/.test(item.data)||item.data.length%4!==0)throw new Error('Backup audio conține date base64 invalide.');
+     const size=Math.floor(item.data.length*3/4)-(item.data.endsWith('==')?2:item.data.endsWith('=')?1:0);
+     if(!Number.isFinite(Number(item.durationMs))||Number(item.durationMs)<0||size<=0||size>50*1024*1024)throw new Error('Backup audio conține metadata sau fișier invalid.');
+     totalBytes+=size;if(totalBytes>100*1024*1024)throw new Error('Backup audio depășește limita totală de 100 MB.');
+     const extension=item.mimeType==='audio/webm'?'webm':item.mimeType==='audio/mp4'?'mp4':item.mimeType==='audio/mpeg'?'mp3':item.mimeType==='audio/ogg'?'ogg':'aac';
+     const filePath='collector-audio/backup-'+safeFileName(item.id)+'-'+prepared.length+'.'+extension;
+     prepared.push({...item,size,filePath});
+     known.add(item.id);
+    }
+    const created=[];
+    try{
+     for(const item of prepared){await filesystem.writeFile({path:item.filePath,data:item.data,directory:'DATA',encoding:'base64',recursive:true});created.push(item.filePath)}
+     const imported=prepared.map(item=>({id:item.id,createdAt:item.createdAt||new Date().toISOString(),durationMs:Number(item.durationMs)||0,mimeType:item.mimeType,size:item.size,filePath:item.filePath,uri:(await filesystem.getUri({path:item.filePath,directory:'DATA'})).uri,title:item.title||null,warning:item.warning||null}));
+     await writeIndex([...rows,...imported]);
+     return {imported:imported.length,skipped:Number(backup.recordings.length)-imported.length};
+    }catch(error){
+     for(const path of created){try{await filesystem.deleteFile({path,directory:'DATA'})}catch(cleanupError){}}
+     throw error;
+    }
+   },
    async rename(id,title){await initialize();const name=String(title||'').trim();if(!name||name.length>100)throw new Error('Titlul trebuie să aibă 1–100 de caractere.');const rows=await readIndex(),row=rows.find(item=>item.id===id);if(!row)throw new Error('Înregistrarea nu a fost găsită în indexul nativ.');row.title=name;await writeIndex(rows);return row},
    async get(id){await initialize();const row=(await readIndex()).find(item=>item.id===id);return row||legacyStore.get(id)},
    async list(){
