@@ -550,3 +550,12 @@ Next actions:
 - Latest documentation commit: `0026ba9486c2cb2ebaa650c75209f8bc9a84620c`; its CI must be rechecked before treating the documentation-updated HEAD as the final validated SHA.
 - Priority next: (1) poll CI for documentation commit; (2) inspect and reconcile dependency reproducibility—the mobile toolchain is pinned by install command but is not fully represented in the project lockfile; (3) create a release build pipeline without secrets; (4) continue physical-device validation planning, encryption gate remains OFF; (5) only then external staging/Supabase/RevenueCat setup.
 - Do not ask the user for secrets in chat, do not enable encryption, merge, deploy, or publish without explicit approval.
+
+
+## Checkpoint 25 nov 2026 — continuare după CI verde
+- HEAD anterior verificării: `fa8f49d7fea0531459ac6c525f456d5b1d773204`.
+- Cloud API, Quality Suite, Android debug APK și iOS Simulator build au trecut SUCCESS pe același SHA.
+- Actualizat launch checklist cu această verificare și cu blocker-ul de reproducibilitate al toolchain-ului nativ.
+- Auditul `test-mobile-build.js` confirmă testele existente pentru allowlist-ul bundle-ului, absența server/.env/test files, config mobil, wiring pluginuri, Work-first layout și regresii pentru draft/audio/reminders.
+- **Următorul blocker tehnic:** dependențele Capacitor/native sunt instalate cu scriptul `mobile:install-toolchain` prin `npm install --no-save --no-package-lock`; versiuni directe sunt pin-uite, dar lockfile-ul nu fixează întregul graf tranzitiv. Nu modifica manual lockfile. Soluția trebuie generată și verificată cu npm într-un mediu real, apoi `npm ci` + toate workflow-urile.
+- PR #55 rămâne draft; fără merge/deploy/publicare.
