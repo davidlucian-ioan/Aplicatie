@@ -78,9 +78,12 @@ test('iOS build installs Supabase Secure Storage and esbuild for the native auth
  const iosJobStart=workflow.indexOf('  ios:');
  assert.notEqual(iosJobStart,-1,'iOS workflow job must exist');
  const iosSection=workflow.slice(iosJobStart);
- for(const dependency of ['@supabase/supabase-js@2.119.2','@aparajita/capacitor-secure-storage@8.0.1','esbuild@0.28.2']){
-  assert.ok(iosSection.includes(dependency),'iOS build must install '+dependency);
- }
+ assert.ok(iosSection.includes('npm run mobile:install-toolchain'),'iOS must use the shared pinned native toolchain');
+ const packageJson=JSON.parse(await fs.readFile(path.join(__dirname,'package.json'),'utf8'));
+ const installer=packageJson.scripts['mobile:install-toolchain'];
+ for(const dependency of ['@supabase/supabase-js@2.119.2','@aparajita/capacitor-secure-storage@8.0.1','esbuild@0.28.2','@capacitor/core@8.6.2','@capacitor/cli@8.6.2'])assert.ok(installer.includes(dependency),'shared toolchain must pin '+dependency);
+ const androidSection=workflow.slice(0,iosJobStart);
+ assert.ok(androidSection.includes('npm run mobile:install-toolchain'),'Android must use the shared pinned native toolchain');
 });
 
 test('Android CI retries only transient Maven throttling and limits Gradle workers',async()=>{
