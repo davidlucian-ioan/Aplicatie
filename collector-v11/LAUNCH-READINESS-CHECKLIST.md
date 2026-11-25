@@ -83,3 +83,5 @@ See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. Th
 - [x] Regresie Cloud API pentru entitlement cu expires_at în trecut (status downgrade + provider blocked) — test authored; CI validation pending.
 - [x] Playwright browser regression pentru local Basic CRUD + JSON export (schema v7, journal) — test authored; CI validation pending.
 - [ ] Trial disclosure real: RevenueCat/store metadata pentru intro price/period, eligibility și renewal price/auto-renew; API metadata incomplete/eligibility nu poate fi dedusă, deci fără copy până la store sandbox/config validation.
+
+- [x] Playwright regression: malformed JSON and backup missing valid Collector schema are rejected without changing existing local data — test authored; CI validation pending (26 Nov 2026).
