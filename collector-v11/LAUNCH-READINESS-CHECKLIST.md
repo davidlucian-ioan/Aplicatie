@@ -101,3 +101,5 @@ See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. Th
 - [x] Basic/offline E2E covers local entity, Work draft persistence, Core preview and no AI request/no automatic note commit; CI pending.
 - [ ] Native audio backup/restore physical-device validation: long recordings, storage quota, failed filesystem write, playback after import, app restart.
 - [ ] Full native transitive toolchain lockfile and clean npm ci reproducibility remain unresolved.
+
+- [x] Audio import validates identifier length and timestamp before creating files; regression coverage pending CI.
