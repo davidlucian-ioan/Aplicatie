@@ -128,6 +128,11 @@
   }
   return Object.freeze({
    initialize,
+   beginSession(session){if(typeof legacyStore.beginSession!=='function')return Promise.reject(new Error('Backup-ul periodic nu este disponibil.'));return legacyStore.beginSession(session)},
+   appendSessionChunk(id,chunk,durationMs){if(typeof legacyStore.appendSessionChunk!=='function')return Promise.reject(new Error('Backup-ul periodic nu este disponibil.'));return legacyStore.appendSessionChunk(id,chunk,durationMs)},
+   listInterruptedSessions(){return typeof legacyStore.listInterruptedSessions==='function'?legacyStore.listInterruptedSessions():Promise.resolve([])},
+   recoverSession(id){if(typeof legacyStore.recoverSession!=='function')return Promise.reject(new Error('Recuperarea sesiunii web nu este disponibilă.'));return legacyStore.recoverSession(id)},
+   removeSession(id){return typeof legacyStore.removeSession==='function'?legacyStore.removeSession(id):Promise.resolve(false)},
    async save(record){
     await initialize();
     if(!record?.id||!(record.blob instanceof Blob)||!record.blob.size)throw new Error('Înregistrarea audio este invalidă sau goală.');
