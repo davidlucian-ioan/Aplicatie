@@ -813,3 +813,27 @@ Nicio tranzacție, configurare live, deploy, merge sau publicare efectuată.
 - Audio file export/backup and restore remains a product gap; this change is disclosure only, not an audio-backup feature. CI validation pending.
 
 - Follow-up E2E also asserts the Audit UI visibly warns that JSON backups exclude audio. Commit: `1bd2283eb94e7197d0edb0d58a82a17e60595435`.
+
+
+## Continuare — 5 hardening tasks — 26 nov 2026
+
+### 1. Native audio metadata index integrity
+- `audio-store.js` now validates native audio index rows on read: non-empty ID/path/URI/timestamp, managed path allowlist, numeric non-negative size, and unique IDs. Invalid metadata fails closed and is not overwritten.
+- Regression tests cover unsafe path and duplicate ID, preserving index bytes.
+
+### 2. Clear-all destructive operation guard
+- Added a test that a malformed/unsafe index makes audio clear-all abort before deleting even a valid audio file. Index remains available for recovery.
+
+### 3. SQLite migration snapshot validation
+- Recovery KV snapshots reject empty keys and duplicate keys before restoration; tests verify the encrypted database is not opened/mutated and the malformed backup remains untouched.
+
+### 4. Transactional SQLite recovery failure
+- Mock SQLite now models transaction rollback. Added test injecting a recovery write failure; expected: rollback restores prior rows and verified migration backup remains preserved.
+
+### 5. Native toolchain version drift guard
+- Added `verify-mobile-toolchain.js` and npm script `mobile:verify-toolchain`; Android and iOS CI run it after toolchain installation. Test covers exact versions, missing package, and version mismatch.
+- This is a direct-dependency drift guard, **not** a complete transitive lockfile. Toolchain remains installed using `--no-package-lock`; full reproducibility still requires generated/committed lock coverage and a clean `npm ci` validation. I did not fabricate a lockfile.
+
+Commits for this round: `06d9516`, `0dc1183`, `9d3a094`, `e6235aa`, `c0fbc04`, `ec47115`, `734187e`, `2043cb1`, `b75fba2`, `b10277a`, `150813b`, `7da742b`.
+
+Authored tests and workflow checks are not yet validated by CI on this round's latest HEAD. PR #55 remains draft; no merge/deploy/store release performed.
