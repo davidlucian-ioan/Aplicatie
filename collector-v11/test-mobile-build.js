@@ -26,7 +26,7 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   await assert.rejects(fs.access(path.join(out,'.env')));
   await assert.rejects(fs.access(path.join(out,'test-engine.js')));
   const html=await fs.readFile(path.join(out,'index.html'),'utf8');
-  assert.ok(html.includes('storage-adapter.js'));
+  assert.ok(html.includes('sqlite-encryption-bootstrap.js'));\n  assert.ok(WEB_FILES.includes('sqlite-encryption-bootstrap.js'));\n  assert.ok(html.includes('storage-adapter.js?v=0.2'));
   assert.ok(html.includes('reminders.js'));
   assert.ok(html.includes('native-audio-recorder.js'));
   assert.ok(html.includes('Cheia OpenAI nu este stocată pe telefon.'));
