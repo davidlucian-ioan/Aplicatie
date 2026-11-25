@@ -99,11 +99,15 @@ test('adapterul requireEncryption creează DB encrypted și verifică encryption
  assert.equal(adapter.getEncryptionState().state,'new-encrypted');
  assert.ok(m.calls.some(c=>c[0]==='isDatabaseEncrypted'));
 });
-test('adapterul refuză plaintext dacă encryption mode este cerut, fără fallback necriptat',async()=>{
- const m=mockSQLite({exists:true,encrypted:false});
- const adapter=createSQLiteStorageAdapter({sqlite:m.sqlite,legacyStorage:mockStorage(),encryptionBootstrap:{prepareSQLiteEncryption:args=>prepareSQLiteEncryption(args)},requireEncryption:true});
- await assert.rejects(adapter.initialize(),/Secure random generator unavailable|Safe migration is required/);
- assert.equal(m.calls.some(c=>c[0]==='createConnection'&&c[1].mode==='no-encryption'),false);
+test('adapterul migrează plaintext în encrypted mode înainte să expună read/write',async()=>{
+ const m=mockSQLite({exists:true,encrypted:false});m.rows.set('old','preserved');
+ const legacy=mockStorage();
+ const adapter=createSQLiteStorageAdapter({sqlite:m.sqlite,legacyStorage:legacy,encryptionBootstrap:{prepareSQLiteEncryption:args=>prepareSQLiteEncryption({...args,cryptoImpl:fakeCrypto()})},requireEncryption:true});
+ await adapter.initialize();
+ assert.equal(adapter.getEncryptionState().state,'converted-existing');
+ assert.equal(await adapter.readRaw('old'),'preserved');
+ assert.ok(m.calls.some(c=>c[0]==='createConnection'&&c[1].mode==='encryption'));
+ assert.ok(m.calls.some(c=>c[0]==='createConnection'&&c[1].mode==='secret'));
 });
 test('adapterul refuză acces dacă native config nu are encryption activ',async()=>{
  const m=mockSQLite({configEncryption:false});
