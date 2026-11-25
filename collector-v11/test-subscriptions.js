@@ -78,3 +78,17 @@ test('restore este serializat înaintea schimbării contului RevenueCat',async()
  await Promise.all([restore,switchUser]);
  assert.deepEqual(events,['restore:start','restore:end','login:restore-user-B']);
 });
+
+
+test('trial entitlement is exposed distinctly from paid Pro',async()=>{
+ globalThis.CollectorPurchasesBundle.getCustomerInfo=async()=>({customerInfo:{entitlements:{active:{pro:{isActive:true,periodType:'TRIAL',expirationDate:'2026-12-26T00:00:00Z',willRenew:true}}}}});
+ const state=await globalThis.CollectorSubscriptions.refresh();
+ assert.equal(state.isPro,true);assert.equal(state.isTrial,true);assert.equal(state.periodType,'TRIAL');
+ assert.equal(state.expiresAt,'2026-12-26T00:00:00Z');
+});
+
+test('paid Pro entitlement is not incorrectly labeled trial',async()=>{
+ globalThis.CollectorPurchasesBundle.getCustomerInfo=async()=>({customerInfo:{entitlements:{active:{pro:{isActive:true,periodType:'NORMAL',expirationDate:'2027-01-26T00:00:00Z'}}}}});
+ const state=await globalThis.CollectorSubscriptions.refresh();
+ assert.equal(state.isPro,true);assert.equal(state.isTrial,false);assert.equal(state.periodType,'NORMAL');
+});
