@@ -74,3 +74,12 @@ test('ștergerea integrală locală este disponibilă în toate entry point-uril
  assert.match(app,/audioStartPending\|\|audioRecorder\|\|nativeAudioSession/);
  assert.ok(app.includes('if(localDataErasing)return Promise.reject'));
 });
+
+test('UI disclose explicit datele trimise cloud înainte de folosirea AI',()=>{
+ for(const html of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
+  const source=fs.readFileSync(html,'utf8');
+  assert.ok(source.includes('textul și contextul limitat'),html+' trebuie să explice ce trimite AI');
+  assert.ok(source.includes('jurnalul complet și fișierele audio nu sunt trimise'),html+' trebuie să precizeze limitele datelor');
+  assert.ok(source.includes('salvarea cere confirmarea ta'),html+' trebuie să păstreze confirmarea explicită');
+ }
+});
