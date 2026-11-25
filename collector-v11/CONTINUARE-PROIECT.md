@@ -733,3 +733,10 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 - UI cere cont cloud recuperabil și email-confirmat înainte de cumpărare; Restore este disponibil după inițializarea entitlement-ului. Confirmarea pe store sandbox rămâne neefectuată.
 - Următoarea direcție: monitorizează CI pe SHA exact; apoi audit și test pentru post-expiry Basic, offering metadata/trial disclosure și restore/account recovery. P0 rămâne physical-device validation, lockfile reproducibil, encryption migration gate, staging, legal/privacy și signed builds.
 - Nicio configurare live, tranzacție reală, deploy, merge sau publicare.
+
+
+## Trial classification edge-case tests (26 nov 2026)
+
+- Added two regression tests in `collector-v11/test-subscriptions.js`: unknown/missing `periodType` must not be misclassified as trial; an inactive entitlement with `periodType=TRIAL` must not be reported as an active trial.
+- Commit: `7b1701835630beaaf164b2c6d992c2be07d88548`.
+- Await CI for this exact/new HEAD; tests are authored but not yet validated by workflow.
