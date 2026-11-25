@@ -103,3 +103,5 @@ See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. Th
 - [ ] Full native transitive toolchain lockfile and clean npm ci reproducibility remain unresolved.
 
 - [x] Audio import validates identifier length and timestamp before creating files; regression coverage pending CI.
+
+- [x] Audio-backup malformed records fail closed; only existing duplicate IDs are skipped; regression authored, CI pending.
