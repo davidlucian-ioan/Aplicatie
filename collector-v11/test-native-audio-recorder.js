@@ -4,7 +4,8 @@ const assert=require('node:assert/strict');
 const NativeRecorder=require('./native-audio-recorder');
 
 function fixture({permission='granted',request='granted'}={}){
- const calls=[],files=new Map(),storageValues=new Map();\n const storage={async readRaw(key){return storageValues.get(key)??null},async writeRaw(key,value){storageValues.set(key,String(value))},async removeRaw(key){storageValues.delete(key)}};
+ const calls=[],files=new Map(),storageValues=new Map();
+ const storage={async readRaw(key){return storageValues.get(key)??null},async writeRaw(key,value){storageValues.set(key,String(value))},async removeRaw(key){storageValues.delete(key)}};
  const capacitor={isNativePlatform:()=>true,convertFileSrc:uri=>'capacitor://localhost/_capacitor_file_'+uri};
  const filesystem={
   async mkdir(value){calls.push(['mkdir',value])},
