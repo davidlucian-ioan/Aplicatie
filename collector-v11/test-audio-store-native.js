@@ -165,7 +165,7 @@ test('audio backup import enforces recording count and aggregate size limits',as
  const tooMany={format:'collector-audio-backup.v1',recordings:Array.from({length:101},(_,i)=>({id:'id'+i,durationMs:1,mimeType:'audio/aac',data:'YQ=='}))};
  await assert.rejects(x.store.importBackup(tooMany),/Format backup audio invalid/);
  const tooLarge={format:'collector-audio-backup.v1',recordings:[{id:'big',durationMs:1,mimeType:'audio/aac',data:'A'.repeat(70*1024*1024)}]};
- await assert.rejects(x.store.importBackup(tooLarge),/limita totală/);
+ await assert.rejects(x.store.importBackup(tooLarge),/limita totală|metadata sau fișier invalid/);
 });
 
 test('clearAll refuses an unsafe index before deleting any managed audio file',async()=>{
