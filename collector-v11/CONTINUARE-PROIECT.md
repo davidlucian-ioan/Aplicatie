@@ -444,3 +444,12 @@ Next actions:
 - Added regression coverage in `test-mobile-build.js`.
 - Commits: `964b064f16e7b481bff852b8300d790a81d14bf6` (fix), `30787fce7d605db9743637b6dc5171de3cd2b8c4` (test).
 - Await CI for latest HEAD.
+
+
+## Reanaliză CI și remediere — 2026-11-25
+
+- CI pentru HEAD `3739fc3e` a eșuat în 2 verificări statice: testul draft-clear căuta forma textuală `++writeVersion;`, dar implementarea corectă folosește `const version=++writeVersion;`; testul de retry reminders găsea primul `initialized=true` din ramura web, nu marcarea după setup-ul nativ.
+- Logurile arată că aceste două aserțiuni sunt cauza eșecurilor Quality, Android și iOS; cele 197/199 teste din suitele mobile au trecut. Build-urile native au fost oprite înainte de compilare deoarece step-ul de wiring a eșuat.
+- Corectate testele ca să verifice ordinea reală în handler și în blocul de setup nativ, fără a schimba logica aplicației. Testul draft verifică și că ștergerea este serializată în queue.
+- Commits: `d2e60d9` și `e5d0d14`. CI pentru noul HEAD trebuie confirmat înainte de a considera blocajul rezolvat.
+- Următoarea prioritate după CI: dependențe mobile reproductibile (declarate în package/lockfile), evaluarea SQLite encryption at-rest și testare pe device real. Nu există încă release build semnat sau configurare production.
