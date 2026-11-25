@@ -220,42 +220,40 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
-## CHECKPOINT CURENT — 2026-11-25 (UI/UX în lucru)
+## CHECKPOINT CURENT — 2026-11-25 (UI/UX redesign în progres)
 
-### Repository și stare
-- Repository: `davidlucian-ioan/Aplicatie`.
-- Branch: `feature/openai-provider-integration`.
-- PR #55: deschis, draft, către `main`; nu este merged. `main` neatins. Nu merge/Ready fără aprobarea explicită.
-- HEAD UI/UX: `57ede6fd37d7f9181b7a4f200bfa8f689cbcc929`.
-- Ultimele commituri UI: `262b25c` (ierarhie/layout CSS), `ee2ed21` (structurare Work/Think), `57ede6f` (layout-uri dedicate Work/Think).
+### Repository / safety
+- Repo: `davidlucian-ioan/Aplicatie`; branch `feature/openai-provider-integration`.
+- PR #55 open/draft, target `main`. Nu merge și nu modifica main fără aprobare explicită.
+- HEAD UI/UX: `6dd7d1ebca916cec0e2816807c9887b9becedfc5`.
+- Checkpoint-ul înlocuiește numai secțiunea curentă; păstrează istoricul anterior.
 
-### UI/UX — prima etapă implementată
-- Audit inițial confirmă 10 secțiuni (Think dashboard, entități, relații, inventory, finance, attributes, events, history, Work/assistant, audit).
-- `style.css`: refactor de ierarhie vizuală, sidebar/nav, carduri, panel-uri, butoane, form controls, spacing, responsive și focus states; culori mai consistente, contrast și hover.
-- `index.html`: Work și Think au clase/layout dedicate fără schimbarea id-urilor sau handlerelor funcționale.
-- Work: desktop cu Alarme/Mementouri și Reportofon în două coloane, transcriere/interpretare pe lățime; pe mobile ordinea prioritizează Reportofon, apoi alarme, apoi command flow.
-- Think: metric cards și quick actions mai bine structurate, layout cu spacing unitar.
-- Responsive: sidebar compact pe tabletă, drawer pe mobil, grid-uri adaptabile și controale touch-friendly.
-- Aceasta este prima etapă de UX, nu UI final. Urmează audit ecran cu ecran, revizuire componente/formular, fluxuri și testare vizuală în viewport-uri; nu declara terminat.
+### UI/UX — implementat în această sesiune
+- `style.css`: ierarhie vizuală, spacing, typography, panel/card/button/form styles, responsive behavior, navigare sidebar/drawer, focus și hover.
+- Work și Think au clase de compoziție dedicate în `index.html`; fără schimbarea ID-urilor sau handlerelor aplicației.
+- Work desktop: Alarme/Mementouri + Reportofon în două coloane; transcriere/interpretare full width. Mobile: Reportofon prioritar, apoi reminders, apoi command area; layout de butoane touch-friendly.
+- Think: metric cards accentuate, quick actions grupate vizual, recent activity; grid responsive.
+- Sidebar desktop/tabletă/mobil diferențiată; responsive pentru viewport-uri mici.
+- Commituri: `262b25c`, `ee2ed21`, `57ede6f`, `bb7e306`, `858bb68`, `6dd7d1e`.
+- Acesta este UI/UX pass 1; nu este finalizat. Continuă audit ecran cu ecran și testare vizuală reală, formulare, accessibility, keyboard, mobile.
 
 ### CI
-- Workflow-uri declanșate pe HEAD UI `57ede6f`:
-  - Cloud API run `45596141277`: in progress la checkpoint.
-  - Mobile build run `45596141157`: queued.
-  - Quality suite run `45596141146`: queued.
-- Runs anterioare pe commiturile intermediare au fost anulate de push-uri ulterioare. Verifică numai runs pentru HEAD exact și așteaptă rezultatele.
-- Ultimul HEAD pre-UI `a0cf4da` avea Cloud API, mobile și quality suite SUCCESS.
+- Runs pentru HEAD `6dd7d1e`:
+  - Quality `45596283430`: in progress la ultima verificare.
+  - Mobile `45596283483`: in progress.
+  - Runs suplimentare `45596293629`, `45596293615`, `45596293544`: pending (același HEAD).
+- Poll până la rezultat final; verifică runs pentru exact HEAD, nu commituri intermediare.
+- Ultimul HEAD pre-UI `a0cf4da` avea Cloud API, mobile și quality SUCCESS.
 
-### Starea tehnică și gap-uri
-- OpenAI server-side, Supabase auth, RevenueCat/billing și cost metering sunt implementate în branch; nu există validare live de Supabase/RevenueCat sau deploy de producție.
-- Migrarea SQL nu a fost executată într-un DB real; purchase/restore/webhook sandbox real încă nevalidate.
-- Nu există sync multi-device/workspace, backup cloud/conflict handling; SQLite encryption at-rest, testare fizică, builduri semnate, GDPR/store release rămân.
-- CI nu înseamnă release-ready. Nu cumpăra hosting înainte de clarificarea configurațiilor externe.
+### Backend / release gaps
+- OpenAI server-side, Supabase auth, RevenueCat și AI cost metering implementate în branch, dar nu validate live.
+- SQL migration nu a fost aplicată într-un PostgreSQL/Supabase real; sandbox billing flows și webhook live nevalidate.
+- Cloud deploy/secrets, sync multi-device, backup/conflict handling, SQLite encryption at-rest, physical-device testing, signed AAB/IPA, privacy/GDPR și store release încă lipsesc.
+- CI nu înseamnă release-ready; nu cumpăra hosting înainte de clarificarea config-urilor externe.
 
-### Continuare
-1. Verifică PR/head și CI.
-2. Continuă UI/UX autonom: audit și redesign al Think dashboard, Work recorder/reminders/command, apoi fiecare pagină CRUD și detaliu; test responsive/keyboard/accessibility.
-3. Adaugă teste de layout și regresie unde lipsesc, rulează CI.
-4. Salvează checkpoint-ul înlocuind numai această secțiune, păstrând istoricul anterior.
-5. Nu merge PR #55 și nu modifica main fără aprobarea utilizatorului.
-6. Utilizatorul a cerut continuare autonomă; nu te opri la simplu „Ok”, doar la stop explicit.
+### Next steps
+1. Poll CI pe HEAD și remediează eventuale regresii.
+2. Continuă redesign Think/Work și auditul paginilor Entități, Relații, Inventar, Financiar, Atribute, Evenimente, Istoric, Audit; focus pe layout, workflow, empty/loading/error states, accesibilitate și mobil.
+3. Adaugă teste de regresie pentru layout/workflows, rulează CI.
+4. Salvează checkpoint înlocuind numai secțiunea curentă.
+5. Continuă autonom; nu opri pentru simplu „Ok”, doar la stop explicit.
