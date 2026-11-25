@@ -870,3 +870,30 @@ No merge, deploy, store release or device-level validation performed. Tests are 
 - Final follow-up: audio import additionally validates ID length and parseable creation timestamp before filesystem writes. Commit `0728ae3e1162b3c34b4f63461601fd2c94248854`.
 
 - Final fail-closed change: malformed audio-backup records now abort import rather than being silently skipped; only duplicate IDs already present are skipped. Regression authored. Commit `766752a` and test `ec17d4a`.
+
+
+## Decizii corecte și audit funcțional — 26 nov. 2026
+
+Sursa de adevăr: `PRODUCT-DECISIONS-2026-11-26.md`. Deciziile de mai jos trebuie păstrate în toate continuările:
+- Collector este AI personal memory + recorder hands-free. AI nu este addon; trial full experience, apoi Small €5 / Medium €15 / Large €30 lunar, toate cu AI. Utilizatorul nu plătește separat provider API. Tier quotas se dimensionează pe cost măsurat, nu inventate.
+- Audio/text trebuie interpretat semantic, structurat, corelat cu memoria existentă și redat într-o propoziție naturală; transcript/audio original rămân accesibile. Recall factual trebuie să trimită la sursă și timestamp. TTS este parte din UX-ul hands-free.
+- AI detectează reminders explicite și creează notificare locală: ex. „Vineri trebuie să cumpăr materialele pentru proiect, să nu uit.” Creează task cu acțiune/context/date, confirmă numai după scheduling reușit. Ambiguitate/negare/„poate” nu creează reminder automat. Default time configurabil pentru date fără oră.
+- Reminder status/completion, snooze și source-link trebuie să fie recuperabile în memoria Collector.
+
+### Audit cod, HEAD 88343f122a28644714e92832f6df332949b7a564
+- AI provider schema și prompt nu conțin reminder/task/memory extraction; operațiile actuale sunt Core CRUD/notes.
+- Work AI UI are preview/confirm generic, dar nu un preview combinat de semantic summary + reminder side effect.
+- reminders.js are native schedule/list/cancel/snooze/clear și rollback, dar este separat de AI; lipsește natural-language date resolution, completion, source link.
+- Subscription implementation este un singur entitlement `pro`, offerings RevenueCat și server active-Pro gate. Nu există mapping Small/Medium/Large și tier budgets implementate/validate. Trial/store intro eligibility și UX nu sunt validate în sandbox.
+- Pipeline audio→transcript→AI interpretation→memory→natural sentence/TTS playback nu este complet.
+
+### Next implementation queue (prioritate Work)
+1. Entitlement/capability matrix + tier/product mapping + server quota enforcement (trial full; all paid tiers AI).
+2. AI structured contract pentru summary, memory facts, tasks/reminders, temporal fields/timezone/confidence/source refs; server validation.
+3. Reminder intent flow: clear intent/date → preview → local schedule → persisted source link/idempotency → success confirmation; ambiguous/no/negated intents ask/skip.
+4. Reminder complete/follow-up și Activity ledger.
+5. Voice pipeline: transcription, natural-language summary/playback, TTS, retry/interruption and preserve original.
+6. Memory recall MVP source-grounded with jump-to-source.
+7. UI Work polish; Think later.
+
+Nu marca niciunul din punctele de mai sus ca implementat până când code/tests/CI confirmă. CI pentru latest HEAD trebuie verificat separat; documentare nu este validare.
