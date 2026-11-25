@@ -106,6 +106,20 @@ test('interrupted native audio can be discarded with its private file and checkp
  assert.equal(await NativeRecorder.getPending(),null);
  assert.equal(x.files.has(session.filePath),false);
 });
+test('malformed pending checkpoint path is rejected and preserved before filesystem access',async()=>{
+ const values=new Map([['collector_audio_pending_session_v1',JSON.stringify({id:'rec-1',filePath:'collector-audio/../secret.aac',startedAt:Date.now(),format:'aac'})]]);
+ const calls=[];
+ const storage={async readRaw(k){return values.get(k)||null},async writeRaw(k,v){values.set(k,v)},async removeRaw(k){values.delete(k)}};
+ const filesystem={async mkdir(){calls.push('mkdir')},async stat(){calls.push('stat');throw Error('not found')},async deleteFile(){calls.push('delete')}};
+ const plugin={async checkPermissions(){return {recordAudio:'granted'}},async requestPermissions(){return {recordAudio:'granted'}}};
+ const capacitor={isNativePlatform(){return true}};
+ const recorder=require('./native-audio-recorder');
+ recorder.configure({capacitor,plugin,filesystem,storage});
+ await assert.rejects(recorder.initialize(),/cale nepermisă/);
+ assert.deepEqual(calls,[],'invalid checkpoint must not touch filesystem');
+ assert.ok(values.has('collector_audio_pending_session_v1'),'checkpoint remains for inspection/recovery');
+});
+
 test('native audio refuses to discard an active recording',async()=>{
  const x=fixture();const session=await NativeRecorder.start({id:'active-do-not-delete'});
  await assert.rejects(NativeRecorder.discardPending(),/Oprește și salvează/);
