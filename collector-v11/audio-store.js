@@ -203,7 +203,7 @@
     const created=[];
     try{
      for(const item of prepared){await filesystem.writeFile({path:item.filePath,data:item.data,directory:'DATA',encoding:'base64',recursive:true});created.push(item.filePath)}
-     const imported=prepared.map(item=>({id:item.id,createdAt:item.createdAt||new Date().toISOString(),durationMs:Number(item.durationMs)||0,mimeType:item.mimeType,size:item.size,filePath:item.filePath,uri:(await filesystem.getUri({path:item.filePath,directory:'DATA'})).uri,title:item.title||null,warning:item.warning||null}));
+     const imported=[];for(const item of prepared){const location=await filesystem.getUri({path:item.filePath,directory:'DATA'});imported.push({id:item.id,createdAt:item.createdAt||new Date().toISOString(),durationMs:Number(item.durationMs)||0,mimeType:item.mimeType,size:item.size,filePath:item.filePath,uri:location.uri,title:item.title||null,warning:item.warning||null})}
      await writeIndex([...rows,...imported]);
      return {imported:imported.length,skipped:Number(backup.recordings.length)-imported.length};
     }catch(error){
