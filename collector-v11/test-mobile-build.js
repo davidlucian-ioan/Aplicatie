@@ -149,3 +149,14 @@ test('all entrypoints expose guarded full local-data erasure without cloud accou
  assert.ok(app.includes('await window.CollectorReminders?.clearAll?.()'));
  assert.ok(app.includes('await storageAdapter.clearCollectorData()'));
 });
+
+
+test('audio playback is detached before deleting the currently playing recording',async()=>{
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ assert.ok(app.includes('audioPlaybackRecordId=null'));
+ assert.ok(app.includes('function clearAudioPlayback(){'));
+ assert.ok(app.includes('if(audioPlaybackRecordId===recordId)clearAudioPlayback()'));
+ assert.ok(app.includes('function setAudioPlayback(recordId,source){'));
+ assert.ok(app.includes('audioPlaybackRecordId=recordId'));
+ assert.ok(app.includes('clearAudioPlayback()'),'local data erasure must stop and release the active player');
+});
