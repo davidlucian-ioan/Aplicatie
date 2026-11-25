@@ -475,3 +475,10 @@ Next actions:
 - Fix: install both `@capacitor/android@8.6.2` and `@capacitor/ios@8.6.2` in the same `mobile:install-toolchain` invocation; remove second platform install from each workflow; explicitly check local `./node_modules/.bin/cap --version` and use the local binary for add/sync. Regression coverage verifies pins and rejects sequential platform-install commands.
 - Commits: `5f13c4e` package toolchain, `7bb7618` workflow, `d28d366` regression test.
 - New CI must validate this fix; no local execution is claimed.
+
+
+## CI regression fix — mobile toolchain test scoping — 2026-11-25
+- The rerun after the Work draft fix exposed a test-only ReferenceError: `androidSection` was referenced before initialization in `test-mobile-build.js` while checking iOS shared-toolchain pins.
+- Corrected the test by defining the Android workflow section before assertions. This does not change runtime/build configuration.
+- Commit: `e8f61e4fec122931b66841ecd147bda8f30b8744`.
+- New CI run required; previous quality run failed only at this test after the Work draft regression test passed.
