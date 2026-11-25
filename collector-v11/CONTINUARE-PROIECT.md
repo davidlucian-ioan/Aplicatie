@@ -723,3 +723,13 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 3. Add clear trial disclosure/offer terms to paywall/onboarding only after package metadata and platform offer details are verified; don't invent dates/prices/renewal terms.
 4. Define post-trial Basic capability boundary and verify app local access/export are not disabled by entitlement expiry.
 5. Continue P0 launch blockers and prepare store sandbox matrix. No production configuration, live transactions, deployment or merge.
+
+
+## Continuare verificare trial UI + CI (26 nov 2026)
+
+- Reconfirmat PR #55: OPEN, DRAFT, target `main`, mergeable; HEAD verificat `ee2660bca84a1685fa5c68a6fe009efb4c4a40b4` (635 commits / 73 files). Nu se face merge.
+- CI pentru HEAD: Cloud API SUCCESS; Collector Quality Suite și Mobile Build sunt încă `in_progress`. Nu se declară validare completă până la ambele finalizate pe același SHA.
+- Audit suplimentar al UI de abonament din `app.js`: există status Trial/Pro, Basic fallback, offering package buttons, restore și refresh. **Gap**: lista ofertelor afișează title + priceString, fără disclosure verificat pentru intro trial (durată, eligibility, preț după trial, auto-renew). Nu adăugăm copy de trial până când metadata reală din Store/RevenueCat este expusă și testată; evităm afirmații false despre eligibilitate sau preț.
+- UI cere cont cloud recuperabil și email-confirmat înainte de cumpărare; Restore este disponibil după inițializarea entitlement-ului. Confirmarea pe store sandbox rămâne neefectuată.
+- Următoarea direcție: monitorizează CI pe SHA exact; apoi audit și test pentru post-expiry Basic, offering metadata/trial disclosure și restore/account recovery. P0 rămâne physical-device validation, lockfile reproducibil, encryption migration gate, staging, legal/privacy și signed builds.
+- Nicio configurare live, tranzacție reală, deploy, merge sau publicare.
