@@ -118,7 +118,7 @@
    async flush(){await queue;return true}
   });
  }
- function createAutoStorageAdapter({capacitor=root.Capacitor,sqlite=capacitor?.Plugins?.CapacitorSQLite,legacyStorage=root.localStorage}={}){
+ function createAutoStorageAdapter({capacitor=root.Capacitor,sqlite=capacitor?.Plugins?.CapacitorSQLite,legacyStorage=root.localStorage,encryptionBootstrap=null,requireEncryption=false}={}){
   const native=typeof capacitor?.isNativePlatform==='function'&&capacitor.isNativePlatform();
   if(!native)return createWebStorageAdapter(legacyStorage);
   if(!sqlite)throw new Error('Collector mobil necesită pluginul SQLite nativ. Build-ul nu este configurat corect.');
