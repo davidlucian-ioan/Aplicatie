@@ -788,3 +788,10 @@ Nicio tranzacție, configurare live, deploy, merge sau publicare efectuată.
 - Commit: `b8cc0bb599588d51069860d17deb631c785b8bee`.
 - Direct code audit confirmed server AI-status logic checks expiry timestamp against current time, and SQL reservation function also rejects expired entitlement. The tests are authored but **not yet CI-validated**; current GitHub run lookup for this commit returned no workflow runs/status checks yet.
 - PR HEAD now `b8cc0bb599588d51069860d17deb631c785b8bee`; PR remains open/draft. No merge/deploy/live billing.
+
+
+## Basic local-access/export E2E regression — 26 nov 2026
+
+- Added Playwright regression in `collector-v11/e2e/collector-flows.spec.cjs`: on browser platform with no RevenueCat entitlement, create a local entity, confirm local event/entity state persists, then export JSON and assert the backup includes entity, journal events, schema v7.
+- Commit: `9a4f5f5dc653a725c6856d61af3144bec83abd14`.
+- This validates local Basic path in browser/no entitlement; it does **not** simulate RevenueCat expiration on native device or post-trial native purchase lifecycle. CI/device execution pending.
