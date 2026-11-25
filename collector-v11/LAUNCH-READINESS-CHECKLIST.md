@@ -1,13 +1,13 @@
 # Collector — checklist de pregătire pentru lansare
 
-Ultima verificare: 25 noiembrie 2026 (CI final + audit de securitate a bundle-ului)
+Ultima verificare: 25 noiembrie 2026 (CI verde + test de secret-scanning în bundle)
 Branch de lucru: feature/openai-provider-integration · PR #55 (draft)
 
 Scop: diferențiază codul implementat, CI automat și validarea externă/fizică. Un build verde nu înseamnă aprobarea pentru publicare.
 
 ## Starea actuală
 
-**CI pe HEAD `9cdab11992f6aae5a7fc3285f9e5af08514f4b59`: Quality Suite SUCCESS, Cloud API SUCCESS, Android debug APK SUCCESS, iOS Simulator build SUCCESS. Run-urile: Quality `45701378563`, Cloud API `45701374533`, Mobile `45701374368`. Run-urile cancelate pe același SHA au fost superseded/concurrency și nu sunt eșecuri. Acesta este un SHA complet validat automat; nu reprezintă validare pe dispozitive fizice sau build de release semnat.
+**CI pe HEAD `aa2b368361d0e953a55dd8af08f0ff2553ad3e63`: Quality Suite SUCCESS (`45702294884`), Cloud API SUCCESS (`45702295443`), Android debug APK + iOS Simulator SUCCESS (`45702294870`). Test nou: verifică distributabilul mobil pentru chei OpenAI, Supabase service-role, secret webhook și pattern-uri de secrete. Run-urile cancelate de concurrency nu sunt eșecuri. Acest SHA este validat automat; nu reprezintă testare pe dispozitive fizice sau release semnat.
 
 | Domeniu | Stare verificată | Gate pentru lansare |
 |---|---|---|
