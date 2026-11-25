@@ -372,3 +372,15 @@ Next:
 2. Complete audio list UX (playback controls, metadata, rename/delete, recovery status) and tests.
 3. Review native lifecycle and platform limitations; interruption recovery is best-effort because native plugin behavior after OS process kill needs real-device validation.
 4. Keep Work as priority; Think stays deferred.
+
+## Work batch — recoverable native audio (2026-11-25)
+
+- Fixed the modal focus-trap syntax error in `app.js`; the prior 42 Playwright failures were a cascading startup failure, not independent regressions.
+- Native recorder now checkpoints a session before calling the plugin, restores checkpoint on app initialization, and retains checkpoint after recoverable failures.
+- Added explicit “Recuperează înregistrarea întreruptă” UI across all 3 entry points; no auto-finalization.
+- Recovery can salvage an app-private file that was copied before the previous metadata/index commit failed.
+- Metadata is committed before checkpoint removal; normal stop and explicit recovery clear the checkpoint only after audio-store save succeeds.
+- Tests added: checkpoint-before-start, restore/recover after reconfigure, retry checkpoint retention, salvage of an already-copied file.
+- Code audit caught and repaired patch-format mistakes (escaped source newlines) and a local-variable scope issue before relying on CI.
+- Current HEAD: `780e59c00b6db4558037c655d9e4f32a34bc5657` before the last fixes; commits after it are in branch history. CI runs were cancelled by rapid pushes; latest HEAD needs a fresh complete CI result.
+- Caveat: recovery after OS process termination depends on the native recorder plugin still exposing a stop/recovery URI or the app-private copied file. This is best-effort until validated on real Android/iOS devices.
