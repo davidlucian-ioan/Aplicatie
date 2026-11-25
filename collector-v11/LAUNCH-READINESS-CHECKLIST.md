@@ -1,6 +1,6 @@
 # Collector — checklist de pregătire pentru lansare
 
-Ultima verificare: 25 noiembrie 2026 (actualizare CI)
+Ultima verificare: 25 noiembrie 2026 (CI final + audit de reproducibilitate)
 Branch de lucru: feature/openai-provider-integration · PR #55 (draft)
 
 Scop: diferențiază codul implementat, CI automat și validarea externă/fizică. Un build verde nu înseamnă aprobarea pentru publicare.
@@ -19,7 +19,7 @@ Scop: diferențiază codul implementat, CI automat și validarea externă/fizic�
 | AI cloud | Endpoint server-side, context allowlisted, Core preview/confirm | Supabase real, HTTPS deploy, secrete, e2e și spend caps |
 | Billing | RevenueCat client + webhook/entitlement/meters SQL implementate în PR #55 | Configurare proiect real + sandbox store tests + webhook verificat |
 | Sincronizare | Nu este implementată | Nu promite sync/backup multi-device |
-| Pachete native | Versiuni directe pin-uite în workflow; package-lock nu conține toolchain-ul complet | Lockfile reproductibil pentru toolchain mobil |
+| Pachete native | Versiuni directe pin-uite în scriptul `mobile:install-toolchain`; package-lock nu conține toolchain-ul complet | Lockfile reproductibil pentru toolchain mobil |
 | Distribuție | CI produce APK debug și iOS Simulator app, nu pachete semnate | AAB/IPA/archive semnate, provisioning și store upload |
 | Legal / privacy | Drafturi interne pregătite | Completare operator/furnizori/contact/retention + revizuire juridică |
 | Store listing | Necompletat | Icon, screenshots, descrieri, age rating, App Privacy/Data Safety |
@@ -44,7 +44,7 @@ Scop: diferențiază codul implementat, CI automat și validarea externă/fizic�
 
 - [ ] Build Android AAB semnat cu keystore și Play App Signing; nu publica APK debug.
 - [ ] Build iOS Archive/IPA semnat, certificates/profiles și App Store Connect/TestFlight; build-ul simulator nu este distribuibil.
-- [ ] Reproductibilitate: adu dependențele Capacitor/plugin/native în manifest și lockfile sau furnizează un lock de toolchain verificat; CI și dezvoltatorii trebuie să instaleze aceleași versiuni tranzitive.
+- [ ] Reproductibilitate: `mobile:install-toolchain` pin-uiește versiunile directe, dar folosește `npm install --no-save --no-package-lock`; dependențele native și tranzitive nu sunt fixate integral în package-lock. Migrează toolchain-ul în manifest/lockfile și validează cu `npm ci` într-un mediu curat.
 - [ ] Verifică bundle-ul final: fără .env, service-role key, OpenAI API key, server local, teste, rapoarte sau documente interne.
 - [ ] Verifică bundle-ul final și App Privacy / Google Play Data safety pe baza fluxurilor reale: Supabase Auth, OpenAI text/context, RevenueCat/store metadata, audio local și speech recognition oferit de browser/OS.
 - [ ] Publică URL-uri funcționale pentru Privacy Policy, Terms, Support și Account Deletion (unde este cerut).
