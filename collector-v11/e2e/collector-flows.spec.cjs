@@ -71,7 +71,7 @@ test('Basic offline păstrează Work, Core local și jurnal fără acces AI clou
  await page.reload();
  await page.locator('.nav[data-page="assistant"]').click();
  await expect(page.locator('#commandInput')).toHaveValue('Observație: test local fără abonament');
- const stored=await page.evaluate(()=>{const db=JSON.parse(localStorage.getItem('collector_mvp_v2'));return {entity:db.entities.some(e=>e.name==='Collector Basic offline'),events:db.events.map(e=>e.type),draft:localStorage.getItem('collector_work_draft_v1')}});
+ const stored=await page.evaluate(()=>{const db=JSON.parse(localStorage.getItem('collector_mvp_v2'));return {entity:db.entities.some(e=>e.name==='Collector Basic offline'),events:db.events.map(e=>e.type),draft:localStorage.getItem('collector_work_command_draft_v1')}});
  expect(stored.entity).toBe(true);
  expect(stored.events.length).toBe(0,'parse-only command must not auto-commit');
  expect(stored.draft).toContain('test local fără abonament');
