@@ -53,7 +53,7 @@
    async flush(){await queue;return true}
   });
  }
- function createSQLiteStorageAdapter({sqlite,legacyStorage=root.localStorage,database=DB}={}){
+ function createSQLiteStorageAdapter({sqlite,legacyStorage=root.localStorage,database=DB,encryptionBootstrap=null,requireEncryption=false}={}){
   if(!sqlite||typeof sqlite.createConnection!=='function'||typeof sqlite.query!=='function'||typeof sqlite.run!=='function')throw new TypeError('Pluginul Capacitor SQLite nu este disponibil.');
   let queue=Promise.resolve(),initialization=null;
   const legacy=legacyStorage;
@@ -62,9 +62,9 @@
    if(!initialization)initialization=(async()=>{
     if(typeof sqlite.isConnection==='function'){
      const state=await sqlite.isConnection(connection);
-     if(!state?.result)await sqlite.createConnection({database,encrypted:false,mode:'no-encryption',version:1,readonly:false});
+     if(!state?.result)await sqlite.createConnection({database,encrypted:encryptionState?.encrypted===true,mode:encryptionState?.mode||'no-encryption',version:1,readonly:false});
     }else{
-     await sqlite.createConnection({database,encrypted:false,mode:'no-encryption',version:1,readonly:false});
+     await sqlite.createConnection({database,encrypted:encryptionState?.encrypted===true,mode:encryptionState?.mode||'no-encryption',version:1,readonly:false});
     }
     if(typeof sqlite.isDBOpen==='function'){
      const openState=await sqlite.isDBOpen(connection);
