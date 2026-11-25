@@ -63,6 +63,17 @@ test('failed legacy file migration keeps the original IndexedDB record',async()=
  await assert.rejects(x.store.initialize(),/disk full/);
  assert.equal(x.legacy().length,1);assert.deepEqual(x.removed,[]);
 });
+test('native audio index fails closed for unsafe paths and duplicate IDs',async()=>{
+ const x=fixture();await x.store.initialize();
+ const unsafe={id:'bad',createdAt:'2026-11-25T10:00:00.000Z',durationMs:1,mimeType:'audio/aac',size:1,filePath:'../outside.aac',uri:'file:///outside.aac'};
+ x.values.set('collector_audio_index_v1',JSON.stringify([unsafe]));
+ await assert.rejects(x.store.list(),/Indexul audio nativ este invalid/);
+ assert.equal(x.values.get('collector_audio_index_v1'),JSON.stringify([unsafe]),'invalid index is preserved verbatim');
+ const valid={...unsafe,id:'same',filePath:'collector-audio/same.aac',uri:'file:///app/collector-audio/same.aac'};
+ x.values.set('collector_audio_index_v1',JSON.stringify([valid,{...valid,uri:'file:///duplicate.aac'}]));
+ await assert.rejects(x.store.get('same'),/Indexul audio nativ este invalid/);
+});
+
 test('native audio adapter rejects a corrupted metadata index without overwriting it',async()=>{
  const x=fixture();x.values.set('collector_audio_index_v1','not-json');
  await assert.rejects(x.store.initialize());
