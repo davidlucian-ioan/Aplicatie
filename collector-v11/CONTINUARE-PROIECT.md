@@ -811,3 +811,5 @@ Nicio tranzacție, configurare live, deploy, merge sau publicare efectuată.
 - Added E2E assertions for the backup metadata.
 - Commits: `5fa4537a0e1ee7ab55e4c7746c2559ccbda697ac` (export metadata), `dc2399be28a3e44cdce2829dfc79299a8bbb4094` (UI warning), `554562509d351197a9fcb21e023278bcdd2acbbd` (regression).
 - Audio file export/backup and restore remains a product gap; this change is disclosure only, not an audio-backup feature. CI validation pending.
+
+- Follow-up E2E also asserts the Audit UI visibly warns that JSON backups exclude audio. Commit: `1bd2283eb94e7197d0edb0d58a82a17e60595435`.
