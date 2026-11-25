@@ -45,3 +45,31 @@ test('Work layout is single-column on mobile and touch controls remain usable', 
   await expect(page.locator('#reminderTitle')).toBeVisible();
   await expect(page.locator('#commandInput')).toBeVisible();
 });
+
+test('Think list filters remain usable without horizontal overflow on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/index-server.html');
+  for (const [pageName, filterId] of [
+    ['relations', 'relationList'],
+    ['inventory', 'stockList'],
+    ['finance', 'financeList'],
+    ['attributes', 'attributeList'],
+    ['events', 'eventList'],
+    ['audit', 'auditList']
+  ]) {
+    await page.locator('.nav[data-page="' + pageName + '"]').click();
+    const filter = page.locator('[data-filter-target="' + filterId + '"]');
+    await expect(filter).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+    expect(overflow, pageName + ' should not overflow horizontally').toBe(false);
+  }
+});
+
+test('Work prioritizes the recorder before reminders on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="assistant"]').click();
+  const recorderTop = await page.locator('.work-recorder').evaluate(el => el.getBoundingClientRect().top);
+  const remindersTop = await page.locator('.work-reminders').evaluate(el => el.getBoundingClientRect().top);
+  expect(recorderTop).toBeLessThan(remindersTop);
+});
