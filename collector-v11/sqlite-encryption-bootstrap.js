@@ -132,7 +132,8 @@
   const record=readBackup(backupStorage);
   if(record&&typeof backupStorage.removeItem==='function')backupStorage.removeItem(BACKUP_KEY);
   return !!record;
- }\n const api=Object.freeze({prepareSQLiteEncryption,completeSQLiteEncryptionMigration,makePassphrase,normalizedEntries,equalEntries});
+ }
+ const api=Object.freeze({prepareSQLiteEncryption,completeSQLiteEncryptionMigration,makePassphrase,normalizedEntries,equalEntries});
  root.CollectorSQLiteEncryption=api;
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
