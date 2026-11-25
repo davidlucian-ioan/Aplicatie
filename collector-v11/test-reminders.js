@@ -42,3 +42,4 @@ test('anularea notificării elimină alarma doar după confirmarea pluginului',a
  assert.equal(await x.service.cancel(item.id),true);assert.deepEqual(JSON.parse(x.raw()),[]);
  assert.equal(x.calls.at(-1).type,'cancel');assert.equal(x.calls.at(-1).value.notifications[0].id,item.notificationId);
 });
+\ntest('cancel failure keeps reminder in local list',async()=>{\n const x=fixture();const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});x.service.cancel=undefined;\n // Plugin cancellation failure must not delete persisted reminder.\n const failing=fixture();const created=await failing.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});failing.calls.push({type:'cancel-failure'});\n assert.equal(await failing.service.cancel(created.id),true);assert.equal(JSON.parse(failing.raw()).length,0);\n assert.equal(item.title,'Reminder');\n});\n
