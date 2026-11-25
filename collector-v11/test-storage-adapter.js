@@ -97,3 +97,24 @@ test('ștergerea datelor locale golește tabelul SQLite și cheile Collector leg
  assert.equal(legacy.value('collector_cloud_opt_out'),'1');
  assert.equal(legacy.value('unrelated'),'keep');
 });
+
+test('classifierul encryption nu deschide DB criptată fără secret și cere recovery',()=>{
+ const classify=require('./storage-adapter').classifySQLiteEncryptionState;
+ assert.deepEqual(classify({databaseExists:true,encrypted:true,secretStored:false}),{action:'recovery-required',reason:'encrypted-db-secret-missing'});
+});
+test('classifierul encryption permite open numai pentru DB criptată cu secret disponibil',()=>{
+ const classify=require('./storage-adapter').classifySQLiteEncryptionState;
+ assert.deepEqual(classify({databaseExists:true,encrypted:true,secretStored:true}),{action:'open-encrypted',reason:'encrypted-db-and-secret-present'});
+});
+test('classifierul encryption tratează DB plaintext ca migrare cu backup verificat, nu ca open normal',()=>{
+ const classify=require('./storage-adapter').classifySQLiteEncryptionState;
+ assert.deepEqual(classify({databaseExists:true,encrypted:false,secretStored:false}),{action:'convert-existing',reason:'plaintext-db-preserve-source',generateSecret:true,requiresVerifiedBackup:true});
+ assert.deepEqual(classify({databaseExists:true,encrypted:false,secretStored:true}),{action:'convert-existing',reason:'plaintext-db-preserve-source',generateSecret:false,requiresVerifiedBackup:true});
+});
+test('classifierul encryption identifică DB nouă și state incomplete ca inspect-required',()=>{
+ const classify=require('./storage-adapter').classifySQLiteEncryptionState;
+ assert.deepEqual(classify({databaseExists:false,secretStored:false}),{action:'create-encrypted',reason:'new-database',reuseStoredSecret:false});
+ assert.deepEqual(classify({databaseExists:true,secretStored:true}),{action:'inspect-required',reason:'state-incomplete'});
+ assert.deepEqual(classify({databaseExists:true,encrypted:null,secretStored:false}),{action:'inspect-required',reason:'state-incomplete'});
+ assert.deepEqual(classify({databaseExists:'yes',encrypted:false,secretStored:false}),{action:'inspect-required',reason:'state-incomplete'});
+});
