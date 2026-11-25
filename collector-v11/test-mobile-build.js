@@ -117,6 +117,16 @@ test('iOS build installs Supabase Secure Storage and esbuild for the native auth
  assert.doesNotMatch(androidSection,/npm install .*@capacitor\/android@/,'platform install must not prune shared CLI dependencies');
  });
 
+test('mobile toolchain verifier matches installer pins and runs in Android and iOS CI',async()=>{
+ const packageJson=JSON.parse(await fs.readFile(path.join(__dirname,'package.json'),'utf8'));
+ const script=packageJson.scripts['mobile:install-toolchain'];
+ const verifier=await fs.readFile(path.join(__dirname,'verify-mobile-toolchain.js'),'utf8');
+ const expected=['@capacitor/core@8.6.2','@capacitor/cli@8.6.2','@capacitor/local-notifications@8.3.1','@capacitor-community/sqlite@8.1.1','@capacitor/filesystem@8.1.5','@capgo/capacitor-audio-recorder@8.4.1','@supabase/supabase-js@2.119.2','@aparajita/capacitor-secure-storage@8.0.1','@revenuecat/purchases-capacitor@14.1.2','esbuild@0.28.2','@capacitor/android@8.6.2','@capacitor/ios@8.6.2'];
+ for(const dependency of expected){assert.ok(script.includes(dependency),'installer must pin '+dependency);assert.ok(verifier.includes("'"+dependency.split('@').slice(0,-1).join('@')+"'"),'verifier must check '+dependency)}
+ const workflow=await fs.readFile(path.join(__dirname,'..','.github','workflows','collector-mobile-build.yml'),'utf8');
+ assert.equal((workflow.match(/npm run mobile:verify-toolchain/g)||[]).length,2,'Android and iOS CI must verify the toolchain');
+});
+
 test('Android CI retries only transient Maven throttling and limits Gradle workers',async()=>{
  const workflow=await fs.readFile(path.join(__dirname,'..','.github','workflows','collector-mobile-build.yml'),'utf8');
  const start=workflow.indexOf('name: Build Android debug APK (retry transient Maven throttling)');
