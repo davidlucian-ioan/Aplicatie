@@ -416,7 +416,7 @@ let audioStorageReady=true,audioRecorder=null,audioStream=null,audioStartPending
 let audioWakeLock=null;
 async function acquireAudioWakeLock(){if(!('wakeLock'in navigator)||document.visibilityState!=='visible')return false;if(audioWakeLock&&!audioWakeLock.released)return true;try{const lock=await navigator.wakeLock.request('screen');audioWakeLock=lock;lock.addEventListener('release',()=>{if(audioWakeLock===lock)audioWakeLock=null});return true}catch(error){audioWakeLock=null;return false}}
 async function releaseAudioWakeLock(){const lock=audioWakeLock;audioWakeLock=null;if(lock&&!lock.released){try{await lock.release()}catch(error){console.warn('Nu am putut elibera Screen Wake Lock:',error)}}}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&audioRecorder?.state==='recording')acquireAudioWakeLock()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&audioRecorder?.state==='recording')acquireAudioWakeLock();else if(document.visibilityState==='hidden'&&audioRecorder?.state==='recording'&&!audioRecorder.native)setAppStatus('Collector a trecut în fundal. Fragmentele deja capturate sunt salvate periodic; sistemul de operare poate totuși suspenda microfonul sau browserul.')});
 function formatAudioDuration(ms){const total=Math.max(0,Math.floor(ms/1000)),hours=Math.floor(total/3600),minutes=Math.floor(total%3600/60),seconds=total%60;return hours>0?String(hours).padStart(2,'0')+':'+String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0'):String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0')}
 function audioElapsed(){if(audioPauseStartedAt)return audioPausedMs;if(audioRecorder?.state==='recording')return Math.max(0,Date.now()-audioStartedAt-audioPausedMs);return audioPausedMs}
 function setAudioUi(state,message){const start=document.getElementById('audioRecordStart'),pause=document.getElementById('audioRecordPause'),resume=document.getElementById('audioRecordResume'),stop=document.getElementById('audioRecordStop'),global=document.getElementById('globalVoice'),status=document.getElementById('audioRecorderStatus');if(start)start.disabled=state!=='idle';if(pause)pause.disabled=state!=='recording';if(resume)resume.disabled=state!=='paused';if(stop)stop.disabled=!['recording','paused'].includes(state);if(global){const active=['recording','paused'].includes(state);global.disabled=['starting','saving'].includes(state);global.textContent=active?'■ Oprește înregistrarea':'🎙 Înregistrează';global.setAttribute('aria-label',active?'Oprește înregistrarea audio':'Începe înregistrarea audio');global.setAttribute('aria-pressed',String(active));global.classList.toggle('is-listening',state==='recording')}if(status&&message)status.textContent=message}
@@ -452,6 +452,7 @@ async function recoverInterruptedAudio(){
    const sessions=await CollectorAudioStore.listInterruptedSessions();
    const session=sessions[0];if(!session)throw new Error('Nu există o înregistrare întreruptă de recuperat.');
    const record=await CollectorAudioStore.recoverSession(session.id);
+   audioSessionId=null;
    if(audioObjectUrl)URL.revokeObjectURL(audioObjectUrl);
    audioObjectUrl=URL.createObjectURL(record.blob);
    const player=document.getElementById('audioPlayback');player.src=audioObjectUrl;player.hidden=false;
@@ -493,11 +494,12 @@ async function startAudioRecording(){
    try{
     const record={id:audioSessionId||('audio-'+(crypto.randomUUID?.()||Date.now()+'-'+Math.random().toString(16).slice(2))),createdAt:new Date(audioStartedAt).toISOString(),durationMs,mimeType:type,size:blob.size,blob};
     await CollectorAudioStore.save(record);
-    await CollectorAudioStore.removeSession(record.id);
+    let checkpointCleanupWarning='';
+    try{await CollectorAudioStore.removeSession(record.id)}catch(cleanupError){checkpointCleanupWarning=' Checkpointul temporar nu a putut fi curățat: '+cleanupError.message;const recoverButton=document.getElementById('audioRecoverPending');if(recoverButton)recoverButton.hidden=false}
     audioSessionId=null;
     if(audioObjectUrl)URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=URL.createObjectURL(blob);
     const player=document.getElementById('audioPlayback');player.src=audioObjectUrl;player.hidden=false;
-    setAudioUi('idle','Înregistrare salvată local. '+formatAudioDuration(durationMs)+' · '+Math.round(blob.size/1024)+' KB. Nu a fost adăugat niciun eveniment în jurnal.');
+    setAudioUi('idle','Înregistrare salvată local. '+formatAudioDuration(durationMs)+' · '+Math.round(blob.size/1024)+' KB. '+(audioChunkPersistError?'Unele checkpoint-uri periodice au eșuat, dar fișierul final a fost salvat. ':'')+checkpointCleanupWarning+' Nu a fost adăugat niciun eveniment în jurnal.');
     await renderAudioRecordings();
    }catch(error){setAudioUi('idle','Nu am putut salva înregistrarea locală: '+error.message)}
   };
