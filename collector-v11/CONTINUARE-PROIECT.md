@@ -511,3 +511,11 @@ Next actions:
 - Documentația pluginului confirmă SQLCipher AES-256 și API-uri secure-secret / encryption conversion. Config rămâne dezactivat până când bootstrap+migrări și testarea fizică sunt implementate.
 - Commit-uri de documentare: `5ebb5bb9a44d776d8b64d26b15e9c99e858f1a31` (plan) și `cc01ac1567e265a4d4b6241f5ce5120f678e3288` (checklist). Aceste commits sunt în branch și trebuie verificate CI pe noul HEAD.
 - Următoarea implementare: Stage A — teste state-machine/mock pentru bootstrap criptat și migration states, fără toggling encryption; apoi Stage B implementare guarded. Nu configura Supabase/RevenueCat, nu deploy, nu merge, nu schimba secrete fără aprobarea utilizatorului.
+
+
+### Stage A encryption guard implemented (2026-11-25)
+- Added pure classifier `classifySQLiteEncryptionState` in `storage-adapter.js` without changing runtime SQLite initialization or encryption flags.
+- Fail-safe states: new DB → create-encrypted; encrypted DB with secret → open-encrypted; encrypted DB without secret → recovery-required; plaintext DB → convert-existing and requires verified backup; incomplete/unknown state → inspect-required.
+- Added four regression tests covering the state table. This is preparatory safety logic, **not encryption implementation** and not validated on native devices.
+- Commits: `5d7abf87856744117b6562dd1f28c1fee9920f4b` (classifier), `ba7d3c9b5e6cd40edbc001ee77a2e25244b0aafd` (tests).
+- CI must run on newest HEAD; Stage B remains blocked on plugin-specific backup/convert API verification and physical-device migration tests.
