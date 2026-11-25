@@ -325,3 +325,13 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - Template-urile rapide au fost aliniate la sintaxa parserului local: Observație, Atribut și Vânzare; nu mai oferă texte „Verificare” sau „Mutare” care parserul local nu le recunoaște.
 - E2E verifică existența template-urilor pentru atribut/vânzare și că inserarea textului nu produce eveniment.
 - Nu se face merge. Așteaptă CI pentru HEAD-ul cel mai nou; mai multe push-uri anterioare au anulat joburile vechi.
+
+
+## Work batch — etichete înregistrări și audit implementare (2026-11-25)
+
+- Înregistrările audio au titluri personalizabile, păstrate ca metadate. Funcția rename este implementată atât în store-ul web, cât și în indexul nativ SQLite/storage; fișierul audio nu este redenumit sau rescris.
+- Butonul UI „Redenumește” permite editarea titlului; titlul este validat la 1–100 caractere.
+- Test pentru native-store verifică rename și faptul că fișierul rămâne intact.
+- În auditul codului am corectat implementarea inițială incompletă: rename nativ a fost adăugat explicit în adapter, nu doar expus în API.
+- Template-uri Work verificate și aliniate la sintaxa parserului local; Observation/Attribute/Sale.
+- HEAD la checkpoint: 369f53c33fca0eacc94350bb4a8fc926c5a40a7d. CI pe acest HEAD era pending la momentul salvării. Așteaptă rularea pe HEAD curent, apoi verifică logs dacă orice job eșuează.
