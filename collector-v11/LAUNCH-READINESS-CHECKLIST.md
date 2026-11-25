@@ -93,3 +93,11 @@ See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. Th
 - [x] SQLite recovery snapshot rejects duplicate/empty keys and preserves malformed backup; regression authored; CI pending.
 - [x] Transactional recovery rollback regression: injected restore failure must restore previous KV rows and retain recovery backup; CI pending.
 - [x] Native toolchain direct-version verification wired into both Android and iOS CI; test covers missing/mismatched package; CI pending. Full transitive lock remains open.
+
+- [x] Native audio recovery checkpoint validates safe ID/path/format before filesystem access; regression authored, CI pending.
+- [x] Separate native audio backup v1 export/import with additive duplicate handling, limits and rollback cleanup; UI added. Automated tests authored, CI and physical-device validation pending. Browser fallback does not currently support audio backup.
+- [x] Release-bundle audit script wired into Android/iOS CI after mobile bundle generation; detects private/hidden files and server-secret patterns. CI pending.
+- [x] iOS CI explicitly runs direct toolchain pin verification.
+- [x] Basic/offline E2E covers local entity, Work draft persistence, Core preview and no AI request/no automatic note commit; CI pending.
+- [ ] Native audio backup/restore physical-device validation: long recordings, storage quota, failed filesystem write, playback after import, app restart.
+- [ ] Full native transitive toolchain lockfile and clean npm ci reproducibility remain unresolved.
