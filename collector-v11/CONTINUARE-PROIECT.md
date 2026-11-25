@@ -530,3 +530,13 @@ Next actions:
 - Aceste teste noi sunt încă în CI; nu le marca validate până la run complet SUCCESS.
 - Feature gate și config encryption rămân OFF. Nu activa criptarea înainte de validare Android/iOS pe dispozitive reale și scenarii de crash/restore.
 - Următorul pas: verifică CI pentru HEAD nou, remediază eventuale eșecuri, apoi continuă Stage C cu plan/test harness pentru validare native și audit de dependențe reproducibile.
+
+## Checkpoint continuare — CI regression fix (2026-11-25)
+
+- HEAD: `0db890e39dada8832ffcb7e700d09111ea298b2c`.
+- CI a descoperit o eroare exclusiv în assertion-ul testului pentru backup corupt: fixture-ul era `'{broken-json'`, dar testul compara cu un șir care avea o acoladă suplimentară. Assertion-ul a fost corectat; logica bootstrap-ului nu a fost schimbată.
+- Cloud API pentru HEAD nou: SUCCESS.
+- Quality Suite: în curs.
+- Android debug APK + iOS simulator build: în curs.
+- Run-urile de pe commitul precedent au fost superseded/cancelled după noul commit; nu sunt considerate failures ale buildului final.
+- Criptarea rămâne gated OFF.
