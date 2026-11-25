@@ -151,6 +151,16 @@ test('all entrypoints expose guarded full local-data erasure without cloud accou
 });
 
 
+test('Work draft autosave operations are serialized so a stale write cannot overwrite a clear',async()=>{
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ const draft=app.slice(app.indexOf('function initializeWorkDraft()'),app.indexOf('async function clearAllLocalData()'));
+ assert.ok(draft.includes('let writeVersion=0,draftWriteQueue=Promise.resolve()'),'draft writes must have a serial queue');
+ assert.ok(draft.includes('draftWriteQueue=draftWriteQueue.catch(()=>undefined).then('),'each write/removal must follow the previous storage operation');
+ assert.ok(draft.includes('const version=++writeVersion,value=input.value'),'typing must invalidate stale restore/status operations');
+ assert.ok(draft.includes('await enqueueDraftWrite(\'\',version)'),'clear must enqueue removal after pending autosaves');
+ assert.ok(draft.includes('storageAdapter[(value.trim()?\'writeRaw\':\'removeRaw\')]'),'empty drafts must remove the key through the serialized queue');
+});
+
 test('audio playback is detached before deleting the currently playing recording',async()=>{
  const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
  assert.ok(app.includes('audioPlaybackRecordId=null'));
