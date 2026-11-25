@@ -46,9 +46,12 @@
   },
   async appendSessionChunk(id,chunk,durationMs=0){
    if(!id||!(chunk instanceof Blob)||!chunk.size)return false;
+   // WebKit can reject Blob structured-clone writes in some IndexedDB versions.
+   // Store a plain ArrayBuffer so chunk checkpoints remain portable across engines.
+   const data=await chunk.arrayBuffer(),mimeType=chunk.type||'application/octet-stream';
    return openDb().then(db=>new Promise((resolve,reject)=>{
     const tx=db.transaction([SESSIONS,CHUNKS],'readwrite'),sessions=tx.objectStore(SESSIONS),chunks=tx.objectStore(CHUNKS),request=sessions.get(id);let result,error;
-    request.onsuccess=()=>{const row=request.result;if(!row){error=new Error('Sesiunea audio nu mai există.');try{tx.abort()}catch{}return}const sequence=Number(row.nextSequence)||0;result=chunks.put({sessionId:id,sequence,blob:chunk});row.nextSequence=sequence+1;row.chunkCount=(Number(row.chunkCount)||0)+1;row.durationMs=Math.max(Number(row.durationMs)||0,Number(durationMs)||0);row.updatedAt=new Date().toISOString();sessions.put(row)};
+    request.onsuccess=()=>{const row=request.result;if(!row){error=new Error('Sesiunea audio nu mai există.');try{tx.abort()}catch{}return}const sequence=Number(row.nextSequence)||0;result=chunks.put({sessionId:id,sequence,data,mimeType,size:data.byteLength});row.nextSequence=sequence+1;row.chunkCount=(Number(row.chunkCount)||0)+1;row.durationMs=Math.max(Number(row.durationMs)||0,Number(durationMs)||0);row.updatedAt=new Date().toISOString();sessions.put(row)};
     tx.oncomplete=()=>resolve(result?.result??true);
     tx.onerror=()=>reject(error||request.error||tx.error||new Error('Nu am putut salva fragmentul audio.'));
     tx.onabort=()=>reject(error||request.error||tx.error||new Error('Salvarea fragmentului audio a fost anulată.'));
@@ -61,7 +64,12 @@
    let chunks=(session.chunks||[]).filter(chunk=>chunk instanceof Blob&&chunk.size>0);
    if(!chunks.length){
     const rows=await transaction('readonly',store=>store.index('sessionId').getAll(id),CHUNKS);
-    chunks=rows.sort((a,b)=>a.sequence-b.sequence).map(row=>row.blob).filter(blob=>blob instanceof Blob&&blob.size>0);
+    chunks=rows.sort((a,b)=>a.sequence-b.sequence).map(row=>{
+     if(row.blob instanceof Blob)return row.blob; // Backward compatibility with pre-ArrayBuffer checkpoints.
+     if(row.data instanceof ArrayBuffer)return new Blob([row.data],{type:row.mimeType||session.mimeType||'application/octet-stream'});
+     if(ArrayBuffer.isView(row.data))return new Blob([row.data],{type:row.mimeType||session.mimeType||'application/octet-stream'});
+     return null;
+    }).filter(blob=>blob instanceof Blob&&blob.size>0);
    }
    const blob=new Blob(chunks,{type:session.mimeType||chunks[0]?.type||'audio/webm'});
    if(!blob.size)throw new Error('Sesiunea nu conține fragmente audio recuperabile.');
