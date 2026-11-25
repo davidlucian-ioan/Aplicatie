@@ -588,6 +588,7 @@ document.getElementById('audioRecordStart').addEventListener('click',startAudioR
 document.getElementById('audioRecordPause').addEventListener('click',pauseAudioRecording);
 document.getElementById('audioRecordResume').addEventListener('click',resumeAudioRecording);
 document.getElementById('audioRecordStop').addEventListener('click',stopAudioRecording);
+document.getElementById('audioRecoverPending')?.addEventListener('click',recoverInterruptedAudio);
 document.getElementById('globalVoice').onclick=()=>{showPage('assistant');if(audioRecorder&&(audioRecorder.state==='recording'||audioRecorder.state==='paused'))stopAudioRecording();else startAudioRecording()};
 // Work draft: isolated autosave through the selected StorageAdapter. It never writes to the event journal.
 const WORK_DRAFT_KEY='collector_work_command_draft_v1';
