@@ -10,8 +10,8 @@ function fixture({permission='granted',request='granted'}={}){
  const filesystem={
   async mkdir(value){calls.push(['mkdir',value])},
   async getUri(value){calls.push(['getUri',value]);return {uri:'file:///app/'+value.path}},
-  async copy(value){calls.push(['copy',value]);files.set(value.to,'saved')},
-  async stat(value){calls.push(['stat',value]);return {size:4096}},
+  async copy(value){calls.push(['copy',value]);files.set(value.to,Buffer.alloc(4096))},
+  async stat(value){calls.push(['stat',value]);const file=files.get(value.path);if(!file)throw new Error('not found');return {size:file.length}},
   async deleteFile(value){calls.push(['deleteFile',value]);files.delete(value.path)}
  };
  const plugin={
