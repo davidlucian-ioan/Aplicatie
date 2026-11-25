@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const NativeRecorder=require('./native-audio-recorder');
 
 function fixture({permission='granted',request='granted'}={}){
- const calls=[],files=new Map();
+ const calls=[],files=new Map(),storageValues=new Map();\n const storage={async readRaw(key){return storageValues.get(key)??null},async writeRaw(key,value){storageValues.set(key,String(value))},async removeRaw(key){storageValues.delete(key)}};
  const capacitor={isNativePlatform:()=>true,convertFileSrc:uri=>'capacitor://localhost/_capacitor_file_'+uri};
  const filesystem={
   async mkdir(value){calls.push(['mkdir',value])},
@@ -22,8 +22,8 @@ function fixture({permission='granted',request='granted'}={}){
   async stopRecording(){calls.push(['stopRecording']);return {duration:2500,uri:'file:///cache/recording-note.aac'}},
   async cancelRecording(){calls.push(['cancelRecording'])}
  };
- NativeRecorder.configure({capacitor,plugin,filesystem});
- return {calls,files,capacitor,filesystem,plugin};
+ NativeRecorder.configure({capacitor,plugin,filesystem,storage});
+ return {calls,files,capacitor,filesystem,plugin,storageValues,storage};
 }
 test('native recorder requests mic permission and starts AAC in app-private storage',async()=>{
  const x=fixture({permission:'prompt'});
@@ -55,4 +55,30 @@ test('native recorder cancels and deletes partial audio',async()=>{
 test('native recorder refuses to start when microphone permission is denied',async()=>{
  fixture({permission:'denied',request:'denied'});
  await assert.rejects(NativeRecorder.start({id:'note-4'}),/Permisiunea pentru microfon nu a fost acordată/);
+});
+
+test('session checkpoint is persisted before native recording starts',async()=>{
+ const x=fixture();await NativeRecorder.start({id:'checkpoint-1'});
+ const pending=JSON.parse(x.storageValues.get('collector_audio_pending_session_v1'));
+ assert.equal(pending.id,'checkpoint-1');assert.ok(pending.startedAt>0);
+ assert.ok(x.calls.some(call=>call[0]==='startRecording'));
+});
+test('interrupted session is restored and can be recovered after recorder reinitialization',async()=>{
+ const x=fixture();await NativeRecorder.start({id:'interrupted-1'});
+ const saved=x.storageValues.get('collector_audio_pending_session_v1');
+ NativeRecorder.configure({capacitor:x.capacitor,plugin:x.plugin,filesystem:x.filesystem,storage:x.storage});
+ x.storageValues.set('collector_audio_pending_session_v1',saved);
+ await NativeRecorder.initialize();
+ const pending=await NativeRecorder.getPending();assert.equal(pending.id,'interrupted-1');
+ const result=await NativeRecorder.stop();
+ assert.equal(result.id,'interrupted-1');assert.equal(result.recovered,true);
+ assert.match(result.warning,/Sesiunea întreruptă/);
+ await NativeRecorder.complete(result.id);
+ assert.equal(await NativeRecorder.getPending(),null);
+});
+test('failed recovery keeps checkpoint for another attempt',async()=>{
+ const x=fixture();await NativeRecorder.start({id:'retry-recovery'});
+ x.plugin.stopRecording=async()=>{throw new Error('native session unavailable')};
+ await assert.rejects(NativeRecorder.stop(),/native session unavailable/);
+ assert.equal((await NativeRecorder.getPending()).id,'retry-recovery');
 });
