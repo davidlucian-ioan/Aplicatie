@@ -384,3 +384,24 @@ Next:
 - Code audit caught and repaired patch-format mistakes (escaped source newlines) and a local-variable scope issue before relying on CI.
 - Current HEAD: `780e59c00b6db4558037c655d9e4f32a34bc5657` before the last fixes; commits after it are in branch history. CI runs were cancelled by rapid pushes; latest HEAD needs a fresh complete CI result.
 - Caveat: recovery after OS process termination depends on the native recorder plugin still exposing a stop/recovery URI or the app-private copied file. This is best-effort until validated on real Android/iOS devices.
+
+## Work batch — browser recorder recovery and finalization UX (2026-11-25)
+
+- Browser MediaRecorder now creates a recoverable IndexedDB session before starting capture.
+- Audio chunks are written incrementally to a dedicated `recording_chunks` object store with a session/sequence index; long sessions no longer rewrite a growing full-chunk array each second.
+- Final stop writes the normal recording first and removes the temporary checkpoint only after the final save succeeds.
+- Startup detects both native recorder checkpoints and browser IndexedDB sessions. The same explicit Recover button handles either path; no automatic finalization or Core journal event is created.
+- Browser recovery reconstructs the Blob in sequence order, saves it as a normal local audio recording, then clears temporary chunks.
+- Background visibility copy now explains that captured chunks are persisted periodically but OS/browser suspension can still interrupt microphone capture.
+- Stop failure, empty blob, and checkpoint-cleanup failure paths now expose recovery or a clear warning instead of hiding recoverable data.
+- Native storage delegates browser checkpoint methods to the legacy IndexedDB store when the native recorder plugin is unavailable.
+- Regression coverage: E2E exercises browser chunk persistence, reload detection, explicit recovery, recovered Blob content/duration, cleared checkpoint, and unchanged Core event journal. Native adapter delegation unit test added.
+- Latest inspected HEAD before this checkpoint: `19a9e7272658f8794482fcf59d4caca42885c8c1`. Cloud API passed. Quality suite had passed Node/Core/property/Replay/benchmark stages and was running Chromium E2E; Mobile Build was queued. CI results are not yet final.
+- Previous quality failure on `4ca2f400` was only a test expectation mismatch (11-byte fixture vs expected 12); the assertion was corrected to 11.
+- Do not mark the current batch as fully validated until Quality Suite and both Android/iOS builds complete on the newest HEAD. PR #55 remains draft; no merge or production deployment.
+
+Next actions:
+1. Follow the newest HEAD through complete Quality Suite, Android debug APK, iOS simulator build, and Cloud API CI.
+2. Inspect Playwright errors/logs if the new interruption-recovery E2E fails; fix root cause and retain regression coverage.
+3. Finish audio list UX audit (playback focus, rename/delete while playing, recovered-file labels) and verify long recordings on real devices.
+4. Continue reminders/local-notification consistency and Work-first accessibility; Think remains deferred.
