@@ -14,6 +14,8 @@
   }).sort((a,b)=>a.key.localeCompare(b.key));
  }
  function equalEntries(a,b){const left=normalizedEntries(a),right=normalizedEntries(b);return left.length===right.length&&left.every((row,i)=>row.key===right[i].key&&row.value===right[i].value)}
+ function readLegacyEntries(storage){if(!storage||typeof storage.key!=='function'||typeof storage.getItem!=='function')return [];const entries=[];for(let i=0;i<(Number(storage.length)||0);i++){const key=storage.key(i);if(!key||key===BACKUP_KEY||key==='collector_cloud_opt_out'||!(key==='collector'||key.startsWith('collector_')||key.startsWith('collector-')||key.startsWith('collector:')))continue;const value=storage.getItem(key);if(value!==null)entries.push({key,value:String(value)})}return normalizedEntries(entries)}
+ function mergeEntries(databaseEntries,legacyEntries){const map=new Map(normalizedEntries(legacyEntries).map(row=>[row.key,row.value]));for(const row of normalizedEntries(databaseEntries))map.set(row.key,row.value);return normalizedEntries([...map].map(([key,value])=>({key,value})))}
  async function createOpen(sqlite,database,encrypted,mode){
   const conn={database,readonly:false};
   if(typeof sqlite.isConnection==='function'&&(await sqlite.isConnection(conn)).result){
@@ -49,11 +51,11 @@
   let backup;
   try{backup=JSON.parse(raw)}catch(error){throw new Error('SQLite migration recovery backup is unreadable; original data was not modified.')}
   if(backup?.version!==1||!Array.isArray(backup.entries))throw new Error('SQLite migration recovery backup is invalid; original data was not modified.');
-  return {raw,backup:{...backup,entries:normalizedEntries(backup.entries)}};
+  return {raw,backup:{...backup,entries:normalizedEntries(backup.entries),legacyEntries:normalizedEntries(backup.legacyEntries||[])}};
  }
- function writeBackup(storage,entries){
+ function writeBackup(storage,entries,legacyEntries=[]){
   if(!storage||typeof storage.setItem!=='function'||typeof storage.getItem!=='function')throw new Error('Verified migration backup storage unavailable; conversion blocked.');
-  const payload={version:1,database:DB,phase:'prepared',createdAt:new Date().toISOString(),entries:normalizedEntries(entries)};
+  const payload={version:1,database:DB,phase:'prepared',createdAt:new Date().toISOString(),entries:normalizedEntries(entries),legacyEntries:normalizedEntries(legacyEntries)};
   const raw=JSON.stringify(payload);
   storage.setItem(BACKUP_KEY,raw);
   const reread=storage.getItem(BACKUP_KEY);
@@ -61,7 +63,8 @@
   return {raw,backup:payload};
  }
  async function verifyAndRecoverEncrypted(sqlite,database,storage,backupRecord){
-  const entries=await readEntries(sqlite,database);
+  let entries=await readEntries(sqlite,database);
+  if(!backupRecord){const legacyEntries=readLegacyEntries(storage);if(legacyEntries.length)backupRecord=writeBackup(storage,mergeEntries(entries,legacyEntries),legacyEntries)}
   if(backupRecord&&!equalEntries(entries,backupRecord.backup.entries)){
    await restoreEntries(sqlite,database,backupRecord.backup.entries);
    const restored=await readEntries(sqlite,database);
@@ -78,6 +81,8 @@
   if(typeof dbExists!=='boolean'||typeof secretStored!=='boolean')throw new Error('SQLite encryption state is unknown; recovery required.');
   let backupRecord=readBackup(backupStorage);
   if(!dbExists){
+   const legacyEntries=readLegacyEntries(backupStorage);
+   if(!backupRecord&&legacyEntries.length)backupRecord=writeBackup(backupStorage,legacyEntries,legacyEntries);
    if(!secretStored){
     const passphrase=makePassphrase(cryptoImpl);
     await sqlite.setEncryptionSecret({passphrase});
@@ -109,7 +114,8 @@
   const connPlain=await createOpen(sqlite,database,false,'no-encryption');
   let entries;
   try{entries=await readEntries(sqlite,database)}finally{await close(sqlite,connPlain)}
-  if(!backupRecord)backupRecord=writeBackup(backupStorage,entries);
+  const legacyEntries=readLegacyEntries(backupStorage);
+  if(!backupRecord)backupRecord=writeBackup(backupStorage,mergeEntries(entries,legacyEntries),legacyEntries);
   if(!secretStored){
    const passphrase=makePassphrase(cryptoImpl);
    await sqlite.setEncryptionSecret({passphrase});
@@ -130,7 +136,10 @@
  }
  function completeSQLiteEncryptionMigration({backupStorage=root.localStorage}={}){
   const record=readBackup(backupStorage);
-  if(record&&typeof backupStorage.removeItem==='function')backupStorage.removeItem(BACKUP_KEY);
+  if(record&&typeof backupStorage.removeItem==='function'){
+   for(const row of record.backup.legacyEntries){if(backupStorage.getItem(row.key)===row.value)backupStorage.removeItem(row.key)}
+   backupStorage.removeItem(BACKUP_KEY);
+  }
   return !!record;
  }
  const api=Object.freeze({prepareSQLiteEncryption,completeSQLiteEncryptionMigration,makePassphrase,normalizedEntries,equalEntries});
