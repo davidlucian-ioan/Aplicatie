@@ -220,29 +220,28 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
-## CHECKPOINT CURENT — 2026-11-25 (UX redesign, page filters)
+## CHECKPOINT CURENT — 2026-11-25 (UX pass: list ergonomics)
 
-### Repo state
-- Repo `davidlucian-ioan/Aplicatie`; branch `feature/openai-provider-integration`; PR #55 draft/open to main. No merge, main untouched.
-- HEAD: `62e3eeca84fc4f9b9803491467d21207b863c084`.
+### Git
+- Repo `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`; PR #55 open/draft to main. No merge/main edits.
+- HEAD `7926e7032830a1c6ec68e9de05eadca368d9dc78`.
 
-### Implemented UI/UX
-- CSS: improved hierarchy, typography, spacing, cards/panels, buttons, form controls, sidebar/nav, focus/hover, responsive breakpoints.
-- Work composition: desktop reminder + recorder split, transcription/command full-width; mobile single-column prioritized recorder, reminder, command.
-- Think dashboard composition refined.
-- Pages gained descriptive headers/subtitles and live filters for relations/locations, stock, finance, attributes, events, audit; entity has its existing search; History has existing selectors.
-- Generic filter function filters list rows case-insensitively, restores rows on clear, and shows a no-results status. Render integration and input delegation added.
-- Regression tests: `collector-v11/e2e/page-ux.spec.cjs` for headings/control presence, filter matching/clear/no-results, and mobile Work layout.
-- Recent commits: `f33c5b8` headings/filters; `04ddf6b` entity header; `6be492f` filters wiring; `22b6d12` CSS; `2a64d70` tests; `8892851` no-results feedback; `62e3eec` test no-results.
-- This remains an ongoing UX pass; do not mark complete.
+### Implemented
+- Responsive hierarchy/navigation/styles, dedicated Work/Think layouts and Think overview.
+- Descriptive headings/subtitles across data pages; live case-insensitive filters on relation/location, inventory, finance, attributes, events and audit; entity native search, history native selectors.
+- Filter feedback/no-results status and restore-on-clear; tests added in `e2e/page-ux.spec.cjs`.
+- Data list ergonomics: mobile stacked rows, row actions, badge/empty-state styling, search controls, entity detail header and history selects.
+- Recent commits: `f33c5b8`, `04ddf6b`, `6be492f`, `22b6d12`, `2a64d70`, `8892851`, `62e3eec`, `05b78f5`, `7926e70`.
+- UI/UX is still ongoing, not complete.
 
 ### CI
-- HEAD `62e3eec` triggers workflows; runs were created for immediately preceding commit `8892851` and cancelled by later push. Poll exact HEAD runs and wait for final results.
-- Prior pre-UX branch `a0cf4da` had green Cloud API, Quality and Mobile.
-- CI should validate syntax, test and mobile build; fix any failures before next pass.
+- Runs for current HEAD `7926e70`: quality `45597425193` in progress; mobile `45597424859` pending.
+- Older runs were cancelled by subsequent pushes. Wait for exact HEAD workflows; current results not yet confirmed.
+- Last confirmed pre-UX branch `a0cf4da` had all three workflows green.
 
-### Remaining
-- Detailed redesign and test each page: entities/list/detail, relations and locations, inventory, finance, attributes, events, history, audit.
-- Improve forms/modals, empty/loading/error states, keyboard/focus/a11y, responsive dense lists and data visualization.
-- Continue without stopping for simple acknowledgments. Save checkpoints by replacing only this section, preserving project history.
-- Backend/release gap: Supabase and RevenueCat not live-validated; SQL migration not run against real DB; sandbox billing unverified; deployment/secrets, sync, backups/conflict handling, encryption at rest, physical testing, signed releases, privacy/GDPR/store tasks outstanding. No hosting purchase before config needs are known.
+### Next
+- Continue detailed screen redesign and review: entities list/detail, relation/location, stock/population, finance, attributes, events, history, audit.
+- Check form modal usability, keyboard navigation/focus, screen reader semantics, empty/loading/error, mobile and desktop.
+- Validate Playwright, quality and mobile CI, repair any failures; then checkpoint by replacing only this section.
+- Release gaps: live Supabase/RevenueCat validations, deploy/secrets, multi-device sync/backup, conflict handling, encryption at rest, device testing, signed builds, privacy/GDPR and store release. No hosting purchase until external config needs are clear.
+- Continue autonomously until user explicitly says stop.
