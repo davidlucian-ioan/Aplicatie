@@ -119,12 +119,14 @@ Primary differentiators to prove:
 9. **Advanced offline/local AI:** evaluate only if hardware, latency and accuracy economics justify.
 10. **AR inventory / visual shelf map:** later, niche and expensive; validate before development.
 
-## Recommended business model (test, not commit)
-- **Free:** core collection, capture, custom fields/templates, search, basic reminders, local access, export/backup path. Avoid artificially restricting ownership of user data.
-- **Pro:** higher limits/convenience, advanced analytics, cross-device sync/cloud backup (only once built), advanced AI allowance, richer templates, bulk tools, history, share controls.
-- **AI add-on credits:** optional only if heavy AI use creates variable costs; transparent pricing and refund failed/low-confidence scans.
-- **Collection Packs:** one-time purchase or included in Pro; validate user demand before marketplace-style monetization.
-- No final prices until cost and conversion tests.
+## Recommended business model — trial-led subscription (hypothesis)
+- **Full trial:** start with 30 days; test 60–90-day early-adopter campaigns separately. The trial should show the full coherent product, including Work capture, core Collection Intelligence, recall, AI assistance, reminders, history and insights, within transparent fair-use/cost limits.
+- **After trial:** retain user ownership, data access and export. A limited Basic fallback may preserve local/basic collection management; advanced processing, premium convenience and high-cost features can be subscription-gated. Exact boundary is subject to implementation audit and user testing.
+- **Pro subscription:** one primary tier with monthly and discounted annual options as a hypothesis. Avoid unnecessary tiers.
+- **Collection Intelligence:** core positioning, not a separate add-on. Basic history and data access must not be paywalled; subscription funds advanced/ongoing processing and premium workflows.
+- **AI cost controls:** transparent quotas/fair use, failed-operation handling, spend caps and usage visibility. Optional credits only if actual unit economics require them.
+- **Collection Packs:** later; validate demand.
+- **No final pricing** until AI/cloud/store/support costs, trial conversion, retention and gross margin are measured.
 
 ## UX principles
 1. Capture before classification: don't force a form to start.
