@@ -5,8 +5,8 @@ const {prepareSQLiteEncryption}=require('./sqlite-encryption-bootstrap');
 const {createSQLiteStorageAdapter}=require('./storage-adapter');
 const BACKUP_KEY='collector_sqlite_encryption_migration_backup_v1';
 function mockStorage(initial={}){const map=new Map(Object.entries(initial));return {get length(){return map.size},key(i){return [...map.keys()][i]??null},getItem(k){return map.has(k)?map.get(k):null},setItem(k,v){map.set(k,String(v))},removeItem(k){map.delete(k)},dump(){return Object.fromEntries(map)}}}
-function mockSQLite({exists=false,encrypted=false,secret=false,verifySecret=true,configEncryption=true,conversionSucceeds=true,verifyEncryption=true}={}){
- const calls=[];let stored=secret,opened=false,dbEncrypted=encrypted;const rows=new Map();
+function mockSQLite({exists=false,encrypted=false,secret=false,verifySecret=true,configEncryption=true,conversionSucceeds=true,verifyEncryption=true,failInsertKey=null}={}){
+ const calls=[];let stored=secret,opened=false,dbEncrypted=encrypted,transactionSnapshot=null;const rows=new Map();
  return {calls,rows,sqlite:{
   async isDatabase(o){calls.push(['isDatabase',o]);return {result:exists}},
   async isDatabaseEncrypted(o){calls.push(['isDatabaseEncrypted',o]);return {result:verifyEncryption?dbEncrypted:false}},
@@ -19,10 +19,10 @@ function mockSQLite({exists=false,encrypted=false,secret=false,verifySecret=true
   async open(o){calls.push(['open',o]);opened=true},
   async execute(o){calls.push(['execute',o]);return {changes:{changes:0}}},
   async query(o){if(o.statement.includes('WHERE key')){const v=rows.get(o.values[0]);return {values:v===undefined?[]:[{value:v}]}}return {values:[...rows].map(([key,value])=>({key,value}))}},
-  async run(o){calls.push(['run',o]);if(o.statement.startsWith('DELETE'))rows.clear();else if(o.statement.startsWith('INSERT')){const [k,v]=o.values||[];rows.set(k,v)}return {changes:{changes:1}}},
-  async beginTransaction(o){calls.push(['beginTransaction',o])},
-  async commitTransaction(o){calls.push(['commitTransaction',o])},
-  async rollbackTransaction(o){calls.push(['rollbackTransaction',o])}
+  async run(o){calls.push(['run',o]);if(o.statement.startsWith('DELETE'))rows.clear();else if(o.statement.startsWith('INSERT')){const [k,v]=o.values||[];if(k===failInsertKey)throw Error('injected restore write failure');rows.set(k,v)}return {changes:{changes:1}}},
+  async beginTransaction(o){calls.push(['beginTransaction',o]);transactionSnapshot=new Map(rows)},
+  async commitTransaction(o){calls.push(['commitTransaction',o]);transactionSnapshot=null},
+  async rollbackTransaction(o){calls.push(['rollbackTransaction',o]);if(transactionSnapshot){rows.clear();for(const [k,v] of transactionSnapshot)rows.set(k,v);transactionSnapshot=null}}
  }};
 }
 function fakeCrypto(){return {getRandomValues(bytes){for(let i=0;i<bytes.length;i++)bytes[i]=i;return bytes}}}
@@ -163,6 +163,18 @@ test('backup corupt fail-closed înainte de accesul la DB',async()=>{
  assert.equal(m.calls.some(c=>c[0]==='createConnection'),false,'must not open or mutate DB when backup cannot be parsed');
  assert.equal(backup.getItem(BACKUP_KEY),'{broken-json','corrupt recovery data must be preserved');
 });
+test('recovery restore failure rolls back SQLite rows and preserves verified backup',async()=>{
+ const m=mockSQLite({exists:true,encrypted:true,secret:true,failInsertKey:'collector_b'});
+ m.rows.set('collector_old','original');
+ const entries=[{key:'collector_a',value:'snapshot-a'},{key:'collector_b',value:'snapshot-b'}];
+ const raw=JSON.stringify({version:1,database:'collector',phase:'prepared',createdAt:'x',entries,legacyEntries:[]});
+ const backup=mockStorage({[BACKUP_KEY]:raw});
+ await assert.rejects(prepareSQLiteEncryption({sqlite:m.sqlite,backupStorage:backup}),/injected restore write failure/);
+ assert.deepEqual([...m.rows],[['collector_old','original']],'transaction rollback must restore the pre-recovery rows');
+ assert.equal(backup.getItem(BACKUP_KEY),raw,'verified backup must be retained after failed recovery');
+ assert.ok(m.calls.some(call=>call[0]==='rollbackTransaction'));
+});
+
 test('recovery backup cu duplicate sau chei goale este respins fără acces la DB',async()=>{
  for(const entries of [
   [{key:'collector_a',value:'1'},{key:'collector_a',value:'2'}],
