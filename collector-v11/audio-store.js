@@ -287,6 +287,8 @@
   listInterruptedSessions(){if(typeof activeStore.listInterruptedSessions!=='function')return Promise.resolve([]);return activeStore.listInterruptedSessions()},
   recoverSession(id){if(typeof activeStore.recoverSession!=='function')return Promise.reject(new Error('Recuperarea sesiunii web nu este disponibilă.'));return activeStore.recoverSession(id)},
   removeSession(id){if(typeof activeStore.removeSession!=='function')return Promise.resolve(false);return activeStore.removeSession(id)},
+  exportBackup(){if(typeof activeStore.exportBackup!=='function')return Promise.reject(new Error('Backup audio nativ nu este disponibil pe această platformă.'));return activeStore.exportBackup()},
+  importBackup(backup){if(typeof activeStore.importBackup!=='function')return Promise.reject(new Error('Import backup audio nativ nu este disponibil pe această platformă.'));return activeStore.importBackup(backup)},
   clearAll(){if(typeof activeStore.clearAll!=='function')return Promise.reject(new Error('Ștergerea stocării audio nu este disponibilă.'));return activeStore.clearAll()}
  });
  global.CollectorAudioStore=api;
