@@ -1,6 +1,17 @@
 (function(root){
  'use strict';
  const DB='collector',TABLE='collector_kv';
+ function classifySQLiteEncryptionState({databaseExists,encrypted,secretStored}={}){
+  if(typeof databaseExists!=='boolean'||typeof secretStored!=='boolean'||(databaseExists&&typeof encrypted!=='boolean'))return Object.freeze({action:'inspect-required',reason:'state-incomplete'});
+  if(!databaseExists)return Object.freeze({action:'create-encrypted',reason:'new-database',reuseStoredSecret:secretStored});
+  if(encrypted===true){
+   if(secretStored)return Object.freeze({action:'open-encrypted',reason:'encrypted-db-and-secret-present'});
+   return Object.freeze({action:'recovery-required',reason:'encrypted-db-secret-missing'});
+  }
+  if(encrypted===false)return Object.freeze({action:'convert-existing',reason:'plaintext-db-preserve-source',generateSecret:!secretStored,requiresVerifiedBackup:true});
+  return Object.freeze({action:'inspect-required',reason:'encryption-state-unknown'});
+ }
+
  function removeCollectorKeys(backing){
   if(!backing||typeof backing.key!=='function'||typeof backing.removeItem!=='function')return 0;
   const keys=[];
@@ -113,7 +124,7 @@
   if(!sqlite)throw new Error('Collector mobil necesită pluginul SQLite nativ. Build-ul nu este configurat corect.');
   return createSQLiteStorageAdapter({sqlite,legacyStorage});
  }
- const api=Object.freeze({createWebStorageAdapter,createSQLiteStorageAdapter,createAutoStorageAdapter});
+ const api=Object.freeze({classifySQLiteEncryptionState,createWebStorageAdapter,createSQLiteStorageAdapter,createAutoStorageAdapter});
  root.CollectorStorageAdapter=api;
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
