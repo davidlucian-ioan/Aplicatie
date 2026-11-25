@@ -205,6 +205,28 @@ document.getElementById('quickEvent').onclick=()=>showPage('assistant');document
 function applyPageFilters(){document.querySelectorAll('[data-filter-target]').forEach(input=>{const target=document.getElementById(input.dataset.filterTarget);if(!target)return;const q=(input.value||'').trim().toLocaleLowerCase('ro-RO');const rows=[...target.children].filter(el=>el.classList.contains('row'));let shown=0;rows.forEach(row=>{const match=!q||row.textContent.toLocaleLowerCase('ro-RO').includes(q);row.hidden=!match;if(match)shown++});target.querySelectorAll('.empty').forEach(el=>el.hidden=Boolean(q&&rows.length));let noMatch=target.querySelector('[data-filter-empty]');if(q&&rows.length&&!shown){if(!noMatch){noMatch=document.createElement('div');noMatch.className='empty filter-empty';noMatch.dataset.filterEmpty='true';noMatch.setAttribute('role','status');target.appendChild(noMatch)}noMatch.textContent='Nu exista rezultate pentru: '+input.value.trim()}else if(noMatch)noMatch.remove()})}
 document.addEventListener('input',ev=>{if(ev.target.matches('[data-filter-target]'))applyPageFilters()});
 function exportData(){const blob=new Blob([JSON.stringify({format:'collector-backup.v1',exportedAt:E.now(),app:'Collector MVP v6',audioIncluded:false,audioNote:'Fișierele audio nu sunt incluse în backupul JSON.',db:integrityRawBackup||db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='collector-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href)}
+document.getElementById('exportAudioBackup')?.addEventListener('click',async()=>{
+ try{
+  const store=window.CollectorAudioStore;
+  if(!store?.exportBackup)throw Error('Backup audio nativ nu este disponibil pe această platformă.');
+  const backup=await store.exportBackup(),blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='collector-audio-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  setAppStatus('Backup audio exportat: '+backup.recordings.length+' înregistrări.');
+ }catch(error){alert('Export audio eșuat: '+error.message)}
+});
+document.getElementById('importAudioBackup')?.addEventListener('change',async ev=>{
+ const file=ev.target.files?.[0];if(!file)return;
+ try{
+  if(file.size>130*1024*1024)throw Error('Fișierul backup audio depășește 130 MB.');
+  const backup=JSON.parse(await file.text());
+  if(!confirm('Importul audio va adăuga înregistrările care nu există deja. Duplicate vor fi ignorate. Continuăm?'))return;
+  const store=window.CollectorAudioStore;if(!store?.importBackup)throw Error('Import backup audio nativ nu este disponibil pe această platformă.');
+  const result=await store.importBackup(backup);await renderAudioRecordings();
+  alert('Import audio reușit: '+result.imported+' adăugate; '+result.skipped+' ignorate.');
+ }catch(error){alert('Import audio eșuat: '+error.message)}
+ finally{ev.target.value=''}
+});
 document.getElementById('importFile').addEventListener('change',async ev=>{const file=ev.target.files?.[0];if(!file)return;try{const raw=JSON.parse(await file.text()),candidate=raw.db||raw;const validated=E.validateImport(candidate);if(!confirm('Jurnal valid, fără erori, iar proiecțiile corespund istoricului. Importul va înlocui datele locale curente. Ai exportat o copie de siguranță?'))return;if(!persistRaw(validated))throw Error('Nu s-au putut salva datele importate. Datele locale au rămas neschimbate.');db=validated;integrityBlocked=false;integrityCanRebuild=false;integrityBlockReason=null;integrityRawBackup=null;currentEntityId=null;render();alert('Import reușit: jurnalul și proiecțiile au fost validate.')}catch(err){alert('Import eșuat: '+err.message)}finally{ev.target.value=''}});
 function verifyReplay(){const rebuilt=E.replay(db.events,[]);const report={events:db.events.length,entitiesCurrent:db.entities.length,entitiesReplay:rebuilt.entities.length,relationsCurrent:db.relations.length,relationsReplay:rebuilt.relations.length,stockCurrent:db.stock.length,stockReplay:rebuilt.stock.length,financialCurrent:db.finance.length,financialReplay:rebuilt.finance.length,warnings:rebuilt.meta.replayWarnings||[]};openModal(`<h2>Verificare replay</h2><pre>${esc(JSON.stringify(report,null,2))}</pre><p>Replay-ul reconstruiește proiecțiile pornind din jurnalul de evenimente.</p><div class="form-actions"><button class="secondary" onclick="closeModal()">Închide</button><button class="primary" onclick="rebuildFromJournal()">Reconstruiește proiecțiile</button></div>`)}
 async function rebuildFromJournal(){if(integrityBlocked&&!integrityCanRebuild){alert('Reconstruirea a fost blocată: datele originale nu pot fi înlocuite în siguranță prin replay. Exportă copia păstrată sau importă un backup valid.');return false}const rebuilt=E.replay(db.events,[]);const warnings=rebuilt.meta.replayWarnings||[];if(warnings.length){alert('Reconstruirea a fost blocată: jurnalul conține '+warnings.length+' evenimente invalide. Datele existente au fost păstrate. Exportă datele și repară jurnalul sau importă un backup valid.');return false}rebuilt.meta={...db.meta,...rebuilt.meta};delete rebuilt.meta.integrityError;if(!await persistRaw(rebuilt)){alert('Reconstruirea nu a fost salvată. Starea activă și datele existente au rămas neschimbate.');return false}db=rebuilt;integrityBlocked=false;integrityCanRebuild=false;integrityBlockReason=null;integrityRawBackup=null;currentEntityId=null;closeModal();render();alert('Proiecțiile au fost reconstruite și salvate cu succes din jurnal.');return true}
