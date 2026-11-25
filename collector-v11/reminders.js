@@ -44,7 +44,12 @@
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target)return false;
    await plugin.cancel({notifications:[{id:target.notificationId}]});
-   await storage.writeRaw(KEY,JSON.stringify(rows.filter(row=>row.id!==id)));
+   try{await storage.writeRaw(KEY,JSON.stringify(rows.filter(row=>row.id!==id)))}
+   catch(error){
+    try{await plugin.schedule({notifications:[{id:target.notificationId,title:'Collector',body:target.title,schedule:{at:new Date(target.at)},extra:{reminderId:target.id},isExactNotification:false}]})}
+    catch(rollbackError){throw new Error('Alarma anulată de sistem, dar nu am putut actualiza stocarea sau restaura notificarea: '+error.message+'; '+rollbackError.message)}
+    throw new Error('Anularea a fost rollback-uită: notificarea a fost reprogramată, dar lista locală nu a putut fi actualizată: '+error.message);
+   }
    return true;
   }
   return Object.freeze({list,create,cancel,snooze});
