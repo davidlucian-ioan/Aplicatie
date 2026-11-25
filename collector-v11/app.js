@@ -422,8 +422,8 @@ function formatAudioDuration(ms){const total=Math.max(0,Math.floor(ms/1000)),hou
 function audioElapsed(){if(audioPauseStartedAt)return audioPausedMs;if(audioRecorder?.state==='recording')return Math.max(0,Date.now()-audioStartedAt-audioPausedMs);return audioPausedMs}
 function setAudioUi(state,message){const start=document.getElementById('audioRecordStart'),pause=document.getElementById('audioRecordPause'),resume=document.getElementById('audioRecordResume'),stop=document.getElementById('audioRecordStop'),global=document.getElementById('globalVoice'),status=document.getElementById('audioRecorderStatus');if(start)start.disabled=state!=='idle';if(pause)pause.disabled=state!=='recording';if(resume)resume.disabled=state!=='paused';if(stop)stop.disabled=!['recording','paused'].includes(state);if(global){const active=['recording','paused'].includes(state);global.disabled=['starting','saving'].includes(state);global.textContent=active?'■ Oprește înregistrarea':'🎙 Înregistrează';global.setAttribute('aria-label',active?'Oprește înregistrarea audio':'Începe înregistrarea audio');global.setAttribute('aria-pressed',String(active));global.classList.toggle('is-listening',state==='recording')}if(status&&message)status.textContent=message}
 function updateAudioTimer(){const timer=document.getElementById('audioRecorderTimer');if(timer)timer.textContent=formatAudioDuration(audioElapsed())}
-function clearAudioPlayback(){clearAudioPlayback()if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}audioPlaybackRecordId=null}
-function setAudioPlayback(recordId,source){const player=document.getElementById('audioPlayback');if(!player)throw new Error('Playerul audio nu este disponibil.');clearAudioPlayback();player.src=source;player.hidden=false;audioPlaybackRecordId=recordId;return player}
+function clearAudioPlayback(){const player=document.getElementById('audioPlayback');if(player){player.pause();player.removeAttribute('src');player.load();player.hidden=true}if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}audioPlaybackRecordId=null}
+function setAudioPlayback(recordId,source,ownedObjectUrl=null){const player=document.getElementById('audioPlayback');if(!player)throw new Error('Playerul audio nu este disponibil.');clearAudioPlayback();audioObjectUrl=ownedObjectUrl;player.src=source;player.hidden=false;audioPlaybackRecordId=recordId;return player}
 function stopAudioTracks(){if(audioStream){for(const track of audioStream.getTracks())track.stop();audioStream=null}}
 async function startNativeAudioRecording(){
  if(audioStartPending||audioRecorder&&['recording','paused'].includes(audioRecorder.state))return;
@@ -455,8 +455,8 @@ async function recoverInterruptedAudio(){
    const session=sessions[0];if(!session)throw new Error('Nu există o înregistrare întreruptă de recuperat.');
    const record=await CollectorAudioStore.recoverSession(session.id);
    audioSessionId=null;
-   audioObjectUrl=URL.createObjectURL(record.blob);
-   const player=setAudioPlayback(record.id,audioObjectUrl);
+   const objectUrl=URL.createObjectURL(record.blob);
+   const player=setAudioPlayback(record.id,objectUrl,objectUrl);
    setAudioUi('idle','Înregistrarea întreruptă a fost recuperată din '+(session.chunkCount||session.chunks?.length||0)+' fragmente. '+formatAudioDuration(record.durationMs)+' · '+Math.round(record.size/1024)+' KB. Verifică redarea.');
   }
   const remainingWeb=await CollectorAudioStore.listInterruptedSessions(),remainingNative=await window.CollectorNativeAudioRecorder?.getPending();
@@ -498,8 +498,8 @@ async function startAudioRecording(){
     let checkpointCleanupWarning='';
     try{await CollectorAudioStore.removeSession(record.id)}catch(cleanupError){checkpointCleanupWarning=' Checkpointul temporar nu a putut fi curățat: '+cleanupError.message;const recoverButton=document.getElementById('audioRecoverPending');if(recoverButton)recoverButton.hidden=false}
     audioSessionId=null;
-    audioObjectUrl=URL.createObjectURL(blob);
-    const player=setAudioPlayback(record.id,audioObjectUrl);
+    const objectUrl=URL.createObjectURL(blob);
+    const player=setAudioPlayback(record.id,objectUrl,objectUrl);
     setAudioUi('idle','Înregistrare salvată local. '+formatAudioDuration(durationMs)+' · '+Math.round(blob.size/1024)+' KB. '+(audioChunkPersistError?'Unele checkpoint-uri periodice au eșuat, dar fișierul final a fost salvat. ':'')+checkpointCleanupWarning+' Nu a fost adăugat niciun eveniment în jurnal.');
     await renderAudioRecordings();
    }catch(error){setAudioUi('idle','Nu am putut salva înregistrarea locală: '+error.message)}
@@ -559,8 +559,8 @@ async function playAudioRecording(recordId){
    const player=setAudioPlayback(record.id,window.CollectorNativeAudioRecorder?.toPlayableUrl(record.uri)||window.Capacitor?.convertFileSrc?.(record.uri)||record.uri);await player.play();return;
   }
   if(!record?.blob)throw Error('Fișierul audio nu mai există.');
-  audioObjectUrl=URL.createObjectURL(record.blob);
-  const player=setAudioPlayback(record.id,audioObjectUrl);await player.play();
+  const objectUrl=URL.createObjectURL(record.blob);
+  const player=setAudioPlayback(record.id,objectUrl,objectUrl);await player.play();
  }catch(error){setAudioUi('idle','Nu pot reda înregistrarea: '+error.message)}
 }
 async function deleteAudioRecording(recordId){
