@@ -32,7 +32,9 @@ test('Work draft controls and quick templates exist in every UI entry point',()=
   assert.match(source,/data-command-template=\"Înregistrează \\[atribut\\] pentru \\[entitate\\] = \\[valoare\\]\"/);
  }
  const app=fs.readFileSync('app.js','utf8');
- assert.match(app,/clear\?\.addEventListener\('click',async\(\)=>\{\\n  \+\+writeVersion/);
+ const clearHandler=app.indexOf("clear?.addEventListener('click',async()=>{");
+ assert.ok(clearHandler>=0);
+ assert.ok(app.indexOf('++writeVersion;',clearHandler)<app.indexOf('if(!input.value.trim())',clearHandler),'clear invalidates pending draft restore before the empty-input branch');
 });
 test('UI expune providerul OpenAI separat de interpretarea locală',()=>{
  const html=fs.readFileSync('index-server.html','utf8');
