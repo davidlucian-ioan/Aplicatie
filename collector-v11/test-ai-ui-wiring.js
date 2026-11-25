@@ -20,7 +20,7 @@ test('UI folosește preview și execute prin Core Port, cu StorageAdapter asincr
  assert.match(s,/persistState:async next=>!integrityBlocked&&!localDataErasing&&await persistRaw\(next\)/);
  assert.match(s,/\.preview\(command\)/);
  assert.match(s,/\.execute\(command,\{confirmed:true\}\)/);
- assert.match(s,/publishState:async next=>\{db=next;render\(\)\}/);
+ assert.match(s,/publishState:async next=>\{if\(localDataErasing\)throw Error\('Datele locale sunt în curs de ștergere\.'\);db=next;render\(\)\}/);
 });
 test('Work draft controls and quick templates exist in every UI entry point',()=>{
  for(const html of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
