@@ -135,7 +135,7 @@
  }
  function createAutoStorageAdapter({capacitor=root.Capacitor,sqlite=capacitor?.Plugins?.CapacitorSQLite,legacyStorage=root.localStorage,encryptionBootstrap=null,requireEncryption=false}={}){
   const native=typeof capacitor?.isNativePlatform==='function'&&capacitor.isNativePlatform();
-  if(!native)return createWebStorageAdapter(legacyStorage);
+  if(!native){if(requireEncryption)throw new Error('SQLite at-rest encryption is unavailable on the web platform; refusing plaintext storage.');return createWebStorageAdapter(legacyStorage);}
   if(!sqlite)throw new Error('Collector mobil necesită pluginul SQLite nativ. Build-ul nu este configurat corect.');
   return createSQLiteStorageAdapter({sqlite,legacyStorage,encryptionBootstrap,requireEncryption});
  }
