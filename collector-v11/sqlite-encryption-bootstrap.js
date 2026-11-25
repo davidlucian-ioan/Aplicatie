@@ -8,10 +8,14 @@
  }
  function normalizedEntries(entries){
   if(!Array.isArray(entries))throw new Error('SQLite migration snapshot is invalid.');
-  return entries.map(row=>{
-   if(!row||typeof row.key!=='string'||typeof row.value!=='string')throw new Error('SQLite migration snapshot contains invalid KV rows.');
+  const seen=new Set();
+  const rows=entries.map(row=>{
+   if(!row||typeof row.key!=='string'||!row.key.trim()||typeof row.value!=='string')throw new Error('SQLite migration snapshot contains invalid KV rows.');
+   if(seen.has(row.key))throw new Error('SQLite migration snapshot contains duplicate KV keys.');
+   seen.add(row.key);
    return {key:row.key,value:row.value};
-  }).sort((a,b)=>a.key.localeCompare(b.key));
+  });
+  return rows.sort((a,b)=>a.key.localeCompare(b.key));
  }
  function equalEntries(a,b){const left=normalizedEntries(a),right=normalizedEntries(b);return left.length===right.length&&left.every((row,i)=>row.key===right[i].key&&row.value===right[i].value)}
  function readLegacyEntries(storage){if(!storage||typeof storage.key!=='function'||typeof storage.getItem!=='function')return [];const entries=[];for(let i=0;i<(Number(storage.length)||0);i++){const key=storage.key(i);if(!key||key===BACKUP_KEY||key==='collector_cloud_opt_out'||!(key==='collector'||key.startsWith('collector_')||key.startsWith('collector-')||key.startsWith('collector:')))continue;const value=storage.getItem(key);if(value!==null)entries.push({key,value:String(value)})}return normalizedEntries(entries)}
