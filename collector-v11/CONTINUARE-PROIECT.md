@@ -637,3 +637,16 @@ Checkpoint-ul trebuie actualizat după progres semnificativ și înainte de limi
 - Confirmări recuperate din repository și context anterior: Stage B encryption/migration code implemented but gate OFF; RevenueCat/entitlement/usage metering code implemented but not configured live/sandbox; Work/Think, audio native, reminders, SQLite, Supabase client, Cloud API și OpenAI provider în branch; sync multi-device și signed store builds lipsesc.
 - Prioritate: Quality Suite green pe HEAD; apoi lock native toolchain/lockfile reproducible; apoi hardware/data-safety validation; external staging/billing; signed release + legal/store.
 - Nu se activează encryption, billing live, deploy, merge sau publicare fără aprobarea utilizatorului.
+
+
+## Checkpoint — product strategy workshop (25 nov 2026)
+
+- Workshop simulat cu PM, IT/Architecture, QA, Finance și representative end user; nu sunt interviuri reale.
+- Raport: `collector-v11/PRODUCT-STRATEGY-WORKSHOP-2026-11-25.md`.
+- Decizie: Collector se poziționează ca personal collection operating system, universal, customizable, voice/photo-first capture, local-first, AI-assisted but user-confirmed. Diferentiatorul principal: captură în secunde + record trust + collection-native insights, nu chatbot și nu spreadsheet.
+- Nu adăugăm major features până la P0 stability/release gates. Prioritate: CI/lockfile, hardware validation, data safety, onboarding, staging, billing sandbox, signed release/legal.
+- P1 după stabilitate: Quick Capture, templates, smart search, duplicate detection, locations/containers, dashboard, import/export, bulk actions.
+- P2/P3 candidate add-ons: AI enrichment w/source/confidence, collection assistant grounded in user records, advanced analytics, share pages, wishlist/budget, QR/NFC, collection packs, verified community data, market-data integrations, marketplace, shared collections, automations, scoped AI memory, API, offline AI, AR shelf mapping.
+- Monetizare recomandată de testat: Free core + Pro convenience/advanced analytics/sync once built + optional AI credits only if unit economics require; Collection Packs later. No final prices before usage/cost testing.
+- Competitor review done: iCollect Everything, Libib, Sortly, Notion/Airtable, Kolekto. Their baseline means generic catalog/custom fields/AI lookup are not enough; Collector's capture UX, local-first trust, universal templates, history/relationships and grounded AI must be distinctive.
+- Next task: continue P0 implementation, starting toolchain reproducibility; separately design/prepare beta discovery interviews and UX acceptance tasks. No merge/deploy/publish without explicit approval.
