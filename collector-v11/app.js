@@ -319,11 +319,11 @@ async function refreshSubscriptionStatus(){
   }
   if(restoreButton)restoreButton.disabled=false;if(refreshButton)refreshButton.disabled=false;
   if(state.isPro){
-   status.textContent='Collector Pro activ'+(state.expiresAt?' · expiră '+new Date(state.expiresAt).toLocaleDateString('ro-RO'):'')+'.';
+   status.textContent=(state.isTrial?'Trial Collector Pro activ':'Collector Pro activ')+(state.expiresAt?' · expiră '+new Date(state.expiresAt).toLocaleDateString('ro-RO'):'')+'.';
    if(state.managementUrl){const manage=document.createElement('a');manage.href=state.managementUrl;manage.target='_blank';manage.rel='noopener noreferrer';manage.textContent='Gestionează abonamentul în magazin';list.append(manage)}
   }
   else{
-   status.textContent='Plan Free · datele și funcțiile locale rămân disponibile. Alege Collector Pro pentru AI și servicii cloud.';
+   status.textContent='Collector Basic · datele și funcțiile locale rămân disponibile. Collector Pro oferă AI și servicii cloud.';
    const packages=await window.CollectorSubscriptions.offerings();
    if(!packages.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nu există oferte active în RevenueCat. Configurează offering-ul curent și produsele din dashboard.';list.append(empty)}
    for(const item of packages){
@@ -399,7 +399,7 @@ async function enableCloudAccount(){
 async function refreshAIProviderStatus(){
  const status=document.getElementById('aiProviderStatus');if(!status||!window.CollectorOpenAIProvider)return;
  const button=document.getElementById('parseWithAI'),deleteButton=document.getElementById('deleteCloudAccount'),enableButton=document.getElementById('enableCloudAccount');
- try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.unauthenticated?'Autentificarea cloud nu este configurată. AI rămâne dezactivat.':info.configured?'Collector Pro activ · AI disponibil · '+info.model:info.entitlement==='free'?'Plan Free · AI cloud este inclus în Collector Pro.':'AI cloud indisponibil: verifică backend-ul, abonamentul și configurarea providerului.';const usageLabel=document.getElementById('subscriptionUsage');if(usageLabel){const usage=info.aiUsage;usageLabel.textContent=usage?'Buget AI lunar: '+usage.usedUsd.toFixed(3)+' / '+usage.budgetUsd.toFixed(2)+' USD utilizat · '+usage.remainingUsd.toFixed(3)+' USD rămas.':''}status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured;if(deleteButton)deleteButton.disabled=!(info.accountDeletionEnabled&&window.CollectorAuth?.isConfigured?.());if(enableButton)enableButton.hidden=!window.CollectorAuth?.isOptedOut?.()}
+ try{const info=await CollectorOpenAIProvider.status();status.textContent=info.unavailable?'AI cloud nu este configurat pentru această versiune. Funcțiile locale rămân active.':info.unauthenticated?'Autentificarea cloud nu este configurată. AI rămâne dezactivat.':info.configured?'Collector Pro activ · AI disponibil · '+info.model:info.entitlement==='free'?'Collector Basic · AI cloud este disponibil cu Collector Pro.':'AI cloud indisponibil: verifică backend-ul, abonamentul și configurarea providerului.';const usageLabel=document.getElementById('subscriptionUsage');if(usageLabel){const usage=info.aiUsage;usageLabel.textContent=usage?'Buget AI lunar: '+usage.usedUsd.toFixed(3)+' / '+usage.budgetUsd.toFixed(2)+' USD utilizat · '+usage.remainingUsd.toFixed(3)+' USD rămas.':''}status.dataset.ready=String(info.configured);if(button)button.disabled=!info.configured;if(deleteButton)deleteButton.disabled=!(info.accountDeletionEnabled&&window.CollectorAuth?.isConfigured?.());if(enableButton)enableButton.hidden=!window.CollectorAuth?.isOptedOut?.()}
  catch{status.textContent='Server AI indisponibil. Funcțiile locale rămân active.';status.dataset.ready='false';if(button)button.disabled=true;if(deleteButton)deleteButton.disabled=true;if(enableButton)enableButton.hidden=!window.CollectorAuth?.isOptedOut?.()}
 }
 document.getElementById('parseCommand').onclick=runCommand;
