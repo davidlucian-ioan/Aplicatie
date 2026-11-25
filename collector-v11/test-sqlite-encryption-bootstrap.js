@@ -47,7 +47,7 @@ test('DB criptată existentă se deschide doar cu secret secure store disponibil
 });
 test('DB criptată cu secret lipsă intră în recovery fără mutații',async()=>{
  const m=mockSQLite({exists:true,encrypted:true,secret:false});
- await assert.rejects(prepareSQLiteEncryption({sqlite:m.sqlite,backupStorage:mockStorage()}),/secret is missing/);
+ await assert.rejects(prepareSQLiteEncryption({sqlite:m.sqlite,backupStorage:mockStorage()}),/secure key is missing/);
  assert.equal(m.calls.some(c=>c[0]==='createConnection'||c[0]==='setEncryptionSecret'),false);
 });
 test('migrarea plaintext face backup read-back, convertește și verifică toate KV rows',async()=>{
@@ -108,7 +108,7 @@ test('adapterul requireEncryption creează DB encrypted și verifică encryption
 test('adapterul migrează plaintext în encrypted mode înainte să expună read/write',async()=>{
  const m=mockSQLite({exists:true,encrypted:false});m.rows.set('old','preserved');
  const legacy=mockStorage();
- const adapter=createSQLiteStorageAdapter({sqlite:m.sqlite,legacyStorage:legacy,encryptionBootstrap:{prepareSQLiteEncryption:args=>prepareSQLiteEncryption({...args,cryptoImpl:fakeCrypto()})},requireEncryption:true});
+ const adapter=createSQLiteStorageAdapter({sqlite:m.sqlite,legacyStorage:legacy,encryptionBootstrap:{prepareSQLiteEncryption:args=>prepareSQLiteEncryption({...args,cryptoImpl:fakeCrypto()}),completeSQLiteEncryptionMigration:args=>require('./sqlite-encryption-bootstrap').completeSQLiteEncryptionMigration(args)},requireEncryption:true});
  await adapter.initialize();
  assert.equal(adapter.getEncryptionState().state,'converted-existing');
  assert.equal(await adapter.readRaw('old'),'preserved');
@@ -132,7 +132,7 @@ test('adapterul refuză DB dacă verificarea encryption post-open e falsă',asyn
 
 test('auto adapter refuză web storage plaintext când encryption este obligatorie',()=>{
  const backing=mockStorage();
- assert.throws(()=>createSQLiteStorageAdapter({sqlite:null,legacyStorage:backing,requireEncryption:true}),/SQLite encryption\/migration APIs are incomplete/);
+ assert.throws(()=>createSQLiteStorageAdapter({sqlite:null,legacyStorage:backing,requireEncryption:true}),/pluginul Capacitor SQLite nu este disponibil/);
  const {createAutoStorageAdapter}=require('./storage-adapter');
  assert.throws(()=>createAutoStorageAdapter({capacitor:{isNativePlatform:()=>false},legacyStorage:backing,requireEncryption:true}),/unavailable on the web platform/);
 });
