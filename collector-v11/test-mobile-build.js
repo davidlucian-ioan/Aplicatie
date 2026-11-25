@@ -151,6 +151,15 @@ test('all entrypoints expose guarded full local-data erasure without cloud accou
 });
 
 
+test('reminder initialization remains retryable after transient service setup failure',async()=>{
+ const reminders=await fs.readFile(path.join(__dirname,'reminders.js'),'utf8');
+ const initialize=reminders.slice(reminders.indexOf('async function initialize(){'),reminders.indexOf('root.CollectorReminders='));
+ assert.ok(initialize.includes('try{service=createService({storage,plugin})}'));
+ assert.ok(initialize.includes('catch(error){if(status)status.textContent=error.message;return}'),'failed setup must return without marking initialized');
+ assert.ok(initialize.indexOf('initialized=true')>initialize.indexOf('try{service=createService({storage,plugin})'),'native service initialization is marked complete only after successful setup');
+ assert.ok(initialize.includes('if(!form)return;'),'missing UI must not permanently consume initialization');
+});
+
 test('Work draft autosave operations are serialized so a stale write cannot overwrite a clear',async()=>{
  const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
  const draft=app.slice(app.indexOf('function initializeWorkDraft()'),app.indexOf('async function clearAllLocalData()'));
