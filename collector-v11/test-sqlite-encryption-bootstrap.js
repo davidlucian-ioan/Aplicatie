@@ -132,7 +132,7 @@ test('adapterul refuză DB dacă verificarea encryption post-open e falsă',asyn
 
 test('auto adapter refuză web storage plaintext când encryption este obligatorie',()=>{
  const backing=mockStorage();
- assert.throws(()=>createSQLiteStorageAdapter({sqlite:null,legacyStorage:backing,requireEncryption:true}),/pluginul Capacitor SQLite nu este disponibil/);
+ assert.throws(()=>createSQLiteStorageAdapter({sqlite:null,legacyStorage:backing,requireEncryption:true}),/Pluginul Capacitor SQLite nu este disponibil/);
  const {createAutoStorageAdapter}=require('./storage-adapter');
  assert.throws(()=>createAutoStorageAdapter({capacitor:{isNativePlatform:()=>false},legacyStorage:backing,requireEncryption:true}),/unavailable on the web platform/);
 });
