@@ -647,6 +647,13 @@ test('caută entități live după nume, tip și locație și permite resetarea 
   await createLocation(page, 'Greenhouse B3');
   await createEntity(page, 'Fancy Tiger Red', 'shrimp');
   await createEntity(page, 'Philodendron Micans', 'plant');
+  const ids = await page.evaluate(() => { const db=JSON.parse(localStorage.getItem('collector_mvp_v2')); return {location:db.entities.find(e=>e.name==='Greenhouse B3').id,plant:db.entities.find(e=>e.name==='Philodendron Micans').id}; });
+  await page.locator('.nav[data-page="relations"]').click();
+  await page.locator('#relations .toolbar button.primary').nth(1).click();
+  await page.locator('#relSource').selectOption(ids.plant);
+  await page.locator('#relType').selectOption('located_in');
+  await page.locator('#relTarget').selectOption(ids.location);
+  await page.locator('#modal button.primary').click();
 
   const search = page.locator('#entitySearch');
   await expect(search).toBeVisible();
