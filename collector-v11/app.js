@@ -542,8 +542,7 @@ async function stopAudioRecording(){
    const record=await CollectorAudioStore.saveNative({...result,createdAt:new Date(Number(nativeAudioSession.startedAt)||Date.now()).toISOString(),durationMs:Number(result.durationMs)||elapsed});
    await window.CollectorNativeAudioRecorder.complete(record.id);
    audioRecorder=null;nativeAudioSession=null;
-   const player=document.getElementById('audioPlayback');if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}
-   player.src=window.CollectorNativeAudioRecorder.toPlayableUrl(record.uri);player.hidden=false;
+   const player=setAudioPlayback(record.id,window.CollectorNativeAudioRecorder.toPlayableUrl(record.uri));
    setAudioUi('idle','Înregistrare nativă salvată pe telefon. '+formatAudioDuration(record.durationMs)+' · '+Math.round(record.size/1024)+' KB. '+(record.warning||'Nu a fost adăugat niciun eveniment în jurnal.'));
    await renderAudioRecordings();
   }catch(error){audioRecorder=null;nativeAudioSession=null;const recoverButton=document.getElementById('audioRecoverPending');if(recoverButton)recoverButton.hidden=false;setAudioUi('idle','Nu am putut salva înregistrarea nativă. Checkpointul a fost păstrat pentru recuperare: '+error.message)}
