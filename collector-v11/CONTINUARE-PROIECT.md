@@ -837,3 +837,5 @@ Nicio tranzacție, configurare live, deploy, merge sau publicare efectuată.
 Commits for this round: `06d9516`, `0dc1183`, `9d3a094`, `e6235aa`, `c0fbc04`, `ec47115`, `734187e`, `2043cb1`, `b75fba2`, `b10277a`, `150813b`, `7da742b`.
 
 Authored tests and workflow checks are not yet validated by CI on this round's latest HEAD. PR #55 remains draft; no merge/deploy/store release performed.
+
+- Follow-up assertion adjustment: unsafe audio index is rejected by shared `readIndex()` validation before the destructive-operation-specific validation; test accepts either fail-closed error and still asserts no files/index are deleted. Commit `75462f5a17c2b8586bafd910818ace844ecf5db4`.
