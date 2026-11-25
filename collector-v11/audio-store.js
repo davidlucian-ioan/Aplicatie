@@ -37,7 +37,8 @@
   },
   get(id){return transaction('readonly',store=>store.get(id)).then(restoreBlob)},
   list(){return transaction('readonly',store=>store.getAll()).then(records=>records.map(restoreBlob).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))))},
-  remove(id){return transaction('readwrite',store=>store.delete(id))},\n  async rename(id,title){const name=String(title||'').trim();if(!name||name.length>100)throw new Error('Titlul trebuie să aibă 1–100 de caractere.');const record=await webStore.get(id);if(!record)throw new Error('Înregistrarea nu a fost găsită.');const {blob,...metadata}=record;const audioData=blob?await blob.arrayBuffer():metadata.audioData;return transaction('readwrite',store=>store.put({...metadata,title:name,audioData}))}
+  remove(id){return transaction('readwrite',store=>store.delete(id))},
+  async rename(id,title){const name=String(title||'').trim();if(!name||name.length>100)throw new Error('Titlul trebuie să aibă 1–100 de caractere.');const record=await webStore.get(id);if(!record)throw new Error('Înregistrarea nu a fost găsită.');const {blob,...metadata}=record;const audioData=blob?await blob.arrayBuffer():metadata.audioData;return transaction('readwrite',store=>store.put({...metadata,title:name,audioData}))}
  };
  function safeFileName(id){return String(id).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,100)||'audio'}
  async function blobToBase64(blob){
