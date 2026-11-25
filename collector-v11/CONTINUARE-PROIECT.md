@@ -677,3 +677,11 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 - **Impact audit required:** reconcile current RevenueCat, entitlements, usage metering, onboarding, paywall, trial/expiry, restore purchases, backend access and launch checklist before implementation. Trial must be store/server-authoritative and sandbox-testable. Do not activate live billing or deploy without approval.
 - Strategy doc updated: `collector-v11/PRODUCT-STRATEGY-WORKSHOP-2026-11-25.md`.
 - Next step: audit the actual branch implementation and update a gap matrix, then safely correct docs/tests/code as warranted. Do not assume current billing code matches this model.
+
+
+## Monetization impact audit — initial repo/document review (26 Nov 2026)
+
+- Updated the Product Strategy business-model section to remove the contradictory Free-forever recommendation and align with trial-led subscription.
+- Launch checklist's P2 statement was updated to trial-led 30-day hypothesis, 60–90-day campaign experiments, one Pro monthly/annual hypothesis, Basic fallback definition and post-expiry data/export protection.
+- The checklist documents RevenueCat client + webhook/entitlement/meters as implemented in PR #55, but external products/entitlement/offering/webhook and store sandbox lifecycle are still launch gates. **This is documentation evidence only; I have not yet inspected the actual billing code, paywall, onboarding, entitlement enforcement, or expiry behavior.** Connector code search returned no results, and direct git clone was unavailable in this environment; no code changes are made based on guesses.
+- Next: inspect actual billing implementation and tests; map entitlement states (trial, active, grace/billing issue, cancelled-but-active, expired, restored, account recovery); verify trial authority and premium gates; create sandbox test matrix; then correct onboarding/paywall/expiry UX. Preserve data and avoid manipulative expiry messaging. No live billing/deploy/release.
