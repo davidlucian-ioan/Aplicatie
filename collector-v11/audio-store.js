@@ -14,8 +14,8 @@
   }).catch(error=>{opening=null;throw error});
   return opening;
  }
- function transaction(mode,action){return openDb().then(db=>new Promise((resolve,reject)=>{
-  const tx=db.transaction(STORE,mode),store=tx.objectStore(STORE);let request;
+ function transaction(mode,action,storeName=STORE){return openDb().then(db=>new Promise((resolve,reject)=>{
+  const tx=db.transaction(storeName,mode),store=tx.objectStore(storeName);let request;
   try{request=action(store)}catch(error){reject(error);return}
   tx.oncomplete=()=>resolve(request?.result);
   tx.onerror=()=>reject(request?.error||tx.error||new Error('Tranzacția audio a eșuat.'));
@@ -158,7 +158,12 @@
   get(id){return activeStore.get(id)},
   list(){return activeStore.list()},
   remove(id){return activeStore.remove(id)},
-  rename(id,title){if(typeof activeStore.rename!=='function')return Promise.reject(new Error('Redenumirea nu este disponibilă.'));return activeStore.rename(id,title)},\n  beginSession(session){if(typeof activeStore.beginSession!=='function')return Promise.reject(new Error('Backup-ul periodic nu este disponibil pe această platformă.'));return activeStore.beginSession(session)},\n  appendSessionChunk(id,chunk,durationMs){if(typeof activeStore.appendSessionChunk!=='function')return Promise.reject(new Error('Backup-ul periodic nu este disponibil pe această platformă.'));return activeStore.appendSessionChunk(id,chunk,durationMs)},\n  listInterruptedSessions(){if(typeof activeStore.listInterruptedSessions!=='function')return Promise.resolve([]);return activeStore.listInterruptedSessions()},\n  recoverSession(id){if(typeof activeStore.recoverSession!=='function')return Promise.reject(new Error('Recuperarea sesiunii web nu este disponibilă.'));return activeStore.recoverSession(id)},\n  removeSession(id){if(typeof activeStore.removeSession!=='function')return Promise.resolve(false);return activeStore.removeSession(id)}
+  rename(id,title){if(typeof activeStore.rename!=='function')return Promise.reject(new Error('Redenumirea nu este disponibilă.'));return activeStore.rename(id,title)},
+  beginSession(session){if(typeof activeStore.beginSession!=='function')return Promise.reject(new Error('Backup-ul periodic nu este disponibil pe această platformă.'));return activeStore.beginSession(session)},
+  appendSessionChunk(id,chunk,durationMs){if(typeof activeStore.appendSessionChunk!=='function')return Promise.reject(new Error('Backup-ul periodic nu este disponibil pe această platformă.'));return activeStore.appendSessionChunk(id,chunk,durationMs)},
+  listInterruptedSessions(){if(typeof activeStore.listInterruptedSessions!=='function')return Promise.resolve([]);return activeStore.listInterruptedSessions()},
+  recoverSession(id){if(typeof activeStore.recoverSession!=='function')return Promise.reject(new Error('Recuperarea sesiunii web nu este disponibilă.'));return activeStore.recoverSession(id)},
+  removeSession(id){if(typeof activeStore.removeSession!=='function')return Promise.resolve(false);return activeStore.removeSession(id)}
  });
  global.CollectorAudioStore=api;
  if(typeof module!=='undefined'&&module.exports)module.exports={createNativeStore,webStore,transaction,openDb};
