@@ -897,3 +897,12 @@ Sursa de adevăr: `PRODUCT-DECISIONS-2026-11-26.md`. Deciziile de mai jos trebui
 7. UI Work polish; Think later.
 
 Nu marca niciunul din punctele de mai sus ca implementat până când code/tests/CI confirmă. CI pentru latest HEAD trebuie verificat separat; documentare nu este validare.
+
+
+## Reminder intent safety module — 26 Nov 2026
+
+Implemented (not yet end-to-end integrated):
+- Added `ai/reminder-intent.js` as a validation boundary for AI reminder suggestions: explicit intent/certainty required; negated/no-intent skip; uncertain/ambiguous clarify; title length validation; ISO date validation; timezone-aware local date/time conversion; configurable default time for date-only; past dates rejected; DST gap round-trip rejected; source/context/idempotency metadata carried forward.
+- Added `test-reminder-intent.js` for explicit date-only, timezone time conversion, uncertain/non-explicit, negated, ambiguous date, past, invalid date/time/title and DST-gap cases.
+- Important: this module does NOT call native notifications and is not wired to OpenAI provider, Work UI or Reminder service yet. No claim of actual automatic reminder creation until integration, idempotency persistence, scheduling rollback and CI/device tests are complete.
+- Current commit: module `099d7fc`, tests `77f6861`. Next: extend AI structured schema/prompt to emit bounded reminder suggestions, integrate validation with explicit preview/confirm and native schedule service, then link source and lifecycle status.
