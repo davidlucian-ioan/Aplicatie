@@ -26,6 +26,20 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   await assert.rejects(fs.access(path.join(out,'.env')));
   await assert.rejects(fs.access(path.join(out,'test-engine.js')));
   const html=await fs.readFile(path.join(out,'index.html'),'utf8');
+  // Regression gate: the distributable mobile bundle must not contain server-side credentials.
+  const bundleFiles=[];
+  async function collectFiles(directory){
+   for(const entry of await fs.readdir(directory,{withFileTypes:true})){
+    const full=path.join(directory,entry.name);
+    if(entry.isDirectory())await collectFiles(full);
+    else bundleFiles.push(full);
+   }
+  }
+  await collectFiles(out);
+  const bundleText=(await Promise.all(bundleFiles.map(file=>fs.readFile(file,'utf8').catch(()=>'')))).join('\n');
+  assert.doesNotMatch(bundleText,/OPENAI_API_KEY|SUPABASE_SERVICE_ROLE_KEY|REVENUECAT_WEBHOOK_AUTHORIZATION/);
+  assert.doesNotMatch(bundleText,/sk-[A-Za-z0-9]{24,}/,'OpenAI secret-looking keys must never ship in the mobile bundle');
+  assert.doesNotMatch(bundleText,/service-role-test|server-only-secret/,'server credential fixtures must never ship');
   assert.ok(html.includes('sqlite-encryption-bootstrap.js'));
   assert.ok(WEB_FILES.includes('sqlite-encryption-bootstrap.js'));
   assert.ok(html.includes('storage-adapter.js?v=0.2'));
