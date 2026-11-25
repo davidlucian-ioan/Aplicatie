@@ -117,4 +117,5 @@ test('entity detail supports event-sourced rename and preserves new name in list
   await page.locator('#modal button.primary').click();
   await expect(page.locator('#entityList')).toContainText('Plant A renamed');
   await expect(page.locator('#entityList')).toContainText('Cronologie');
+  await expect(page.locator('#entityDetailTitle')).toBeFocused();
 });
