@@ -161,7 +161,7 @@ test('backup corupt fail-closed înainte de accesul la DB',async()=>{
  const backup=mockStorage({[BACKUP_KEY]:'{broken-json'});
  await assert.rejects(prepareSQLiteEncryption({sqlite:m.sqlite,backupStorage:backup}),/unreadable/);
  assert.equal(m.calls.some(c=>c[0]==='createConnection'),false,'must not open or mutate DB when backup cannot be parsed');
- assert.equal(backup.getItem(BACKUP_KEY),'{broken-json}','corrupt recovery data must be preserved');
+ assert.equal(backup.getItem(BACKUP_KEY),'{broken-json','corrupt recovery data must be preserved');
 });
 test('cleanup migrare nu șterge legacy keys modificate după snapshot',()=>{
  const {completeSQLiteEncryptionMigration}=require('./sqlite-encryption-bootstrap');
