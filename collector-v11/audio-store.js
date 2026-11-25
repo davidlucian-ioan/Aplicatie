@@ -196,7 +196,7 @@
     if(!backup||backup.format!=='collector-audio-backup.v1'||!Array.isArray(backup.recordings)||backup.recordings.length>100)throw new Error('Format backup audio invalid sau prea mare.');
     const rows=await readIndex(),known=new Set(rows.map(row=>row.id)),prepared=[],totalBytes=0;
     for(const item of backup.recordings){
-     if(!item||typeof item.id!=='string'||!item.id.trim()||known.has(item.id)||typeof item.data!=='string'||!item.data||!/^(?:audio\\/(?:aac|webm|mp4|mpeg|ogg)|application\\/octet-stream)$/i.test(item.mimeType||''))continue;
+     if(!item||typeof item.id!=='string'||!item.id.trim()||item.id.length>200||known.has(item.id)||typeof item.data!=='string'||!item.data||!Number.isFinite(Date.parse(item.createdAt||''))||!/^(?:audio\\/(?:aac|webm|mp4|mpeg|ogg)|application\\/octet-stream)$/i.test(item.mimeType||''))continue;
      if(!/^[A-Za-z0-9+/]*={0,2}$/.test(item.data)||item.data.length%4!==0)throw new Error('Backup audio conține date base64 invalide.');
      const size=Math.floor(item.data.length*3/4)-(item.data.endsWith('==')?2:item.data.endsWith('=')?1:0);
      if(!Number.isFinite(Number(item.durationMs))||Number(item.durationMs)<0||size<=0||size>50*1024*1024)throw new Error('Backup audio conține metadata sau fișier invalid.');
