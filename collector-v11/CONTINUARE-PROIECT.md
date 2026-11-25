@@ -220,28 +220,33 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
-## CHECKPOINT CURENT — 2026-11-25 (UX pass: list ergonomics)
+## CHECKPOINT CURENT — 2026-11-25 (UX pass, overview)
 
 ### Git
-- Repo `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`; PR #55 open/draft to main. No merge/main edits.
-- HEAD `7926e7032830a1c6ec68e9de05eadca368d9dc78`.
+- Repo `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`; PR #55 open/draft to main. No merge, main unchanged.
+- HEAD: `ffbf4d14e19f6f86d9ea4503c14ddd1559f4535e`.
 
-### Implemented
-- Responsive hierarchy/navigation/styles, dedicated Work/Think layouts and Think overview.
-- Descriptive headings/subtitles across data pages; live case-insensitive filters on relation/location, inventory, finance, attributes, events and audit; entity native search, history native selectors.
-- Filter feedback/no-results status and restore-on-clear; tests added in `e2e/page-ux.spec.cjs`.
-- Data list ergonomics: mobile stacked rows, row actions, badge/empty-state styling, search controls, entity detail header and history selects.
-- Recent commits: `f33c5b8`, `04ddf6b`, `6be492f`, `22b6d12`, `2a64d70`, `8892851`, `62e3eec`, `05b78f5`, `7926e70`.
-- UI/UX is still ongoing, not complete.
+### UI/UX work
+- CSS redesign for hierarchy, typography, spacing, card/panel/form styles, sidebar/nav, focus/hover, mobile drawer, responsive layout.
+- Work: desktop reminder+recorder split, command/transcription full width; mobile prioritizes recorder, reminder and command area.
+- Think: metrics, quick actions and recent events; added page intro “Privire de ansamblu”.
+- Individual pages headings/subtitles; live case-insensitive filters for relation/location, inventory, finance, attributes, events, audit. Entity search and History selectors retained.
+- Filters restore rows on clear, have no-results status. Regression test `collector-v11/e2e/page-ux.spec.cjs` tests headings, control presence, filtering/no-results and mobile Work.
+- List ergonomics polished: responsive stacked rows, action buttons, badges, empty states, filter controls, entity detail header.
+- Commit trail includes `f33c5b8`, `04ddf6b`, `6be492f`, `22b6d12`, `2a64d70`, `8892851`, `62e3eec`, `05b78f5`, `7926e70`, `d2c030a`, `ffbf4d1`.
+- UX redesign remains unfinished.
 
 ### CI
-- Runs for current HEAD `7926e70`: quality `45597425193` in progress; mobile `45597424859` pending.
-- Older runs were cancelled by subsequent pushes. Wait for exact HEAD workflows; current results not yet confirmed.
-- Last confirmed pre-UX branch `a0cf4da` had all three workflows green.
+- Current HEAD `ffbf4d1` runs: Quality `45597590818`, Cloud API `45597590847`, Mobile `45597590940`, all pending at last poll. Earlier runs cancelled due rapid sequential pushes. Poll these exact runs; don't claim success until complete.
+- Pre-UX HEAD `a0cf4da` had all three workflows green.
 
 ### Next
-- Continue detailed screen redesign and review: entities list/detail, relation/location, stock/population, finance, attributes, events, history, audit.
-- Check form modal usability, keyboard navigation/focus, screen reader semantics, empty/loading/error, mobile and desktop.
-- Validate Playwright, quality and mobile CI, repair any failures; then checkpoint by replacing only this section.
-- Release gaps: live Supabase/RevenueCat validations, deploy/secrets, multi-device sync/backup, conflict handling, encryption at rest, device testing, signed builds, privacy/GDPR and store release. No hosting purchase until external config needs are clear.
-- Continue autonomously until user explicitly says stop.
+- Continue detailed screen redesign: entity list/detail, relation/location, stock/population, finance, attributes, events, history, audit.
+- Review form/modals, empty/loading/error, keyboard/focus/accessibility, data density and mobile/desktop.
+- Stabilize code and allow CI to complete; fix failures, test browser/mobile.
+- Save checkpoint by replacing only this current section; preserve project history. Continue autonomously, stop only on explicit stop.
+
+### Backend/release gap
+- OpenAI server-side, Supabase auth, RevenueCat and AI metering are implemented in branch but not live validated.
+- Supabase SQL migration not run on real DB; billing sandbox purchase/restore/webhooks unverified; deployment/secrets, sync/backup/conflict handling, encryption at rest, device testing, signed builds, GDPR/store release outstanding.
+- No hosting purchase until deployment/config requirements are confirmed.
