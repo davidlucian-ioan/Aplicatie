@@ -8,6 +8,7 @@ function fixture({legacyRecords=[],failWrite=false,failIndexWrite=false}={}){
  const filesystem={
   async mkdir(){},
   async writeFile({path,data}){if(failWrite)throw new Error('disk full');files.set(path,Buffer.from(data,'base64'))},
+  async readFile({path}){const value=files.get(path);if(!value)throw Error('not found');return {data:value.toString('base64')}},
   async getUri({path}){return {uri:'file:///app/'+path}},
   async stat({path}){const value=files.get(path);if(!value)throw new Error('not found');return {size:value.length}},
   async deleteFile({path}){if(!files.has(path))throw new Error('not found');files.delete(path)},
@@ -128,6 +129,43 @@ test('native audio adapter preserves web recorder recovery when native plugin is
  assert.equal((await store.recoverSession('web-session')).id,'web-session');
  assert.equal(await store.removeSession('web-session'),true);
  assert.deepEqual(calls.map(call=>call[0]),['begin','chunk','list','recover','remove-session']);
+});
+
+test('audio backup exports file contents and imports only new recordings',async()=>{
+ const x=fixture();await x.store.initialize();
+ const existing={id:'existing',createdAt:'2026-11-25T10:00:00.000Z',durationMs:1,mimeType:'audio/aac',size:4,filePath:'collector-audio/existing.aac',uri:'file:///existing.aac'};
+ x.files.set(existing.filePath,Buffer.from('data'));await x.store.saveNative(existing);
+ const backup=await x.store.exportBackup();
+ assert.equal(backup.format,'collector-audio-backup.v1');
+ assert.equal(backup.recordings.length,1);
+ assert.equal(Buffer.from(backup.recordings[0].data,'base64').toString(),'data');
+ const second=fixture();await second.store.initialize();
+ const result=await second.store.importBackup(backup);
+ assert.deepEqual(result,{imported:1,skipped:0});
+ const rows=await second.store.list();
+ assert.equal(rows[0].id,'existing');
+ assert.equal(Buffer.from(second.files.get(rows[0].filePath)).toString(),'data');
+ const duplicate=await second.store.importBackup(backup);
+ assert.deepEqual(duplicate,{imported:0,skipped:1});
+ assert.equal((await second.store.list()).length,1,'duplicate ID must not overwrite');
+});
+
+test('audio backup import rejects malformed base64 and rolls back written files when index commit fails',async()=>{
+ const x=fixture({failIndexWrite:true});await x.store.initialize();
+ const malformed={format:'collector-audio-backup.v1',recordings:[{id:'bad',durationMs:1,mimeType:'audio/aac',data:'!invalid!'}]};
+ await assert.rejects(x.store.importBackup(malformed),/base64 invalide/);
+ const valid={format:'collector-audio-backup.v1',recordings:[{id:'new',createdAt:'2026-11-25T10:00:00.000Z',durationMs:10,mimeType:'audio/aac',size:3,data:Buffer.from('abc').toString('base64')}]};
+ await assert.rejects(x.store.importBackup(valid),/index unavailable/);
+ assert.equal(x.files.size,0,'files written before failed metadata commit are removed');
+ assert.equal(x.values.has('collector_audio_index_v1'),false);
+});
+
+test('audio backup import enforces recording count and aggregate size limits',async()=>{
+ const x=fixture();await x.store.initialize();
+ const tooMany={format:'collector-audio-backup.v1',recordings:Array.from({length:101},(_,i)=>({id:'id'+i,durationMs:1,mimeType:'audio/aac',data:'YQ=='}))};
+ await assert.rejects(x.store.importBackup(tooMany),/Format backup audio invalid/);
+ const tooLarge={format:'collector-audio-backup.v1',recordings:[{id:'big',durationMs:1,mimeType:'audio/aac',data:'A'.repeat(70*1024*1024)}]};
+ await assert.rejects(x.store.importBackup(tooLarge),/limita totală/);
 });
 
 test('clearAll refuses an unsafe index before deleting any managed audio file',async()=>{
