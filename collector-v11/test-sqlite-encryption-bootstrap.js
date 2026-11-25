@@ -5,11 +5,11 @@ const {prepareSQLiteEncryption}=require('./sqlite-encryption-bootstrap');
 const {createSQLiteStorageAdapter}=require('./storage-adapter');
 const BACKUP_KEY='collector_sqlite_encryption_migration_backup_v1';
 function mockStorage(initial={}){const map=new Map(Object.entries(initial));return {getItem(k){return map.has(k)?map.get(k):null},setItem(k,v){map.set(k,String(v))},removeItem(k){map.delete(k)},dump(){return Object.fromEntries(map)}}}
-function mockSQLite({exists=false,encrypted=false,secret=false,verifySecret=true,configEncryption=true,conversionSucceeds=true}={}){
+function mockSQLite({exists=false,encrypted=false,secret=false,verifySecret=true,configEncryption=true,conversionSucceeds=true,verifyEncryption=true}={}){
  const calls=[];let stored=secret,opened=false,dbEncrypted=encrypted;const rows=new Map();
  return {calls,rows,sqlite:{
   async isDatabase(o){calls.push(['isDatabase',o]);return {result:exists}},
-  async isDatabaseEncrypted(o){calls.push(['isDatabaseEncrypted',o]);return {result:dbEncrypted}},
+  async isDatabaseEncrypted(o){calls.push(['isDatabaseEncrypted',o]);return {result:verifyEncryption?dbEncrypted:false}},
   async isSecretStored(){calls.push(['isSecretStored']);return {result:stored}},
   async setEncryptionSecret(o){calls.push(['setEncryptionSecret',o]);stored=verifySecret},
   async isInConfigEncryption(){calls.push(['isInConfigEncryption']);return {result:configEncryption}},
