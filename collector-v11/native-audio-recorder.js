@@ -1,6 +1,6 @@
 (function(root){
  'use strict';
- let plugin=null,filesystem=null,capacitor=null,active=null;
+ let plugin=null,filesystem=null,capacitor=null,storage=null,active=null;\n const PENDING_KEY='collector_audio_pending_session_v1';
  const safeName=id=>String(id).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,100)||'audio';
  function configure(options={}){
   capacitor=options.capacitor||root.Capacitor;
@@ -40,7 +40,7 @@
   const location=await filesystem.getUri({path:session.filePath,directory:'DATA'});
   for(const segment of new Set([result.uri,...(Array.isArray(result.segments)?result.segments:[])])){try{await filesystem.deleteFile({path:segment})}catch{}}
   let size=0;try{const stat=await filesystem.stat({path:session.filePath,directory:'DATA'});size=Number(stat?.size)||0}catch{}
-  return {id:session.id,filePath:session.filePath,uri:location.uri,durationMs:Number(result.duration)||Date.now()-session.startedAt,size,mimeType:'audio/aac',mergeFailed:!!result.mergeFailed,recovered:!!result.recovered,warning:result.mergeFailed?'Înregistrarea a fost întreruptă; s-a păstrat segmentul principal.':result.recovered?'Fișierul parțial a fost recuperat după o eroare.':null,segments:Array.isArray(result.segments)?result.segments:[]};
+  return {id:session.id,filePath:session.filePath,uri:location.uri,durationMs:Number(result.duration)||Date.now()-session.startedAt,size,mimeType:'audio/aac',mergeFailed:!!result.mergeFailed,recovered:!!result.recovered||!!session.interrupted,warning:result.mergeFailed?'Înregistrarea a fost întreruptă; s-a păstrat segmentul principal.':(result.recovered||session.interrupted)?'Sesiunea întreruptă a fost recuperată; verifică redarea.':null,segments:Array.isArray(result.segments)?result.segments:[]};
  }
  async function cancel(){
   if(!active)return false;
@@ -50,7 +50,7 @@
  }
  async function removeFile(record){if(!record?.filePath)return false;await filesystem.deleteFile({path:record.filePath,directory:'DATA'});return true}
  function toPlayableUrl(uri){if(!uri)return '';return typeof capacitor?.convertFileSrc==='function'?capacitor.convertFileSrc(uri):uri}
- const api=Object.freeze({configure,isAvailable,start,pause,resume,stop,cancel,removeFile,toPlayableUrl});
+ const api=Object.freeze({configure,isAvailable,initialize,getPending,complete,start,pause,resume,stop,cancel,removeFile,toPlayableUrl});
  root.CollectorNativeAudioRecorder=api;
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
