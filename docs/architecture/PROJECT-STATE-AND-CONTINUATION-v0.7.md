@@ -199,3 +199,28 @@ PR #29 este înlocuit de PR #32 după integrarea PR #30. PR #32 păstrează guar
 **Stryker:** ultimul full-suite rămâne 65,81% (run #45237194442), raport istoric pre-PR #15–#38. Nu există scor complet nou pentru codul curent; testele PR nu rulează full Stryker, care rămâne nocturn. Triage semantic pentru finance, relații, atribute și Replay este în issue #5.
 
 **Următorii pași:** finalizează PR #38 numai după CI complet verde; apoi extinde protecția la redefinirea atributelor deja folosite în proiecțiile entity/relation/event și continuă trierea mutanților pe comportament real. Validarea manuală din issue #4 rămâne restantă; date sintetice, fără provider AI real și fără deploy.
+
+## Continuare checkpoint — 2026-11-25 (PR #55 / Work UX hardening)
+
+**Branch:** `feature/openai-provider-integration` · **PR #55 draft, target main**. Nu se face merge și nu se configurează servicii de producție fără aprobare explicită.
+
+### Modificări recente
+- Draft Work autosave folosește StorageAdapter (web/local, SQLite nativ), fără acces direct din app la localStorage.
+- Restore asincron este protejat de input race: draftul recuperat nu suprascrie textul introdus între timp.
+- Clear draft invalidează restore-ul pending chiar și când textarea este deja goală; eliminarea draftului este confirmată de storage/status.
+- Controls/template quick actions aliniate în toate cele 3 entry points: `index.html`, `index-server.html`, `Deschide-prin-dublu-click.html`.
+- Work draft status este aria-live; clear control și quick templates sunt vizibile, draftul nu este event până la preview/confirm.
+- Test static de wiring adăugat pentru controale și race guard.
+
+### CI
+- Head verificat după modificări: `ea653506ee3b428b5703083a9600822c54601f50` (CI în curs la momentul checkpointului).
+- O rundă quality a detectat o aserțiune regex incorect escapata în testul nou, nu defect în UI; aserțiunea a fost înlocuită cu verificare exactă `includes()` și runda nouă a fost pornită.
+- Cloud API pe head-ul anterior `72975b774e43910016537b5a3eaff415ea91eada` a trecut. Mobile și quality pentru head-ul curent trebuie confirmate complet, non-cancelled.
+- E2E existent acoperă autosave, reload/restore, clear-confirm și templates; trebuie urmărită runda CI nouă pentru rezultate.
+
+### Next actions
+1. Confirmă CI complet pe head curent; dacă runda este anulată de commits noi, verifică ultima rundă completă, nu cea anulată.
+2. Inspectează rapoartele Playwright/cross-browser și repară regresiile.
+3. Continuă Work: teste de draft race, audio/voice lifecycle, notificări și UX pentru confirmarea preview.
+4. Revizuire securitate cloud/billing și checklist de testare sandbox, fără deploy sau tranzacții reale.
+5. Păstrează PR #55 draft până la acceptanța manuală și aprobarea utilizatorului.
