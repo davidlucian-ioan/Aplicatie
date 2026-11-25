@@ -111,8 +111,12 @@
   async function readIndex(){
    const raw=await storage.readRaw(INDEX_KEY);
    if(raw===null)return [];
-   const rows=JSON.parse(raw);
-   if(!Array.isArray(rows)||rows.some(row=>!row||typeof row.id!=='string'||typeof row.filePath!=='string'||typeof row.uri!=='string'||typeof row.createdAt!=='string'))throw new Error('Indexul audio nativ este invalid. Datele nu au fost suprascrise.');
+   const rows=JSON.parse(raw),ids=new Set();
+   if(!Array.isArray(rows)||rows.some(row=>{
+    if(!row||typeof row.id!=='string'||!row.id.trim()||typeof row.filePath!=='string'||!isSafeAudioFilePath(row.filePath)||typeof row.uri!=='string'||!row.uri.trim()||typeof row.createdAt!=='string'||!row.createdAt.trim()||!Number.isFinite(Number(row.size))||Number(row.size)<0)return true;
+    if(ids.has(row.id))return true;
+    ids.add(row.id);return false;
+   }))throw new Error('Indexul audio nativ este invalid. Datele nu au fost suprascrise.');
    return rows;
   }
   async function writeIndex(rows){await storage.writeRaw(INDEX_KEY,JSON.stringify(rows));return rows}
