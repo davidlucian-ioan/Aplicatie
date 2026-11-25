@@ -99,7 +99,7 @@
   },
  };
  function safeFileName(id){return String(id).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,100)||'audio'}
- function isSafeAudioFilePath(path){return typeof path==='string'&&/^collector-audio\/[A-Za-z0-9_-]+\.(?:aac|webm)$/i.test(path)}
+ function isSafeAudioFilePath(path){return typeof path==='string'&&/^collector-audio\/[A-Za-z0-9_-]+\.(?:aac|webm|mp4|mp3|ogg)$/i.test(path)}
  async function blobToBase64(blob){
   const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';
   for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));
@@ -237,7 +237,7 @@
     const rows=await readIndex(),paths=new Set(),prefix='collector-audio/';
     for(const row of rows){
      const name=String(row.filePath||'').startsWith(prefix)?String(row.filePath).slice(prefix.length):'';
-     if(!name||name.includes('/')||! /^[A-Za-z0-9_-]+\.(?:aac|webm)$/i.test(name))throw new Error('Indexul audio conține o cale locală invalidă. Fișierele nu au fost șterse.');
+     if(!name||name.includes('/')||! /^[A-Za-z0-9_-]+\.(?:aac|webm|mp4|mp3|ogg)$/i.test(name))throw new Error('Indexul audio conține o cale locală invalidă. Fișierele nu au fost șterse.');
      paths.add(prefix+name);
     }
     if(typeof filesystem.readdir==='function'){
