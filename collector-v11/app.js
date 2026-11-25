@@ -434,6 +434,25 @@ async function startNativeAudioRecording(){
   audioTimer=setInterval(updateAudioTimer,250);updateAudioTimer();
  }catch(error){audioStartPending=false;nativeAudioSession=null;audioRecorder=null;await releaseAudioWakeLock();setAudioUi('idle','Nu am putut porni înregistrarea nativă: '+error.message)}
 }
+async function recoverInterruptedAudio(){
+ const button=document.getElementById('audioRecoverPending');if(button)button.disabled=true;
+ try{
+  await window.CollectorNativeAudioRecorder?.initialize();
+  const pending=await window.CollectorNativeAudioRecorder?.getPending();
+  if(!pending){if(button)button.hidden=true;setAudioUi('idle','Nu există o înregistrare întreruptă de recuperat.');return}
+  setAudioUi('saving','Încerc recuperarea înregistrării întrerupte…');
+  const result=await window.CollectorNativeAudioRecorder.stop();
+  const record=await CollectorAudioStore.saveNative({...result,createdAt:new Date(Number(pending.startedAt)||Date.now()).toISOString(),durationMs:Number(result.durationMs)||Date.now()-Number(pending.startedAt)});
+  await window.CollectorNativeAudioRecorder.complete(record.id);
+  nativeAudioSession=null;audioRecorder=null;
+  const player=document.getElementById('audioPlayback');if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}
+  player.src=window.CollectorNativeAudioRecorder.toPlayableUrl(record.uri);player.hidden=false;
+  if(button)button.hidden=true;
+  setAudioUi('idle','Înregistrarea întreruptă a fost recuperată și salvată. '+formatAudioDuration(record.durationMs)+' · '+Math.round(record.size/1024)+' KB. '+(record.warning||'Verifică redarea.'));
+  await renderAudioRecordings();
+ }catch(error){setAudioUi('idle','Recuperarea nu a reușit; checkpointul este păstrat pentru o nouă încercare: '+error.message);if(button)button.hidden=false}
+ finally{if(button)button.disabled=false}
+}
 async function startAudioRecording(){
  if(audioStartPending||audioRecorder&&['recording','paused'].includes(audioRecorder.state))return;
  if(!audioStorageReady){setAudioUi('idle','Stocarea audio nu este disponibilă. Nicio înregistrare nu a fost pornită.');return}
@@ -496,13 +515,13 @@ async function stopAudioRecording(){
   const elapsed=audioElapsed();
   try{
    const result=await window.CollectorNativeAudioRecorder.stop();
-   const record=await CollectorAudioStore.saveNative({...result,createdAt:new Date().toISOString(),durationMs:Number(result.durationMs)||elapsed});
+   const record=await CollectorAudioStore.saveNative({...result,createdAt:new Date(Number(nativeAudioSession.startedAt)||Date.now()).toISOString(),durationMs:Number(result.durationMs)||elapsed});\n   await window.CollectorNativeAudioRecorder.complete(record.id);
    audioRecorder=null;nativeAudioSession=null;
    const player=document.getElementById('audioPlayback');if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}
    player.src=window.CollectorNativeAudioRecorder.toPlayableUrl(record.uri);player.hidden=false;
    setAudioUi('idle','Înregistrare nativă salvată pe telefon. '+formatAudioDuration(record.durationMs)+' · '+Math.round(record.size/1024)+' KB. '+(record.warning||'Nu a fost adăugat niciun eveniment în jurnal.'));
    await renderAudioRecordings();
-  }catch(error){audioRecorder=null;nativeAudioSession=null;setAudioUi('idle','Nu am putut salva înregistrarea nativă: '+error.message)}
+  }catch(error){audioRecorder=null;nativeAudioSession=null;const recoverButton=document.getElementById('audioRecoverPending');if(recoverButton)recoverButton.hidden=false;setAudioUi('idle','Nu am putut salva înregistrarea nativă. Checkpointul a fost păstrat pentru recuperare: '+error.message)}
   return;
  }
  setAudioUi('saving','Oprire și salvare locală…');await releaseAudioWakeLock();
@@ -590,7 +609,7 @@ async function initializeCollectorApp(){
   try{
    await window.CollectorAudioStore?.initialize({capacitor:window.Capacitor,filesystem:window.Capacitor?.Plugins?.Filesystem,storage:storageAdapter});
    audioStorageReady=true;
-   window.CollectorNativeAudioRecorder?.configure({capacitor:window.Capacitor,plugin:window.Capacitor?.Plugins?.CapacitorAudioRecorder,filesystem:window.Capacitor?.Plugins?.Filesystem});
+   window.CollectorNativeAudioRecorder?.configure({capacitor:window.Capacitor,plugin:window.Capacitor?.Plugins?.CapacitorAudioRecorder,filesystem:window.Capacitor?.Plugins?.Filesystem,storage:storageAdapter});\n   await window.CollectorNativeAudioRecorder?.initialize();\n   const pendingAudio=await window.CollectorNativeAudioRecorder?.getPending();\n   const recoverButton=document.getElementById('audioRecoverPending');if(recoverButton)recoverButton.hidden=!pendingAudio;\n   if(pendingAudio)setAudioUi('idle','Am detectat o înregistrare întreruptă. Nu o finalizez automat; apasă „Recuperează” pentru a încerca salvarea.');
   }catch(audioError){
    audioStorageReady=false;
    setAppStatus('Stocarea audio nu a putut fi inițializată: '+String(audioError?.message||audioError));
