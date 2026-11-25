@@ -90,6 +90,20 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
  }finally{await fs.rm(root,{recursive:true,force:true})}
 });
 
+test('release bundle verifier rejects private files and server secrets',async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'collector-release-audit-'));
+ try{
+  const {scan}=require('./verify-release-bundle');
+  await fs.writeFile(path.join(root,'index.html'),'Collector public app');
+  assert.deepEqual(scan(root),{files:1,violations:[]});
+  await fs.writeFile(path.join(root,'server.js'),'server');
+  assert.ok(scan(root).violations.some(v=>v.includes('Forbidden file: server.js')));
+  await fs.unlink(path.join(root,'server.js'));
+  await fs.writeFile(path.join(root,'config.js'),'OPENAI_API_KEY = "sk-abcdefghijklmnopqrstuvwx123456"');
+  assert.ok(scan(root).violations.some(v=>v.includes('Server-secret marker')));
+ }finally{await fs.rm(root,{recursive:true,force:true})}
+});
+
 test('mobile bundle respinge directoare de ieșire în afara proiectului',async()=>{
  await assert.rejects(buildMobile(os.tmpdir()),/interiorul proiectului/);
 });
