@@ -564,9 +564,10 @@ function initializeWorkDraft(){
   }).catch(error=>{if(version===writeVersion)status.textContent='Nu am putut salva draftul local: '+error.message});
  });
  clear?.addEventListener('click',async()=>{
-  if(!input.value.trim()){try{await storageAdapter.removeRaw(WORK_DRAFT_KEY)}catch{};status.textContent='Draft gol.';return}
+  ++writeVersion; // Invalidate any pending restore/read before clearing, including an already-empty input.
+  if(!input.value.trim()){try{await storageAdapter.removeRaw(WORK_DRAFT_KEY);status.textContent='Draft gol.'}catch(error){status.textContent='Draftul gol nu a putut fi șters din stocare.'}return}
   if(!confirm('Ștergi textul draftului? Nu a fost salvat ca eveniment.'))return;
-  input.value='';++writeVersion;
+  input.value='';
   try{await storageAdapter.removeRaw(WORK_DRAFT_KEY);status.textContent='Draft șters. Niciun eveniment nu a fost modificat.'}
   catch(error){status.textContent='Textul a fost golit, dar draftul nu a putut fi șters din stocare.'}
   input.focus();
