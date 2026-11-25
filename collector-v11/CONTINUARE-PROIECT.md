@@ -220,37 +220,48 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
-## CHECKPOINT CURENT — 2026-11-25 (UI/UX redesign, etapă 2 în progres)
-
+## CHECKPOINT CURENT — 2026-11-25 (UI/UX + entity detail audit)
 ### Repo / safety
-- `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`; PR #55 open/draft către `main`; nu merge și nu modifica main fără aprobare.
-- HEAD înainte de checkpoint: `5e0496c64c05051f02c117415d3bcaa4dddec6e1`.
+- Repo: `davidlucian-ioan/Aplicatie`; branch `feature/openai-provider-integration`; PR #55 draft; base `main`.
+- Current code head before this checkpoint: `26eec11d737e0d7ab159b92e2f55547a4901625d`.
+- Do not merge. Main is untouched.
+- Latest commit series added modal accessibility, entity rename and E2E regression. A malformed test newline was fixed in `60ba554`; entity rename is in `5950fab` and regression in `26eec11`.
 
-### Implementat în UI/UX
-- Pass 1 CSS: typography/spacing/cards/panels/buttons/forms, responsive breakpoints, focus/hover, sidebar/drawer, mobile touch layout.
-- Work: reminders + recorder desktop split, command/interpretation full width; mobile recorder-first, reminders then command. Global recording CTA remains.
-- Think dashboard: KPI cards, quick actions, recent activity.
-- Page intros/hierarchy for Entități, Relații & locații, Populații & solduri, Financiar, Atribute, Evenimente, Istoric, Audit.
-- Generic live search filters on relations, locations, inventory, finance, attributes, events and audit; case-insensitive, hide nonmatching rows, empty-result feedback, clear restores rows.
-- Entity live search by name/type/location/attribute names, result counter and separate no-match state.
-- Relations + locations paired split workspace desktop, stacked mobile.
-- Finance summary visually separated from transaction ledger.
-- E2E Playwright: page titles/search controls, generic filter case-insensitive/reset/no-match, Work mobile single-column/touch and recorder priority, mobile Think filters no overflow, responsive relations grid, entity search by name/type/location and reset.
-- Files: `collector-v11/index.html`, `style.css`, `app.js`, `e2e/page-ux.spec.cjs`, `e2e/collector-flows.spec.cjs`.
-- UI not final: next audit entity detail, CRUD forms, events/history/audit, empty/loading/error states, keyboard/accessibility, visual screenshots at viewport sizes.
+### UI/UX implementation
+- Typography, spacing, cards/panels/buttons/forms, responsive breakpoints, focus/hover, sidebar/drawer.
+- Work screen: desktop recorder/reminder split, mobile recorder first; command/interpretation area full width.
+- Think dashboard KPIs, quick actions, recent activity; page intros for all main pages.
+- Generic live filters on relations, locations, inventory, finance, attributes, events, audit; case-insensitive, no-match state, clear.
+- Entity search by name/type/location/attribute names; result count and no-match state.
+- Relations + locations paired workspace: desktop split/mobile stack. Finance metrics separated from ledger.
+- Modal accessibility: focus on open, Tab/Shift+Tab trap, Escape, backdrop close, focus return. Regression test.
+- Entity detail now has event-sourced rename action via Core `entity.rename`; empty name rejected, previous name/history retained. E2E regression added.
+- Existing tests cover list filters, Work/mobile layout, relations responsive, entity search, modal keyboard behavior, and rename.
+- Files touched: `collector-v11/index.html`, `style.css`, `app.js`, `e2e/page-ux.spec.cjs`, `e2e/collector-flows.spec.cjs`.
 
-### CI current
-- HEAD `5e0496c`: Cloud API run `45598440436` SUCCESS; Quality `45598440331` pending; Mobile `45598440323` in_progress.
-- Confirm exact HEAD's Quality/Mobile before claiming green. Frequent intermediate workflow cancellation from push updates; batch changes before CI.
+### CI status — exact current head
+- Head: `26eec11`.
+- Cloud API: SUCCESS.
+- Android debug APK: SUCCESS.
+- iOS simulator build: SUCCESS.
+- Quality suite: still running at Playwright E2E step; core tests, generated invariants, phase 2 regressions, coverage baseline, replay benchmark, Chromium install, Firefox/WebKit install all completed successfully before E2E. The previous run `5ee2778` failed due literal escaped newline in the test; fixed in `60ba554`.
+- Do not claim Quality green until it completes. If it remains stuck, inspect workflow and diagnose rather than guessing.
 
-### Remaining product/release gaps
-- OpenAI server-side, Supabase auth, RevenueCat, metering implemented but no live validation.
-- Real Supabase migration/RPC, billing sandbox and webhook, deploy/secrets, multi-device sync, backup/conflict handling, SQLite encryption, physical device tests, signed store builds, GDPR/privacy/store release remain.
-- CI APK/debug/simulator artifacts not release-ready; don't purchase hosting before external configuration is clear.
+### Next implementation work
+1. Finish/poll CI; diagnose any E2E failure and fix.
+2. Continue audit of entity detail and every CRUD form: validation feedback, keyboard flow, empty/loading/error states, keyboard/mobile layout.
+3. Check events/history/audit correction flows and visual hierarchy.
+4. Add tests in batches; avoid frequent commits that cancel CI.
+5. Save this checkpoint by replacing only the current section; preserve prior history.
 
-### Continue
-1. Poll CI for HEAD; fix issues.
-2. Continue screen-by-screen redesign; audit each form and detail flow and add E2E regression.
-3. Batch commits, rerun CI.
-4. Replace only this current checkpoint section, preserve all project history.
-5. User requested autonomous continuation; don't stop unless explicit stop.
+### Product/release gaps (not yet live-validated)
+- Supabase project/config, SQL migration/RPC execution and RLS in real DB.
+- Deploy Cloud API and configure secrets; real OpenAI billing budget tests.
+- RevenueCat products/entitlement/webhook, sandbox purchase/renew/restore/cancel/refund/grace testing.
+- Sync/multi-device, backup/conflict strategy, encryption at rest, privacy/GDPR, physical device tests, signed release AAB/IPA/store metadata.
+- Do not recommend purchasing hosting until external deployment architecture is validated.
+
+### Continuity rules
+- User requested autonomous continuation, no confirmation prompts for implementation decisions.
+- Keep PR draft; do not merge or modify `main`.
+- Batch implementation, tests, CI, and checkpoint updates.
