@@ -25,8 +25,9 @@
  }
  async function refreshUnlocked(){
   const info=await customerInfoUnlocked(),entitlement=info?.entitlements?.active?.pro||null;
-  return {available:true,isPro:activePro(info),expiresAt:entitlement?.expirationDate||null,
-   willRenew:entitlement?.willRenew??null,managementUrl:info?.managementURL||null};
+  const periodType=String(entitlement?.periodType||'').toUpperCase();
+  return {available:true,isPro:activePro(info),isTrial:activePro(info)&&periodType==='TRIAL',periodType:periodType||null,
+   expiresAt:entitlement?.expirationDate||null,willRenew:entitlement?.willRenew??null,managementUrl:info?.managementURL||null};
  }
  async function offeringsUnlocked(){
   const sdk=bridge();
