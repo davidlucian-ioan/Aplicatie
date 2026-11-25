@@ -67,7 +67,6 @@
    const restored=await readEntries(sqlite,database);
    if(!equalEntries(restored,backupRecord.backup.entries))throw new Error('Encrypted SQLite recovery verification failed; backup was preserved.');
   }
-  if(backupRecord&&storage?.removeItem)storage.removeItem(BACKUP_KEY);
   return entries;
  }
  async function prepareSQLiteEncryption({sqlite,database=DB,cryptoImpl=root.crypto,backupStorage=root.localStorage}={}){
@@ -92,7 +91,6 @@
      const verify=await readEntries(sqlite,database);
      if(!equalEntries(verify,backupRecord.backup.entries))throw new Error('Recovery of interrupted SQLite migration failed; backup preserved.');
      if((await sqlite.isDatabaseEncrypted({database})).result!==true)throw new Error('New SQLite recovery database encryption verification failed.');
-     if(backupStorage?.removeItem)backupStorage.removeItem(BACKUP_KEY);
     }finally{await close(sqlite,conn)}
    }
    return state;
@@ -127,11 +125,10 @@
     if(!equalEntries(restored,backupRecord.backup.entries))throw new Error('Converted SQLite database failed data verification; migration backup preserved.');
    }
    if((await sqlite.isDatabaseEncrypted({database})).result!==true)throw new Error('SQLite encryption verification failed after restore.');
-   if(backupStorage?.removeItem)backupStorage.removeItem(BACKUP_KEY);
   }finally{await close(sqlite,connEncrypted)}
   return Object.freeze({encrypted:true,mode:'secret',state:'converted-existing'});
  }
- const api=Object.freeze({prepareSQLiteEncryption,makePassphrase,normalizedEntries,equalEntries});
+ function completeSQLiteEncryptionMigration({backupStorage=root.localStorage}={}){\n  const record=readBackup(backupStorage);\n  if(record&&typeof backupStorage.removeItem==='function')backupStorage.removeItem(BACKUP_KEY);\n  return !!record;\n }\n const api=Object.freeze({prepareSQLiteEncryption,completeSQLiteEncryptionMigration,makePassphrase,normalizedEntries,equalEntries});
  root.CollectorSQLiteEncryption=api;
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
