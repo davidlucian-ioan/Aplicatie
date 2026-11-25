@@ -76,8 +76,7 @@ test('Basic offline păstrează Work, Core local și jurnal fără acces AI clou
  expect(stored.events.length).toBe(0,'parse-only command must not auto-commit');
  expect(stored.draft).toContain('test local fără abonament');
  expect(aiRequests).toBe(0,'local mode must not call AI endpoint');
- await page.locator('#parseWithAI').evaluate(button=>button.disabled=true);
- expect(await page.locator('#parseWithAI').isDisabled()).toBe(true);
+ await expect(page.locator('#parseWithAI')).toBeDisabled();
 });
 
 test('mută și vinde stoc, apoi păstrează soldurile după refresh', async ({ page }) => {
