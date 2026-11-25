@@ -65,9 +65,14 @@
     if(!(old.blob instanceof Blob)||!old.blob.size)continue;
     const filePath='collector-audio/legacy-'+safeFileName(old.id)+'.webm';
     await filesystem.writeFile({path:filePath,data:await blobToBase64(old.blob),directory:'DATA',encoding:'base64',recursive:true});
-    const location=await filesystem.getUri({path:filePath,directory:'DATA'});
-    const row={id:old.id,createdAt:old.createdAt,durationMs:Number(old.durationMs)||0,mimeType:old.mimeType||'audio/webm',size:Number(old.size)||old.blob.size,filePath,uri:location.uri};
-    current=[...current,row];await writeIndex(current);await legacyStore.remove(old.id);
+    try{
+     const location=await filesystem.getUri({path:filePath,directory:'DATA'});
+     const row={id:old.id,createdAt:old.createdAt,durationMs:Number(old.durationMs)||0,mimeType:old.mimeType||'audio/webm',size:Number(old.size)||old.blob.size,filePath,uri:location.uri};
+     current=[...current,row];await writeIndex(current);await legacyStore.remove(old.id);
+    }catch(error){
+     try{await filesystem.deleteFile({path:filePath,directory:'DATA'})}catch(cleanupError){}
+     throw error;
+    }
    }
   }
   async function initialize(){
@@ -87,9 +92,15 @@
     await initialize();
     if(!record?.id||!(record.blob instanceof Blob)||!record.blob.size)throw new Error('Înregistrarea audio este invalidă sau goală.');
     const filePath='collector-audio/'+safeFileName(record.id)+'.webm';
+    const rows=await readIndex(),existing=rows.find(row=>row.id===record.id);
     await filesystem.writeFile({path:filePath,data:await blobToBase64(record.blob),directory:'DATA',encoding:'base64',recursive:true});
-    const location=await filesystem.getUri({path:filePath,directory:'DATA'});
-    return saveNative({...record,filePath,uri:location.uri});
+    try{
+     const location=await filesystem.getUri({path:filePath,directory:'DATA'});
+     return await saveNative({...record,filePath,uri:location.uri});
+    }catch(error){
+     if(existing?.filePath!==filePath){try{await filesystem.deleteFile({path:filePath,directory:'DATA'})}catch(cleanupError){}}
+     throw error;
+    }
    },
    saveNative,
    async rename(id,title){await initialize();const name=String(title||'').trim();if(!name||name.length>100)throw new Error('Titlul trebuie să aibă 1–100 de caractere.');const rows=await readIndex(),row=rows.find(item=>item.id===id);if(!row)throw new Error('Înregistrarea nu a fost găsită în indexul nativ.');row.title=name;await writeIndex(rows);return row},
