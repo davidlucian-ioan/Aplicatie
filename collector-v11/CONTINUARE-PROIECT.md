@@ -906,3 +906,16 @@ Implemented (not yet end-to-end integrated):
 - Added `test-reminder-intent.js` for explicit date-only, timezone time conversion, uncertain/non-explicit, negated, ambiguous date, past, invalid date/time/title and DST-gap cases.
 - Important: this module does NOT call native notifications and is not wired to OpenAI provider, Work UI or Reminder service yet. No claim of actual automatic reminder creation until integration, idempotency persistence, scheduling rollback and CI/device tests are complete.
 - Current commit: module `099d7fc`, tests `77f6861`. Next: extend AI structured schema/prompt to emit bounded reminder suggestions, integrate validation with explicit preview/confirm and native schedule service, then link source and lifecycle status.
+
+
+## Structured AI memory/reminder contract — 26 nov 2026
+
+- Provider OpenAI Structured Outputs extins cu câmpuri strict-schema: `semantic_summary`, `memory_facts` (max 20), `reminder_suggestions` (max 5; intent/certainty/explicit/negated/title/date/time/timezone/context/clarification).
+- Promptul cere să nu inventeze date/ore și să marcheze tentative/negări, fără auto-execuție.
+- Outputul providerului normalizează aceste câmpuri în `semanticSummary`, `memoryFacts`, `reminderSuggestions`; operațiile Core rămân pe calea preview/confirm separată.
+- Test provider extins: schema strictă, output normalize și reminder structure.
+- DST reminder resolver hardened: spring gap și fall-back overlap (oră ambiguă) sunt respinse pentru clarificare, nu aleg automat una.
+- Commits: `47a3b5b6` provider schema; `600855e3` tests; `477c904e` DST overlap; `057c2934` test.
+- Latest HEAD: `057c2934edc80272d44484e88b31702f8a7a40c0`; CI lookup momentan returnează zero runs/status, deci **nevalidat**.
+- Limita: reminder suggestions sunt doar output structurat; încă nu sunt conectate la Work UI, persist/source ledger sau native notification scheduling. Nu se confirmă reminder utilizatorului până la integrare.
+- Next: integrare safe preview pentru semantic summary + reminder suggestions în Work, scheduling idempotent, source-link, lifecycle complete/snooze și testele de eșec/permisiuni.
