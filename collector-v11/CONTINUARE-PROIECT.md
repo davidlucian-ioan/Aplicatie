@@ -224,7 +224,7 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 ### Git
 - Repo `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`, PR #55 open/draft. No merge, main untouched.
-- HEAD: `3ea0ce920da0cc29cc42567101ec9272b03793f4`.
+- Current branch HEAD (verified PR #55): `92128c15ee646f8b88b285e286e84472156cfb0b`.
 
 ### UX implementation
 - Responsive styles, visual hierarchy, dedicated Work/Think composition and Think overview title.
@@ -235,11 +235,11 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - Data-list/mobile ergonomics: stacked row layout, action buttons, badges, empty states, entity-detail header.
 - Recording state visual indicator/pulse, respects reduced motion.
 - Modal form UX: sticky reachable actions, touch-size buttons, label/input spacing and focus styles, mobile two-column actions.
-- Recent commits: `2a64d70`, `8892851`, `62e3eec`, `05b78f5`, `7926e70`, `d2c030a`, `ffbf4d1`, `3dd7409`, `4c58713`, `3ea0ce9`.
+- Recent commits: `2a64d70`, `8892851`, `62e3eec`, `05b78f5`, `7926e70`, `d2c030a`, `ffbf4d1`, `3dd7409`, `4c58713`, `3ea0ce9`, `92128c1` (entity search result count test fix).
 - UX is not final; continue audits and tests.
 
 ### CI
-- HEAD `3ea0ce9`: quality `45597825707` queued, mobile `45597825702` queued. Cloud API had success on previous UI HEAD `4c58713` run `45597761035`.
+- Current HEAD `92128c1`: Quality `45597890613` in progress, Cloud API `45597897848` in progress, Mobile `45597897808` pending at last poll. Older runs cancelled due pushes. Cloud API had success on prior UI HEAD `4c58713` run `45597761035`.
 - Prior workflow runs cancelled due ongoing pushes. Wait for exact HEAD runs and confirm final.
 - Pre-UX `a0cf4da` all workflows green.
 
