@@ -220,36 +220,29 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
-## CHECKPOINT CURENT — 2026-11-25 (UI/UX redesign ongoing)
+## CHECKPOINT CURENT — 2026-11-25 (UX redesign, page filters)
 
-### Git state
-- Repo `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`, PR #55 open/draft, target main. Never merge or modify main without explicit approval.
-- Current UX work commits: `262b25c`, `ee2ed21`, `57ede6f`, `bb7e306`, `858bb68`, `6dd7d1e`, `823c12e`, `f33c5b8`, `04ddf6b`, `6be492f`, `22b6d12`, `2a64d70`.
-- Current HEAD at checkpoint save: `2a64d7040f42855697027fd6c5d5704e7a2761c0`.
+### Repo state
+- Repo `davidlucian-ioan/Aplicatie`; branch `feature/openai-provider-integration`; PR #55 draft/open to main. No merge, main untouched.
+- HEAD: `62e3eeca84fc4f9b9803491467d21207b863c084`.
 
-### UX changes so far
-- CSS redesign: hierarchy, typography, spacing, cards/panels/forms, nav active/hover/focus, mobile drawer, responsive sizing.
-- Work: desktop reminders + recorder 2-column; command/transcription full-width; mobile order prioritizes recorder; controls are touch friendly.
-- Think: dashboard cards and quick actions layout.
-- Individual pages have descriptive headings/subtitles and search controls: relations/locations, inventory, finance, attributes, events, audit; entities already had native search. History has existing filters.
-- Reusable JS filter function applies live, case-insensitive text filtering to row containers; implemented render integration and input listener.
-- Regression test added: `collector-v11/e2e/page-ux.spec.cjs` tests page headings/filter controls, filter matching/restoration, and mobile Work layout.
-- Test caveat: CI must validate the new test and app wiring; do not claim green until current HEAD runs pass.
+### Implemented UI/UX
+- CSS: improved hierarchy, typography, spacing, cards/panels, buttons, form controls, sidebar/nav, focus/hover, responsive breakpoints.
+- Work composition: desktop reminder + recorder split, transcription/command full-width; mobile single-column prioritized recorder, reminder, command.
+- Think dashboard composition refined.
+- Pages gained descriptive headers/subtitles and live filters for relations/locations, stock, finance, attributes, events, audit; entity has its existing search; History has existing selectors.
+- Generic filter function filters list rows case-insensitively, restores rows on clear, and shows a no-results status. Render integration and input delegation added.
+- Regression tests: `collector-v11/e2e/page-ux.spec.cjs` for headings/control presence, filter matching/clear/no-results, and mobile Work layout.
+- Recent commits: `f33c5b8` headings/filters; `04ddf6b` entity header; `6be492f` filters wiring; `22b6d12` CSS; `2a64d70` tests; `8892851` no-results feedback; `62e3eec` test no-results.
+- This remains an ongoing UX pass; do not mark complete.
 
 ### CI
-- On HEAD `2a64d70`: quality `45597023052` in progress; mobile build `45597023413` in progress; Cloud API run `45597023444` pending at last check.
-- Earlier same-HEAD runs were cancelled after new pushes; poll current HEAD runs.
-- Cloud API on prior UI commit `823c12e` succeeded. Pre-UX HEAD `a0cf4da` had all three workflows green.
+- HEAD `62e3eec` triggers workflows; runs were created for immediately preceding commit `8892851` and cancelled by later push. Poll exact HEAD runs and wait for final results.
+- Prior pre-UX branch `a0cf4da` had green Cloud API, Quality and Mobile.
+- CI should validate syntax, test and mobile build; fix any failures before next pass.
 
-### Remaining UI/UX
-- Continue screen-by-screen audit and redesign for entity list/detail, relations/locations, inventory, finance, attributes, events, history, audit.
-- Improve empty/loading/error states, responsive tables/rows, filter UX, modal forms, keyboard/focus, accessibility and visual consistency.
-- Run Playwright regression, quality suite and mobile builds; fix failures.
-- Save checkpoints by replacing only this current section; preserve earlier history.
-
-### Backend/release gaps
-- OpenAI server-side, Supabase auth, RevenueCat billing and AI metering exist in branch but not live-validated.
-- Supabase SQL migration not tested on real DB, RevenueCat sandbox purchases/restore/webhooks unverified.
-- Deploy/secrets, sync, cloud backup/conflict handling, SQLite encryption at rest, physical-device tests, signed AAB/IPA, GDPR/store release still outstanding.
-- Do not advise buying hosting until external config/deployment needs are clear.
-- Continue autonomously; stop only on explicit stop request.
+### Remaining
+- Detailed redesign and test each page: entities/list/detail, relations and locations, inventory, finance, attributes, events, history, audit.
+- Improve forms/modals, empty/loading/error states, keyboard/focus/a11y, responsive dense lists and data visualization.
+- Continue without stopping for simple acknowledgments. Save checkpoints by replacing only this section, preserving project history.
+- Backend/release gap: Supabase and RevenueCat not live-validated; SQL migration not run against real DB; sandbox billing unverified; deployment/secrets, sync, backups/conflict handling, encryption at rest, physical testing, signed releases, privacy/GDPR/store tasks outstanding. No hosting purchase before config needs are known.
