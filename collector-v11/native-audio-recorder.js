@@ -15,7 +15,7 @@
  async function ensureDirectory(){await filesystem.mkdir({path:'collector-audio',directory:'DATA',recursive:true})}
  async function persistPending(session){if(!storage)throw new Error('Stocarea sesiunii audio nu este disponibilă.');await storage.writeRaw(PENDING_KEY,JSON.stringify(session))}
  async function clearPending(){if(!storage)throw new Error('Stocarea sesiunii audio nu este disponibilă.');await storage.removeRaw(PENDING_KEY)}
- async function getPending(){if(!storage)return null;const raw=await storage.readRaw(PENDING_KEY);if(raw===null)return null;const pending=JSON.parse(raw);if(!pending||typeof pending.id!=='string'||typeof pending.filePath!=='string'||!Number.isFinite(Number(pending.startedAt)))throw new Error('Checkpointul audio este invalid și a fost păstrat.');return pending}
+ async function getPending(){if(!storage)return null;const raw=await storage.readRaw(PENDING_KEY);if(raw===null)return null;const pending=JSON.parse(raw);if(!pending||typeof pending.id!=='string'||!pending.id.trim()||typeof pending.filePath!=='string'||!Number.isFinite(Number(pending.startedAt))||pending.format!=='aac'||pending.filePath!=='collector-audio/'+safeName(pending.id)+'.aac')throw new Error('Checkpointul audio este invalid sau conține o cale nepermisă și a fost păstrat.');return pending}
  async function initialize(){if(!isAvailable())return false;if(!storage)return false;const pending=await getPending();if(pending)active={...pending,interrupted:true};return true}
  async function start({id}={}){
   if(!isAvailable())throw new Error('Recorderul audio nativ nu este disponibil.');
