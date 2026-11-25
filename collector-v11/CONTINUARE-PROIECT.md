@@ -302,3 +302,16 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 3. Reminder creation/list states, editing, snooze/done/cancel and notification permission UX.
 4. AI interpretation UX: loading, errors, proposed operations, editable review, confirmation, cancellation, clear costs/Pro state.
 5. Mobile touch/accessibility and E2E; no Think redesign yet.
+
+
+## Continuare Work-first — capture mai sigură și rapidă (2026-11-25)
+
+- Prioritate confirmată: Work este ecranul principal; Think rămâne parcat.
+- Draft pentru câmpul de comandă: salvare automată izolată în local storage, restaurare la redeschidere/reîncărcare, status vizibil; draftul nu creează evenimente și nu atinge jurnalul Core.
+- Buton „Șterge draft” cu confirmare pentru text existent și mesaj clar că ștergerea nu afectează evenimentele.
+- Template-uri rapide inserabile în câmp: Observație, Verificare, Mutare, Vânzare. Inserarea nu execută și nu confirmă operații.
+- Teste E2E noi pentru autosave/restore/clear și pentru inserarea template-ului fără commit de eveniment.
+- Anularea alarmelor cere confirmare înainte de a apela pluginul nativ; test suplimentar verifică faptul că o eroare a pluginului păstrează alarma în lista locală.
+- Verificare CI la momentul checkpointului: build mobil și Cloud API pe HEAD 43ed76b erau queued/pending; Quality suite queued. Rulările anterioare au fost anulate automat de push-uri succesive, deci nu sunt verdict. Așteaptă verdictul pe ultimul SHA înainte de următorul batch de push-uri.
+- HEAD curent la momentul checkpointului: 43ed76b6517221101e1336b6adf44ac1a9b9248b pe branch feature/openai-provider-integration; PR #55 draft, fără merge.
+- Următorul batch: testează CI; dacă apare fail, repară înainte de a continua. Apoi adaugă feedback/claritate la starea recorderului și revizuirea comenzii, teste E2E pentru cazurile de draft și microfon, și hardening reminder UX.
