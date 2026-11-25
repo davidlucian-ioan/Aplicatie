@@ -95,3 +95,27 @@ test('Android CI retries only transient Maven throttling and limits Gradle worke
  assert.match(step,/HTTP 429|status code 429|Too Many Requests/);
  assert.ok(step.includes('status code 5[0-9][0-9]'));
 });
+
+test('all HTML entrypoints expose the same searchable Think and Work-first UI',async()=>{
+ const entrypoints=['index.html','index-server.html','Deschide-prin-dublu-click.html'];
+ const pageHeadings=['Entități','Relații și locații','Populații și solduri','Financiar','Atribute','Evenimente','Istoric','Audit și integritate'];
+ const filterTargets=['relationList','locationList','stockList','financeList','attributeList','eventList','auditList'];
+ for(const entrypoint of entrypoints){
+  const html=await fs.readFile(path.join(__dirname,entrypoint),'utf8');
+  for(const heading of pageHeadings)assert.ok(html.includes('<h2>'+heading+'</h2>'),entrypoint+' missing heading '+heading);
+  for(const target of filterTargets)assert.ok(html.includes('data-filter-target="'+target+'"'),entrypoint+' missing search filter '+target);
+  assert.ok(html.includes('id="entitySearch"'),entrypoint+' missing entity search');
+  assert.ok(html.includes('id="entitySearchCount"'),entrypoint+' missing entity search result count');
+  assert.match(html,/id="assistant" class="page active work-layout"/);
+  const recorder=html.indexOf('class="panel recorder-panel work-recorder"');
+  const command=html.indexOf('class="panel work-command"');
+  const reminders=html.indexOf('class="panel reminders-panel work-reminders"');
+  assert.ok(recorder>=0&&command>recorder&&reminders>command,entrypoint+' must expose Work in recorder → command → reminders order');
+  assert.ok(html.includes('id="audioRecoverPending"'),entrypoint+' missing interrupted-audio recovery action');
+  assert.ok(html.includes('subscriptions.js?v=0.1'),entrypoint+' missing subscriptions client');
+ }
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ assert.ok(app.includes("addEventListener('click',recoverInterruptedAudio)"),'recovery button must invoke the recovery handler');
+ const css=await fs.readFile(path.join(__dirname,'style.css'),'utf8');
+ assert.ok(css.includes('.page.active.work-layout{display:grid}'),'active Work page must use the capture grid');
+});
