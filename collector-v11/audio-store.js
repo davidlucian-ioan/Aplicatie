@@ -121,7 +121,8 @@
   saveNative(record){if(typeof activeStore.saveNative!=='function')return Promise.reject(new Error('Stocarea audio nativă nu este inițializată.'));return activeStore.saveNative(record)},
   get(id){return activeStore.get(id)},
   list(){return activeStore.list()},
-  remove(id){return activeStore.remove(id)},\n  rename(id,title){if(typeof activeStore.rename!=='function')return Promise.reject(new Error('Redenumirea nu este disponibilă.'));return activeStore.rename(id,title)}
+  remove(id){return activeStore.remove(id)},
+  rename(id,title){if(typeof activeStore.rename!=='function')return Promise.reject(new Error('Redenumirea nu este disponibilă.'));return activeStore.rename(id,title)}
  });
  global.CollectorAudioStore=api;
  if(typeof module!=='undefined'&&module.exports)module.exports={createNativeStore,webStore};
