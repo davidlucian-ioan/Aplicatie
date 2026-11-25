@@ -123,7 +123,7 @@ test('all HTML entrypoints expose the same searchable Think and Work-first UI',a
 test('HTML entrypoints are balanced and Work layout CSS is parseable',async()=>{
  for(const file of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
   const html=await fs.readFile(path.join(__dirname,file),'utf8');
-  assert.equal((html.match(/<div\\b/g)||[]).length,(html.match(/<\\/div>/g)||[]).length,file+' must have balanced div elements');
+  assert.equal((html.match(/<div\b/g)||[]).length,(html.match(/<\/div>/g)||[]).length,file+' must have balanced div elements');
  }
  const css=await fs.readFile(path.join(__dirname,'style.css'),'utf8');
  assert.ok(css.includes('grid-template-columns:repeat(auto-fit,minmax(180px,1fr))'),'finance grid repeat() must be closed');
@@ -131,5 +131,5 @@ test('HTML entrypoints are balanced and Work layout CSS is parseable',async()=>{
  assert.ok(css.includes('.work-recorder{order:1'));
  assert.ok(css.includes('.work-command{order:2'));
  assert.ok(css.includes('.work-reminders{order:3}'));
- assert.ok(!css.includes('\\\\n/* Work capture'),'CSS must not contain escaped source line breaks');
+ assert.ok(!css.includes('\\n/* Work capture'),'CSS must not contain escaped source line breaks');
 });
