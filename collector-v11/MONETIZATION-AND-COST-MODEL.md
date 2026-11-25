@@ -190,3 +190,16 @@ Nu presupune un comision universal de 15% pentru toate situațiile. Confirmă te
 
 ### Audit boundary
 The service file `cloud-api/billing-service.js` and migration `cloud-api/migrations/001_billing_and_ai_usage.sql` were directly fetched and inspected. This verifies basic backend entitlement/usage RPC integration and SQL entitlement states, but **not** the mobile paywall/onboarding, RevenueCat dashboard settings, product intro-offer configuration, live webhook, sandbox purchase lifecycle, or actual app-level behavior. No source code was changed in this audit.
+
+
+## 10. Definitive user decision — trial + 3 AI tiers (26 Nov 2026)
+
+This replaces the earlier one-Pro-tier pricing hypothesis:
+- Time-limited trial with full Collector AI/Memory/Work/reminder experience. Trial terms, eligibility, renewal date/price and auto-renew are shown only from validated store metadata.
+- Small: €5/month; Medium: €15/month; Large: €30/month. **All plans include AI.**
+- Provider/API cost is included in Collector subscription; user never supplies a separate API key.
+- Tier limits are capacity-based and must be calibrated against real cost: audio minutes, input/output tokens, storage, retrieval/query volume and processing. Avoid arbitrary limits until cost and usage measurements exist.
+- Post-trial nonpayment must not erase or lock recordings/data/export. Local access/basic management may remain, but this is a retention/data-ownership fallback, not a Free product positioning.
+- One authoritative capability/entitlement model, server-side quota reservation/settlement and tier budget enforcement; test trial, each tier, expiry, cancellation, grace/billing issue, refund and restore.
+
+Implementation audit: current branch has one RevenueCat `pro` entitlement and active-Pro cloud AI gate; tier mapping, tier budgets, trial onboarding/paywall and validated store intro-offer configuration are gaps. See `PRODUCT-DECISIONS-2026-11-26.md`.
