@@ -78,6 +78,9 @@ test('iOS build installs Supabase Secure Storage and esbuild for the native auth
  const iosJobStart=workflow.indexOf('  ios:');
  assert.notEqual(iosJobStart,-1,'iOS workflow job must exist');
  const iosSection=workflow.slice(iosJobStart);
+ const androidJobStart=workflow.indexOf('  android:');
+ assert.notEqual(androidJobStart,-1,'Android workflow job must exist');
+ const androidSection=workflow.slice(androidJobStart,iosJobStart);
  assert.ok(iosSection.includes('npm run mobile:install-toolchain'),'iOS must use the shared pinned native toolchain');
  const packageJson=JSON.parse(await fs.readFile(path.join(__dirname,'package.json'),'utf8'));
  const installer=packageJson.scripts['mobile:install-toolchain'];
