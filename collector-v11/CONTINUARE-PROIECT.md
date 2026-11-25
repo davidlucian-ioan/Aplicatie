@@ -490,3 +490,12 @@ Next actions:
 - Removed the stale duplicate declaration and redundant assertion. The correct Android section is already sliced between the Android job and iOS job, and the actual workflow wiring assertions remain.
 - Fix commit: `a7ddc62fa2ad506e472590315c532d106c1e6398`.
 - No runtime code or native build configuration changed. CI must re-run on this HEAD; no local execution is claimed.
+
+
+## CI regression fix — Work draft clear redeclaration — 2026-11-25
+- Quality Suite run `45677381070` failed in Playwright Chromium: 41 E2E failures and 3 passes. Browser console root cause was a JavaScript parse error in `app.js`: `Identifier 'version' has already been declared` (the clear handler declared the same const twice). The broad E2E failures were cascading because app.js did not load.
+- Fixed by removing the duplicate declaration after confirmation and reusing the incremented version token created at the start of the clear handler. This preserves the draft autosave race protection.
+- Added a Node test in `test-mobile-build.js` that parses the full `app.js` with `vm.Script`, catching syntax errors before browser E2E/native build wiring.
+- Commits: `17989d6e831601e3d1904a811b1b95531e9da91d` (app fix), `cb247f3261a90227247b9b45c71fec64fbd5add5` (syntax regression test).
+- The previous HEAD `c9f3e63369af872e1d6fa1445a7305c1be52f12f` had Cloud API SUCCESS and Android+iOS Mobile Build SUCCESS; only Quality Suite failed due app.js syntax error.
+- New CI must validate latest branch HEAD. No local npm/E2E run is claimed. PR #55 stays draft; no merge/deploy.
