@@ -220,54 +220,42 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
-## CHECKPOINT CURENT — 2026-11-25
+## CHECKPOINT CURENT — 2026-11-25 (UI/UX în lucru)
 
-### Repository și CI — stare verificată la închiderea sesiunii
+### Repository și stare
 - Repository: `davidlucian-ioan/Aplicatie`.
-- Branch activ: `feature/openai-provider-integration`.
-- PR #55: deschis, draft, către `main`; nu este merged. `main` a rămas neatins. Nu face merge și nu marca PR Ready fără aprobarea explicită a utilizatorului.
-- HEAD verificat: `9e04fd9e095d94bfb9d7e5e238717f19cbbd9281`.
-- Ultima modificare: hardening pentru timestamp-urile primite din webhook RevenueCat, cu test de regresie.
-- CI pentru HEAD-ul exact de mai sus este complet verde:
-  - Collector Cloud API — run `45502772138`: SUCCESS; testele API și build-ul container au trecut.
-  - Collector quality suite — run `45502772027`: SUCCESS; suitea completă de calitate și testele browser configurate au trecut.
-  - Collector mobile build — run `45502771880`: SUCCESS; Android debug APK și iOS Simulator build au trecut.
-- Artefacte pentru HEAD-ul curent:
-  - Android `collector-android-debug`, artifact ID `14972910483`, aproximativ 3.93 MB.
-  - iOS `collector-ios-simulator`, artifact ID `14972285449`, aproximativ 1.73 MB.
-  - Artefactele expiră la 2026-12-08 UTC. Sunt builduri de debug/simulator, nu pachete semnate pentru distribuție în magazine.
+- Branch: `feature/openai-provider-integration`.
+- PR #55: deschis, draft, către `main`; nu este merged. `main` neatins. Nu merge/Ready fără aprobarea explicită.
+- HEAD UI/UX: `57ede6fd37d7f9181b7a4f200bfa8f689cbcc929`.
+- Ultimele commituri UI: `262b25c` (ierarhie/layout CSS), `ee2ed21` (structurare Work/Think), `57ede6f` (layout-uri dedicate Work/Think).
 
-### Modificarea nouă verificată
-- `cloud-api/server.js`: timestamp-urile externe RevenueCat sunt convertite printr-un helper defensiv. Datele invalide sau în afara intervalului acceptat nu mai aruncă RangeError și nu declanșează retry-uri inutile ale webhook-ului.
-- Pentru expirare invalidă se transmite `null`; pentru timestamp-ul evenimentului invalid se folosește timpul curent al serverului.
-- `cloud-api/test-cloud-api.js`: test de regresie pentru valori numerice imposibile; verifică răspuns HTTP 200, expirare null și fallback timestamp.
-- Commiturile modificării: `894d5d9320170945f1eb0f3f863f53d629d82640` (server) și `9e04fd9e095d94bfb9d7e5e238717f19cbbd9281` (test; HEAD curent).
-- Toate cele trei workflow-uri au trecut pe HEAD-ul rezultat.
+### UI/UX — prima etapă implementată
+- Audit inițial confirmă 10 secțiuni (Think dashboard, entități, relații, inventory, finance, attributes, events, history, Work/assistant, audit).
+- `style.css`: refactor de ierarhie vizuală, sidebar/nav, carduri, panel-uri, butoane, form controls, spacing, responsive și focus states; culori mai consistente, contrast și hover.
+- `index.html`: Work și Think au clase/layout dedicate fără schimbarea id-urilor sau handlerelor funcționale.
+- Work: desktop cu Alarme/Mementouri și Reportofon în două coloane, transcriere/interpretare pe lățime; pe mobile ordinea prioritizează Reportofon, apoi alarme, apoi command flow.
+- Think: metric cards și quick actions mai bine structurate, layout cu spacing unitar.
+- Responsive: sidebar compact pe tabletă, drawer pe mobil, grid-uri adaptabile și controale touch-friendly.
+- Aceasta este prima etapă de UX, nu UI final. Urmează audit ecran cu ecran, revizuire componente/formular, fluxuri și testare vizuală în viewport-uri; nu declara terminat.
 
-### Starea tehnică de păstrat
-- OpenAI Responses API este apelat numai server-side; cheia OpenAI nu este inclusă în aplicația mobilă.
-- Cloud API validează tokenul Supabase, verifică entitlement Pro, rezervă bugetul AI înainte de apel și face settlement după răspuns. Contextul este filtrat prin allowlist; există rate limit și buget lunar configurabil.
-- RevenueCat purchase/restore, asocierea contului, webhook autentificat, allowlist pentru produse/entitlement, idempotency și tratarea evenimentelor de lifecycle sunt implementate în branch.
-- Operațiile RevenueCat dependente de identitate sunt serializate; protecțiile pentru schimbarea contului în timpul purchase/restore sunt testate.
-- SQL-ul pentru billing/AI usage are teste statice pentru delimitere, idempotency, lock-uri, evenimente stale, lookup în `auth.users` și privilegii service_role. **Nu** există încă validare prin rularea migrării într-un PostgreSQL/Supabase real.
-- CI verde confirmă build și teste automate, nu confirmă configurare live, achiziții reale sau lansare.
+### CI
+- Workflow-uri declanșate pe HEAD UI `57ede6f`:
+  - Cloud API run `45596141277`: in progress la checkpoint.
+  - Mobile build run `45596141157`: queued.
+  - Quality suite run `45596141146`: queued.
+- Runs anterioare pe commiturile intermediare au fost anulate de push-uri ulterioare. Verifică numai runs pentru HEAD exact și așteaptă rezultatele.
+- Ultimul HEAD pre-UI `a0cf4da` avea Cloud API, mobile și quality suite SUCCESS.
 
-### Blocaje externe și lipsuri înainte de producție
-- Nu este confirmat un proiect Supabase live, migrarea aplicată, verificarea RLS/RPC în DB reală, Cloud API deployat sau chei/secrete de producție configurate.
-- Nu sunt validate produse, entitlement, offering, webhook și tranzacții RevenueCat sandbox reale (purchase, renewal, restore, cancellation, refund, expiry).
-- Sync multi-device, workspace membership, backup cloud și conflict handling nu sunt implementate.
-- Rămân necesare testarea pe telefoane fizice, criptarea SQLite at-rest, builduri semnate AAB/IPA, privacy/GDPR, store metadata și testarea completă de release.
-- Nu cumpăra hosting înainte de a închide dependențele Supabase/RevenueCat și de a confirma arhitectura de deploy. Nu pune chei secrete în repository sau chat.
+### Starea tehnică și gap-uri
+- OpenAI server-side, Supabase auth, RevenueCat/billing și cost metering sunt implementate în branch; nu există validare live de Supabase/RevenueCat sau deploy de producție.
+- Migrarea SQL nu a fost executată într-un DB real; purchase/restore/webhook sandbox real încă nevalidate.
+- Nu există sync multi-device/workspace, backup cloud/conflict handling; SQLite encryption at-rest, testare fizică, builduri semnate, GDPR/store release rămân.
+- CI nu înseamnă release-ready. Nu cumpăra hosting înainte de clarificarea configurațiilor externe.
 
-### Primii pași pentru următoarea sesiune
-1. Verifică mai întâi HEAD-ul branch-ului, PR #55 și workflow-urile CI; nu presupune că starea a rămas neschimbată.
-2. Continuă auditul static al fluxurilor purchase/restore, auth, account deletion, webhook și cost metering; modifică numai dacă identifici o problemă concretă și adaugă teste.
-3. Pregătește checklist-ul operațional Supabase (Auth, migrare, RLS/RPC, chei) și RevenueCat (apps, products, entitlement `pro`, offering, webhook, restore behavior).
-4. Când există proiectele/creditele reale, aplică migrarea și rulează teste live înainte de deploy public.
-5. Păstrează PR #55 draft și `main` neatins până la aprobarea explicită.
-
-### Reguli de continuitate
-- Acest fișier și repository-ul sunt sursa de adevăr; citește acest checkpoint la începutul următoarei sesiuni.
-- Păstrează toate secțiunile istorice de mai sus. La următoarea salvare înlocuiește numai această secțiune `CHECKPOINT CURENT`, nu adăuga checkpoint-uri duplicate.
-- Utilizatorul a cerut continuarea autonomă; nu te opri pentru un simplu „Ok”. Oprește-te numai la o instrucțiune explicită de stop.
-- Nu declara configurări externe sau tranzacții reale validate doar pe baza testelor mock/CI.
+### Continuare
+1. Verifică PR/head și CI.
+2. Continuă UI/UX autonom: audit și redesign al Think dashboard, Work recorder/reminders/command, apoi fiecare pagină CRUD și detaliu; test responsive/keyboard/accessibility.
+3. Adaugă teste de layout și regresie unde lipsesc, rulează CI.
+4. Salvează checkpoint-ul înlocuind numai această secțiune, păstrând istoricul anterior.
+5. Nu merge PR #55 și nu modifica main fără aprobarea utilizatorului.
+6. Utilizatorul a cerut continuare autonomă; nu te opri la simplu „Ok”, doar la stop explicit.
