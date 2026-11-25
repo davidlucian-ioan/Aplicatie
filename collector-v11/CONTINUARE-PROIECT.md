@@ -220,37 +220,37 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
-## CHECKPOINT CURENT — 2026-11-25 (UI/UX redesign, etapa 1–2)
+## CHECKPOINT CURENT — 2026-11-25 (UI/UX redesign, etapă 2 în progres)
 
-### Repository / safety
-- Repo: `davidlucian-ioan/Aplicatie`; branch `feature/openai-provider-integration`.
-- PR #55 open/draft către `main`; nu merge, nu mark Ready și nu modifica main fără aprobare explicită.
-- HEAD verificat înainte de salvare: `ef3a36342d83eaef19da98e296b1f084f8c23ac5` (verifică din nou la reluare, branch poate avansa).
+### Repo / safety
+- `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`; PR #55 open/draft către `main`; nu merge și nu modifica main fără aprobare.
+- HEAD înainte de checkpoint: `5e0496c64c05051f02c117415d3bcaa4dddec6e1`.
 
-### UI/UX implementat
-- CSS redesign: spacing, typography, panel/card/button/form styles, responsive, focus/hover, sidebar/drawer.
-- Work/Think layout-uri dedicate. Work desktop: reminders + recorder în coloane și command flow full-width; mobile prioritizes recorder, reminders, command. Header global record button rămâne accesibil.
-- Think dashboard: metric cards, quick actions, activity section.
-- Page intros/titluri/subtitluri și list filters pe Relations, Locations, Inventory, Finance, Attributes, Events, Audit; feedback la filtre și empty states.
-- Entități: live search după nume, tip, locație și nume de atribute; counter rezultate și empty state distinct; reset filtrului.
-- Teste Playwright adăugate pentru page headings/search controls, filter case-insensitivity/reset, Work mobile single-column/touch, mobile Think filter overflow și recorder-first order, entity search după nume/tip/locație.
+### Implementat în UI/UX
+- Pass 1 CSS: typography/spacing/cards/panels/buttons/forms, responsive breakpoints, focus/hover, sidebar/drawer, mobile touch layout.
+- Work: reminders + recorder desktop split, command/interpretation full width; mobile recorder-first, reminders then command. Global recording CTA remains.
+- Think dashboard: KPI cards, quick actions, recent activity.
+- Page intros/hierarchy for Entități, Relații & locații, Populații & solduri, Financiar, Atribute, Evenimente, Istoric, Audit.
+- Generic live search filters on relations, locations, inventory, finance, attributes, events and audit; case-insensitive, hide nonmatching rows, empty-result feedback, clear restores rows.
+- Entity live search by name/type/location/attribute names, result counter and separate no-match state.
+- Relations + locations paired split workspace desktop, stacked mobile.
+- Finance summary visually separated from transaction ledger.
+- E2E Playwright: page titles/search controls, generic filter case-insensitive/reset/no-match, Work mobile single-column/touch and recorder priority, mobile Think filters no overflow, responsive relations grid, entity search by name/type/location and reset.
 - Files: `collector-v11/index.html`, `style.css`, `app.js`, `e2e/page-ux.spec.cjs`, `e2e/collector-flows.spec.cjs`.
-- Pass 1–2 în progres; nu e final. Urmează review vizual real, CRUD/detail flows, empty/loading/error states, accessibility, mobile and keyboard.
+- UI not final: next audit entity detail, CRUD forms, events/history/audit, empty/loading/error states, keyboard/accessibility, visual screenshots at viewport sizes.
 
-### CI
-- Runs pentru HEAD de la ultima verificare: quality `45598023321`, mobile `45598023327`, Cloud API `45598023317`; queued. Poll and confirm success for exact HEAD.
-- Commiturile intermediare au fost frecvent cancelate de push-uri mai noi; nu considera green până la final.
-- Ultimul HEAD pre-UI `a0cf4da` era green la toate workflow-urile.
+### CI current
+- HEAD `5e0496c`: Cloud API run `45598440436` SUCCESS; Quality `45598440331` pending; Mobile `45598440323` in_progress.
+- Confirm exact HEAD's Quality/Mobile before claiming green. Frequent intermediate workflow cancellation from push updates; batch changes before CI.
 
-### Backend / release gaps
-- OpenAI server-side, Supabase auth, RevenueCat, AI cost metering în branch, dar fără live validation.
-- Migration SQL nu a fost rulată într-un DB real; billing sandbox, webhook, deploy/secrets nevalidate.
-- Sync multi-device, backup/conflict handling, SQLite encryption at-rest, physical testing, signed AAB/IPA, privacy/GDPR/store release rămân.
-- CI artifacts debug/simulator, nu release-ready; nu cumpăra hosting până la configurația externă clară.
+### Remaining product/release gaps
+- OpenAI server-side, Supabase auth, RevenueCat, metering implemented but no live validation.
+- Real Supabase migration/RPC, billing sandbox and webhook, deploy/secrets, multi-device sync, backup/conflict handling, SQLite encryption, physical device tests, signed store builds, GDPR/privacy/store release remain.
+- CI APK/debug/simulator artifacts not release-ready; don't purchase hosting before external configuration is clear.
 
-### Continuare
-1. Verifică PR HEAD și CI, apoi fixează test failures.
-2. Continuă redesign screen-by-screen: Relations, Inventory, Finance, Attributes, Events, History, Audit și Entity details; refine forms and action flows.
-3. Adaugă tests; ține commits în batch pentru a reduce cancelarea CI.
-4. Actualizează numai această secțiune checkpoint, păstrează istoricul.
-5. Continuă autonom; nu opri la „Ok”, doar la stop explicit.
+### Continue
+1. Poll CI for HEAD; fix issues.
+2. Continue screen-by-screen redesign; audit each form and detail flow and add E2E regression.
+3. Batch commits, rerun CI.
+4. Replace only this current checkpoint section, preserve all project history.
+5. User requested autonomous continuation; don't stop unless explicit stop.
