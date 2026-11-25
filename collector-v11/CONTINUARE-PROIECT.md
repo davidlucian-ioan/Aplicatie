@@ -750,3 +750,10 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 - Test nou în `test-ai-ui-wiring.js` verifică disclosure-ul în toate entry points.
 - Commits UI: `31f48350`, `6e343a12`, `219f9482`; test: `e86fff0273e99de9045e095c59bfa81d25d29b02`.
 - Următorul audit: post-expiry Basic, trial disclosure din metadata Store/RevenueCat, restore/account recovery și P0 release readiness. External sandbox/store configuration nu este verificată și nu se afirmă.
+
+
+## Checklist actualizat și CI exact (26 nov 2026)
+
+- Refreshed `LAUNCH-READINESS-CHECKLIST.md`: latest CI results are explicitly distinguished from older successful SHA; the AI disclosure item and trial metadata/post-expiry tests are now gates.
+- Latest PR branch HEAD after documentation update: awaiting re-fetch/CI. Code HEAD with UI/test changes `e86fff0273e99de9045e095c59bfa81d25d29b02`: Cloud API + Quality Suite were in progress, Mobile Build pending at last observation.
+- Commit checklist: `efd4100333cf8fac8279215825281228814933bb`.
