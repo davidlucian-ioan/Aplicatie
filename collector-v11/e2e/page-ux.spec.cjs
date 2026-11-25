@@ -119,3 +119,16 @@ test('entity detail supports event-sourced rename and preserves new name in list
   await expect(page.locator('#entityList')).toContainText('Cronologie');
   await expect(page.locator('#entityDetailTitle')).toBeFocused();
 });
+
+test('Work is the primary capture workspace on desktop and mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/index-server.html');
+  await expect(page.locator('#assistant')).toHaveClass(/active/);
+  const order = await page.locator('#assistant > .panel').evaluateAll(els => els.map(el => getComputedStyle(el).order));
+  expect(order).toEqual(['1','2','3']);
+  const columns = await page.locator('#assistant').evaluate(el => getComputedStyle(el).gridTemplateColumns);
+  expect(columns.trim().split(/\\s+/).length).toBe(1);
+  await expect(page.locator('#audioRecordStart')).toBeVisible();
+  await expect(page.locator('#commandInput')).toBeVisible();
+  await expect(page.locator('#reminderForm')).toBeVisible();
+});
