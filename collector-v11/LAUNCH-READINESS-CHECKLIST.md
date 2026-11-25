@@ -58,7 +58,7 @@ Scop: diferențiază codul implementat, CI automat și validarea externă/fizic�
 - [ ] Nu promite captură vocală offline universală: SpeechRecognition diferă între browsere/OS și nu este garantat local.
 - [ ] Nu promite înregistrare continuă în background pe Android până la foreground service și teste de durată/Doze; iOS background mode necesită validare pe dispozitive.
 - [ ] AI interpretează și propune; Core validează; utilizatorul confirmă. Nicio comandă nu se execută fără confirmare.
-- [ ] Definește planul Free/Pro, quota și prețurile finale după testarea costurilor și comisioanelor store. Valorile din documentul de monetizare sunt estimări, nu prețuri aprobate.
+- [ ] Definește strategia trial-led: ipoteză inițială 30 zile full trial (campanii 60–90 zile se testează separat), Pro lunar/anual, fallback Basic după expirare, quota și prețuri numai după testarea costurilor/conversiei. Collection Intelligence este core; nu se vinde ca addon separat. Păstrează accesul la date/export după expirare.
 
 ## Ordine recomandată pentru lansare
 
