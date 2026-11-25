@@ -51,7 +51,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Capacitor 8 toolchain
         working-directory: collector-v11
-        run: npm run mobile:install-toolchain && ./node_modules/.bin/cap --version
+        run: npm run mobile:install-toolchain && npm run mobile:verify-toolchain && ./node_modules/.bin/cap --version
       - name: Verify app and native plugin wiring
         working-directory: collector-v11
         run: npm test
