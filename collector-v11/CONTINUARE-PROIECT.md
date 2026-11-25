@@ -416,3 +416,13 @@ Next actions:
 - CI workflow runs/status were not yet returned for this latest HEAD at the time of checkpoint; do not consider the change validated until the Quality/Mobile/Cloud checks finish.
 
 - Follow-up: the same path validator is now applied when saving native metadata, preventing an unsafe path from entering the index through `saveNative`; regression coverage was added for this input as well. Latest commit: `3a6d43532f88ed626c241a5bf0da126ca192c07a`.
+
+
+## Native playback lifecycle fix — 2026-11-25
+
+- Found a lifecycle inconsistency during Work audio audit: the normal native recording stop path attached the playback URI directly to the `<audio>` element without registering the active record ID in the shared playback helper.
+- Consequence: deleting that just-saved native recording while it was playing would not invoke the cleanup path for the active player.
+- Fixed normal native stop to call `setAudioPlayback(record.id, nativePlayableUrl)`; this centralizes detach/revoke and tracks the record ID.
+- Added static regression coverage to `test-mobile-build.js` asserting native stop uses the shared lifecycle helper.
+- Commits: `87d51d74fef769ad9fee877b4e0b034f98e6e1ee` and `ac5f66d693f28d5c9a504e8787381165eac98d6d`.
+- Await CI verdict on the latest HEAD; no merge/deploy.
