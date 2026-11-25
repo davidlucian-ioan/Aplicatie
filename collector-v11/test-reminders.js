@@ -42,4 +42,16 @@ test('anularea notificării elimină alarma doar după confirmarea pluginului',a
  assert.equal(await x.service.cancel(item.id),true);assert.deepEqual(JSON.parse(x.raw()),[]);
  assert.equal(x.calls.at(-1).type,'cancel');assert.equal(x.calls.at(-1).value.notifications[0].id,item.notificationId);
 });
-\ntest('cancel failure keeps reminder persisted',async()=>{\n const x=fixture({cancelError:'notification plugin offline'});const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});\n await assert.rejects(x.service.cancel(item.id),/notification plugin offline/);assert.equal(JSON.parse(x.raw()).length,1);\n});\n\ntest('snooze replaces the original alarm and schedules a new notification',async()=>{\n const x=fixture({random:(()=>{let n=0;return()=>0.25+n++/100})()});const item=await x.service.create({title:'Verifică sera',at:'2026-11-24T12:00:00.000Z'});const snoozed=await x.service.snooze(item.id,10);assert.notEqual(snoozed.id,item.id);assert.equal(snoozed.title,item.title);assert.equal(new Date(snoozed.at).getTime(),new Date('2026-11-24T10:10:00.000Z').getTime());assert.equal(JSON.parse(x.raw()).length,1);assert.equal(JSON.parse(x.raw())[0].id,snoozed.id);\n});\n\ntest('snooze rejects unsupported delay and leaves original alarm unchanged',async()=>{\n const x=fixture();const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});await assert.rejects(x.service.snooze(item.id,7),/Durata/);assert.equal(JSON.parse(x.raw())[0].id,item.id);\n});\n
+
+test('cancel failure keeps reminder persisted',async()=>{
+ const x=fixture({cancelError:'notification plugin offline'});const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});
+ await assert.rejects(x.service.cancel(item.id),/notification plugin offline/);assert.equal(JSON.parse(x.raw()).length,1);
+});
+
+test('snooze replaces the original alarm and schedules a new notification',async()=>{
+ const x=fixture({random:(()=>{let n=0;return()=>0.25+n++/100})()});const item=await x.service.create({title:'Verifică sera',at:'2026-11-24T12:00:00.000Z'});const snoozed=await x.service.snooze(item.id,10);assert.notEqual(snoozed.id,item.id);assert.equal(snoozed.title,item.title);assert.equal(new Date(snoozed.at).getTime(),new Date('2026-11-24T10:10:00.000Z').getTime());assert.equal(JSON.parse(x.raw()).length,1);assert.equal(JSON.parse(x.raw())[0].id,snoozed.id);
+});
+
+test('snooze rejects unsupported delay and leaves original alarm unchanged',async()=>{
+ const x=fixture();const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});await assert.rejects(x.service.snooze(item.id,7),/Durata/);assert.equal(JSON.parse(x.raw())[0].id,item.id);
+});
