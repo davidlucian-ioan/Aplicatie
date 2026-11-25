@@ -16,25 +16,16 @@ const EXPECTED=Object.freeze({
  '@capacitor/android':'8.6.2',
  '@capacitor/ios':'8.6.2'
 });
-function findPackageManifest(entry){
- let directory=path.dirname(entry);
- while(true){
-  const candidate=path.join(directory,'package.json');
-  try{const manifest=JSON.parse(fs.readFileSync(candidate,'utf8'));if(manifest.name)return {path:candidate,manifest};}catch{}
-  const parent=path.dirname(directory);
-  if(parent===directory)return null;
-  directory=parent;
- }
-}
-function verifyMobileToolchain({resolve=require.resolve,expected=EXPECTED}={}){
+function verifyMobileToolchain({root=__dirname,expected=EXPECTED}={}){
  const errors=[],actual={};
  for(const [name,version] of Object.entries(expected)){
-  let found;
-  try{found=findPackageManifest(resolve(name));}catch(error){errors.push(name+': not installed ('+error.message+')');continue}
-  if(!found){errors.push(name+': package manifest not found');continue}
-  actual[name]=found.manifest.version;
-  if(found.manifest.name!==name)errors.push(name+': resolved unexpected package '+found.manifest.name);
-  if(found.manifest.version!==version)errors.push(name+': expected '+version+', found '+found.manifest.version);
+  const manifestPath=path.join(root,'node_modules',...name.split('/'),'package.json');
+  let manifest;
+  try{manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'))}
+  catch(error){errors.push(name+': package manifest missing or unreadable ('+error.message+')');continue}
+  actual[name]=manifest.version;
+  if(manifest.name!==name)errors.push(name+': manifest name mismatch ('+manifest.name+')');
+  if(manifest.version!==version)errors.push(name+': expected '+version+', found '+manifest.version);
  }
  return {ok:errors.length===0,actual,errors};
 }
