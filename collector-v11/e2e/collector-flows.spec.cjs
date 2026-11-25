@@ -257,6 +257,36 @@ test('backup JSON valid poate fi exportat și restaurat fără datele adăugate 
   expect(restored).toHaveLength(1);
 });
 
+test('import malformed JSON și backup fără schema validă sunt respinse fără a modifica datele', async ({ page }) => {
+  await createEntity(page, 'Date locale protejate', 'generic');
+  const before = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return { events: db.events.map(event => event.id), names: db.entities.map(entity => entity.name), schemaVersion: db.schemaVersion };
+  });
+
+  await page.locator('.nav[data-page="audit"]').click();
+  const invalidFiles = [
+    { name: 'malformed.json', mimeType: 'application/json', buffer: Buffer.from('{broken-json') },
+    { name: 'missing-schema.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ entities: [{ id: 'injected', name: 'Injected' }], events: [] })) }
+  ];
+  const errors = [];
+  for (const file of invalidFiles) {
+    const dialogPromise = page.waitForEvent('dialog');
+    await page.locator('#importFile').setInputFiles(file);
+    const dialog = await dialogPromise;
+    errors.push(dialog.message());
+    await dialog.accept();
+  }
+  expect(errors).toHaveLength(2);
+  expect(errors.every(message => message.includes('Import eșuat'))).toBe(true);
+
+  const after = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return { events: db.events.map(event => event.id), names: db.entities.map(entity => entity.name), schemaVersion: db.schemaVersion };
+  });
+  expect(after).toEqual(before);
+});
+
 test('numele cu markup HTML sunt afișate ca text și nu execută scripturi', async ({ page }) => {
   await page.evaluate(() => { window.__collectorXssExecuted = false; });
   const maliciousName = '<img src=x onerror="window.__collectorXssExecuted=true">';
