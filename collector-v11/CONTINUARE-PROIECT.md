@@ -344,3 +344,15 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - Duratele sunt allowlist 5/10/30/60 minute în service (UI expune 10 și 60); duratele invalide sunt respinse.
 - Teste unitare pentru înlocuirea alarmelor și respingerea delay-ului invalid. Fixture-ul folosește ID-uri deterministe unice pentru a evita coliziunile.
 - HEAD curent: 1eecbaa7027d0c97cc35be26aac64496553e783f. Android build era in progress, Quality suite pending; iOS jobul unei rulari a fost anulat de push ulterior. Nu se marchează CI verde până la verdictul pe HEAD final.
+
+
+## Batch Work — integrity audit, draft/preview and voice UX (2026-11-25)
+
+- Audit post-implementation found accidental literal escaped newlines in several files introduced by earlier patch batches; repaired actual syntax in audio-store API, reminders snooze function, and appended tests. Also corrected whitespace regex in E2E responsive tests.
+- Work text edits now invalidate any pending Core preview, preventing confirmation of a stale interpretation after the command changes.
+- Voice session interim text, final transcript, and one-shot dictation dispatch the input event so local draft autosave receives voice-captured text too.
+- Added E2E coverage for autosaving text injected by voice capture.
+- Reminder snooze tests were repaired to normal source newlines and now exercise deterministic IDs.
+- CI is running on current HEAD f79b96912c9a50db74d58c5138ac75c819a44080; no pass/fail verdict yet. Wait for Quality and Android/iOS mobile build. Cloud API workflow may not be triggered by every frontend commit; monitor run availability.
+- Current HEAD: f79b96912c9a50db74d58c5138ac75c819a44080. Branch feature/openai-provider-integration, draft PR #55. No merge.
+- Next: inspect CI logs/results; fix failures. Continue Work-focused tasks: recorder recovery and recording-list UX; then reminder consistency; keep Think deferred.
