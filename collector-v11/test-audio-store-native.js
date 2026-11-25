@@ -150,6 +150,12 @@ test('audio backup exports file contents and imports only new recordings',async(
  assert.equal((await second.store.list()).length,1,'duplicate ID must not overwrite');
 });
 
+test('audio backup import rejects malformed records rather than silently skipping them',async()=>{
+ const x=fixture();await x.store.initialize();
+ await assert.rejects(x.store.importBackup({format:'collector-audio-backup.v1',recordings:[{data:'YQ==',durationMs:1,mimeType:'audio/aac'}]}),/element invalid/);
+ assert.equal(x.files.size,0);
+});
+
 test('audio backup import rejects malformed base64 and rolls back written files when index commit fails',async()=>{
  const x=fixture({failIndexWrite:true});await x.store.initialize();
  const malformed={format:'collector-audio-backup.v1',recordings:[{id:'bad',durationMs:1,mimeType:'audio/aac',data:'!invalid!'}]};
