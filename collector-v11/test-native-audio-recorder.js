@@ -89,7 +89,7 @@ test('recovery prefers an already copied app-private audio file after metadata f
  x.files.set(session.filePath,Buffer.from('saved-audio'));
  const stopCallsBefore=x.calls.filter(call=>call[0]==='stopRecording').length;
  const result=await NativeRecorder.stop();
- assert.equal(result.filePath,session.filePath);assert.equal(result.size,12);
+ assert.equal(result.filePath,session.filePath);assert.equal(result.size,11);
  assert.equal(x.calls.filter(call=>call[0]==='stopRecording').length,stopCallsBefore);
  assert.equal(x.files.has(session.filePath),true);
  await NativeRecorder.complete(result.id);
