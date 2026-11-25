@@ -160,5 +160,8 @@ test('audio playback is detached before deleting the currently playing recording
  assert.ok(app.includes('audioObjectUrl=ownedObjectUrl'));
  assert.ok(app.includes('setAudioPlayback(record.id,objectUrl,objectUrl)'),'blob playback must retain ownership of its object URL');
  assert.ok(app.includes('audioPlaybackRecordId=recordId'));
+ const nativeStop=app.slice(app.indexOf('async function stopAudioRecording()'),app.indexOf('async function playAudioRecording('));
+ assert.ok(nativeStop.includes('setAudioPlayback(record.id,window.CollectorNativeAudioRecorder.toPlayableUrl(record.uri))'),'native stop must register playback ownership so deleting the active recording cleans the player');
+
  assert.ok(app.includes('clearAudioPlayback()'),'local data erasure must stop and release the active player');
 });
