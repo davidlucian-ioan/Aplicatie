@@ -44,7 +44,7 @@ Scop: diferențiază codul implementat, CI automat și validarea externă/fizic�
 
 - [ ] Build Android AAB semnat cu keystore și Play App Signing; nu publica APK debug.
 - [ ] Build iOS Archive/IPA semnat, certificates/profiles și App Store Connect/TestFlight; build-ul simulator nu este distribuibil.
-- [ ] Reproductibilitate: `mobile:install-toolchain` pin-uiește versiunile directe, dar folosește `npm install --no-save --no-package-lock`; dependențele native și tranzitive nu sunt fixate integral în package-lock. Migrează toolchain-ul în manifest/lockfile și validează cu `npm ci` într-un mediu curat.
+- [ ] Reproductibilitate: `mobile:install-toolchain` pin-uiește versiunile directe și `mobile:verify-toolchain` le verifică în Android/iOS CI, dar scriptul încă folosește `npm install --no-save --no-package-lock`; dependențele tranzitive nu sunt fixate integral. Migrează toolchain-ul în lockfile și validează cu `npm ci` într-un mediu curat.
 - [ ] Verifică bundle-ul final: fără .env, service-role key, OpenAI API key, server local, teste, rapoarte sau documente interne.
 - [ ] Verifică bundle-ul final și App Privacy / Google Play Data safety pe baza fluxurilor reale: Supabase Auth, OpenAI text/context, RevenueCat/store metadata, audio local și speech recognition oferit de browser/OS.
 - [ ] Publică URL-uri funcționale pentru Privacy Policy, Terms, Support și Account Deletion (unde este cerut).
@@ -87,3 +87,9 @@ See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. Th
 - [x] Playwright regression: malformed JSON and backup missing valid Collector schema are rejected without changing existing local data — test authored; CI validation pending (26 Nov 2026).
 
 - [x] JSON export now labels format and explicitly discloses `audioIncluded: false`; Audit UI warns recordings are not transferred by JSON export/import. Audio export/restore remains a separate launch/product gap (test authored; CI pending).
+
+- [x] Native audio index fail-closed validation (safe managed paths, unique IDs, metadata validity) + regression tests authored; CI pending.
+- [x] Audio clear-all validates the complete index before deleting any files; unsafe-path regression authored; CI pending.
+- [x] SQLite recovery snapshot rejects duplicate/empty keys and preserves malformed backup; regression authored; CI pending.
+- [x] Transactional recovery rollback regression: injected restore failure must restore previous KV rows and retain recovery backup; CI pending.
+- [x] Native toolchain direct-version verification wired into both Android and iOS CI; test covers missing/mismatched package; CI pending. Full transitive lock remains open.
