@@ -231,6 +231,7 @@ test('full local-data erasure clears journal, Work draft, reminder metadata and 
       mimeType: 'audio/webm', blob: new Blob(['saved audio'], { type: 'audio/webm' })
     });
   });
+  await page.locator('.nav[data-page="audit"]').click();
   page.on('dialog', dialog => dialog.accept());
   await page.locator('#clearLocalData').click();
   await expect(page.locator('#localDataClearStatus')).toContainText('Datele locale au fost șterse');
