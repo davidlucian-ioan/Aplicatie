@@ -76,3 +76,27 @@ test('failed legacy metadata commit cleans destination but preserves the legacy 
  assert.equal(x.legacy().length,1);
  assert.deepEqual(x.removed,[]);
 });
+
+test('native audio adapter preserves web recorder recovery when native plugin is unavailable',async()=>{
+ const calls=[];
+ const legacyStore={
+  async initialize(){},
+  async list(){return []},
+  async get(){return null},
+  async remove(){return true},
+  async beginSession(session){calls.push(['begin',session.id]);return session},
+  async appendSessionChunk(id,chunk,durationMs){calls.push(['chunk',id,chunk.size,durationMs]);return true},
+  async listInterruptedSessions(){calls.push(['list']);return [{id:'web-session',chunkCount:1}]},
+  async recoverSession(id){calls.push(['recover',id]);return {id,blob:new Blob(['partial'])}},
+  async removeSession(id){calls.push(['remove-session',id]);return true}
+ };
+ const storage={async readRaw(){return null},async writeRaw(){}};
+ const store=createNativeStore({filesystem:{async mkdir(){}},storage,legacyStore});
+ await store.initialize();
+ await store.beginSession({id:'web-session',mimeType:'audio/webm'});
+ await store.appendSessionChunk('web-session',new Blob(['part']),250);
+ assert.equal((await store.listInterruptedSessions()).length,1);
+ assert.equal((await store.recoverSession('web-session')).id,'web-session');
+ assert.equal(await store.removeSession('web-session'),true);
+ assert.deepEqual(calls.map(call=>call[0]),['begin','chunk','list','recover','remove-session']);
+});
