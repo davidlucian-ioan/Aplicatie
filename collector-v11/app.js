@@ -549,7 +549,7 @@ async function stopAudioRecording(){
   return;
  }
  setAudioUi('saving','Oprire și salvare locală…');await releaseAudioWakeLock();
- try{audioRecorder.stop()}catch(error){stopAudioTracks();audioRecorder=null;setAudioUi('idle','Nu am putut opri înregistrarea: '+error.message)}
+ try{audioRecorder.stop()}catch(error){stopAudioTracks();audioRecorder=null;const recoverable=await CollectorAudioStore.listInterruptedSessions().catch(()=>[]),recoverButton=document.getElementById('audioRecoverPending');if(recoverButton)recoverButton.hidden=!recoverable.length;setAudioUi('idle','Nu am putut opri înregistrarea: '+error.message+(recoverable.length?' Fragmentele capturate pot fi recuperate.':''))}
 }
 async function playAudioRecording(recordId){
  try{
