@@ -650,3 +650,14 @@ Checkpoint-ul trebuie actualizat după progres semnificativ și înainte de limi
 - Monetizare recomandată de testat: Free core + Pro convenience/advanced analytics/sync once built + optional AI credits only if unit economics require; Collection Packs later. No final prices before usage/cost testing.
 - Competitor review done: iCollect Everything, Libib, Sortly, Notion/Airtable, Kolekto. Their baseline means generic catalog/custom fields/AI lookup are not enough; Collector's capture UX, local-first trust, universal templates, history/relationships and grounded AI must be distinctive.
 - Next task: continue P0 implementation, starting toolchain reproducibility; separately design/prepare beta discovery interviews and UX acceptance tasks. No merge/deploy/publish without explicit approval.
+
+
+## Product clarification from user — Collection Intelligence is standard/core
+
+- Collection Intelligence is **not an add-on**. It is a core promise: Collector is an intelligent recorder + app-wide memory of what the user captured, said, changed, created and confirmed, retrievable later.
+- Memory scope includes recordings/transcripts/summaries, collection/item changes, notes, reminders, decisions, confirmed AI actions and activity history, with source provenance.
+- Proposed architecture discovery: append-only Activity/Event Ledger + derived Knowledge/Memory Index + temporal/source-grounded retrieval. Do not duplicate Core state; references to authoritative records and source IDs. Distinguish user-confirmed facts, direct user statements, inferred suggestions and system events.
+- Recall answers must cite in-app source records/time/audio segments; show evidence and jump-to-source; if evidence is missing, state uncertainty. User controls review/correction/pin/exclude/delete/export; deletion propagates to derived index.
+- Basic searchable memory/history is standard for all tiers; AI processing may have transparent usage limits, but don't paywall basic recall.
+- Examples: “What did I do with this collection this month?”, “When did I move this item?”, “What did I say last time?”, “What reminders did I create?”, “Summarize everything about X with source moments.”
+- Strategy document updated to reflect this. Next: inspect current event/data structures and design canonical memory ledger/retrieval without altering D-001–D-044 before impact review.
