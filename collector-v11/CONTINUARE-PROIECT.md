@@ -220,32 +220,37 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
-## CHECKPOINT CURENT — 2026-11-25 (UX: Work states and modal ergonomics)
+## CHECKPOINT CURENT — 2026-11-25 (UI/UX redesign, etapa 1–2)
 
-### Git
-- Repo `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`, PR #55 open/draft. No merge, main untouched.
-- Current branch HEAD (verified PR #55): `92128c15ee646f8b88b285e286e84472156cfb0b`.
+### Repository / safety
+- Repo: `davidlucian-ioan/Aplicatie`; branch `feature/openai-provider-integration`.
+- PR #55 open/draft către `main`; nu merge, nu mark Ready și nu modifica main fără aprobare explicită.
+- HEAD verificat înainte de salvare: `ef3a36342d83eaef19da98e296b1f084f8c23ac5` (verifică din nou la reluare, branch poate avansa).
 
-### UX implementation
-- Responsive styles, visual hierarchy, dedicated Work/Think composition and Think overview title.
-- Work desktop split reminder/recorder, command full-width; mobile prioritized recorder/reminders/commands.
-- Think metrics/quick actions/recent events.
-- Page headers/subtitles and live case-insensitive filters for relations+locations, stock, finance, attributes, events, audit; entity search and history filters retained. Filter no-results feedback and clear restore.
-- Added Playwright `e2e/page-ux.spec.cjs`: headings, filters, no-results/restore and mobile Work layout.
-- Data-list/mobile ergonomics: stacked row layout, action buttons, badges, empty states, entity-detail header.
-- Recording state visual indicator/pulse, respects reduced motion.
-- Modal form UX: sticky reachable actions, touch-size buttons, label/input spacing and focus styles, mobile two-column actions.
-- Recent commits: `2a64d70`, `8892851`, `62e3eec`, `05b78f5`, `7926e70`, `d2c030a`, `ffbf4d1`, `3dd7409`, `4c58713`, `3ea0ce9`, `92128c1` (entity search result count test fix).
-- UX is not final; continue audits and tests.
+### UI/UX implementat
+- CSS redesign: spacing, typography, panel/card/button/form styles, responsive, focus/hover, sidebar/drawer.
+- Work/Think layout-uri dedicate. Work desktop: reminders + recorder în coloane și command flow full-width; mobile prioritizes recorder, reminders, command. Header global record button rămâne accesibil.
+- Think dashboard: metric cards, quick actions, activity section.
+- Page intros/titluri/subtitluri și list filters pe Relations, Locations, Inventory, Finance, Attributes, Events, Audit; feedback la filtre și empty states.
+- Entități: live search după nume, tip, locație și nume de atribute; counter rezultate și empty state distinct; reset filtrului.
+- Teste Playwright adăugate pentru page headings/search controls, filter case-insensitivity/reset, Work mobile single-column/touch, mobile Think filter overflow și recorder-first order, entity search după nume/tip/locație.
+- Files: `collector-v11/index.html`, `style.css`, `app.js`, `e2e/page-ux.spec.cjs`, `e2e/collector-flows.spec.cjs`.
+- Pass 1–2 în progres; nu e final. Urmează review vizual real, CRUD/detail flows, empty/loading/error states, accessibility, mobile and keyboard.
 
 ### CI
-- Current HEAD `92128c1`: Quality `45597890613` in progress, Cloud API `45597897848` in progress, Mobile `45597897808` pending at last poll. Older runs cancelled due pushes. Cloud API had success on prior UI HEAD `4c58713` run `45597761035`.
-- Prior workflow runs cancelled due ongoing pushes. Wait for exact HEAD runs and confirm final.
-- Pre-UX `a0cf4da` all workflows green.
+- Runs pentru HEAD de la ultima verificare: quality `45598023321`, mobile `45598023327`, Cloud API `45598023317`; queued. Poll and confirm success for exact HEAD.
+- Commiturile intermediare au fost frecvent cancelate de push-uri mai noi; nu considera green până la final.
+- Ultimul HEAD pre-UI `a0cf4da` era green la toate workflow-urile.
 
-### Remaining
-- Detailed page redesign: entities list/detail, relations/location, inventory, finance, attributes, events, history, audit.
-- Validate all form flows, empty/loading/error states, responsive and accessibility; run Playwright/quality/mobile and fix failures.
-- Save checkpoints by replacing only current section, preserve prior history; continue autonomously until explicit stop.
-- Live backend gaps: Supabase/RevenueCat live validations, migration real DB, sandbox purchase/restore/webhooks, deploy/secrets, multi-device sync/backup/conflicts, encryption at rest, device tests, signed releases, GDPR/store.
-- Do not advise hosting purchase until configuration requirements are known.
+### Backend / release gaps
+- OpenAI server-side, Supabase auth, RevenueCat, AI cost metering în branch, dar fără live validation.
+- Migration SQL nu a fost rulată într-un DB real; billing sandbox, webhook, deploy/secrets nevalidate.
+- Sync multi-device, backup/conflict handling, SQLite encryption at-rest, physical testing, signed AAB/IPA, privacy/GDPR/store release rămân.
+- CI artifacts debug/simulator, nu release-ready; nu cumpăra hosting până la configurația externă clară.
+
+### Continuare
+1. Verifică PR HEAD și CI, apoi fixează test failures.
+2. Continuă redesign screen-by-screen: Relations, Inventory, Finance, Attributes, Events, History, Audit și Entity details; refine forms and action flows.
+3. Adaugă tests; ține commits în batch pentru a reduce cancelarea CI.
+4. Actualizează numai această secțiune checkpoint, păstrează istoricul.
+5. Continuă autonom; nu opri la „Ok”, doar la stop explicit.
