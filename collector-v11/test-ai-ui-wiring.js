@@ -34,7 +34,11 @@ test('Work draft controls and quick templates exist in every UI entry point',()=
  const app=fs.readFileSync('app.js','utf8');
  const clearHandler=app.indexOf("clear?.addEventListener('click',async()=>{");
  assert.ok(clearHandler>=0);
- assert.ok(app.indexOf('++writeVersion;',clearHandler)<app.indexOf('if(!input.value.trim())',clearHandler),'clear invalidates pending draft restore before the empty-input branch');
+ const clearSection=app.slice(clearHandler,app.indexOf("input.addEventListener('input'",clearHandler));
+ const invalidate=clearSection.indexOf('const version=++writeVersion;');
+ const emptyBranch=clearSection.indexOf('if(!input.value.trim())');
+ assert.ok(invalidate>=0&&invalidate<emptyBranch,'clear invalidates pending draft restore before the empty-input branch');
+ assert.ok(clearSection.includes("await enqueueDraftWrite('',version)"),'clear must serialize removal after pending autosaves');
 });
 test('UI expune providerul OpenAI separat de interpretarea locală',()=>{
  const html=fs.readFileSync('index-server.html','utf8');
