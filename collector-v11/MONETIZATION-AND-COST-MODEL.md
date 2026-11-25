@@ -88,24 +88,35 @@ Măsuri recomandate:
 8. Spend caps și alerte: plafon de cheltuieli OpenAI, alerte la 50/75/90%, buget per utilizator și oprire controlată a AI la depășire; funcțiile Core rămân disponibile.
 9. Nu economisim prin eliminarea securității: nu expunem cheia OpenAI, nu renunțăm la validarea Core, confirmarea utilizatorului, backup-urile necesare sau izolarea datelor.
 
-## 5. Model comercial propus pentru discuție
+## 5. Model comercial — trial-led subscription (strategie nouă, ipoteză)
 
-### Collector Free
-- Work și Think de bază.
-- Core local, SQLite, înregistrări audio locale și notificări locale.
-- Datele locale rămân accesibile fără abonament și fără internet.
-- Fără AI cloud inclus sau doar o mostră mică, controlată.
-- Export local disponibil; nu blocăm exportul datelor utilizatorului.
+### Trial
+- Trial full-featured inițial de **30 zile**; campanii 60–90 zile pentru early adopters pot fi experimentate separat, nu default.
+- Trial-ul trebuie să arate valoarea produsului complet: Work capture, Collection Intelligence și recall, AI, reminders, istoric, insights și organizarea colecției, în limite transparente de fair-use/cost.
+- Onboarding-ul trebuie să ducă utilizatorul la obiceiuri reale: prima colecție, 3 item-uri, o captură vocală și un recall reușit. Acestea sunt ipoteze de activare ce trebuie măsurate.
 
-### Collector Pro
-- AI inclus într-un plafon lunar măsurat în tokeni/cost, afișat utilizatorului ca un număr simplu de solicitări orientative.
-- Cloud backup/sync după ce acestea sunt implementate și testate.
-- Funcții Think avansate și funcții premium viitoare.
-- Quota inițială de test recomandată: echivalentul a 25–50 interpretări standard/lună; nu este o promisiune finală și trebuie recalibrată după usage real.
-- Oferim avertizare la 80% și 100%; la atingerea plafonului, AI se oprește până la resetare sau upgrade, dar Work/Think local continuă.
+### După expirare
+- Datele, înregistrările și colecțiile rămân ale utilizatorului; accesul și exportul nu se blochează.
+- Un fallback Basic limitat poate permite acces local și management simplu al colecției. Limitele exacte trebuie definite după auditul entitlement/UI.
+- Funcțiile premium/cost-intensive (procesare AI avansată, insights premium, capacități cloud/convenience când sunt implementate) pot necesita subscription. **Collection Intelligence este core și nu se vinde ca addon separat**; nu paywall basic history/data access.
+- Trial expiry nu trebuie să folosească dark patterns, nagging agresiv sau să inducă frica de pierdere a datelor. Mesajul trebuie să arate valoarea folosită și ce se schimbă.
 
-Preț de testat în cercetarea de piață: 4,99 EUR/lună și 39,99 EUR/an. Nu este preț aprobat. Trebuie validat după TVA, comisioane, costuri reale și feedback de utilizatori.
+### Abonament
+- Ipoteză: un singur Collector Pro principal, cu lunar și anual discountat; fără tier-uri multiple inutile.
+- AI allowance, fair-use, quota, spend caps și cost/usage visibility sunt obligatorii pentru protejarea marjei.
+- Credite AI separate se iau în calcul numai dacă usage economics le justifică.
+- Prețurile 4,99 EUR/lună și 39,99 EUR/an din versiunea precedentă rămân **neaprobate**; revalidare după costuri, comisioane store, conversie, retention și willingness-to-pay.
 
+### KPI trial și conversie
+- Trial activation: collection + 3 items, voice capture, primul recall cu rezultat relevant.
+- Active days/weeks, capture count, recall usage și successful source-grounded retrieval.
+- Trial-to-paid conversion segmentată după comportament; monthly-to-annual, churn la 1/3/6 luni, refunds, AI cost/trial și per paid user, gross margin.
+- Instrumentare cu disclosure/consent și privacy minimization.
+
+### Billing implementation impact
+- Verifică trial entitlement store/server authority, expirare, renewal, cancellation-but-active, grace/billing issue, refund, restore și account recovery.
+- Sandbox matrix trebuie să includă explicit trial start/expiry, conversion, cancellation during trial, opt-out, renewal, refund și restore.
+- Nu activa produse live sau billing public înainte de configurare externă și sandbox validation.
 ## 6. Billing și corelarea tehnică
 
 **Stare în cod:** backend-ul și clientul mobil pentru RevenueCat sunt implementate în branch, dar nu sunt conectate încă la conturi reale și nu au fost validate cu tranzacții sandbox.
