@@ -2,9 +2,9 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createService}=require('./reminders');
-function fixture({permission='granted',scheduleError=null,cancelError=null,random=Math.random}={}){
- let raw=null;const calls=[];
- const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');raw=value}};
+function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,random=Math.random}={}){
+ let raw=null,writeCount=0;const calls=[];
+ const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');writeCount++;if(writeCount===failStorageWriteAt)throw new Error('storage write failed');raw=value}};
  const plugin={
   async checkPermissions(){return {display:permission}},
   async requestPermissions(){return {display:permission}},
@@ -54,4 +54,13 @@ test('snooze replaces the original alarm and schedules a new notification',async
 
 test('snooze rejects unsupported delay and leaves original alarm unchanged',async()=>{
  const x=fixture();const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});await assert.rejects(x.service.snooze(item.id,7),/Durata/);assert.equal(JSON.parse(x.raw())[0].id,item.id);
+});
+
+test('cancel rolls back native notification when local metadata write fails',async()=>{
+ const x=fixture({failStorageWriteAt:2});
+ const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});
+ await assert.rejects(x.service.cancel(item.id),/Anularea a fost rollback-uită/);
+ assert.equal(JSON.parse(x.raw()).length,1);
+ assert.equal(x.calls.at(-1).type,'schedule');
+ assert.equal(x.calls.at(-1).value.notifications[0].id,item.notificationId);
 });
