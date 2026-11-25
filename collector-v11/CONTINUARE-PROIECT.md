@@ -284,3 +284,21 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 3. Link inventory locations and other entity references where useful.
 4. Continue full form validation and CRUD accessibility audit.
 5. External Supabase/RevenueCat deployment/sandbox testing remains a release blocker; do not claim live validation.
+
+
+## CHECKPOINT CURENT — 2026-11-25 (WORK-FIRST)
+- User priority confirmed: **Work is the main product experience; Think is deferred for later design discussion.** No further Think/dashboard feature work should be prioritized until the Work experience is mature.
+- Work layout changed to a single-column, focused flow on desktop and mobile, max-width constrained for readability.
+- Order is now consistent across screen sizes: 1) recorder/capture, 2) transcription + interpretation/command, 3) reminders.
+- Recorder panel visually emphasized, primary record button larger, timer tabular and clearly separated; command textarea larger and mobile buttons have touch-friendly minimum height.
+- E2E added to verify Work is active by default, single-column on desktop, and correct panel order/availability.
+- Commit `f22a60e` Work-first CSS; `5848df9` E2E for desktop Work-first.
+- Latest CI at checkpoint pending new run after these commits. Previous checkpoint `56960fa`: Cloud API success, Mobile build success, Quality E2E still running.
+- Navigation batch from prior checkpoint remains: relations, locations, inventory population, finance entity links; keyboard focus after rename/open.
+- Continue only on Work-focused product improvements; Think remains parked. PR #55 draft/open, branch `feature/openai-provider-integration`, main untouched.
+### Work roadmap next
+1. Make quick capture interactions faster: clear, save draft/continue, sensible command examples, explicit review before commit.
+2. Improve recording list/playback and recording-to-transcription flow; keep audio local unless user explicitly chooses processing.
+3. Reminder creation/list states, editing, snooze/done/cancel and notification permission UX.
+4. AI interpretation UX: loading, errors, proposed operations, editable review, confirmation, cancellation, clear costs/Pro state.
+5. Mobile touch/accessibility and E2E; no Think redesign yet.
