@@ -215,6 +215,9 @@ test('Collector Basic fără entitlement păstrează funcțiile locale și expor
   expect(backup.db.entities.map(e => e.name)).toContain('Entitate Basic păstrată');
   expect(backup.db.events.length).toBeGreaterThan(0);
   expect(backup.db.schemaVersion).toBe(7);
+  expect(backup.format).toBe('collector-backup.v1');
+  expect(backup.audioIncluded).toBe(false);
+  expect(backup.audioNote).toContain('nu sunt incluse');
 });
 
 test('backup JSON valid poate fi exportat și restaurat fără datele adăugate ulterior', async ({ page }) => {
@@ -228,6 +231,8 @@ test('backup JSON valid poate fi exportat și restaurat fără datele adăugate 
   const backupPath = await download.path();
   expect(backupPath).toBeTruthy();
   const backupBuffer = await require('node:fs/promises').readFile(backupPath);
+  const exportedBackup = JSON.parse(backupBuffer.toString('utf8'));
+  expect(exportedBackup.audioIncluded).toBe(false);
 
   await createEntity(page, 'Entitate adăugată după backup', 'plant');
   const currentCount = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.length);
