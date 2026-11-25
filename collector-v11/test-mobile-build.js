@@ -127,6 +127,26 @@ test('mobile toolchain verifier matches installer pins and runs in Android and i
  assert.equal((workflow.match(/npm run mobile:verify-toolchain/g)||[]).length,2,'Android and iOS CI must verify the toolchain');
 });
 
+test('toolchain verifier detects missing and mismatched package versions',async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'collector-toolchain-'));
+ try{
+  const {EXPECTED,verifyMobileToolchain}=require('./verify-mobile-toolchain');
+  for(const [name,version] of Object.entries(EXPECTED)){
+   const packageDir=path.join(root,'node_modules',...name.split('/'));
+   await fs.mkdir(packageDir,{recursive:true});
+   await fs.writeFile(path.join(packageDir,'package.json'),JSON.stringify({name,version}));
+  }
+  assert.deepEqual(verifyMobileToolchain({root}),{ok:true,actual:EXPECTED,errors:[]});
+  const mismatchPath=path.join(root,'node_modules','@capacitor','core','package.json');
+  await fs.writeFile(mismatchPath,JSON.stringify({name:'@capacitor/core',version:'0.0.0'}));
+  const mismatch=verifyMobileToolchain({root});
+  assert.equal(mismatch.ok,false);assert.ok(mismatch.errors.some(error=>error.includes('expected 8.6.2, found 0.0.0')));
+  await fs.unlink(mismatchPath);
+  const missing=verifyMobileToolchain({root});
+  assert.equal(missing.ok,false);assert.ok(missing.errors.some(error=>error.includes('@capacitor/core: package manifest missing')));
+ }finally{await fs.rm(root,{recursive:true,force:true})}
+});
+
 test('Android CI retries only transient Maven throttling and limits Gradle workers',async()=>{
  const workflow=await fs.readFile(path.join(__dirname,'..','.github','workflows','collector-mobile-build.yml'),'utf8');
  const start=workflow.indexOf('name: Build Android debug APK (retry transient Maven throttling)');
