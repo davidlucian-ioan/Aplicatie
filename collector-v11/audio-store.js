@@ -99,6 +99,7 @@
   },
  };
  function safeFileName(id){return String(id).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,100)||'audio'}
+ function isSafeAudioFilePath(path){return typeof path==='string'&&/^collector-audio\/[A-Za-z0-9_-]+\.(?:aac|webm)$/i.test(path)}
  async function blobToBase64(blob){
   const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';
   for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));
@@ -177,6 +178,7 @@
     await initialize();
     const rows=await readIndex(),row=rows.find(item=>item.id===id);
     if(!row)return legacyStore.remove(id);
+    if(!isSafeAudioFilePath(row.filePath))throw new Error('Calea înregistrării audio este invalidă; fișierul a fost păstrat.');
     try{await filesystem.deleteFile({path:row.filePath,directory:'DATA'})}catch(error){if(!/not.?found|does not exist|no such file/i.test(String(error?.message||error)))throw error}
     await writeIndex(rows.filter(item=>item.id!==id));return true;
    },
