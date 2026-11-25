@@ -681,6 +681,7 @@ async function initializeCollectorApp(){
  try{
   await storageAdapter.initialize();
   db=await loadDb();
+  if(!integrityBlocked&&typeof storageAdapter.completeEncryptionMigration==='function')storageAdapter.completeEncryptionMigration();
   try{
    await window.CollectorAudioStore?.initialize({capacitor:window.Capacitor,filesystem:window.Capacitor?.Plugins?.Filesystem,storage:storageAdapter});
    audioStorageReady=true;
