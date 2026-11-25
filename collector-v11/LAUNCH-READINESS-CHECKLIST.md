@@ -1,13 +1,13 @@
 # Collector — checklist de pregătire pentru lansare
 
-Ultima verificare: 25 noiembrie 2026 (CI verde + test de secret-scanning în bundle)
+Ultima verificare: 26 noiembrie 2026 (audit de billing/trial și disclosure AI; CI pentru HEAD curent încă în curs)
 Branch de lucru: feature/openai-provider-integration · PR #55 (draft)
 
 Scop: diferențiază codul implementat, CI automat și validarea externă/fizică. Un build verde nu înseamnă aprobarea pentru publicare.
 
 ## Starea actuală
 
-**CI pe HEAD `aa2b368361d0e953a55dd8af08f0ff2553ad3e63`: Quality Suite SUCCESS (`45702294884`), Cloud API SUCCESS (`45702295443`), Android debug APK + iOS Simulator SUCCESS (`45702294870`). Test nou: verifică distributabilul mobil pentru chei OpenAI, Supabase service-role, secret webhook și pattern-uri de secrete. Run-urile cancelate de concurrency nu sunt eșecuri. Acest SHA este validat automat; nu reprezintă testare pe dispozitive fizice sau release semnat.
+**CI pentru HEAD curent `6bacacc65220d9b50d3bb603405deb91587bd697` nu a pornit/nu are runuri raportate la ultima verificare; modificările de UI disclosure și testele asociate sunt pe HEAD `e86fff0273e99de9045e095c59bfa81d25d29b02`, unde Cloud API și Quality Suite erau `in_progress`, iar Mobile Build `pending`. Un SHA anterior (`aa2b368...`) a avut Quality Suite, Cloud API și Mobile Build SUCCESS, inclusiv test de secret-scanning în bundle. Aceste rezultate nu validează commiturile mai noi. Run-urile cancelate de concurrency nu sunt eșecuri. CI nu reprezintă testare pe dispozitive fizice sau release semnat.
 
 | Domeniu | Stare verificată | Gate pentru lansare |
 |---|---|---|
@@ -72,3 +72,11 @@ Scop: diferențiază codul implementat, CI automat și validarea externă/fizic�
 
 ## SQLite encryption technical gate
 See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. The plugin supports encryption, but configuration remains disabled until crash-safe migration, secure-key lifecycle, Core replay verification, and physical-device tests are complete. Do not simply enable the flags: that could make existing plaintext user data inaccessible.
+
+## Update 26 nov 2026 — AI transparency + trial
+
+- [x] UI disclose înainte de AI că audio original rămâne local, iar text/context limitat este transmis serverului/providerului; jurnalul complet și audio nu sunt trimise.
+- [x] Disclosure prezent în toate cele trei entry points și regression test adăugat.
+- [ ] CI complet verde pe HEAD după modificările de disclosure.
+- [ ] Trial metadata disclosure (durată, eligibilitate, preț ulterior, auto-renew) bazat pe metadata Store/RevenueCat reală; copy nu trebuie inventat.
+- [ ] Post-expiry Basic behavior testat manual și automat, inclusiv acces la date/export.
