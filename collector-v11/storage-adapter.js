@@ -58,8 +58,14 @@
   let queue=Promise.resolve(),initialization=null;
   const legacy=legacyStorage;
   const connection={database,readonly:false};
+  let encryptionState=null;
   async function initialize(){
    if(!initialization)initialization=(async()=>{
+    if(requireEncryption){
+     if(!encryptionBootstrap||typeof encryptionBootstrap.prepareSQLiteEncryption!=='function')throw new Error('Encryption bootstrap missing; refusing plaintext SQLite.');
+     if(typeof sqlite.isInConfigEncryption==='function'&&(await sqlite.isInConfigEncryption()).result!==true)throw new Error('Native SQLite encryption is disabled in Capacitor config; refusing database access.');
+     encryptionState=await encryptionBootstrap.prepareSQLiteEncryption({sqlite,database});
+    }
     if(typeof sqlite.isConnection==='function'){
      const state=await sqlite.isConnection(connection);
      if(!state?.result)await sqlite.createConnection({database,encrypted:encryptionState?.encrypted===true,mode:encryptionState?.mode||'no-encryption',version:1,readonly:false});
@@ -71,6 +77,10 @@
      if(!openState?.result)await sqlite.open(connection);
     }else await sqlite.open(connection);
     await sqlite.execute({database,statements:'CREATE TABLE IF NOT EXISTS '+TABLE+' (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)'});
+    if(requireEncryption){
+     const encrypted=(await sqlite.isDatabaseEncrypted({database})).result;
+     if(encrypted!==true)throw new Error('SQLite encryption verification failed after opening; database access blocked.');
+    }
     return true;
    })().catch(error=>{initialization=null;throw error});
    return initialization;
@@ -82,6 +92,7 @@
   }
   return Object.freeze({
    initialize,
+   getEncryptionState(){return encryptionState;},
    async readRaw(key){
     await initialize();
     const result=await sqlite.query({database,statement:'SELECT value FROM '+TABLE+' WHERE key = ?',values:[String(key)],readonly:false});
