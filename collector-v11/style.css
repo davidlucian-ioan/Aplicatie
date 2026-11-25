@@ -237,3 +237,31 @@ header p{color:#687487;font-size:13px}
 .entity-search-wrap{flex:1;min-width:180px}
 .entity-search-wrap input{min-height:44px;border:1px solid #d9e1eb;border-radius:11px;padding:10px 13px}
 @media(max-width:640px){.page-intro{margin:2px 0 15px}.page-intro h2{font-size:22px}.page-filters{grid-template-columns:1fr}.entity-tools{display:grid;grid-template-columns:1fr}.entity-search-wrap{min-width:0}.page-intro .primary{white-space:nowrap}}
+
+
+/* Data-page ergonomics */
+.page .empty{padding:20px 16px;border:1px dashed #d6dfeb;border-radius:13px;background:#fafcff;color:#64748b;text-align:center}
+.page .row{display:flex;align-items:center;justify-content:space-between;gap:14px;min-width:0}
+.page .row>div:first-child{min-width:0;overflow-wrap:anywhere}
+.page .row b{font-weight:700;color:#1b273a}
+.page .row .muted{font-size:12px;line-height:1.45;margin-top:4px}
+.page .row-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.page .row-actions button{min-height:40px}
+.page .badge{border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;background:#f1f5f9;color:#526176}
+.page-filters input::placeholder{color:#8a96a8}
+.page-filters input::-webkit-search-cancel-button{cursor:pointer}
+.filter-empty{border-style:solid;background:#fff7ed;color:#9a5b19}
+.history-tools{padding:3px 0 8px}
+.history-tools label{font-size:12px;font-weight:700;color:#65748a}
+.history-tools select{min-height:44px;border:1px solid #d9e1eb;border-radius:11px;padding:9px 11px;background:#fff}
+#entitySearchCount{font-size:12px;white-space:nowrap}
+.entity-detail .detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
+.entity-detail .detail-head h2{font-size:24px;margin:10px 0 4px}
+.entity-detail h3{margin:24px 0 10px;font-size:16px}
+@media(max-width:640px){
+ .page .row{flex-direction:column;align-items:stretch;gap:9px}
+ .page .row-actions{justify-content:flex-start;width:100%}
+ .page .row-actions button{flex:1 1 auto}
+ .entity-detail .detail-head{flex-direction:column}
+ .entity-detail .detail-head .row-actions{width:100%}
+}
