@@ -66,3 +66,7 @@ Scop: diferențiază codul implementat, CI automat și validarea externă/fizic�
 4. Lansare graduală numai după validarea crash rate, cost AI, restore și procedurii de suport.
 
 **Regulă:** PR #55 rămâne draft; nu se face merge, deploy, activare de billing sau publicare în magazine fără aprobarea explicită a utilizatorului.
+
+
+## SQLite encryption technical gate
+See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. The plugin supports encryption, but configuration remains disabled until crash-safe migration, secure-key lifecycle, Core replay verification, and physical-device tests are complete. Do not simply enable the flags: that could make existing plaintext user data inaccessible.
