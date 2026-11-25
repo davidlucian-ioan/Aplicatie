@@ -17,7 +17,7 @@ test('UI folosește preview și execute prin Core Port, cu StorageAdapter asincr
  assert.doesNotMatch(s,/localStorage\.(?:getItem|setItem|removeItem)/);
  assert.match(s,/storageAdapter\.readRaw\(WORK_DRAFT_KEY\)/);
  assert.match(s,/storageAdapter\[\(value\.trim\(\)\?'writeRaw':'removeRaw'\)\]/);
- assert.match(s,/persistState:async next=>!integrityBlocked&&await persistRaw\(next\)/);
+ assert.match(s,/persistState:async next=>!integrityBlocked&&!localDataErasing&&await persistRaw\(next\)/);
  assert.match(s,/\.preview\(command\)/);
  assert.match(s,/\.execute\(command,\{confirmed:true\}\)/);
  assert.match(s,/publishState:async next=>\{db=next;render\(\)\}/);
