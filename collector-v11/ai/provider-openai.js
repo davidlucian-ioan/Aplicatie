@@ -16,6 +16,28 @@ const INTERPRETATION_SCHEMA = {
   properties: {
     intent: { type: 'string', enum: ['answer','propose','clarify','refuse'] },
     answer: { type: 'string' },
+    semantic_summary: { type: 'string' },
+    memory_facts: { type: 'array', items: { type: 'string' } },
+    reminder_suggestions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          intent: { type: 'string', enum: ['reminder','task','none','ambiguous'] },
+          certainty: { type: 'string', enum: ['certain','uncertain'] },
+          explicitIntent: { type: 'boolean' },
+          negated: { type: 'boolean' },
+          title: { type: 'string' },
+          due_date: { type: ['string','null'] },
+          due_time: { type: ['string','null'] },
+          timezone: { type: ['string','null'] },
+          source_context: { type: 'string' },
+          clarificationQuestion: { type: 'string' }
+        },
+        required: ['intent','certainty','explicitIntent','negated','title','due_date','due_time','timezone','source_context','clarificationQuestion']
+      }
+    },
     question: { type: 'string' },
     confidence: { type: 'number' },
     ambiguities: { type: 'array', items: { type: 'string' } },
@@ -39,7 +61,7 @@ const INTERPRETATION_SCHEMA = {
     }
   },
   required: [
-    'intent','answer','question','confidence','ambiguities',
+    'intent','answer','semantic_summary','memory_facts','reminder_suggestions','question','confidence','ambiguities',
     'clarificationQuestion','command_intent','certainty',
     'requires_confirmation','payload_json','operations'
   ]
@@ -85,7 +107,7 @@ class OpenAIProvider {
           max_output_tokens: 1800,
           instructions: [
             'Ești modulul de interpretare pentru Collector, o aplicație local-first de evidență universală.',
-            'Transformă cererea utilizatorului într-o propunere structurată sau într-un răspuns/clarificare.',
+            'Transformă cererea utilizatorului într-o propunere structurată sau într-un răspuns/clarificare. Include semantic_summary ca propoziție naturală, memory_facts doar pentru informații utile și susținute explicit, și reminder_suggestions numai când există intenție de task/reminder. Nu deduce date/ore; due_date în YYYY-MM-DD sau null, due_time HH:mm sau null, timezone IANA sau null. explicitIntent true doar pentru formulare clară; negările și formulările tentative trebuie marcate.',
             'Nu executa operații, nu pretinde că ai salvat date și nu inventa entități, ID-uri, valori sau relații.',
             'Folosește numai ID-urile și definițiile din context. Dacă identificarea este ambiguă, cere o singură clarificare.',
             'Nu modifica schema și nu inventa atribute. Nu converti valori incerte în valori certe.',
@@ -135,6 +157,14 @@ class OpenAIProvider {
         confidence: parsed.confidence,
         ambiguities: parsed.ambiguities || [],
         answer: parsed.answer || '',
+        semanticSummary: String(parsed.semantic_summary || '').slice(0, 1000),
+        memoryFacts: Array.isArray(parsed.memory_facts) ? parsed.memory_facts.slice(0, 20).map(x=>String(x).slice(0,500)) : [],
+        reminderSuggestions: Array.isArray(parsed.reminder_suggestions) ? parsed.reminder_suggestions.slice(0, 5).map(s=>({
+          intent:s.intent, certainty:s.certainty, explicitIntent:s.explicitIntent, negated:s.negated,
+          title:String(s.title||'').slice(0,160), due:{date:s.due_date||null,time:s.due_time||null},
+          timezone:s.timezone||null, context:String(s.source_context||'').slice(0,500),
+          clarificationQuestion:String(s.clarificationQuestion||'').slice(0,300)
+        })) : [],
         question: parsed.question || parsed.clarificationQuestion || '',
         clarificationQuestion: parsed.clarificationQuestion || ''
       };
