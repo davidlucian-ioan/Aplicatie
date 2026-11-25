@@ -468,3 +468,10 @@ Next actions:
 - Fixed in `app.js`: `const version=++writeVersion;` now runs before the empty-input branch. Both empty and confirmed non-empty clear paths use that same version token; serialized removal remains unchanged.
 - Commit: `d90600fe63cacb0c7c318e90f7f6f9901ab58712`.
 - Rerun CI is required before marking green. The prior Cloud API run passed; Android and iOS are still pending/failing at the test gate, not at native compilation.
+
+
+## Mobile CI fix — 2026-11-25
+- Latest Android build failed at `npx cap add android` with `npm error could not determine executable to run`. Log evidence: shared toolchain install added 140 packages, then the separate platform install removed 137 packages. This pruned the local Capacitor CLI before `npx cap` ran; the failure was caused by sequential `npm install --no-save` invocations, not the native project code.
+- Fix: install both `@capacitor/android@8.6.2` and `@capacitor/ios@8.6.2` in the same `mobile:install-toolchain` invocation; remove second platform install from each workflow; explicitly check local `./node_modules/.bin/cap --version` and use the local binary for add/sync. Regression coverage verifies pins and rejects sequential platform-install commands.
+- Commits: `5f13c4e` package toolchain, `7bb7618` workflow, `d28d366` regression test.
+- New CI must validate this fix; no local execution is claimed.
