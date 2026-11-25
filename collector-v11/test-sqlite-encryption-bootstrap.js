@@ -35,6 +35,20 @@ test('bootstrap pentru DB nou generează secret random, verifică secure store �
  assert.notEqual(secretCall[1].passphrase,'collector');
  assert.ok(m.calls.some(c=>c[0]==='isSecretStored'));
 });
+test('DB nouă importă legacy localStorage în encrypted SQLite și păstrează backup până la Core validation',async()=>{
+ const m=mockSQLite({verifySecret:true});
+ const legacy=mockStorage({collector_mvp_v2:'snapshot-v7',collector_work_draft_v1:'draft',collector_cloud_opt_out:'1'});
+ const state=await prepareSQLiteEncryption({sqlite:m.sqlite,cryptoImpl:fakeCrypto(),backupStorage:legacy});
+ assert.deepEqual(state,{encrypted:true,mode:'secret',state:'new-encrypted-recovery'});
+ assert.equal(m.rows.get('collector_mvp_v2'),'snapshot-v7');
+ assert.equal(m.rows.get('collector_work_draft_v1'),'draft');
+ assert.notEqual(legacy.getItem(BACKUP_KEY),null);
+ const {completeSQLiteEncryptionMigration}=require('./sqlite-encryption-bootstrap');
+ completeSQLiteEncryptionMigration({backupStorage:legacy});
+ assert.equal(legacy.getItem('collector_mvp_v2'),null);
+ assert.equal(legacy.getItem('collector_work_draft_v1'),null);
+ assert.equal(legacy.getItem('collector_cloud_opt_out'),'1');
+});
 test('DB nouă nu se creează dacă verificarea stocării secretului eșuează',async()=>{
  const m=mockSQLite({verifySecret:false});
  await assert.rejects(prepareSQLiteEncryption({sqlite:m.sqlite,cryptoImpl:fakeCrypto(),backupStorage:mockStorage()}),/verification failed/);
