@@ -169,3 +169,24 @@ Nu presupune un comision universal de 15% pentru toate situațiile. Confirmă te
 - Apple EU App Store payment options: https://developer.apple.com/support/payment-options-on-the-app-store
 - Google Play Console registration: https://support.google.com/googleplay/android-developer/answer/6112435
 - Apple Developer Program: https://developer.apple.com/programs/
+
+
+## 9. Trial strategy impact audit — code/document evidence (26 Nov 2026)
+
+### Existing foundations that fit the new direction
+- RevenueCat purchase/offering/restore client, backend entitlement lookup, webhook event application and AI budget metering are already documented/implemented in this branch.
+- Backend currently gates cloud AI on an active `pro` entitlement and valid expiry. A store-provided free introductory trial can likely use the same Pro entitlement while active; this avoids inventing a separate entitlement tier, subject to sandbox verification.
+- RevenueCat events include INITIAL_PURCHASE/RENEWAL and expiration processing in the documented SQL state logic. Trial-specific eligibility and intro offer configuration are external/store responsibilities and not yet verified.
+- Existing monthly/yearly product architecture aligns with one Pro subscription and annual option.
+
+### Gaps / decisions
+1. **Trial offer configuration:** configure introductory free trial on subscription products in App Store Connect/Google Play/RevenueCat, confirm platform eligibility, trial length, payment method requirements, auto-renew terms and cancellation behavior. Don't claim trial is available to every user until eligibility is validated.
+2. **Trial expiry:** verify RevenueCat webhook updates Pro entitlement at trial expiration and API denies premium calls thereafter; sandbox-test trial->paid renewal, cancellation during trial, expiry without conversion, billing issue/grace and refund.
+3. **Onboarding/paywall UX:** currently documented as Pro offers/purchase/restore, but the actual screen and copy were not inspected in this audit. Must clearly communicate trial length, start/end, renewal price/date, cancellation instructions and data preservation; no dark patterns.
+4. **Post-trial Basic mode:** define exact local capabilities and ensure expiry does not disable data access, export, basic local collection management, or the user's recordings. Confirm entitlement gates are cloud/premium boundaries rather than blanket app lock.
+5. **Trial activation analytics:** instrument privacy-minimized activation and retention events only with disclosure/consent; don't collect sensitive collection contents for marketing analytics.
+6. **Quota economics:** establish trial AI budget/fair-use separately from paid budget if needed. Prevent unlimited trial account cycling without intrusive identity collection; evaluate account-level eligibility and store controls.
+7. **Test matrix:** sandbox needs trial offer eligibility, trial start, cancellation/opt-out, trial expiry, conversion to paid, renewal, billing issue/grace, refund, restore/reinstall, account recovery and expired entitlement. Include cloud API gate assertions and Core/local functionality after expiry.
+
+### Audit boundary
+The service file `cloud-api/billing-service.js` and migration `cloud-api/migrations/001_billing_and_ai_usage.sql` were directly fetched and inspected. This verifies basic backend entitlement/usage RPC integration and SQL entitlement states, but **not** the mobile paywall/onboarding, RevenueCat dashboard settings, product intro-offer configuration, live webhook, sandbox purchase lifecycle, or actual app-level behavior. No source code was changed in this audit.
