@@ -740,3 +740,13 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 - Added two regression tests in `collector-v11/test-subscriptions.js`: unknown/missing `periodType` must not be misclassified as trial; an inactive entitlement with `periodType=TRIAL` must not be reported as an active trial.
 - Commit: `7b1701835630beaaf164b2c6d992c2be07d88548`.
 - Await CI for this exact/new HEAD; tests are authored but not yet validated by workflow.
+
+
+## Continuare: audit transparență AI și post-trial (26 nov 2026)
+
+- CI la checkpoint anterior `cf43dc4`: Cloud API SUCCESS, Mobile Build SUCCESS, Quality Suite IN_PROGRESS; nu consideram quality validat până la final.
+- Audit UI confirmă că AI trimite text + context allowlisted (max 150 entități, 100 definiții atribut), fără jurnalul de evenimente și fără audio. Totuși, această limitare nu era explicată suficient de clar înainte de utilizare.
+- Actualizat disclosure în toate cele 3 entry points (native/index, server și double-click): audio original rămâne local; când utilizatorul alege AI, text și context limitat sunt trimise la Collector Cloud/provider; jurnalul complet și audio nu sunt trimise; rezultatul e propunere și salvarea necesită confirmare.
+- Test nou în `test-ai-ui-wiring.js` verifică disclosure-ul în toate entry points.
+- Commits UI: `31f48350`, `6e343a12`, `219f9482`; test: `e86fff0273e99de9045e095c59bfa81d25d29b02`.
+- Următorul audit: post-expiry Basic, trial disclosure din metadata Store/RevenueCat, restore/account recovery și P0 release readiness. External sandbox/store configuration nu este verificată și nu se afirmă.
