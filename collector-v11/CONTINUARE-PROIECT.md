@@ -540,3 +540,13 @@ Next actions:
 - Android debug APK + iOS simulator build: în curs.
 - Run-urile de pe commitul precedent au fost superseded/cancelled după noul commit; nu sunt considerate failures ale buildului final.
 - Criptarea rămâne gated OFF.
+
+
+## Checkpoint — full CI pass + launch checklist reconciliation (2026-11-25)
+
+- Verified all three current workflow runs on HEAD `d3bd4e543bc18f5beef3b166e0d6269f32aeaa17`: **Cloud API SUCCESS, Mobile build SUCCESS (Android debug APK + iOS simulator app), Quality Suite SUCCESS**. No cancelled workflow is being used as validation evidence.
+- PR #55 remains open, draft, mergeable, and not merged. No production deploy or store release.
+- Updated `LAUNCH-READINESS-CHECKLIST.md` to reflect that RevenueCat client, webhook, entitlement and usage-metering code are implemented in this branch; external project configuration and sandbox validation remain outstanding.
+- Latest documentation commit: `0026ba9486c2cb2ebaa650c75209f8bc9a84620c`; its CI must be rechecked before treating the documentation-updated HEAD as the final validated SHA.
+- Priority next: (1) poll CI for documentation commit; (2) inspect and reconcile dependency reproducibility—the mobile toolchain is pinned by install command but is not fully represented in the project lockfile; (3) create a release build pipeline without secrets; (4) continue physical-device validation planning, encryption gate remains OFF; (5) only then external staging/Supabase/RevenueCat setup.
+- Do not ask the user for secrets in chat, do not enable encryption, merge, deploy, or publish without explicit approval.
