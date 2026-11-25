@@ -45,7 +45,7 @@
    if(!result?.uri)throw new Error('Recorderul nu a returnat un fișier audio. Checkpointul a fost păstrat pentru o nouă încercare.');
    const sourceUri=result.uri;
    await filesystem.copy({from:sourceUri,to:session.filePath,toDirectory:'DATA'});
-   const location=await filesystem.getUri({path:session.filePath,directory:'DATA'});
+   location=await filesystem.getUri({path:session.filePath,directory:'DATA'});
    result={...result,uri:location.uri};
    for(const segment of new Set([sourceUri,...(Array.isArray(result.segments)?result.segments:[])])){try{await filesystem.deleteFile({path:segment})}catch{}}
    try{const stat=await filesystem.stat({path:session.filePath,directory:'DATA'});size=Number(stat?.size)||0}catch{}
