@@ -130,6 +130,32 @@ test('native audio adapter preserves web recorder recovery when native plugin is
  assert.deepEqual(calls.map(call=>call[0]),['begin','chunk','list','recover','remove-session']);
 });
 
+test('clearAll refuses an unsafe index before deleting any managed audio file',async()=>{
+ const x=fixture();await x.store.initialize();
+ const safe={id:'safe-audio',createdAt:'2026-11-25T10:00:00.000Z',durationMs:1,mimeType:'audio/aac',size:4,filePath:'collector-audio/safe-audio.aac',uri:'file:///app/collector-audio/safe-audio.aac'};
+ x.files.set(safe.filePath,Buffer.from('audio'));
+ x.values.set('collector_audio_index_v1',JSON.stringify([safe,{...safe,id:'unsafe',filePath:'collector-audio/../secret.aac'}]));
+ await assert.rejects(x.store.clearAll(),/Indexul audio conține o cale locală invalidă/);
+ assert.equal(x.files.has(safe.filePath),true,'validation must happen before deletion starts');
+ assert.equal(x.values.has('collector_audio_index_v1'),true,'metadata must be preserved for recovery');
+});
+
+test('failed interrupted audio recovery leaves original session checkpoints available',async()=>{
+ const sessions=[{id:'interrupted',chunkCount:2}];
+ const legacyStore={
+  async initialize(){},async list(){return []},async get(){return null},async remove(){return true},
+  async beginSession(){return true},async appendSessionChunk(){return true},
+  async listInterruptedSessions(){return sessions.slice()},
+  async recoverSession(){throw new Error('recovery write failed')},
+  async removeSession(){sessions.splice(0,1);return true}
+ };
+ const storage={async readRaw(){return null},async writeRaw(){},async removeRaw(){}};
+ const x=createNativeStore({filesystem:{async mkdir(){}},storage,legacyStore});
+ await x.initialize();
+ await assert.rejects(x.recoverSession('interrupted'),/recovery write failed/);
+ assert.deepEqual(await x.listInterruptedSessions(),sessions,'failed recovery must not erase the source session');
+});
+
 test('native audio clearAll removes indexed files, orphaned files, legacy recordings and the metadata index',async()=>{
  const old={id:'audio-legacy-clear',createdAt:'2026-11-24T10:00:00.000Z',durationMs:1200,mimeType:'audio/webm',size:4,blob:new Blob(['legacy'])};
  const x=fixture({legacyRecords:[old]});
