@@ -97,7 +97,7 @@
   return Object.freeze({
    initialize,
    getEncryptionState(){return encryptionState;},
-   completeEncryptionMigration(){if(!requireEncryption||!encryptionBootstrap?.completeSQLiteEncryptionMigration)return false;return encryptionBootstrap.completeSQLiteEncryptionMigration({backupStorage:legacy});}
+   completeEncryptionMigration(){if(!requireEncryption||!encryptionBootstrap?.completeSQLiteEncryptionMigration)return false;return encryptionBootstrap.completeSQLiteEncryptionMigration({backupStorage:legacy});},
    async readRaw(key){
     await initialize();
     const result=await sqlite.query({database,statement:'SELECT value FROM '+TABLE+' WHERE key = ?',values:[String(key)],readonly:false});
