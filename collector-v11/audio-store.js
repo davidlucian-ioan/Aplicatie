@@ -246,7 +246,7 @@
      catch(error){if(!/not.?found|does not exist|no such file/i.test(String(error?.message||error)))throw error}
      for(const entry of entries){
       const name=typeof entry==='string'?entry:entry?.name;
-      if(!name||entry?.type==='directory'||name.includes('/')||! /^[A-Za-z0-9_-]+\.(?:aac|webm)$/i.test(name))continue;
+      if(!name||entry?.type==='directory'||name.includes('/')||! /^[A-Za-z0-9_-]+\.(?:aac|webm|mp4|mp3|ogg)$/i.test(name))continue;
       paths.add(prefix+name);
      }
     }
