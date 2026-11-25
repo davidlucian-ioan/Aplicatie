@@ -29,7 +29,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Extract source bundle
+      - name: Validate and extract source bundle
         shell: bash
         run: |
           set -euo pipefail
@@ -39,16 +39,16 @@ jobs:
           mkdir -p "$RUNNER_TEMP/collector-v11-source" collector-v11
           python3 - "$bundle" <<'PY'
           import sys, zipfile
-          archive = sys.argv[1]
-          with zipfile.ZipFile(archive) as z:
-              for item in z.infolist():
-                  name = item.filename.replace('\\\\', '/')
-                  parts = name.split('/')
-                  if name.startswith('/') or any(p in ('', '.', '..') for p in parts if p != ''):
-                      raise SystemExit(f'Unsafe archive path: {item.filename!r}')
+          from pathlib import PurePosixPath
+          with zipfile.ZipFile(sys.argv[1]) as archive:
+              for item in archive.infolist():
+                  name = item.filename
+                  path = PurePosixPath(name)
                   mode = (item.external_attr >> 16) & 0o170000
+                  if name.startswith("/") or "\\" in name or ".." in path.parts:
+                      raise SystemExit(f"Unsafe archive path: {name!r}")
                   if mode == 0o120000:
-                      raise SystemExit(f'Symlink not allowed in source bundle: {item.filename!r}')
+                      raise SystemExit(f"Symlink not allowed: {name!r}")
           PY
           unzip -q "$bundle" -d "$RUNNER_TEMP/collector-v11-source"
           test -d "$RUNNER_TEMP/collector-v11-source/Collector-MVP-v11"
@@ -60,15 +60,15 @@ jobs:
             "$RUNNER_TEMP/collector-v11-source/Collector-MVP-v11/" collector-v11/
           cat > collector-v11/README.md <<'README_EOF'
           # Collector MVP v11
-          
+
           Aplicatia executabila Collector v11. Documentele canonice de produs si decizii sunt in radacina repository-ului.
-          
+
           ## Pornire Windows
           Dublu-click pe Porneste-Collector.bat, apoi deschide http://localhost:8000/index-server.html. Lasa fereastra serverului deschisa.
-          
+
           ## Teste
           Necesita Node.js 18+. Ruleaza npm test din acest folder.
-          
+
           Limitele min/max ale atributelor sunt intervale recomandate: masuratorile reale in afara intervalului se pot inregistra cu avertisment. AI Foundation foloseste un provider mock; nu exista inca provider AI real conectat.
           README_EOF
 
@@ -80,6 +80,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/feature/collector-v11-v0.7-source"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add collector-v11
@@ -87,6 +88,5 @@ jobs:
             echo "No source changes to commit."
           else
             git commit -m "feat: import Collector MVP v11 source v0.7"
-            test "$GITHUB_REF" = "refs/heads/feature/collector-v11-v0.7-source"
-          git push origin HEAD:feature/collector-v11-v0.7-source
+            git push origin HEAD:feature/collector-v11-v0.7-source
           fi
