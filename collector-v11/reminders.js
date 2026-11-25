@@ -89,6 +89,7 @@
    finally{if(submit)submit.disabled=false}
   });
   listElement?.addEventListener('click',async event=>{
+   const snooze=event.target.closest('[data-reminder-snooze]');if(snooze){snooze.disabled=true;try{await service.snooze(snooze.dataset.reminderSnooze,Number(snooze.dataset.minutes));if(status)status.textContent='Alarma a fost amânată.';await render()}catch(error){snooze.disabled=false;if(status)status.textContent='Nu am putut amâna alarma: '+error.message}return}
    const button=event.target.closest('[data-reminder-cancel]');
    if(!button)return;
    button.disabled=true;
