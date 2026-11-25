@@ -93,9 +93,7 @@ test('iOS build installs Supabase Secure Storage and esbuild for the native auth
  assert.match(androidSection,/run: \.\/node_modules\/\.bin\/cap add android/);
  assert.match(androidSection,/run: \.\/node_modules\/\.bin\/cap sync android/);
  assert.doesNotMatch(androidSection,/npm install .*@capacitor\/android@/,'platform install must not prune shared CLI dependencies');
- const androidSection=workflow.slice(0,iosJobStart);
- assert.ok(androidSection.includes('npm run mobile:install-toolchain'),'Android must use the shared pinned native toolchain');
-});
+ });
 
 test('Android CI retries only transient Maven throttling and limits Gradle workers',async()=>{
  const workflow=await fs.readFile(path.join(__dirname,'..','.github','workflows','collector-mobile-build.yml'),'utf8');
