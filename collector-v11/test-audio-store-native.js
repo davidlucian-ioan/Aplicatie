@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createNativeStore}=require('./audio-store');
 
-function fixture({legacyRecords=[],failWrite=false}={}){
+function fixture({legacyRecords=[],failWrite=false,failIndexWrite=false}={}){
  const files=new Map(),values=new Map(),removed=[];
  const filesystem={
   async mkdir(){},
@@ -14,7 +14,7 @@ function fixture({legacyRecords=[],failWrite=false}={}){
  };
  const storage={
   async readRaw(key){return values.get(key)??null},
-  async writeRaw(key,value){values.set(key,String(value))}
+  async writeRaw(key,value){if(failIndexWrite&&key==='collector_audio_index_v1')throw new Error('index unavailable');values.set(key,String(value))}
  };
  let legacy=legacyRecords.slice();
  const legacyStore={
@@ -59,4 +59,20 @@ test('native audio adapter rejects a corrupted metadata index without overwritin
 
 test('native recording metadata can be renamed without changing audio file',async()=>{
  const x=fixture();await x.store.initialize();const record={id:'audio-title',createdAt:'2026-11-24T11:00:00.000Z',durationMs:5000,mimeType:'audio/aac',size:10,filePath:'collector-audio/audio-title.aac',uri:'file:///app/collector-audio/audio-title.aac'};x.files.set(record.filePath,Buffer.from('audio'));await x.store.saveNative(record);const renamed=await x.store.rename(record.id,'B3 verificare pH');assert.equal(renamed.title,'B3 verificare pH');assert.equal((await x.store.get(record.id)).title,'B3 verificare pH');assert.ok(x.files.has(record.filePath));
+});
+
+test('failed metadata commit cleans up the newly written audio file',async()=>{
+ const x=fixture({failIndexWrite:true});
+ await x.store.initialize();
+ await assert.rejects(x.store.save({id:'audio-orphan',createdAt:'2026-11-25T10:00:00.000Z',durationMs:1000,mimeType:'audio/webm',blob:new Blob(['audio'])}),/index unavailable/);
+ assert.equal(x.files.has('collector-audio/audio-orphan.webm'),false);
+ assert.equal(x.values.has('collector_audio_index_v1'),false);
+});
+test('failed legacy metadata commit cleans destination but preserves the legacy recording',async()=>{
+ const old={id:'audio-legacy-commit',createdAt:'2026-11-24T10:00:00.000Z',durationMs:1200,mimeType:'audio/webm',size:4,blob:new Blob(['test'])};
+ const x=fixture({legacyRecords:[old],failIndexWrite:true});
+ await assert.rejects(x.store.initialize(),/index unavailable/);
+ assert.equal(x.files.has('collector-audio/legacy-audio-legacy-commit.webm'),false);
+ assert.equal(x.legacy().length,1);
+ assert.deepEqual(x.removed,[]);
 });
