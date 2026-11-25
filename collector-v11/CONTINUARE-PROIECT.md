@@ -778,3 +778,13 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 5. Test recovery/restore, apoi staging și device tests.
 
 Nicio tranzacție, configurare live, deploy, merge sau publicare efectuată.
+
+
+## Post-trial entitlement regression hardening — 26 nov 2026
+
+- Added two Cloud API regression tests in `cloud-api/test-cloud-api.js`:
+  1. An expired Pro record with `is_active=true` is reported as Basic; subscription expiry is not exposed as active; usage is not queried.
+  2. An expired Pro record cannot call the AI provider; API returns `403 subscription_required`.
+- Commit: `b8cc0bb599588d51069860d17deb631c785b8bee`.
+- Direct code audit confirmed server AI-status logic checks expiry timestamp against current time, and SQL reservation function also rejects expired entitlement. The tests are authored but **not yet CI-validated**; current GitHub run lookup for this commit returned no workflow runs/status checks yet.
+- PR HEAD now `b8cc0bb599588d51069860d17deb631c785b8bee`; PR remains open/draft. No merge/deploy/live billing.
