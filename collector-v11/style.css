@@ -273,3 +273,13 @@ header p{color:#687487;font-size:13px}
 .work-recorder:has(#audioRecordPause:not(:disabled)) #audioRecorderStatus{color:#a72d2d;font-weight:650}
 @keyframes collectorRecordingPulse{0%,100%{box-shadow:0 0 0 4px #dc45451a}50%{box-shadow:0 0 0 7px #dc454508}}
 @media(prefers-reduced-motion:reduce){.work-recorder:has(#audioRecordPause:not(:disabled)) h2:before{animation:none}}
+
+
+/* Modal forms: keep actions reachable while scrolling long forms */
+.modal-box .form-actions{position:sticky;bottom:-1px;z-index:2;background:linear-gradient(180deg,#ffffff00 0%,#fff 24%);padding:14px 0 2px;margin-top:12px}
+.modal-box .form-actions button{min-height:44px;min-width:108px}
+.modal-box .form label{display:block;margin-top:3px;color:#344054}
+.modal-box .form input,.modal-box .form select,.modal-box .form textarea{min-height:44px;border-radius:10px}
+.modal-box .form textarea{min-height:110px}
+.modal-box .form input:focus,.modal-box .form select:focus,.modal-box .form textarea:focus{outline:3px solid #2763eb20;border-color:#6d95f4}
+@media(max-width:640px){.modal-box .form-actions{display:grid;grid-template-columns:1fr 1fr}.modal-box .form-actions button{width:100%;min-width:0}}
