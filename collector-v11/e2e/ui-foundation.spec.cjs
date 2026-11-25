@@ -170,3 +170,42 @@ test('audio recorder reports denied microphone permission and keeps Core journal
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
   expect(await page.evaluate(async () => (await window.CollectorAudioStore.list()).length)).toBe(0);
 });
+
+
+test('browser audio chunks survive reload and can be recovered from Work', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.evaluate(async () => {
+    const store = window.CollectorAudioStore;
+    await store.beginSession({
+      id: 'e2e-interrupted-audio',
+      createdAt: '2026-11-25T13:00:00.000Z',
+      mimeType: 'audio/webm'
+    });
+    await store.appendSessionChunk(
+      'e2e-interrupted-audio',
+      new Blob(['partial-audio-segment'], { type: 'audio/webm' }),
+      4200
+    );
+  });
+
+  await page.reload();
+  await expect(page.locator('#audioRecoverPending')).toBeVisible();
+  await page.locator('#audioRecoverPending').click();
+  await expect(page.locator('#audioRecorderStatus')).toContainText('recuperată din 1 fragmente');
+  await expect(page.locator('#audioRecordingList .audio-recording-row')).toHaveCount(1);
+
+  const saved = await page.evaluate(async () => {
+    const record = await window.CollectorAudioStore.get('e2e-interrupted-audio');
+    return {
+      text: await record.blob.text(),
+      durationMs: record.durationMs,
+      recovered: record.recovered,
+      remaining: (await window.CollectorAudioStore.listInterruptedSessions()).length
+    };
+  });
+  expect(saved.text).toBe('partial-audio-segment');
+  expect(saved.durationMs).toBe(4200);
+  expect(saved.recovered).toBe(true);
+  expect(saved.remaining).toBe(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+});
