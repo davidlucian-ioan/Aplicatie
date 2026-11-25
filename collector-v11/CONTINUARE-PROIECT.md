@@ -453,3 +453,11 @@ Next actions:
 - Corectate testele ca să verifice ordinea reală în handler și în blocul de setup nativ, fără a schimba logica aplicației. Testul draft verifică și că ștergerea este serializată în queue.
 - Commits: `d2e60d9` și `e5d0d14`. CI pentru noul HEAD trebuie confirmat înainte de a considera blocajul rezolvat.
 - Următoarea prioritate după CI: dependențe mobile reproductibile (declarate în package/lockfile), evaluarea SQLite encryption at-rest și testare pe device real. Nu există încă release build semnat sau configurare production.
+
+
+## Hardening toolchain CI — 2026-11-25
+- Pinned versions of the Capacitor/native/auth/billing build toolchain were previously duplicated across Android and iOS workflow commands.
+- Centralized the shared, exact-version install command in `package.json` as `mobile:install-toolchain`; platform-specific Android/iOS packages remain installed separately in each job.
+- CI workflow now invokes the shared script on both platforms; regression test checks shared pins and workflow wiring.
+- This reduces drift between platforms but **does not yet make the native toolchain lockfile-reproducible**: installation still uses `--no-save --no-package-lock`. Next: safely generate and validate a lockfile containing native toolchain packages (npm ci on clean runners), after CI confirms this centralization change.
+- Commits: `e1d7f3e` (package script), `379628f` (workflow), `38cefe0` (test).
