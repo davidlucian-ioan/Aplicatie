@@ -220,40 +220,36 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 
 
 
-## CHECKPOINT CURENT — 2026-11-25 (UI/UX redesign în progres)
+## CHECKPOINT CURENT — 2026-11-25 (UI/UX redesign ongoing)
 
-### Repository / safety
-- Repo: `davidlucian-ioan/Aplicatie`; branch `feature/openai-provider-integration`.
-- PR #55 open/draft, target `main`. Nu merge și nu modifica main fără aprobare explicită.
-- HEAD UI/UX: `6dd7d1ebca916cec0e2816807c9887b9becedfc5`.
-- Checkpoint-ul înlocuiește numai secțiunea curentă; păstrează istoricul anterior.
+### Git state
+- Repo `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`, PR #55 open/draft, target main. Never merge or modify main without explicit approval.
+- Current UX work commits: `262b25c`, `ee2ed21`, `57ede6f`, `bb7e306`, `858bb68`, `6dd7d1e`, `823c12e`, `f33c5b8`, `04ddf6b`, `6be492f`, `22b6d12`, `2a64d70`.
+- Current HEAD at checkpoint save: `2a64d7040f42855697027fd6c5d5704e7a2761c0`.
 
-### UI/UX — implementat în această sesiune
-- `style.css`: ierarhie vizuală, spacing, typography, panel/card/button/form styles, responsive behavior, navigare sidebar/drawer, focus și hover.
-- Work și Think au clase de compoziție dedicate în `index.html`; fără schimbarea ID-urilor sau handlerelor aplicației.
-- Work desktop: Alarme/Mementouri + Reportofon în două coloane; transcriere/interpretare full width. Mobile: Reportofon prioritar, apoi reminders, apoi command area; layout de butoane touch-friendly.
-- Think: metric cards accentuate, quick actions grupate vizual, recent activity; grid responsive.
-- Sidebar desktop/tabletă/mobil diferențiată; responsive pentru viewport-uri mici.
-- Commituri: `262b25c`, `ee2ed21`, `57ede6f`, `bb7e306`, `858bb68`, `6dd7d1e`.
-- Acesta este UI/UX pass 1; nu este finalizat. Continuă audit ecran cu ecran și testare vizuală reală, formulare, accessibility, keyboard, mobile.
+### UX changes so far
+- CSS redesign: hierarchy, typography, spacing, cards/panels/forms, nav active/hover/focus, mobile drawer, responsive sizing.
+- Work: desktop reminders + recorder 2-column; command/transcription full-width; mobile order prioritizes recorder; controls are touch friendly.
+- Think: dashboard cards and quick actions layout.
+- Individual pages have descriptive headings/subtitles and search controls: relations/locations, inventory, finance, attributes, events, audit; entities already had native search. History has existing filters.
+- Reusable JS filter function applies live, case-insensitive text filtering to row containers; implemented render integration and input listener.
+- Regression test added: `collector-v11/e2e/page-ux.spec.cjs` tests page headings/filter controls, filter matching/restoration, and mobile Work layout.
+- Test caveat: CI must validate the new test and app wiring; do not claim green until current HEAD runs pass.
 
 ### CI
-- Runs pentru HEAD `6dd7d1e`:
-  - Quality `45596283430`: in progress la ultima verificare.
-  - Mobile `45596283483`: in progress.
-  - Runs suplimentare `45596293629`, `45596293615`, `45596293544`: pending (același HEAD).
-- Poll până la rezultat final; verifică runs pentru exact HEAD, nu commituri intermediare.
-- Ultimul HEAD pre-UI `a0cf4da` avea Cloud API, mobile și quality SUCCESS.
+- On HEAD `2a64d70`: quality `45597023052` in progress; mobile build `45597023413` in progress; Cloud API run `45597023444` pending at last check.
+- Earlier same-HEAD runs were cancelled after new pushes; poll current HEAD runs.
+- Cloud API on prior UI commit `823c12e` succeeded. Pre-UX HEAD `a0cf4da` had all three workflows green.
 
-### Backend / release gaps
-- OpenAI server-side, Supabase auth, RevenueCat și AI cost metering implementate în branch, dar nu validate live.
-- SQL migration nu a fost aplicată într-un PostgreSQL/Supabase real; sandbox billing flows și webhook live nevalidate.
-- Cloud deploy/secrets, sync multi-device, backup/conflict handling, SQLite encryption at-rest, physical-device testing, signed AAB/IPA, privacy/GDPR și store release încă lipsesc.
-- CI nu înseamnă release-ready; nu cumpăra hosting înainte de clarificarea config-urilor externe.
+### Remaining UI/UX
+- Continue screen-by-screen audit and redesign for entity list/detail, relations/locations, inventory, finance, attributes, events, history, audit.
+- Improve empty/loading/error states, responsive tables/rows, filter UX, modal forms, keyboard/focus, accessibility and visual consistency.
+- Run Playwright regression, quality suite and mobile builds; fix failures.
+- Save checkpoints by replacing only this current section; preserve earlier history.
 
-### Next steps
-1. Poll CI pe HEAD și remediează eventuale regresii.
-2. Continuă redesign Think/Work și auditul paginilor Entități, Relații, Inventar, Financiar, Atribute, Evenimente, Istoric, Audit; focus pe layout, workflow, empty/loading/error states, accesibilitate și mobil.
-3. Adaugă teste de regresie pentru layout/workflows, rulează CI.
-4. Salvează checkpoint înlocuind numai secțiunea curentă.
-5. Continuă autonom; nu opri pentru simplu „Ok”, doar la stop explicit.
+### Backend/release gaps
+- OpenAI server-side, Supabase auth, RevenueCat billing and AI metering exist in branch but not live-validated.
+- Supabase SQL migration not tested on real DB, RevenueCat sandbox purchases/restore/webhooks unverified.
+- Deploy/secrets, sync, cloud backup/conflict handling, SQLite encryption at rest, physical-device tests, signed AAB/IPA, GDPR/store release still outstanding.
+- Do not advise buying hosting until external config/deployment needs are clear.
+- Continue autonomously; stop only on explicit stop request.
