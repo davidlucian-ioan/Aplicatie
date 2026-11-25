@@ -155,3 +155,11 @@ test('Work quick templates insert into the text field without committing an even
  await expect(page.locator('[data-command-template^="Am vândut "]')).toBeVisible();
  await expect(page.locator('#eventCount')).toHaveText('0');
 });
+
+test('Work draft also autosaves text inserted by voice capture', async ({ page }) => {
+ await page.goto('/index-server.html');
+ const input=page.locator('#commandInput');
+ await input.evaluate(el => { el.value='Observație: dictare test'; el.dispatchEvent(new Event('input',{bubbles:true})); });
+ await page.reload();
+ await expect(input).toHaveValue('Observație: dictare test');
+});
