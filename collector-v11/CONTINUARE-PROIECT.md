@@ -405,3 +405,12 @@ Next actions:
 2. Inspect Playwright errors/logs if the new interruption-recovery E2E fails; fix root cause and retain regression coverage.
 3. Finish audio list UX audit (playback focus, rename/delete while playing, recovered-file labels) and verify long recordings on real devices.
 4. Continue reminders/local-notification consistency and Work-first accessibility; Think remains deferred.
+
+
+## Hardening audio storage — 2026-11-25
+
+- Added validation before deleting a native audio file from its metadata index: only files under `collector-audio/` with a simple allowed filename and `.aac`/`.webm` extension can be deleted.
+- Invalid/corrupted metadata paths now fail safely and preserve both the metadata row and the target file rather than passing an arbitrary path to the native Filesystem plugin.
+- Added regression test in `test-audio-store-native.js` for traversal-style corrupted paths.
+- Commits: `634c23b9968984b9b4689e0fd6f788f4141afec7` (guard) and `5fa579964d4c1a7cf64c9d31921015ce51472d06` (test).
+- CI workflow runs/status were not yet returned for this latest HEAD at the time of checkpoint; do not consider the change validated until the Quality/Mobile/Cloud checks finish.
