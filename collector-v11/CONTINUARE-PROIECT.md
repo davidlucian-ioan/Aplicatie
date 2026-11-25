@@ -559,3 +559,11 @@ Next actions:
 - Auditul `test-mobile-build.js` confirmă testele existente pentru allowlist-ul bundle-ului, absența server/.env/test files, config mobil, wiring pluginuri, Work-first layout și regresii pentru draft/audio/reminders.
 - **Următorul blocker tehnic:** dependențele Capacitor/native sunt instalate cu scriptul `mobile:install-toolchain` prin `npm install --no-save --no-package-lock`; versiuni directe sunt pin-uite, dar lockfile-ul nu fixează întregul graf tranzitiv. Nu modifica manual lockfile. Soluția trebuie generată și verificată cu npm într-un mediu real, apoi `npm ci` + toate workflow-urile.
 - PR #55 rămâne draft; fără merge/deploy/publicare.
+
+
+## Checkpoint — CI permissions hardening
+- Audit workflows: Quality și Mobile declară `permissions: contents: read`.
+- Cloud API workflow nu declarase permissions explicite; actualizat să folosească `permissions: contents: read` (least privilege).
+- Commit: `e968af9f957e68148090024090702c5bbd4c80ed`.
+- Pe commitul `cd739aee`, Cloud API, Quality Suite și Mobile Build (Android debug + iOS simulator) au trecut SUCCESS.
+- Commitul de hardening va fi verificat de CI; următorul audit se concentrează pe reproducibilitatea dependențelor, deployment/release și testele native.
