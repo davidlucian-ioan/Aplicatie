@@ -57,7 +57,7 @@ jobs:
         run: npm test
       - name: Build allowlisted web bundle
         working-directory: collector-v11
-        run: npm run mobile:build
+        run: npm run mobile:build && npm run mobile:verify-release-bundle
       - name: Generate Android native project
         working-directory: collector-v11
         run: ./node_modules/.bin/cap add android
@@ -122,7 +122,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Capacitor 8 toolchain
         working-directory: collector-v11
-        run: npm run mobile:install-toolchain && ./node_modules/.bin/cap --version
+        run: npm run mobile:install-toolchain && npm run mobile:verify-toolchain && ./node_modules/.bin/cap --version
       - name: Verify app and native plugin wiring
         working-directory: collector-v11
         run: npm test
