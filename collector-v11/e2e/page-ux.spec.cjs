@@ -132,4 +132,26 @@ test('Work is the primary capture workspace on desktop and mobile', async ({ pag
   await expect(page.locator('#commandInput')).toBeVisible();
   await expect(page.locator('#reminderForm')).toBeVisible();
 });
-\ntest('Work draft autosaves locally, restores on reload, and clear requires confirmation', async ({ page }) => {\n await page.goto('/index-server.html');\n const input=page.locator('#commandInput');\n await input.fill('Observație: B3 are pH 6.4');\n await expect(page.locator('#workDraftStatus')).toContainText('salvat local automat');\n await page.reload();\n await expect(input).toHaveValue('Observație: B3 are pH 6.4');\n page.once('dialog', dialog => dialog.accept());\n await page.locator('#clearWorkDraft').click();\n await expect(input).toHaveValue('');\n await expect(page.locator('#workDraftStatus')).toContainText('Draft șters');\n});\n\ntest('Work quick templates insert into the text field without committing an event', async ({ page }) => {\n await page.goto('/index-server.html');\n const input=page.locator('#commandInput');\n await page.locator('[data-command-template="Observație: "]').click();\n await expect(input).toHaveValue('Observație: ');\n await expect(page.locator('[data-command-template^="Înregistrează "]')).toBeVisible();\n await expect(page.locator('[data-command-template^="Am vândut "]')).toBeVisible();\n await expect(page.locator('#eventCount')).toHaveText('0');\n});\n
+
+test('Work draft autosaves locally, restores on reload, and clear requires confirmation', async ({ page }) => {
+ await page.goto('/index-server.html');
+ const input=page.locator('#commandInput');
+ await input.fill('Observație: B3 are pH 6.4');
+ await expect(page.locator('#workDraftStatus')).toContainText('salvat local automat');
+ await page.reload();
+ await expect(input).toHaveValue('Observație: B3 are pH 6.4');
+ page.once('dialog', dialog => dialog.accept());
+ await page.locator('#clearWorkDraft').click();
+ await expect(input).toHaveValue('');
+ await expect(page.locator('#workDraftStatus')).toContainText('Draft șters');
+});
+
+test('Work quick templates insert into the text field without committing an event', async ({ page }) => {
+ await page.goto('/index-server.html');
+ const input=page.locator('#commandInput');
+ await page.locator('[data-command-template="Observație: "]').click();
+ await expect(input).toHaveValue('Observație: ');
+ await expect(page.locator('[data-command-template^="Înregistrează "]')).toBeVisible();
+ await expect(page.locator('[data-command-template^="Am vândut "]')).toBeVisible();
+ await expect(page.locator('#eventCount')).toHaveText('0');
+});
