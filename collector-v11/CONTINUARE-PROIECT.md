@@ -839,3 +839,31 @@ Commits for this round: `06d9516`, `0dc1183`, `9d3a094`, `e6235aa`, `c0fbc04`, `
 Authored tests and workflow checks are not yet validated by CI on this round's latest HEAD. PR #55 remains draft; no merge/deploy/store release performed.
 
 - Follow-up assertion adjustment: unsafe audio index is rejected by shared `readIndex()` validation before the destructive-operation-specific validation; test accepts either fail-closed error and still asserts no files/index are deleted. Commit `75462f5a17c2b8586bafd910818ace844ecf5db4`.
+
+## Continuare — următorul set de hardening și backup — 26 nov 2026
+
+### Recovery audio native
+- native-audio-recorder.js validează checkpoint-ul la citire: ID nevid, format AAC și path exact derivat din ID/safeName. Un checkpoint cu path traversal e respins înainte de filesystem și păstrat.
+- Test regression adăugat.
+
+### Backup/restore audio separat de journal JSON
+- Implementate API native exportBackup() / importBackup() și expuse prin CollectorAudioStore.
+- Format collector-audio-backup.v1; include fișierele audio base64 + metadata, separate de backupul Core.
+- Importul este additive, duplicate IDs sunt skip, schema/base64/MIME/size/path validate; limite: max 100 înregistrări, 50 MB/fișier, 100 MB total. Fișierele sunt scrise înainte de metadata commit; la commit failure, fișierele noi sunt șterse. Export preflight și filesystem stat verifică dimensiunile.
+- UI Audit: export și import backup audio; avertismentul despre audio omis în JSON Core rămâne explicit. Audio backup este disponibil pentru storage nativ, nu pentru fallback web.
+- Teste authored pentru round-trip, duplicate, malformed base64, size limits și rollback; CI pending. Teste pe telefon necesare pentru filesystem Capacitor, storage quota și fișiere mari.
+
+### Release bundle audit
+- Adăugat verify-release-bundle.js, script npm și gate în Android/iOS CI după mobile build; scanează fișiere private/ascunse și pattern-uri de secrete server-side.
+- iOS CI verifică acum explicit toolchain direct-version pins, la fel ca Android.
+- Teste authored pentru fișier privat și marker de secret; CI pending.
+
+### Basic/offline regression
+- E2E adăugat: entitate locală, draft Work persistent după reload, preview Core local, fără commit implicit al notei și fără request AI; buton AI disabled în Basic/offline. CI pending.
+
+### Lockfile/toolchain
+- Full transitive lockfile still not generated. Direct version verifier remains; mobile:install-toolchain uses --no-package-lock. Need a clean environment with npm and generated lockfile; do not claim fully reproducible native builds.
+
+Commits acest set: 2cc00fb, 8e05c76, 8507b0c, 18c8668, 286336f, f2ff143, 0acd95a, 66d0d4a, 7b547fa, c1686ad, a9a923b, 416175b, 5c4e9da, cf17753, b6d1ee4, dc881cf, 9e81a63, 9eae62f, a13bcdd, ca838f3.
+
+No merge, deploy, store release or device-level validation performed. Tests are authored but pending CI on final HEAD.
