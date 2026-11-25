@@ -568,7 +568,8 @@ function initializeWorkDraft(){
   input.setRangeText(template,start,end,'end');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
  }));
 }
-\n// Conversation context expires after 30 minutes; persistent entities and event history are unaffected.
+
+// Conversation context expires after 30 minutes; persistent entities and event history are unaffected.
 // Do not persist stale in-memory snapshots on focus; context expiry is evaluated when commands are handled.
 // Every committed change is persisted before publication; never write a stale in-memory snapshot on unload.
 async function initializeCollectorApp(){
