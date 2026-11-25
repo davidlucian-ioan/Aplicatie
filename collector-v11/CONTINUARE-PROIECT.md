@@ -696,3 +696,30 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 - Updated monetization/cost model document with this impact audit: commit `1ec0eeab061a4a9801ec0c66435ba05eebcc11e0`.
 - **No application code changed** because mobile paywall/onboarding and store configuration have not yet been directly inspected; avoid guessing paths/behavior. Next action is source-level audit of purchase/paywall UI and its tests, then implement the lowest-risk corrections and regression tests.
 - Keep P0 launch priorities; trial monetization is now an explicit release requirement. No live billing/deploy/merge/publish.
+
+
+## Continued trial-led billing implementation audit + first correction (26 Nov 2026)
+
+### Verified source state
+- PR #55 remains open and draft, targets `main`; latest inspected head is `8f5fcfce2dcda75af378c4d78a315119a527e755`. No merge/release.
+- Directly inspected `collector-v11/subscriptions.js`, `collector-v11/test-subscriptions.js`, and relevant `app.js` subscription and AI-status UI.
+- Existing subscriptions UI uses labels `Plan Free` and `Collector Pro activ`, but did not distinguish an active store introductory trial from a paid Pro subscription.
+- RevenueCat active Pro entitlement can expose `periodType`; app now maps `periodType === 'TRIAL'` into explicit `isTrial` state and shows **Trial Collector Pro activ** with expiry when available. Paid Pro continues to show normal active label.
+- Replaced subscription/AI-status UI's misleading `Plan Free` label with **Collector Basic**, explicitly explaining that local data and functions remain available and Pro offers AI/cloud. This is terminology alignment only; exact Basic capabilities and premium gates are not yet finalized.
+- Added regression tests for trial entitlement and paid entitlement classification.
+
+### Commits
+- `3b7e048a81cd50af89970b5c974e716c73350ac6` — expose trial entitlement state
+- `b8c20ad4080854c603531b2129dc9e0dbd5f468f` — trial vs paid entitlement tests
+- `8f5fcfce2dcda75af378c4d78a315119a527e755` — align subscription labels to trial-led model
+
+### Validation status
+- GitHub status/workflow lookup for latest head returned no checks yet (empty results); therefore these changes are **not CI-validated** as of checkpoint.
+- PR #55 metadata confirms draft status and explicitly requires full CI on latest HEAD plus external sandbox validation.
+
+### Next actions
+1. Run/await CI on latest head; if workflows don't trigger, investigate rather than claim validation.
+2. Audit test/build effects and check whether RevenueCat SDK's actual entitlement `periodType` value is available in the pinned SDK/store sandbox; current classification is defensive and only marks `TRIAL` exact.
+3. Add clear trial disclosure/offer terms to paywall/onboarding only after package metadata and platform offer details are verified; don't invent dates/prices/renewal terms.
+4. Define post-trial Basic capability boundary and verify app local access/export are not disabled by entitlement expiry.
+5. Continue P0 launch blockers and prepare store sandbox matrix. No production configuration, live transactions, deployment or merge.
