@@ -1,13 +1,13 @@
 (function(global){
  'use strict';
- const DB_NAME='collector-audio-assets',DB_VERSION=1,STORE='recordings',INDEX_KEY='collector_audio_index_v1';
+ const DB_NAME='collector-audio-assets',DB_VERSION=2,STORE='recordings',SESSIONS='recording_sessions',INDEX_KEY='collector_audio_index_v1';
  let opening=null;
  function openDb(){
   if(!('indexedDB' in global))return Promise.reject(new Error('IndexedDB nu este disponibil în acest browser.'));
   if(opening)return opening;
   opening=new Promise((resolve,reject)=>{
    const request=global.indexedDB.open(DB_NAME,DB_VERSION);
-   request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains(STORE)){const store=db.createObjectStore(STORE,{keyPath:'id'});store.createIndex('createdAt','createdAt',{unique:false})}};
+   request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains(STORE)){const store=db.createObjectStore(STORE,{keyPath:'id'});store.createIndex('createdAt','createdAt',{unique:false})}if(!db.objectStoreNames.contains(SESSIONS)){const sessions=db.createObjectStore(SESSIONS,{keyPath:'id'});sessions.createIndex('updatedAt','updatedAt',{unique:false})}};
    request.onsuccess=()=>resolve(request.result);
    request.onerror=()=>reject(request.error||new Error('Nu pot deschide stocarea audio.'));
    request.onblocked=()=>reject(new Error('Stocarea audio este blocată de o altă filă deschisă.'));
@@ -38,7 +38,32 @@
   get(id){return transaction('readonly',store=>store.get(id)).then(restoreBlob)},
   list(){return transaction('readonly',store=>store.getAll()).then(records=>records.map(restoreBlob).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))))},
   remove(id){return transaction('readwrite',store=>store.delete(id))},
-  async rename(id,title){const name=String(title||'').trim();if(!name||name.length>100)throw new Error('Titlul trebuie să aibă 1–100 de caractere.');const record=await webStore.get(id);if(!record)throw new Error('Înregistrarea nu a fost găsită.');const {blob,...metadata}=record;const audioData=blob?await blob.arrayBuffer():metadata.audioData;return transaction('readwrite',store=>store.put({...metadata,title:name,audioData}))}
+  async rename(id,title){const name=String(title||'').trim();if(!name||name.length>100)throw new Error('Titlul trebuie să aibă 1–100 de caractere.');const record=await webStore.get(id);if(!record)throw new Error('Înregistrarea nu a fost găsită.');const {blob,...metadata}=record;const audioData=blob?await blob.arrayBuffer():metadata.audioData;return transaction('readwrite',store=>store.put({...metadata,title:name,audioData}))},
+  async beginSession(session){
+   if(!session?.id||!session.mimeType)throw new Error('Sesiunea audio nu are metadate valide.');
+   const row={id:session.id,createdAt:session.createdAt||new Date().toISOString(),mimeType:session.mimeType,chunks:[],durationMs:0,updatedAt:new Date().toISOString()};
+   await transaction('readwrite',store=>store.put(row),SESSIONS);return row;
+  },
+  async appendSessionChunk(id,chunk,durationMs=0){
+   if(!id||!(chunk instanceof Blob)||!chunk.size)return false;
+   return openDb().then(db=>new Promise((resolve,reject)=>{
+    const tx=db.transaction(SESSIONS,'readwrite'),store=tx.objectStore(SESSIONS),request=store.get(id);let result,error;
+    request.onsuccess=()=>{const row=request.result;if(!row){error=new Error('Sesiunea audio nu mai există.');try{tx.abort()}catch{}return}row.chunks=Array.isArray(row.chunks)?row.chunks:[];row.chunks.push(chunk);row.durationMs=Math.max(Number(row.durationMs)||0,Number(durationMs)||0);row.updatedAt=new Date().toISOString();result=store.put(row)};
+    tx.oncomplete=()=>resolve(result?.result??true);
+    tx.onerror=()=>reject(error||request.error||tx.error||new Error('Nu am putut salva fragmentul audio.'));
+    tx.onabort=()=>reject(error||request.error||tx.error||new Error('Salvarea fragmentului audio a fost anulată.'));
+   }));
+  },
+  listInterruptedSessions(){return transaction('readonly',store=>store.getAll(),SESSIONS).then(rows=>rows.filter(row=>Array.isArray(row.chunks)&&row.chunks.some(chunk=>chunk instanceof Blob&&chunk.size>0)).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))))},
+  async recoverSession(id){
+   const session=await transaction('readonly',store=>store.get(id),SESSIONS);
+   if(!session)throw new Error('Sesiunea audio întreruptă nu a fost găsită.');
+   const chunks=(session.chunks||[]).filter(chunk=>chunk instanceof Blob&&chunk.size>0),blob=new Blob(chunks,{type:session.mimeType||chunks[0]?.type||'audio/webm'});
+   if(!blob.size)throw new Error('Sesiunea nu conține fragmente audio recuperabile.');
+   const record={id:session.id,createdAt:session.createdAt||new Date().toISOString(),durationMs:Number(session.durationMs)||0,mimeType:blob.type||'audio/webm',size:blob.size,blob,recovered:true,warning:'Înregistrare recuperată din fragmente salvate periodic. Verifică redarea.'};
+   await webStore.save(record);await webStore.removeSession(id);return record;
+  },
+  removeSession(id){return transaction('readwrite',store=>store.delete(id),SESSIONS)},
  };
  function safeFileName(id){return String(id).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,100)||'audio'}
  async function blobToBase64(blob){
@@ -133,8 +158,8 @@
   get(id){return activeStore.get(id)},
   list(){return activeStore.list()},
   remove(id){return activeStore.remove(id)},
-  rename(id,title){if(typeof activeStore.rename!=='function')return Promise.reject(new Error('Redenumirea nu este disponibilă.'));return activeStore.rename(id,title)}
+  rename(id,title){if(typeof activeStore.rename!=='function')return Promise.reject(new Error('Redenumirea nu este disponibilă.'));return activeStore.rename(id,title)},\n  beginSession(session){if(typeof activeStore.beginSession!=='function')return Promise.reject(new Error('Backup-ul periodic nu este disponibil pe această platformă.'));return activeStore.beginSession(session)},\n  appendSessionChunk(id,chunk,durationMs){if(typeof activeStore.appendSessionChunk!=='function')return Promise.reject(new Error('Backup-ul periodic nu este disponibil pe această platformă.'));return activeStore.appendSessionChunk(id,chunk,durationMs)},\n  listInterruptedSessions(){if(typeof activeStore.listInterruptedSessions!=='function')return Promise.resolve([]);return activeStore.listInterruptedSessions()},\n  recoverSession(id){if(typeof activeStore.recoverSession!=='function')return Promise.reject(new Error('Recuperarea sesiunii web nu este disponibilă.'));return activeStore.recoverSession(id)},\n  removeSession(id){if(typeof activeStore.removeSession!=='function')return Promise.resolve(false);return activeStore.removeSession(id)}
  });
  global.CollectorAudioStore=api;
- if(typeof module!=='undefined'&&module.exports)module.exports={createNativeStore,webStore};
+ if(typeof module!=='undefined'&&module.exports)module.exports={createNativeStore,webStore,transaction,openDb};
 })(typeof window!=='undefined'?window:globalThis);
