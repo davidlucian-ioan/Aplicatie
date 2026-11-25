@@ -4,7 +4,13 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
 const os=require('node:os');
 const path=require('node:path');
+const vm=require('node:vm');
 const {buildMobile,WEB_FILES}=require('./build-mobile');
+
+test('app.js parses without syntax errors',async()=>{
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ assert.doesNotThrow(()=>new vm.Script(app,{filename:'app.js'}),'app.js must parse before browser tests or mobile bundling');
+});
 
 test('mobile bundle include doar activele runtime necesare',async()=>{
  const root=await fs.mkdtemp(path.join(__dirname,'.tmp-mobile-'));
