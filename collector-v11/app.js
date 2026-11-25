@@ -515,7 +515,8 @@ async function stopAudioRecording(){
   const elapsed=audioElapsed();
   try{
    const result=await window.CollectorNativeAudioRecorder.stop();
-   const record=await CollectorAudioStore.saveNative({...result,createdAt:new Date(Number(nativeAudioSession.startedAt)||Date.now()).toISOString(),durationMs:Number(result.durationMs)||elapsed});\n   await window.CollectorNativeAudioRecorder.complete(record.id);
+   const record=await CollectorAudioStore.saveNative({...result,createdAt:new Date(Number(nativeAudioSession.startedAt)||Date.now()).toISOString(),durationMs:Number(result.durationMs)||elapsed});
+   await window.CollectorNativeAudioRecorder.complete(record.id);
    audioRecorder=null;nativeAudioSession=null;
    const player=document.getElementById('audioPlayback');if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}
    player.src=window.CollectorNativeAudioRecorder.toPlayableUrl(record.uri);player.hidden=false;
@@ -609,7 +610,11 @@ async function initializeCollectorApp(){
   try{
    await window.CollectorAudioStore?.initialize({capacitor:window.Capacitor,filesystem:window.Capacitor?.Plugins?.Filesystem,storage:storageAdapter});
    audioStorageReady=true;
-   window.CollectorNativeAudioRecorder?.configure({capacitor:window.Capacitor,plugin:window.Capacitor?.Plugins?.CapacitorAudioRecorder,filesystem:window.Capacitor?.Plugins?.Filesystem,storage:storageAdapter});\n   await window.CollectorNativeAudioRecorder?.initialize();\n   const pendingAudio=await window.CollectorNativeAudioRecorder?.getPending();\n   const recoverButton=document.getElementById('audioRecoverPending');if(recoverButton)recoverButton.hidden=!pendingAudio;\n   if(pendingAudio)setAudioUi('idle','Am detectat o înregistrare întreruptă. Nu o finalizez automat; apasă „Recuperează” pentru a încerca salvarea.');
+   window.CollectorNativeAudioRecorder?.configure({capacitor:window.Capacitor,plugin:window.Capacitor?.Plugins?.CapacitorAudioRecorder,filesystem:window.Capacitor?.Plugins?.Filesystem,storage:storageAdapter});
+   await window.CollectorNativeAudioRecorder?.initialize();
+   const pendingAudio=await window.CollectorNativeAudioRecorder?.getPending();
+   const recoverButton=document.getElementById('audioRecoverPending');if(recoverButton)recoverButton.hidden=!pendingAudio;
+   if(pendingAudio)setAudioUi('idle','Am detectat o înregistrare întreruptă. Nu o finalizez automat; apasă „Recuperează” pentru a încerca salvarea.');
   }catch(audioError){
    audioStorageReady=false;
    setAppStatus('Stocarea audio nu a putut fi inițializată: '+String(audioError?.message||audioError));
