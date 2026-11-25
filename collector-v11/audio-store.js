@@ -174,6 +174,8 @@
    async exportBackup(){
     await initialize();
     const rows=await readIndex(),files=[];
+    const totalBytes=rows.reduce((sum,row)=>sum+Number(row.size||0),0);
+    if(rows.length>100||totalBytes>100*1024*1024)throw new Error('Backup audio depășește limita de 100 înregistrări sau 100 MB.');
     for(const row of rows){
      if(!isSafeAudioFilePath(row.filePath))throw new Error('Backup audio blocat: index invalid.');
      const content=await filesystem.readFile({path:row.filePath,directory:'DATA'});
@@ -181,8 +183,6 @@
      if(!data)throw new Error('Nu pot citi fișierul audio '+row.id+' pentru backup.');
      files.push({id:row.id,createdAt:row.createdAt,durationMs:Number(row.durationMs)||0,mimeType:row.mimeType||'audio/aac',size:Number(row.size)||0,title:row.title||null,warning:row.warning||null,data});
     }
-    const totalBytes=files.reduce((sum,row)=>sum+Number(row.size||0),0);
-    if(files.length>100||totalBytes>100*1024*1024)throw new Error('Backup audio depășește limita de 100 înregistrări sau 100 MB.');
     return {format:'collector-audio-backup.v1',exportedAt:new Date().toISOString(),recordings:files};
    },
    async importBackup(backup){
