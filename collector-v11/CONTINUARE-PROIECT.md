@@ -605,3 +605,24 @@ Checklist-ul de lansare a fost actualizat în commit `63975777d7157926ccc01e04f8
 6. Fără merge/deploy, activare encryption/billing, signing secrets sau publicare fără aprobare.
 
 Checkpoint-ul trebuie actualizat după progres semnificativ și înainte de limita chatului.
+
+
+## Continuare — audit workflow cu contents:write (25 nov 2026)
+
+- HEAD: `570b694a189a5c587cab5f1044d37003976571b0`.
+- PR #55 rămâne draft; nu merge/deploy.
+- Workflow-ul legacy de import v0.7 a fost harden-uit:
+  - permisiunea globală este `contents: read`; `contents: write` este limitată la job-ul care efectuează commit/push;
+  - branch-ul țintă este verificat explicit înainte de push;
+  - ZIP-ul este verificat înainte de extragere pentru path-uri absolute, traversal (`..`), backslash și symlink-uri;
+  - checkout curățat (`clean: true`) și commit doar dacă există modificări staged.
+- Commit workflow: `fb2b3f700fda0d8bd1ced4a6237c74ac9f32a061`.
+- Workflow Quality Suite a fost extins să pornească și la modificarea workflow-ului de import, astfel încât următoarele schimbări să primească CI: commit `570b694a189a5c587cab5f1044d37003976571b0`.
+- La checkpoint, run-urile pentru HEAD nou nu apăruseră încă. Nu considera această modificare CI-validated până nu apare și trece Quality Suite.
+- Auditul a confirmat că workflow-ul de import este branch-scoped, trigger-ul nu urmărește commit-urile produse în `collector-v11/`, iar push-ul este către branch-ul sursă dedicat, nu `main`.
+
+### Următorii pași
+1. Confirmă Quality Suite SUCCESS pe HEAD `570b694a...`; dacă eșuează, examinează logurile și repară.
+2. Verifică din nou CI complet pe PR #55 după următoarele modificări care ating codul mobil/cloud.
+3. Continuă lockfile/toolchain reproducibility și pipeline de release semnat (fără secrete), fără a crea/folosi signing secrets.
+4. Păstrează gate-urile: encryption OFF, PR draft, fără merge/deploy/billing real/publicare.
