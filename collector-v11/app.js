@@ -594,7 +594,13 @@ const WORK_DRAFT_KEY='collector_work_command_draft_v1';
 function initializeWorkDraft(){
  const input=document.getElementById('commandInput'),status=document.getElementById('workDraftStatus'),clear=document.getElementById('clearWorkDraft');
  if(!input)return;
- let writeVersion=0;
+ let writeVersion=0,draftWriteQueue=Promise.resolve();
+ const enqueueDraftWrite=(value,version)=>{
+  draftWriteQueue=draftWriteQueue.catch(()=>undefined).then(()=>storageAdapter[(value.trim()?'writeRaw':'removeRaw')](WORK_DRAFT_KEY,...(value.trim()?[value]:[]))).then(()=>{
+   if(version===writeVersion)status.textContent=value.trim()?'Draft salvat local automat.':'Draft gol.';
+  }).catch(error=>{if(version===writeVersion)status.textContent='Nu am putut salva draftul local: '+error.message});
+  return draftWriteQueue;
+ };
  (async()=>{
   const version=writeVersion;
   try{const saved=await storageAdapter.readRaw(WORK_DRAFT_KEY);if(version===writeVersion&&saved&&input.value===''){input.value=saved;status.textContent='Draft recuperat automat de pe acest dispozitiv.'}}
@@ -602,16 +608,18 @@ function initializeWorkDraft(){
  })();
  input.addEventListener('input',()=>{
   const version=++writeVersion,value=input.value;
-  storageAdapter[(value.trim()?'writeRaw':'removeRaw')](WORK_DRAFT_KEY,...(value.trim()?[value]:[])).then(()=>{
-   if(version===writeVersion)status.textContent=value.trim()?'Draft salvat local automat.':'Draft gol.';
-  }).catch(error=>{if(version===writeVersion)status.textContent='Nu am putut salva draftul local: '+error.message});
+  void enqueueDraftWrite(value,version);
  });
  clear?.addEventListener('click',async()=>{
-  ++writeVersion; // Invalidate any pending restore/read before clearing, including an already-empty input.
-  if(!input.value.trim()){try{await storageAdapter.removeRaw(WORK_DRAFT_KEY);status.textContent='Draft gol.'}catch(error){status.textContent='Draftul gol nu a putut fi șters din stocare.'}return}
+  if(!input.value.trim()){
+   const version=++writeVersion;
+   try{await enqueueDraftWrite('',version);status.textContent='Draft gol.'}catch(error){status.textContent='Draftul gol nu a putut fi șters din stocare.'}
+   return;
+  }
   if(!confirm('Ștergi textul draftului? Nu a fost salvat ca eveniment.'))return;
   input.value='';
-  try{await storageAdapter.removeRaw(WORK_DRAFT_KEY);status.textContent='Draft șters. Niciun eveniment nu a fost modificat.'}
+  const version=++writeVersion;
+  try{await enqueueDraftWrite('',version);status.textContent='Draft șters. Niciun eveniment nu a fost modificat.'}
   catch(error){status.textContent='Textul a fost golit, dar draftul nu a putut fi șters din stocare.'}
   input.focus();
  });
