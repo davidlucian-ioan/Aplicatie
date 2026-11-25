@@ -335,3 +335,12 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - În auditul codului am corectat implementarea inițială incompletă: rename nativ a fost adăugat explicit în adapter, nu doar expus în API.
 - Template-uri Work verificate și aliniate la sintaxa parserului local; Observation/Attribute/Sale.
 - HEAD la checkpoint: 369f53c33fca0eacc94350bb4a8fc926c5a40a7d. CI pe acest HEAD era pending la momentul salvării. Așteaptă rularea pe HEAD curent, apoi verifică logs dacă orice job eșuează.
+
+
+## Work batch — snooze pentru alarme (2026-11-25)
+
+- Reminder-urile pot fi amânate din listă cu +10 minute sau +1 oră.
+- Snooze creează și programează reminderul nou, apoi anulează reminderul original; dacă anularea originalului eșuează, încearcă să anuleze noul reminder și păstrează eroarea explicită.
+- Duratele sunt allowlist 5/10/30/60 minute în service (UI expune 10 și 60); duratele invalide sunt respinse.
+- Teste unitare pentru înlocuirea alarmelor și respingerea delay-ului invalid. Fixture-ul folosește ID-uri deterministe unice pentru a evita coliziunile.
+- HEAD curent: 1eecbaa7027d0c97cc35be26aac64496553e783f. Android build era in progress, Quality suite pending; iOS jobul unei rulari a fost anulat de push ulterior. Nu se marchează CI verde până la verdictul pe HEAD final.
