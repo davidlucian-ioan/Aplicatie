@@ -35,6 +35,16 @@ test('native audio adapter migrates IndexedDB blobs to app-private files before 
  assert.ok(x.files.has('collector-audio/legacy-audio-old.webm'));
  assert.deepEqual(x.removed,['audio-old']);assert.equal(x.legacy().length,0);
 });
+test('native audio deletion refuses a corrupted index path and preserves the file',async()=>{
+ const x=fixture();await x.store.initialize();
+ const row={id:'audio-path-guard',createdAt:'2026-11-25T10:00:00.000Z',durationMs:100,mimeType:'audio/aac',size:4,filePath:'../private/secret.aac',uri:'file:///app/private/secret.aac'};
+ x.values.set('collector_audio_index_v1',JSON.stringify([row]));
+ x.files.set('../private/secret.aac',Buffer.from('secret'));
+ await assert.rejects(x.store.remove(row.id),/Calea înregistrării audio este invalidă/);
+ assert.equal(x.files.has('../private/secret.aac'),true,'must not delete a file outside the managed audio folder');
+ assert.deepEqual(JSON.parse(x.values.get('collector_audio_index_v1')),[row],'must preserve corrupted metadata for recovery');
+});
+
 test('native audio metadata is stored in SQLite and files are removed only with their record',async()=>{
  const x=fixture();await x.store.initialize();
  const record={id:'audio-native',createdAt:'2026-11-24T11:00:00.000Z',durationMs:5000,mimeType:'audio/aac',size:10,filePath:'collector-audio/audio-native.aac',uri:'file:///app/collector-audio/audio-native.aac'};
