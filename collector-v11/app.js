@@ -611,8 +611,8 @@ function initializeWorkDraft(){
   void enqueueDraftWrite(value,version);
  });
  clear?.addEventListener('click',async()=>{
+  const version=++writeVersion;
   if(!input.value.trim()){
-   const version=++writeVersion;
    try{await enqueueDraftWrite('',version);status.textContent='Draft gol.'}catch(error){status.textContent='Draftul gol nu a putut fi șters din stocare.'}
    return;
   }
