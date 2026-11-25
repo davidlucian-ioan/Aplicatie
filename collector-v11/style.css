@@ -265,3 +265,11 @@ header p{color:#687487;font-size:13px}
  .entity-detail .detail-head{flex-direction:column}
  .entity-detail .detail-head .row-actions{width:100%}
 }
+
+
+/* Recording state communicates clearly without relying on color alone */
+.work-recorder:has(#audioRecordPause:not(:disabled)) h2:before{background:#dc4545;box-shadow:0 0 0 4px #dc45451a;animation:collectorRecordingPulse 1.6s ease-in-out infinite}
+.work-recorder:has(#audioRecordPause:not(:disabled)) #audioRecorderTimer{border-color:#f0b8b8;background:#fff7f7;color:#a72d2d;font-weight:750}
+.work-recorder:has(#audioRecordPause:not(:disabled)) #audioRecorderStatus{color:#a72d2d;font-weight:650}
+@keyframes collectorRecordingPulse{0%,100%{box-shadow:0 0 0 4px #dc45451a}50%{box-shadow:0 0 0 7px #dc454508}}
+@media(prefers-reduced-motion:reduce){.work-recorder:has(#audioRecordPause:not(:disabled)) h2:before{animation:none}}
