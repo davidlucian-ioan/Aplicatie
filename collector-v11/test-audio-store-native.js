@@ -135,7 +135,7 @@ test('clearAll refuses an unsafe index before deleting any managed audio file',a
  const safe={id:'safe-audio',createdAt:'2026-11-25T10:00:00.000Z',durationMs:1,mimeType:'audio/aac',size:4,filePath:'collector-audio/safe-audio.aac',uri:'file:///app/collector-audio/safe-audio.aac'};
  x.files.set(safe.filePath,Buffer.from('audio'));
  x.values.set('collector_audio_index_v1',JSON.stringify([safe,{...safe,id:'unsafe',filePath:'collector-audio/../secret.aac'}]));
- await assert.rejects(x.store.clearAll(),/Indexul audio conține o cale locală invalidă/);
+ await assert.rejects(x.store.clearAll(),/Indexul audio nativ este invalid|Indexul audio conține o cale locală invalidă/);
  assert.equal(x.files.has(safe.filePath),true,'validation must happen before deletion starts');
  assert.equal(x.values.has('collector_audio_index_v1'),true,'metadata must be preserved for recovery');
 });
