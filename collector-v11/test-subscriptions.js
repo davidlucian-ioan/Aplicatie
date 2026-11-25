@@ -92,3 +92,19 @@ test('paid Pro entitlement is not incorrectly labeled trial',async()=>{
  const state=await globalThis.CollectorSubscriptions.refresh();
  assert.equal(state.isPro,true);assert.equal(state.isTrial,false);assert.equal(state.periodType,'NORMAL');
 });
+
+
+test('missing or unknown periodType does not falsely identify a trial',async()=>{
+ globalThis.CollectorPurchasesBundle.getCustomerInfo=async()=>({customerInfo:{entitlements:{active:{pro:{isActive:true,expirationDate:'2027-02-01T00:00:00Z'}}}}});
+ const missing=await globalThis.CollectorSubscriptions.refresh();
+ assert.equal(missing.isPro,true);assert.equal(missing.isTrial,false);assert.equal(missing.periodType,null);
+ globalThis.CollectorPurchasesBundle.getCustomerInfo=async()=>({customerInfo:{entitlements:{active:{pro:{isActive:true,periodType:'INTRO'}}}}});
+ const unknown=await globalThis.CollectorSubscriptions.refresh();
+ assert.equal(unknown.isPro,true);assert.equal(unknown.isTrial,false);assert.equal(unknown.periodType,'INTRO');
+});
+
+test('inactive entitlement is never reported as an active trial',async()=>{
+ globalThis.CollectorPurchasesBundle.getCustomerInfo=async()=>({customerInfo:{entitlements:{active:{pro:{isActive:false,periodType:'TRIAL'}}}}});
+ const state=await globalThis.CollectorSubscriptions.refresh();
+ assert.equal(state.isPro,false);assert.equal(state.isTrial,false);assert.equal(state.periodType,'TRIAL');
+});
