@@ -315,3 +315,13 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - Verificare CI la momentul checkpointului: build mobil și Cloud API pe HEAD 43ed76b erau queued/pending; Quality suite queued. Rulările anterioare au fost anulate automat de push-uri succesive, deci nu sunt verdict. Așteaptă verdictul pe ultimul SHA înainte de următorul batch de push-uri.
 - HEAD curent la momentul checkpointului: 43ed76b6517221101e1336b6adf44ac1a9b9248b pe branch feature/openai-provider-integration; PR #55 draft, fără merge.
 - Următorul batch: testează CI; dacă apare fail, repară înainte de a continua. Apoi adaugă feedback/claritate la starea recorderului și revizuirea comenzii, teste E2E pentru cazurile de draft și microfon, și hardening reminder UX.
+
+
+## Batch suplimentar Work — etichete audio și template-uri corecte (2026-11-25)
+
+- Înregistrările audio pot primi un titlu personalizat, fără redenumirea sau modificarea fișierului audio. Metadatele titlului sunt păstrate în indexul nativ/local; listarea arată titlul și data/durata/dimensiunea.
+- UI adaugă acțiunea „Redenumește” cu validare 1–100 caractere. Redarea și ștergerea rămân separate.
+- Test native-store verifică persistența titlului și integritatea fișierului audio.
+- Template-urile rapide au fost aliniate la sintaxa parserului local: Observație, Atribut și Vânzare; nu mai oferă texte „Verificare” sau „Mutare” care parserul local nu le recunoaște.
+- E2E verifică existența template-urilor pentru atribut/vânzare și că inserarea textului nu produce eveniment.
+- Nu se face merge. Așteaptă CI pentru HEAD-ul cel mai nou; mai multe push-uri anterioare au anulat joburile vechi.
