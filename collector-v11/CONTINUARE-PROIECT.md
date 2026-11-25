@@ -868,3 +868,5 @@ Commits acest set: 2cc00fb, 8e05c76, 8507b0c, 18c8668, 286336f, f2ff143, 0acd95a
 
 No merge, deploy, store release or device-level validation performed. Tests are authored but pending CI on final HEAD.
 - Final follow-up: audio import additionally validates ID length and parseable creation timestamp before filesystem writes. Commit `0728ae3e1162b3c34b4f63461601fd2c94248854`.
+
+- Final fail-closed change: malformed audio-backup records now abort import rather than being silently skipped; only duplicate IDs already present are skipped. Regression authored. Commit `766752a` and test `ec17d4a`.
