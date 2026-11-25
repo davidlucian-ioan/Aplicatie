@@ -22,6 +22,18 @@ test('UI folosește preview și execute prin Core Port, cu StorageAdapter asincr
  assert.match(s,/\.execute\(command,\{confirmed:true\}\)/);
  assert.match(s,/publishState:async next=>\{db=next;render\(\)\}/);
 });
+test('Work draft controls and quick templates exist in every UI entry point',()=>{
+ for(const html of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
+  const source=fs.readFileSync(html,'utf8');
+  assert.match(source,/<textarea id=\"commandInput\"/);
+  assert.match(source,/id=\"workDraftStatus\"[^>]*role=\"status\"/);
+  assert.match(source,/id=\"clearWorkDraft\"/);
+  assert.match(source,/data-command-template=\"Observație: \"/);
+  assert.match(source,/data-command-template=\"Înregistrează \\[atribut\\] pentru \\[entitate\\] = \\[valoare\\]\"/);
+ }
+ const app=fs.readFileSync('app.js','utf8');
+ assert.match(app,/clear\?\.addEventListener\('click',async\(\)=>\{\\n  \+\+writeVersion/);
+});
 test('UI expune providerul OpenAI separat de interpretarea locală',()=>{
  const html=fs.readFileSync('index-server.html','utf8');
  const app=fs.readFileSync('app.js','utf8');
