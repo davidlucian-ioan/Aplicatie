@@ -356,3 +356,19 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - CI is running on current HEAD f79b96912c9a50db74d58c5138ac75c819a44080; no pass/fail verdict yet. Wait for Quality and Android/iOS mobile build. Cloud API workflow may not be triggered by every frontend commit; monitor run availability.
 - Current HEAD: f79b96912c9a50db74d58c5138ac75c819a44080. Branch feature/openai-provider-integration, draft PR #55. No merge.
 - Next: inspect CI logs/results; fix failures. Continue Work-focused tasks: recorder recovery and recording-list UX; then reminder consistency; keep Think deferred.
+
+## Work batch — recorder recovery checkpoint (2026-11-25)
+
+- CI triage found 42 Playwright E2E failures caused by a JavaScript syntax error in the modal focus-trap line; this cascaded into app.js not loading. Fixed the missing bracket and pushed commit `7b6ba328`. The failure was not 42 independent product regressions.
+- Native recorder now has an explicit persisted checkpoint API planned/implemented in `native-audio-recorder.js`: pending session key `collector_audio_pending_session_v1`, checkpoint saved before native start, restore on app initialization, and explicit completion after audio metadata commit.
+- Work UI adds a recovery button to all three HTML entry points. It is only surfaced when a checkpoint is found; recovery is user-triggered, not automatic.
+- Recovery path can reuse an already-copied private audio file if the previous stop succeeded but metadata/index commit failed.
+- Unit tests added for checkpoint persistence, reinitialization recovery, recovery failure retaining the checkpoint, and already-copied file salvage.
+- Important: latest CI is still pending/in-progress and must validate the newest HEAD. Cloud API, Quality Suite, and Mobile Build need full status confirmation; prior failing Quality run is explained by the app.js syntax error.
+- Current branch remains `feature/openai-provider-integration`, PR #55 draft. No merge, deployment, or real purchase tests.
+
+Next:
+1. Verify latest CI after this batch, inspect any new failures.
+2. Complete audio list UX (playback controls, metadata, rename/delete, recovery status) and tests.
+3. Review native lifecycle and platform limitations; interruption recovery is best-effort because native plugin behavior after OS process kill needs real-device validation.
+4. Keep Work as priority; Think stays deferred.
