@@ -89,7 +89,7 @@ See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. Th
 - [x] JSON export now labels format and explicitly discloses `audioIncluded: false`; Audit UI warns recordings are not transferred by JSON export/import. Audio export/restore remains a separate launch/product gap (test authored; CI pending).
 
 - [x] Native audio index fail-closed validation (safe managed paths, unique IDs, metadata validity) + regression tests authored; CI pending.
-- [x] Audio clear-all validates the complete index before deleting any files; unsafe-path regression authored; CI pending.
+- [x] Audio clear-all validates the complete index before deleting any files; unsafe-path regression authored; assertion updated for shared fail-closed index validation; CI pending.
 - [x] SQLite recovery snapshot rejects duplicate/empty keys and preserves malformed backup; regression authored; CI pending.
 - [x] Transactional recovery rollback regression: injected restore failure must restore previous KV rows and retain recovery backup; CI pending.
 - [x] Native toolchain direct-version verification wired into both Android and iOS CI; test covers missing/mismatched package; CI pending. Full transitive lock remains open.
