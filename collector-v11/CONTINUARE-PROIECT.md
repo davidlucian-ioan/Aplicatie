@@ -482,3 +482,11 @@ Next actions:
 - Corrected the test by defining the Android workflow section before assertions. This does not change runtime/build configuration.
 - Commit: `e8f61e4fec122931b66841ecd147bda8f30b8744`.
 - New CI run required; previous quality run failed only at this test after the Work draft regression test passed.
+
+
+## CI regression fix — duplicate Android test section declaration — 2026-11-25
+- On HEAD `9277a3397b3f8c93bd04edd2f4eb9f922724a5bc`, Quality Suite failed at `test-mobile-build.js` with a SyntaxError: `androidSection` declared twice. Both Android and iOS build jobs stopped at the shared test verification step, before native compilation. 189/190 tests passed; the failing test file could not load.
+- Cloud API workflow completed SUCCESS.
+- Removed the stale duplicate declaration and redundant assertion. The correct Android section is already sliced between the Android job and iOS job, and the actual workflow wiring assertions remain.
+- Fix commit: `a7ddc62fa2ad506e472590315c532d106c1e6398`.
+- No runtime code or native build configuration changed. CI must re-run on this HEAD; no local execution is claimed.
