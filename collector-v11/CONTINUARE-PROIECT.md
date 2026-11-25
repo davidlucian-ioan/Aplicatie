@@ -795,3 +795,11 @@ Nicio tranzacție, configurare live, deploy, merge sau publicare efectuată.
 - Added Playwright regression in `collector-v11/e2e/collector-flows.spec.cjs`: on browser platform with no RevenueCat entitlement, create a local entity, confirm local event/entity state persists, then export JSON and assert the backup includes entity, journal events, schema v7.
 - Commit: `9a4f5f5dc653a725c6856d61af3144bec83abd14`.
 - This validates local Basic path in browser/no entitlement; it does **not** simulate RevenueCat expiration on native device or post-trial native purchase lifecycle. CI/device execution pending.
+
+
+## Import/restore malformed-backup hardening — 26 nov 2026
+
+- Added Playwright E2E covering malformed JSON and a JSON file without a valid Collector schema; both imports must fail closed and preserve the existing local journal, entity projection, and schema version.
+- Existing valid-backup restore E2E already checks that import restores the backup and discards entities added after that snapshot; existing incompatible-projection test also checks no mutation on rejection.
+- Commit: `22e38631191325599bf1c6a207dd96ad73cc481d`.
+- Test authored; exact-HEAD CI validation pending. This does not yet validate encrypted SQLite/native recovery, audio file restoration, or crash-interrupted restore on physical devices.
