@@ -73,6 +73,12 @@ test('native recording metadata can be renamed without changing audio file',asyn
  const x=fixture();await x.store.initialize();const record={id:'audio-title',createdAt:'2026-11-24T11:00:00.000Z',durationMs:5000,mimeType:'audio/aac',size:10,filePath:'collector-audio/audio-title.aac',uri:'file:///app/collector-audio/audio-title.aac'};x.files.set(record.filePath,Buffer.from('audio'));await x.store.saveNative(record);const renamed=await x.store.rename(record.id,'B3 verificare pH');assert.equal(renamed.title,'B3 verificare pH');assert.equal((await x.store.get(record.id)).title,'B3 verificare pH');assert.ok(x.files.has(record.filePath));
 });
 
+test('native audio adapter rejects unsafe file paths before indexing',async()=>{
+ const x=fixture();await x.store.initialize();
+ await assert.rejects(x.store.saveNative({id:'bad-path',filePath:'../outside.aac',uri:'file:///app/outside.aac'}),/Referința fișierului audio nativ este invalidă/);
+ assert.equal(x.values.has('collector_audio_index_v1'),false);
+});
+
 test('failed metadata commit cleans up the newly written audio file',async()=>{
  const x=fixture({failIndexWrite:true});
  await x.store.initialize();
