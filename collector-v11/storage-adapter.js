@@ -64,7 +64,7 @@
     if(requireEncryption){
      if(!encryptionBootstrap||typeof encryptionBootstrap.prepareSQLiteEncryption!=='function')throw new Error('Encryption bootstrap missing; refusing plaintext SQLite.');
      if(typeof sqlite.isInConfigEncryption==='function'&&(await sqlite.isInConfigEncryption()).result!==true)throw new Error('Native SQLite encryption is disabled in Capacitor config; refusing database access.');
-     encryptionState=await encryptionBootstrap.prepareSQLiteEncryption({sqlite,database});
+     encryptionState=await encryptionBootstrap.prepareSQLiteEncryption({sqlite,database,backupStorage:legacy});
     }
     if(typeof sqlite.isConnection==='function'){
      const state=await sqlite.isConnection(connection);
