@@ -103,3 +103,18 @@ test('modal dialog manages keyboard focus, Escape, and return focus', async ({ p
   await expect(modal).toBeHidden();
   await expect(opener).toBeFocused();
 });
+
+test('entity detail supports event-sourced rename and preserves new name in list', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Plant A');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+  await page.locator('#entityList button').filter({ hasText: 'Deschide' }).click();
+  await page.getByRole('button', { name: 'Redenumește' }).click();
+  await page.locator('#renameEntityName').fill('Plant A renamed');
+  await page.locator('#modal button.primary').click();
+  await expect(page.locator('#entityList')).toContainText('Plant A renamed');
+  await expect(page.locator('#entityList')).toContainText('Cronologie');
+});
