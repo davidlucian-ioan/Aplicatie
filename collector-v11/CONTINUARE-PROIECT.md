@@ -461,3 +461,10 @@ Next actions:
 - CI workflow now invokes the shared script on both platforms; regression test checks shared pins and workflow wiring.
 - This reduces drift between platforms but **does not yet make the native toolchain lockfile-reproducible**: installation still uses `--no-save --no-package-lock`. Next: safely generate and validate a lockfile containing native toolchain packages (npm ci on clean runners), after CI confirms this centralization change.
 - Commits: `e1d7f3e` (package script), `379628f` (workflow), `38cefe0` (test).
+
+
+## CI regression fix — 2026-11-25
+- CI on HEAD `6270ba0` exposed the same single regression in Quality Suite and Android's pre-build verification: the Work draft clear handler incremented `writeVersion` only after checking whether the input was empty, while the invariant/test requires invalidating pending restore/autosave work immediately on any clear click.
+- Fixed in `app.js`: `const version=++writeVersion;` now runs before the empty-input branch. Both empty and confirmed non-empty clear paths use that same version token; serialized removal remains unchanged.
+- Commit: `d90600fe63cacb0c7c318e90f7f6f9901ab58712`.
+- Rerun CI is required before marking green. The prior Cloud API run passed; Android and iOS are still pending/failing at the test gate, not at native compilation.
