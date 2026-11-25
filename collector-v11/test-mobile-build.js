@@ -156,7 +156,9 @@ test('audio playback is detached before deleting the currently playing recording
  assert.ok(app.includes('audioPlaybackRecordId=null'));
  assert.ok(app.includes('function clearAudioPlayback(){'));
  assert.ok(app.includes('if(audioPlaybackRecordId===recordId)clearAudioPlayback()'));
- assert.ok(app.includes('function setAudioPlayback(recordId,source){'));
+ assert.ok(app.includes('function setAudioPlayback(recordId,source,ownedObjectUrl=null){'));
+ assert.ok(app.includes('audioObjectUrl=ownedObjectUrl'));
+ assert.ok(app.includes('setAudioPlayback(record.id,objectUrl,objectUrl)'),'blob playback must retain ownership of its object URL');
  assert.ok(app.includes('audioPlaybackRecordId=recordId'));
  assert.ok(app.includes('clearAudioPlayback()'),'local data erasure must stop and release the active player');
 });
