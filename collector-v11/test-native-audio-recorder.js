@@ -94,3 +94,20 @@ test('recovery prefers an already copied app-private audio file after metadata f
  assert.equal(x.files.has(session.filePath),true);
  await NativeRecorder.complete(result.id);
 });
+
+test('interrupted native audio can be discarded with its private file and checkpoint',async()=>{
+ const x=fixture();const session=await NativeRecorder.start({id:'discard-interrupted'});
+ x.files.set(session.filePath,Buffer.from('partial-audio'));
+ const saved=x.storageValues.get('collector_audio_pending_session_v1');
+ NativeRecorder.configure({capacitor:x.capacitor,plugin:x.plugin,filesystem:x.filesystem,storage:x.storage});
+ x.storageValues.set('collector_audio_pending_session_v1',saved);
+ await NativeRecorder.initialize();
+ assert.equal(await NativeRecorder.discardPending(),true);
+ assert.equal(await NativeRecorder.getPending(),null);
+ assert.equal(x.files.has(session.filePath),false);
+});
+test('native audio refuses to discard an active recording',async()=>{
+ const x=fixture();const session=await NativeRecorder.start({id:'active-do-not-delete'});
+ await assert.rejects(NativeRecorder.discardPending(),/Oprește și salvează/);
+ assert.equal((await NativeRecorder.getPending()).id,session.id);
+});

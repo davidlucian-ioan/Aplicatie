@@ -56,9 +56,19 @@
  }
  async function complete(id){const pending=await getPending();if(!pending||id&&pending.id!==id)return false;await clearPending();return true}
  async function cancel(){if(!active)return false;const session=active;await plugin.cancelRecording();active=null;try{await filesystem.deleteFile({path:session.filePath,directory:'DATA'})}catch{}await clearPending();return true}
+ async function discardPending(){
+  const pending=await getPending();
+  if(!pending){if(active?.interrupted)active=null;return false}
+  if(active&&!active.interrupted)throw new Error('Oprește și salvează înregistrarea activă înainte de ștergerea datelor locale.');
+  if(!/^collector-audio\/[A-Za-z0-9_-]+\.aac$/.test(pending.filePath))throw new Error('Calea checkpointului audio nu este validă; fișierul a fost păstrat.');
+  if(!filesystem)throw new Error('Filesystem nu este disponibil pentru ștergerea checkpointului audio.');
+  try{await filesystem.deleteFile({path:pending.filePath,directory:'DATA'})}
+  catch(error){if(!/not.?found|does not exist|no such file/i.test(String(error?.message||error)))throw error}
+  await clearPending();active=null;return true;
+ }
  async function removeFile(record){if(!record?.filePath)return false;await filesystem.deleteFile({path:record.filePath,directory:'DATA'});return true}
  function toPlayableUrl(uri){if(!uri)return '';return typeof capacitor?.convertFileSrc==='function'?capacitor.convertFileSrc(uri):uri}
- const api=Object.freeze({configure,isAvailable,initialize,getPending,complete,start,pause,resume,stop,cancel,removeFile,toPlayableUrl});
+ const api=Object.freeze({configure,isAvailable,initialize,getPending,complete,start,pause,resume,stop,cancel,discardPending,removeFile,toPlayableUrl});
  root.CollectorNativeAudioRecorder=api;
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -1,4 +1,5 @@
 'use strict';
+const fs=require('node:fs');
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -53,4 +54,20 @@ test('contextul trimis providerului conține doar metadate, fără jurnal',()=>{
  assert.match(context,/entities:db\.entities\.slice\(0,150\)\.map/);
  assert.match(context,/attributes:db\.attributes\.slice\(0,100\)\.map/);
  assert.doesNotMatch(context,/events/);
+});
+
+test('ștergerea integrală locală este disponibilă în toate entry point-urile și păstrează separat cloud/billing',()=>{
+ for(const html of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
+  const source=fs.readFileSync(html,'utf8');
+  assert.ok(source.includes('id="clearLocalData"'),html+' trebuie să expună ștergerea locală');
+  assert.ok(source.includes('id="localDataClearStatus"'),html+' trebuie să expună statusul ștergerii');
+  assert.ok(source.includes('rămân active'),html+' trebuie să explice separarea cloud și billing');
+ }
+ const app=fs.readFileSync('app.js','utf8');
+ assert.ok(app.includes('CollectorAudioStore.clearAll()'));
+ assert.ok(app.includes('CollectorReminders?.clearAll?.()'));
+ assert.ok(app.includes('storageAdapter.clearCollectorData()'));
+ assert.ok(app.includes('CollectorNativeAudioRecorder?.discardPending?.()'));
+ assert.match(app,/audioStartPending\|\|audioRecorder\|\|nativeAudioSession/);
+ assert.ok(app.includes('if(localDataErasing)return Promise.reject'));
 });

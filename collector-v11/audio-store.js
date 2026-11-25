@@ -76,6 +76,16 @@
    const record={id:session.id,createdAt:session.createdAt||new Date().toISOString(),durationMs:Number(session.durationMs)||0,mimeType:blob.type||'audio/webm',size:blob.size,blob,recovered:true,warning:'Înregistrare recuperată din fragmente salvate periodic. Verifică redarea.'};
    await webStore.save(record);await webStore.removeSession(id);return record;
   },
+  async clearAll(){
+   const db=await openDb();
+   return new Promise((resolve,reject)=>{
+    const tx=db.transaction([STORE,SESSIONS,CHUNKS],'readwrite');
+    tx.objectStore(STORE).clear();tx.objectStore(SESSIONS).clear();tx.objectStore(CHUNKS).clear();
+    tx.oncomplete=()=>resolve(true);
+    tx.onerror=()=>reject(tx.error||new Error('Nu am putut șterge stocarea audio locală.'));
+    tx.onabort=()=>reject(tx.error||new Error('Ștergerea stocării audio a fost anulată.'));
+   });
+  },
   async removeSession(id){
    return openDb().then(db=>new Promise((resolve,reject)=>{
     const tx=db.transaction([SESSIONS,CHUNKS],'readwrite'),sessions=tx.objectStore(SESSIONS),chunks=tx.objectStore(CHUNKS);
@@ -169,6 +179,39 @@
     if(!row)return legacyStore.remove(id);
     try{await filesystem.deleteFile({path:row.filePath,directory:'DATA'})}catch(error){if(!/not.?found|does not exist|no such file/i.test(String(error?.message||error)))throw error}
     await writeIndex(rows.filter(item=>item.id!==id));return true;
+   },
+   async clearAll(){
+    await initialize();
+    const rows=await readIndex(),paths=new Set(),prefix='collector-audio/';
+    for(const row of rows){
+     const name=String(row.filePath||'').startsWith(prefix)?String(row.filePath).slice(prefix.length):'';
+     if(!name||name.includes('/')||! /^[A-Za-z0-9_-]+\.(?:aac|webm)$/i.test(name))throw new Error('Indexul audio conține o cale locală invalidă. Fișierele nu au fost șterse.');
+     paths.add(prefix+name);
+    }
+    if(typeof filesystem.readdir==='function'){
+     let entries=[];
+     try{const listing=await filesystem.readdir({path:'collector-audio',directory:'DATA'});entries=Array.isArray(listing?.files)?listing.files:[]}
+     catch(error){if(!/not.?found|does not exist|no such file/i.test(String(error?.message||error)))throw error}
+     for(const entry of entries){
+      const name=typeof entry==='string'?entry:entry?.name;
+      if(!name||entry?.type==='directory'||name.includes('/')||! /^[A-Za-z0-9_-]+\.(?:aac|webm)$/i.test(name))continue;
+      paths.add(prefix+name);
+     }
+    }
+    for(const path of paths){
+     try{await filesystem.deleteFile({path,directory:'DATA'})}
+     catch(error){if(!/not.?found|does not exist|no such file/i.test(String(error?.message||error)))throw error}
+    }
+    if(typeof legacyStore.clearAll==='function')await legacyStore.clearAll();
+    else{
+     const legacyRows=typeof legacyStore.list==='function'?await legacyStore.list():[];
+     for(const row of legacyRows)if(typeof legacyStore.remove==='function')await legacyStore.remove(row.id);
+     const sessions=typeof legacyStore.listInterruptedSessions==='function'?await legacyStore.listInterruptedSessions():[];
+     for(const session of sessions)if(typeof legacyStore.removeSession==='function')await legacyStore.removeSession(session.id);
+    }
+    if(typeof storage.removeRaw!=='function')throw new Error('StorageAdapter nu poate șterge indexul audio nativ.');
+    await storage.removeRaw(INDEX_KEY);
+    return {recordings:rows.length,files:paths.size};
    }
   });
  }
@@ -191,7 +234,8 @@
   appendSessionChunk(id,chunk,durationMs){if(typeof activeStore.appendSessionChunk!=='function')return Promise.reject(new Error('Backup-ul periodic nu este disponibil pe această platformă.'));return activeStore.appendSessionChunk(id,chunk,durationMs)},
   listInterruptedSessions(){if(typeof activeStore.listInterruptedSessions!=='function')return Promise.resolve([]);return activeStore.listInterruptedSessions()},
   recoverSession(id){if(typeof activeStore.recoverSession!=='function')return Promise.reject(new Error('Recuperarea sesiunii web nu este disponibilă.'));return activeStore.recoverSession(id)},
-  removeSession(id){if(typeof activeStore.removeSession!=='function')return Promise.resolve(false);return activeStore.removeSession(id)}
+  removeSession(id){if(typeof activeStore.removeSession!=='function')return Promise.resolve(false);return activeStore.removeSession(id)},
+  clearAll(){if(typeof activeStore.clearAll!=='function')return Promise.reject(new Error('Ștergerea stocării audio nu este disponibilă.'));return activeStore.clearAll()}
  });
  global.CollectorAudioStore=api;
  if(typeof module!=='undefined'&&module.exports)module.exports={createNativeStore,webStore,transaction,openDb};

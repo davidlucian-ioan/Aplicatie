@@ -133,3 +133,19 @@ test('HTML entrypoints are balanced and Work layout CSS is parseable',async()=>{
  assert.ok(css.includes('.work-reminders{order:3}'));
  assert.ok(!css.includes('\\n/* Work capture'),'CSS must not contain escaped source line breaks');
 });
+
+test('all entrypoints expose guarded full local-data erasure without cloud account deletion',async()=>{
+ for(const file of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
+  const html=await fs.readFile(path.join(__dirname,file),'utf8');
+  assert.ok(html.includes('id="clearLocalData"'),file+' missing local data erasure control');
+  assert.ok(html.includes('id="localDataClearStatus"'),file+' missing local data erasure status');
+  assert.ok(html.includes('Contul cloud, sesiunea de autentificare și abonamentul din Google Play / App Store rămân active'),file+' must distinguish local erase from cloud and billing');
+ }
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ assert.ok(app.includes('if(audioStartPending||audioRecorder||nativeAudioSession)'));
+ assert.ok(app.includes('await mutationQueue.catch(()=>undefined)'));
+ assert.ok(app.includes('await window.CollectorNativeAudioRecorder?.discardPending?.()'));
+ assert.ok(app.includes('await window.CollectorAudioStore.clearAll()'));
+ assert.ok(app.includes('await window.CollectorReminders?.clearAll?.()'));
+ assert.ok(app.includes('await storageAdapter.clearCollectorData()'));
+});

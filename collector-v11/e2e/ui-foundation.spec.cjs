@@ -209,3 +209,48 @@ test('browser audio chunks survive reload and can be recovered from Work', async
   expect(saved.remaining).toBe(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
 });
+
+test('full local-data erasure clears journal, Work draft, reminder metadata and audio checkpoints but preserves cloud opt-out', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.evaluate(async () => {
+    await window.CollectorStorage.writeRaw('collector_mvp_v2', JSON.stringify(window.CollectorEngine.emptyState()));
+    await window.CollectorStorage.writeRaw('collector_work_command_draft_v1', 'draft local');
+    await window.CollectorStorage.writeRaw('collector_reminders_v1', JSON.stringify([{
+      id: 'reminder-test', notificationId: 7331, title: 'Local reminder',
+      at: new Date(Date.now() + 60_000).toISOString(), createdAt: new Date().toISOString()
+    }]));
+    localStorage.setItem('collector_cloud_opt_out', '1');
+    localStorage.setItem('collector-intent:test', 'pending');
+    localStorage.setItem('unrelated_app_key', 'keep');
+    await window.CollectorAudioStore.beginSession({
+      id: 'audio-checkpoint-test', createdAt: new Date().toISOString(), mimeType: 'audio/webm'
+    });
+    await window.CollectorAudioStore.appendSessionChunk('audio-checkpoint-test', new Blob(['partial audio'], { type: 'audio/webm' }), 1200);
+    await window.CollectorAudioStore.save({
+      id: 'audio-recording-test', createdAt: new Date().toISOString(), durationMs: 1200,
+      mimeType: 'audio/webm', blob: new Blob(['saved audio'], { type: 'audio/webm' })
+    });
+  });
+  page.on('dialog', dialog => dialog.accept());
+  await page.locator('#clearLocalData').click();
+  await expect(page.locator('#localDataClearStatus')).toContainText('Datele locale au fost șterse');
+  const result = await page.evaluate(async () => ({
+    journal: await window.CollectorStorage.readRaw('collector_mvp_v2'),
+    draft: await window.CollectorStorage.readRaw('collector_work_command_draft_v1'),
+    reminders: await window.CollectorStorage.readRaw('collector_reminders_v1'),
+    audio: await window.CollectorAudioStore.list(),
+    interrupted: await window.CollectorAudioStore.listInterruptedSessions(),
+    optOut: localStorage.getItem('collector_cloud_opt_out'),
+    intent: localStorage.getItem('collector-intent:test'),
+    unrelated: localStorage.getItem('unrelated_app_key')
+  }));
+  expect(result.journal).toBeNull();
+  expect(result.draft).toBeNull();
+  expect(result.reminders).toBeNull();
+  expect(result.audio).toHaveLength(0);
+  expect(result.interrupted).toHaveLength(0);
+  expect(result.optOut).toBe('1');
+  expect(result.intent).toBeNull();
+  expect(result.unrelated).toBe('keep');
+  await expect(page.locator('#entityCount')).toHaveText('0');
+});

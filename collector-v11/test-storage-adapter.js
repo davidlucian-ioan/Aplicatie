@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const {createWebStorageAdapter,createSQLiteStorageAdapter,createAutoStorageAdapter}=require('./storage-adapter');
 function fakeStorage(seed={}){
  const values=new Map(Object.entries(seed));let failWrite=false;
- return {getItem:key=>values.has(key)?values.get(key):null,setItem(key,value){if(failWrite)throw new Error('quota exceeded');values.set(key,String(value))},removeItem:key=>values.delete(key),has:key=>values.has(key),value:key=>values.get(key),fail(value){failWrite=value}};
+ return {get length(){return values.size},key:index=>[...values.keys()][index]??null,getItem:key=>values.has(key)?values.get(key):null,setItem(key,value){if(failWrite)throw new Error('quota exceeded');values.set(key,String(value))},removeItem:key=>values.delete(key),has:key=>values.has(key),value:key=>values.get(key),fail(value){failWrite=value}};
 }
 test('adapterul citește datele existente fără să le transforme',async()=>{
  const backing=fakeStorage({'collector_mvp_v2':'{"schemaVersion":7,"events":[]}'});
@@ -37,7 +37,7 @@ function fakeSQLite(){
   async open(options){calls.push(['open',options]);open=true},
   async execute(options){calls.push(['execute',options]);return {changes:{changes:0}}},
   async query(options){calls.push(['query',options]);const value=values.get(options.values[0]);return {values:value===undefined?[]:[{value}]}},
-  async run(options){calls.push(['run',options]);const [key,value]=options.values;if(options.statement.startsWith('INSERT'))values.set(key,value);else values.delete(key);return {changes:{changes:1}}}
+  async run(options){calls.push(['run',options]);if(options.statement==='DELETE FROM collector_kv'){values.clear();return {changes:{changes:1}}}const [key,value]=options.values||[];if(options.statement.startsWith('INSERT'))values.set(key,value);else values.delete(key);return {changes:{changes:1}}}
  };
  return {sqlite,values,calls};
 }
@@ -71,4 +71,29 @@ test('adapterul automat alege SQLite pe nativ și Web Storage pe browser',async(
  await mobile.writeRaw('mobile','yes');await web.writeRaw('web','yes');
  assert.equal(await mobile.readRaw('mobile'),'yes');assert.equal(await web.readRaw('web'),'yes');
  assert.throws(()=>createAutoStorageAdapter({capacitor:{isNativePlatform:()=>true},sqlite:null,legacyStorage:legacy}),/SQLite nativ/);
+});
+
+test('ștergerea datelor locale elimină doar cheile Collector și păstrează opt-out-ul cloud și stocarea altor aplicații',async()=>{
+ const backing=fakeStorage({collector_mvp_v2:'journal',collector_work_command_draft_v1:'draft','collector-intent:one':'pending',collector_cloud_opt_out:'1','sb-project-auth-token':'cloud-session',another_app_setting:'keep'});
+ const adapter=createWebStorageAdapter(backing);
+ const removed=await adapter.clearCollectorData();
+ assert.equal(removed,3);
+ assert.equal(backing.has('collector_mvp_v2'),false);
+ assert.equal(backing.has('collector_work_command_draft_v1'),false);
+ assert.equal(backing.has('collector-intent:one'),false);
+ assert.equal(backing.value('collector_cloud_opt_out'),'1');
+ assert.equal(backing.value('sb-project-auth-token'),'cloud-session');
+ assert.equal(backing.value('another_app_setting'),'keep');
+});
+test('ștergerea datelor locale golește tabelul SQLite și cheile Collector legacy',async()=>{
+ const legacy=fakeStorage({collector_mvp_v2:'legacy',collector_audio_index_v1:'index',collector_cloud_opt_out:'1',unrelated:'keep'});
+ const native=fakeSQLite(),adapter=createSQLiteStorageAdapter({sqlite:native.sqlite,legacyStorage:legacy});
+ await adapter.writeRaw('collector_mvp_v2','journal');
+ await adapter.writeRaw('collector_work_command_draft_v1','draft');
+ await adapter.clearCollectorData();
+ assert.equal(native.values.size,0);
+ assert.equal(legacy.has('collector_mvp_v2'),false);
+ assert.equal(legacy.has('collector_audio_index_v1'),false);
+ assert.equal(legacy.value('collector_cloud_opt_out'),'1');
+ assert.equal(legacy.value('unrelated'),'keep');
 });

@@ -4,7 +4,7 @@ const storageAdapter=window.CollectorStorageAdapter.createAutoStorageAdapter({ca
 window.CollectorStorage=storageAdapter;
 const titles={dashboard:['Think','Analize, grafice, configurare și administrarea datelor.'],entities:['Entități','Entități universale, atribute temporale și cronologie.'],relations:['Relații & locații','Relații de prim rang, localizare temporală și ierarhie.'],inventory:['Populații & solduri','Cantități anonime și solduri derivate din evenimente.'],finance:['Financiar','Tranzacții pe evenimente și indicatori derivați.'],attributes:['Atribute','Definiții configurabile cu tip, rol, natură, proprietar și reguli.'],events:['Evenimente','Jurnalul de evenimente append-only.'],history:['Istoric','Cronologie completă și filtrabilă.'],assistant:['Work','Înregistrare rapidă, alarme și introducere vocală, cu confirmare înainte de salvare.'],audit:['Audit & date','Replay, export, import și limitele implementării.']};
 let integrityBlocked=false, integrityBlockReason=null, integrityRawBackup=null, integrityCanRebuild=false;
-let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null;
+let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null, localDataErasing=false;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
@@ -67,11 +67,12 @@ async function loadDb(){
  if(!await persistRaw(validated))return preserveAndBlock(raw,'Migrarea nu a putut fi salvată în localStorage.');
  return validated;
 }
-async function persistRaw(x){try{await storageAdapter.writeRaw(KEY,JSON.stringify(x));return true}catch(err){console.error(err);return false}}
-function ensureAICorePort(){if(aiCorePort)return aiCorePort;const Port=window.CollectorBrowserCorePort;if(!Port)throw Error('Core Port nu a fost încărcat.');aiCorePort=new Port({core:E,store:{getState:()=>db,persistState:async next=>!integrityBlocked&&await persistRaw(next),publishState:async next=>{db=next;render()}}});return aiCorePort}
+async function persistRaw(x){if(localDataErasing)return false;try{await storageAdapter.writeRaw(KEY,JSON.stringify(x));return true}catch(err){console.error(err);return false}}
+function ensureAICorePort(){if(aiCorePort)return aiCorePort;const Port=window.CollectorBrowserCorePort;if(!Port)throw Error('Core Port nu a fost încărcat.');aiCorePort=new Port({core:E,store:{getState:()=>db,persistState:async next=>!integrityBlocked&&!localDataErasing&&await persistRaw(next),publishState:async next=>{if(localDataErasing)throw Error('Datele locale sunt în curs de ștergere.');db=next;render()}}});return aiCorePort}
 let mutationQueue=Promise.resolve();
 function serializeMutation(action){
- const operation=mutationQueue.then(action);
+ if(localDataErasing)return Promise.reject(new Error('Datele locale sunt în curs de ștergere.'));
+ const operation=mutationQueue.then(()=>{if(localDataErasing)throw new Error('Datele locale sunt în curs de ștergere.');return action()});
  mutationQueue=operation.catch(()=>undefined);
  return operation;
 }
@@ -621,6 +622,49 @@ function initializeWorkDraft(){
   input.setRangeText(template,start,end,'end');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
  }));
 }
+
+async function clearAllLocalData(){
+ const button=document.getElementById('clearLocalData'),status=document.getElementById('localDataClearStatus'),main=document.getElementById('mainContent');
+ if(localDataErasing)return false;
+ if(audioStartPending||audioRecorder||nativeAudioSession){
+  const message='Oprește și salvează mai întâi înregistrarea audio activă. Datele locale nu au fost șterse.';
+  if(status)status.textContent=message;setAppStatus(message);return false;
+ }
+ if(!confirm('Ștergi definitiv de pe acest dispozitiv istoricul Collector, drafturile, înregistrările audio, fragmentele recuperabile și alarmele locale? Recomandăm să exporți mai întâi o copie de siguranță.'))return false;
+ if(!confirm('Confirmare finală: operația este ireversibilă. Contul cloud, sesiunea de autentificare și abonamentul din magazin NU vor fi șterse sau anulate. Continui?'))return false;
+ localDataErasing=true;if(button)button.disabled=true;
+ const wasInert=!!main?.inert;if(main)main.inert=true;
+ if(status)status.textContent='Șterg datele locale și verific fiecare stocare…';
+ setAppStatus('Ștergere locală în curs. Nu închide aplicația.');
+ try{
+  await mutationQueue.catch(()=>undefined);
+  await storageAdapter.flush();
+  if(voiceSessionActive){voiceSessionTranscript='';voiceSessionActive=false;try{voiceSessionRecognition?.abort()}catch{}voiceSessionRecognition=null;setVoiceSessionUi(false)}
+  if(activeRecognition){const recognition=activeRecognition;activeRecognition=null;try{recognition.abort()}catch{}setVoiceUi(false)}
+  await audioChunkSaveQueue.catch(()=>undefined);
+  await window.CollectorNativeAudioRecorder?.discardPending?.();
+  if(!window.CollectorAudioStore?.clearAll)throw new Error('Ștergerea stocării audio nu este disponibilă.');
+  const audioResult=await window.CollectorAudioStore.clearAll();
+  const reminderCount=await window.CollectorReminders?.clearAll?.();
+  if(typeof storageAdapter.clearCollectorData!=='function')throw new Error('StorageAdapter nu oferă ștergerea datelor Collector.');
+  await storageAdapter.clearCollectorData();
+  if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}
+  const player=document.getElementById('audioPlayback');if(player){player.pause();player.removeAttribute('src');player.load();player.hidden=true}
+  const commandInput=document.getElementById('commandInput');if(commandInput)commandInput.value='';
+  document.getElementById('cloudAccountLinkForm')?.reset();document.getElementById('cloudAccountLoginForm')?.reset();
+  const importInput=document.getElementById('importFile');if(importInput)importInput.value='';
+  db=E.emptyState();currentEntityId=null;pendingCoreCommand=null;integrityBlocked=false;integrityBlockReason=null;integrityRawBackup=null;integrityCanRebuild=false;
+  render();await window.CollectorReminders?.render?.();await renderAudioRecordings();
+  const message='Datele locale au fost șterse: '+(audioResult?.recordings||0)+' înregistrări indexate și '+(Number(reminderCount)||0)+' alarme. Contul cloud, autentificarea și abonamentul nu au fost modificate.';
+  if(status)status.textContent=message;setAppStatus(message);return true;
+ }catch(error){
+  const message='Ștergerea locală nu s-a putut finaliza complet: '+String(error?.message||error)+'. Operația poate fi reluată pentru a curăța datele rămase.';
+  if(status)status.textContent=message;setAppStatus(message);return false;
+ }finally{
+  localDataErasing=false;if(main)main.inert=wasInert;if(button)button.disabled=false;
+ }
+}
+document.getElementById('clearLocalData')?.addEventListener('click',clearAllLocalData);
 
 // Conversation context expires after 30 minutes; persistent entities and event history are unaffected.
 // Do not persist stale in-memory snapshots on focus; context expiry is evaluated when commands are handled.

@@ -305,3 +305,5 @@ header p{color:#687487;font-size:13px}
 /* Work capture: persistent draft status and quick templates */
 .work-draft-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:8px 0}.work-draft-tools p{margin:0;font-size:.88rem}.work-templates{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}.work-templates button{min-height:40px}
 @media(max-width:640px){.work-draft-tools{align-items:stretch}.work-draft-tools button{min-height:44px}.work-templates button{flex:1;min-width:calc(50% - 8px)}}
+
+.local-data-panel{border-color:#e5caca;background:linear-gradient(180deg,#fff,#fffdfd)}.local-data-panel h2{color:#7d2929}.local-data-panel #clearLocalData{border:1px solid #d7a7a7;background:#fff6f6;color:#7d2929;font-weight:700}.local-data-panel #clearLocalData:hover{background:#ffeded}.local-data-panel #localDataClearStatus{overflow-wrap:anywhere}

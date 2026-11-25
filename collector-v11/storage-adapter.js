@@ -1,6 +1,17 @@
 (function(root){
  'use strict';
  const DB='collector',TABLE='collector_kv';
+ function removeCollectorKeys(backing){
+  if(!backing||typeof backing.key!=='function'||typeof backing.removeItem!=='function')return 0;
+  const keys=[];
+  for(let index=backing.length-1;index>=0;index--){
+   const key=backing.key(index);
+   if(!key||key==='collector_cloud_opt_out')continue;
+   if(key==='collector'||key.startsWith('collector_')||key.startsWith('collector-')||key.startsWith('collector:'))keys.push(key);
+  }
+  for(const key of keys)backing.removeItem(key);
+  return keys.length;
+ }
  function createWebStorageAdapter(storage){
   const backing=storage||root.localStorage;
   if(!backing)throw new Error('Web Storage nu este disponibil.');
@@ -20,6 +31,12 @@
     const name=String(key);
     const operation=queue.then(()=>{backing.removeItem(name);return true});
     queue=operation.catch(()=>false);
+    return operation;
+   },
+   async clearCollectorData(){
+    await this.initialize();
+    const operation=queue.then(()=>removeCollectorKeys(backing));
+    queue=operation.catch(()=>0);
     return operation;
    },
    async flush(){await queue;return true}
@@ -76,6 +93,14 @@
     return enqueue(async()=>{
      await sqlite.run({database,statement:'DELETE FROM '+TABLE+' WHERE key = ?',values:[name]});
      if(legacy?.removeItem)legacy.removeItem(name);
+     return true;
+    });
+   },
+   async clearCollectorData(){
+    await initialize();
+    return enqueue(async()=>{
+     await sqlite.run({database,statement:'DELETE FROM '+TABLE,values:[]});
+     removeCollectorKeys(legacy);
      return true;
     });
    },

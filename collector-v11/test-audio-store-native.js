@@ -10,11 +10,13 @@ function fixture({legacyRecords=[],failWrite=false,failIndexWrite=false}={}){
   async writeFile({path,data}){if(failWrite)throw new Error('disk full');files.set(path,Buffer.from(data,'base64'))},
   async getUri({path}){return {uri:'file:///app/'+path}},
   async stat({path}){const value=files.get(path);if(!value)throw new Error('not found');return {size:value.length}},
-  async deleteFile({path}){if(!files.has(path))throw new Error('not found');files.delete(path)}
+  async deleteFile({path}){if(!files.has(path))throw new Error('not found');files.delete(path)},
+  async readdir({path}){return {files:[...files.keys()].filter(key=>key.startsWith(path+'/')).map(key=>({name:key.slice(path.length+1),type:'file'}))}}
  };
  const storage={
   async readRaw(key){return values.get(key)??null},
-  async writeRaw(key,value){if(failIndexWrite&&key==='collector_audio_index_v1')throw new Error('index unavailable');values.set(key,String(value))}
+  async writeRaw(key,value){if(failIndexWrite&&key==='collector_audio_index_v1')throw new Error('index unavailable');values.set(key,String(value))},
+  async removeRaw(key){values.delete(key)}
  };
  let legacy=legacyRecords.slice();
  const legacyStore={
@@ -99,4 +101,18 @@ test('native audio adapter preserves web recorder recovery when native plugin is
  assert.equal((await store.recoverSession('web-session')).id,'web-session');
  assert.equal(await store.removeSession('web-session'),true);
  assert.deepEqual(calls.map(call=>call[0]),['begin','chunk','list','recover','remove-session']);
+});
+
+test('native audio clearAll removes indexed files, orphaned files, legacy recordings and the metadata index',async()=>{
+ const old={id:'audio-legacy-clear',createdAt:'2026-11-24T10:00:00.000Z',durationMs:1200,mimeType:'audio/webm',size:4,blob:new Blob(['legacy'])};
+ const x=fixture({legacyRecords:[old]});
+ await x.store.initialize();
+ const native={id:'audio-native-clear',createdAt:'2026-11-25T10:00:00.000Z',durationMs:800,mimeType:'audio/aac',size:4,filePath:'collector-audio/audio-native-clear.aac',uri:'file:///app/collector-audio/audio-native-clear.aac'};
+ x.files.set(native.filePath,Buffer.from('data'));await x.store.saveNative(native);
+ x.files.set('collector-audio/orphaned-audio.webm',Buffer.from('orphan'));
+ const result=await x.store.clearAll();
+ assert.equal(result.recordings,2);
+ assert.equal(x.files.size,0);
+ assert.equal(x.values.has('collector_audio_index_v1'),false);
+ assert.equal((await x.store.list()).length,0);
 });

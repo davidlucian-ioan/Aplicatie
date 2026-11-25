@@ -2,9 +2,9 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createService}=require('./reminders');
-function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,random=Math.random}={}){
+function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,failStorageRemove=false,random=Math.random}={}){
  let raw=null,writeCount=0;const calls=[];
- const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');writeCount++;if(writeCount===failStorageWriteAt)throw new Error('storage write failed');raw=value}};
+ const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');writeCount++;if(writeCount===failStorageWriteAt)throw new Error('storage write failed');raw=value},async removeRaw(key){assert.equal(key,'collector_reminders_v1');if(failStorageRemove)throw new Error('storage remove failed');raw=null}};
  const plugin={
   async checkPermissions(){return {display:permission}},
   async requestPermissions(){return {display:permission}},
@@ -63,4 +63,27 @@ test('cancel rolls back native notification when local metadata write fails',asy
  assert.equal(JSON.parse(x.raw()).length,1);
  assert.equal(x.calls.at(-1).type,'schedule');
  assert.equal(x.calls.at(-1).value.notifications[0].id,item.notificationId);
+});
+
+test('clearAll cancels every Collector notification before deleting local reminder metadata',async()=>{
+ const x=fixture({random:(()=>{let n=0;return()=>0.1+n++/10})()});
+ const first=await x.service.create({title:'Alarmă unu',at:'2026-11-24T12:00:00.000Z'});
+ const second=await x.service.create({title:'Alarmă doi',at:'2026-11-24T13:00:00.000Z'});
+ assert.equal(await x.service.clearAll(),2);assert.equal(x.raw(),null);
+ const cancel=x.calls.filter(call=>call.type==='cancel').at(-1);
+ assert.deepEqual(cancel.value.notifications.map(item=>item.id),[first.notificationId,second.notificationId]);
+});
+test('clearAll keeps reminder metadata when the notification plugin refuses cancellation',async()=>{
+ const x=fixture({cancelError:'notification service unavailable'});
+ const item=await x.service.create({title:'Alarmă păstrată',at:'2026-11-24T12:00:00.000Z'});
+ await assert.rejects(x.service.clearAll(),/notification service unavailable/);
+ assert.equal(JSON.parse(x.raw())[0].id,item.id);
+});
+test('clearAll restores notifications when local metadata cannot be removed',async()=>{
+ const x=fixture({failStorageRemove:true});
+ const item=await x.service.create({title:'Alarmă rollback',at:'2026-11-24T12:00:00.000Z'});
+ await assert.rejects(x.service.clearAll(),/rollback-uită/);
+ assert.equal(JSON.parse(x.raw())[0].id,item.id);
+ const last=x.calls.at(-1);assert.equal(last.type,'schedule');
+ assert.equal(last.value.notifications[0].id,item.notificationId);
 });

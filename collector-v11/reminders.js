@@ -52,9 +52,36 @@
    }
    return true;
   }
-  return Object.freeze({list,create,cancel,snooze});
+  async function clearAll(){
+   const rows=await list();
+   if(!rows.length){if(typeof storage.removeRaw==='function')await storage.removeRaw(KEY);return 0}
+   const notifications=rows.map(row=>({id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id},isExactNotification:false}));
+   await plugin.cancel({notifications});
+   try{
+    if(typeof storage.removeRaw!=='function')throw new Error('Stocarea nu poate elimina metadatele alarmelor.');
+    await storage.removeRaw(KEY);
+   }catch(error){
+    try{await plugin.schedule({notifications})}
+    catch(rollbackError){throw new Error('Alarmele au fost anulate, dar metadatele nu au putut fi șterse și notificările nu au putut fi restaurate: '+error.message+'; '+rollbackError.message)}
+    throw new Error('Ștergerea alarmelor a fost rollback-uită; notificările au fost reprogramate: '+error.message);
+   }
+   return rows.length;
+  }
+  return Object.freeze({list,create,cancel,snooze,clearAll});
  }
  let service=null,initialized=false;
+ async function clearAll(){
+  if(service)return service.clearAll();
+  const storage=root.CollectorStorage;
+  if(!storage||typeof storage.readRaw!=='function')return 0;
+  const raw=await storage.readRaw(KEY);
+  if(raw===null){if(typeof storage.removeRaw==='function')await storage.removeRaw(KEY);return 0}
+  const rows=JSON.parse(raw);
+  if(!Array.isArray(rows)||rows.some(row=>!row||typeof row.id!=='string'||!Number.isInteger(row.notificationId)||typeof row.title!=='string'||typeof row.at!=='string'))throw new Error('Lista alarmelor este invalidă. Datele nu au fost șterse.');
+  const native=typeof root.Capacitor?.isNativePlatform==='function'&&root.Capacitor.isNativePlatform();
+  if(native&&rows.length)throw new Error('Serviciul de notificări nu este disponibil; alarmele nu au fost șterse ca să nu rămână notificări active.');
+  await storage.removeRaw(KEY);return rows.length;
+ }
  async function render(){
   const listElement=root.document?.getElementById('reminderList');
   if(!listElement||!service)return;
@@ -106,6 +133,6 @@
   });
   await render();
  }
- root.CollectorReminders=Object.freeze({createService,initialize,render});
+ root.CollectorReminders=Object.freeze({createService,initialize,render,clearAll});
  if(typeof module!=='undefined'&&module.exports)module.exports={createService};
 })(typeof window!=='undefined'?window:globalThis);
