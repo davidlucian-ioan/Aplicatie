@@ -757,3 +757,24 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 - Refreshed `LAUNCH-READINESS-CHECKLIST.md`: latest CI results are explicitly distinguished from older successful SHA; the AI disclosure item and trial metadata/post-expiry tests are now gates.
 - Latest PR branch HEAD after documentation update: awaiting re-fetch/CI. Code HEAD with UI/test changes `e86fff0273e99de9045e095c59bfa81d25d29b02`: Cloud API + Quality Suite were in progress, Mobile Build pending at last observation.
 - Commit checklist: `efd4100333cf8fac8279215825281228814933bb`.
+
+
+## Continuare verificare directă GitHub — 26 nov 2026, 00:xx EET
+
+- PR #55 verificat direct: OPEN, DRAFT, base `main`, mergeable; branch `feature/openai-provider-integration`.
+- HEAD verificat înaintea acestui checkpoint: `74bd2f847cedf65128027cdb936922ad6d91c22b`.
+- CI pe exact acest SHA: **Cloud API SUCCESS** (tests + container build); **Quality Suite IN_PROGRESS** (unit/Core/AI, generated invariants, benchmark, Chromium, Firefox complete; WebKit running); **Mobile Build PENDING** (no jobs yet). Nu se declară validare completă.
+- Audit local-only/post-expiry din cod: UI afișează Basic și afirmă că datele și funcțiile locale rămân disponibile; local Core/storage nu este gated de entitlement. Cloud AI are gate de entitlement/server. Încă lipsesc testele end-to-end explicite pentru expirarea entitlement-ului și export/recovery în Basic.
+- RevenueCat offerings actual: aplicația afișează doar titlu + `priceString`; API-ul expune `introPrice` și `subscriptionPeriod` pe produs, dar disclosure trial/eligibility/renewal nu este implementat. Nu se afișează text de trial presupus. Eligibilitatea intro/trial este platform-dependentă; Android nu poate fi dedusă din metadata generală. Sandbox/store dashboard nu a fost accesat.
+- Toolchain: `package-lock.json` există și este lock pentru numai Playwright + fast-check. Native Capacitor/plugin deps sunt instalate de script cu versiuni exacte, însă `--no-package-lock` înseamnă că rezoluția tranzitivă nu este locked. CI folosește `npm ci` pentru deps proiectului, apoi această instalare separată. Reproducibilitatea completă rămâne blocker.
+- SQLite encryption: Stage B este implementat, dar gate dezactivat; conversia plaintext crash-safe și device validation nu sunt complete. Nu se activează encryption flag fără migrare verificată.
+- External blockers confirmate: Supabase staging/config și migrare RLS/RPC; RevenueCat products/offering/webhook + sandbox; Cloud deploy/secret config; physical Android/iOS tests; signed store builds; privacy/legal/store disclosures.
+
+### Următoarele priorități
+1. Await/recheck CI pentru SHA exact; dacă run-urile sunt blocate/terminate, rerun fără a confunda commiturile.
+2. Adaugă test de contract care dovedește Basic local access + export în entitlement absent/expirat, și AI cloud deny post-expiry.
+3. Implementă disclosure de termeni numai din product/store metadata reale (trial duration, eligibility, renewal price, auto-renew) cu fallback sigur când metadata/eligibility lipsește.
+4. Reproduce toolchain-ul nativ cu manifest/lockfile complet; nu considera versiuni directe pin-uite suficiente.
+5. Test recovery/restore, apoi staging și device tests.
+
+Nicio tranzacție, configurare live, deploy, merge sau publicare efectuată.
