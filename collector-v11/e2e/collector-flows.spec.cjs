@@ -658,13 +658,13 @@ test('caută entități live după nume, tip și locație și permite resetarea 
 
   const search = page.locator('#entitySearch');
   await expect(search).toBeVisible();
-  await expect(page.locator('#entityList .row')).toHaveCount(2);
+  await expect(page.locator('#entityList .row')).toHaveCount(3);
 
   await search.fill('fancy');
   await expect(page.locator('#entityList .row')).toHaveCount(1);
   await expect(page.locator('#entityList')).toContainText('Fancy Tiger Red');
   await expect(page.locator('#entityList')).not.toContainText('Philodendron Micans');
-  await expect(page.locator('#entitySearchCount')).toContainText('1 / 2');
+  await expect(page.locator('#entitySearchCount')).toContainText('1 / 3');
 
   await search.fill('shrimp');
   await expect(page.locator('#entityList .row')).toHaveCount(1);
@@ -677,7 +677,7 @@ test('caută entități live după nume, tip și locație și permite resetarea 
 
   await search.fill('does-not-exist');
   await expect(page.locator('#entityList')).toContainText('Nu există entități care corespund căutării.');
-  await expect(page.locator('#entitySearchCount')).toContainText('0 / 2');
+  await expect(page.locator('#entitySearchCount')).toContainText('0 / 3');
 
   await search.fill('');
   await expect(page.locator('#entityList .row')).toHaveCount(2);
