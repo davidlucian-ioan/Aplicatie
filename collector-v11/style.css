@@ -173,3 +173,30 @@ header p{color:#687487;font-size:13px}
  .reminder-form label{margin-top:3px}
 }
 @media(max-width:380px){.header-start p{display:none}.header-actions{grid-template-columns:1fr 1fr}.header-actions button{font-size:11px}}
+
+
+/* Screen-specific composition */
+.work-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:16px}
+.work-layout>.panel{margin:0;min-width:0}
+.work-command{grid-column:1/-1}
+.work-reminders,.work-recorder{height:100%}
+.work-recorder h2{display:flex;align-items:center;gap:8px}
+.work-recorder h2:before{content:"";width:9px;height:9px;border-radius:50%;background:#aab5c4;display:inline-block}
+.work-recorder:has(#audioRecordStart:not(:disabled)) h2:before{background:#20a46a;box-shadow:0 0 0 4px #20a46a18}
+.work-command .toolbar{justify-content:flex-start}
+.think-layout>.cards{margin-bottom:20px}
+.think-layout>.panel{margin-bottom:16px}
+.think-layout .quick-grid button{min-height:52px}
+@media(max-width:900px){.work-layout{grid-template-columns:1fr}.work-command{grid-column:auto}}
+@media(max-width:640px){
+ .work-layout{gap:12px}
+ .work-reminders{order:2}
+ .work-recorder{order:1}
+ .work-command{order:3}
+ .work-recorder{border-color:#cfd9e7}
+ .recorder-controls{gap:7px}
+ .recorder-controls button{padding:10px 8px}
+ .work-command .toolbar{display:grid;grid-template-columns:1fr 1fr}
+ .work-command .toolbar button{min-height:44px}
+ .work-command .toolbar .primary{grid-column:1/-1}
+}
