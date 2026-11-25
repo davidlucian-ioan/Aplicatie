@@ -43,7 +43,7 @@ test('Work layout is single-column on mobile and touch controls remain usable', 
   await page.goto('/index-server.html');
   await page.locator('.nav[data-page="assistant"]').click();
   const columns = await page.locator('#assistant').evaluate(el => getComputedStyle(el).gridTemplateColumns);
-  expect(columns.trim().split(/\\s+/).length).toBe(1);
+  expect(columns.trim().split(/\s+/).length).toBe(1);
   await expect(page.locator('#audioRecordStart')).toBeVisible();
   await expect(page.locator('#reminderTitle')).toBeVisible();
   await expect(page.locator('#commandInput')).toBeVisible();
@@ -82,10 +82,10 @@ test('relations workspace uses a split desktop layout and stacks on mobile', asy
   await page.goto('/index-server.html');
   await page.locator('.nav[data-page="relations"]').click();
   const desktop = await page.locator('.relations-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns);
-  expect(desktop.trim().split(/\\s+/).length).toBe(2);
+  expect(desktop.trim().split(/\s+/).length).toBe(2);
   await page.setViewportSize({ width: 390, height: 844 });
   const mobile = await page.locator('.relations-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns);
-  expect(mobile.trim().split(/\\s+/).length).toBe(1);
+  expect(mobile.trim().split(/\s+/).length).toBe(1);
 });
 
 test('modal dialog manages keyboard focus, Escape, and return focus', async ({ page }) => {
@@ -127,7 +127,7 @@ test('Work is the primary capture workspace on desktop and mobile', async ({ pag
   const order = await page.locator('#assistant > .panel').evaluateAll(els => els.map(el => getComputedStyle(el).order));
   expect(order).toEqual(['1','2','3']);
   const columns = await page.locator('#assistant').evaluate(el => getComputedStyle(el).gridTemplateColumns);
-  expect(columns.trim().split(/\\s+/).length).toBe(1);
+  expect(columns.trim().split(/\s+/).length).toBe(1);
   await expect(page.locator('#audioRecordStart')).toBeVisible();
   await expect(page.locator('#commandInput')).toBeVisible();
   await expect(page.locator('#reminderForm')).toBeVisible();
