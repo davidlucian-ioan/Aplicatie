@@ -12,6 +12,9 @@ on:
       - 'cloud-api/**'
       - 'collector-v11/ai/**'
       - '.github/workflows/collector-cloud-api.yml'
+permissions:
+  contents: read
+
 concurrency:
   group: collector-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
