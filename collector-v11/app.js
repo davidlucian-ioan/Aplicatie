@@ -593,6 +593,7 @@ async function initializeCollectorApp(){
  }
  if(main)main.inert=false;
  render();
+ initializeWorkDraft();
  document.getElementById('entitySearch')?.addEventListener('input',()=>renderEntities());
  if(!audioStorageReady)setAudioUi('idle','Stocarea audio nativă nu a putut fi inițializată. Funcțiile Core rămân disponibile, dar înregistrarea audio este dezactivată.');
  await window.CollectorReminders?.initialize();
