@@ -414,3 +414,5 @@ Next actions:
 - Added regression test in `test-audio-store-native.js` for traversal-style corrupted paths.
 - Commits: `634c23b9968984b9b4689e0fd6f788f4141afec7` (guard) and `5fa579964d4c1a7cf64c9d31921015ce51472d06` (test).
 - CI workflow runs/status were not yet returned for this latest HEAD at the time of checkpoint; do not consider the change validated until the Quality/Mobile/Cloud checks finish.
+
+- Follow-up: the same path validator is now applied when saving native metadata, preventing an unsafe path from entering the index through `saveNative`; regression coverage was added for this input as well. Latest commit: `3a6d43532f88ed626c241a5bf0da126ca192c07a`.
