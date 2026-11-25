@@ -105,3 +105,21 @@ See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. Th
 - [x] Audio import validates identifier length and timestamp before creating files; regression coverage pending CI.
 
 - [x] Audio-backup malformed records fail closed; only existing duplicate IDs are skipped; regression authored, CI pending.
+
+
+## Product correction — AI memory + reminders + tiered subscription (26 Nov 2026)
+
+Authoritative decision document: `PRODUCT-DECISIONS-2026-11-26.md`.
+
+- [ ] Trial full AI experience with transparent store-authoritative trial length/eligibility/renewal details.
+- [ ] Paid plans Small €5/month, Medium €15/month, Large €30/month; AI included in all. Implement server-side tier quotas and usage/budget enforcement; no user API key.
+- [ ] Replace single-Pro UI/product assumptions with tier/entitlement model while preserving server-authoritative access and purchase restore.
+- [ ] AI structured interpretation produces natural sentence summary, source-linked facts, tasks/reminder suggestions and ambiguity state.
+- [ ] Reminder intent auto-creation: explicit intention/date/time/context; native schedule success before confirmation; idempotency; default time configurable; ambiguous/negated/uncertain intent never silently scheduled.
+- [ ] Reminders include completion, snooze, source recording/transcript link, and Activity/Memory recall.
+- [ ] Recording → transcription → AI interpretation → memory/summary → spoken TTS playback validated; original audio/transcript retained and playback interruption/retry tested.
+- [ ] Source-grounded memory retrieval with source timestamp and jump-to-record; unsupported facts answered as unknown.
+- [ ] E2E tests for explicit/ambiguous/negated reminders, date parsing/timezone/DST, scheduling failure/permission denial, duplicates, task completion and reminder recall.
+- [ ] Trial expiry and each tier boundary tests; data/export remains accessible; no live billing changes without explicit approval.
+
+Audit finding: current branch has only the generic Core-operation AI proposal contract and a standalone native reminder service. Reminder AI integration, semantic audio summary/TTS, memory retrieval and 3-tier pricing/quotas are not yet implemented/validated.
