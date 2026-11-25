@@ -59,6 +59,27 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
+test('Basic offline păstrează Work, Core local și jurnal fără acces AI cloud',async({page})=>{
+ let aiRequests=0;
+ await page.route('**/api/ai/interpret',async route=>{aiRequests++;await route.fulfill({status:503,body:'not available'})});
+ await createEntity(page,'Collector Basic offline','generic');
+ await page.locator('.nav[data-page="assistant"]').click();
+ await page.locator('#commandInput').fill('Observație: test local fără abonament');
+ await page.locator('#parseCommand').click();
+ await expect(page.locator('#commandResult')).toContainText('Observație');
+ await page.locator('#workDraftStatus').toContainText('salvat local');
+ await page.reload();
+ await page.locator('.nav[data-page="assistant"]').click();
+ await expect(page.locator('#commandInput')).toHaveValue('Observație: test local fără abonament');
+ const stored=await page.evaluate(()=>{const db=JSON.parse(localStorage.getItem('collector_mvp_v2'));return {entity:db.entities.some(e=>e.name==='Collector Basic offline'),events:db.events.map(e=>e.type),draft:localStorage.getItem('collector_work_draft_v1')}});
+ expect(stored.entity).toBe(true);
+ expect(stored.events.length).toBe(0,'parse-only command must not auto-commit');
+ expect(stored.draft).toContain('test local fără abonament');
+ expect(aiRequests).toBe(0,'local mode must not call AI endpoint');
+ await page.locator('#parseWithAI').evaluate(button=>button.disabled=true);
+ expect(await page.locator('#parseWithAI').isDisabled()).toBe(true);
+});
+
 test('mută și vinde stoc, apoi păstrează soldurile după refresh', async ({ page }) => {
   await createLocation(page, 'B1');
   await createLocation(page, 'B2');
