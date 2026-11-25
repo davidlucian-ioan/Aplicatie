@@ -642,3 +642,35 @@ test('old storage key fără schemaVersion este migrat și verificat prin Replay
   await page.locator('.nav[data-page="audit"]').click();
   await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
 });
+
+test('caută entități live după nume, tip și locație și permite resetarea filtrului', async ({ page }) => {
+  await createLocation(page, 'Greenhouse B3');
+  await createEntity(page, 'Fancy Tiger Red', 'shrimp');
+  await createEntity(page, 'Philodendron Micans', 'plant');
+
+  const search = page.locator('#entitySearch');
+  await expect(search).toBeVisible();
+  await expect(page.locator('#entityList .row')).toHaveCount(2);
+
+  await search.fill('fancy');
+  await expect(page.locator('#entityList .row')).toHaveCount(1);
+  await expect(page.locator('#entityList')).toContainText('Fancy Tiger Red');
+  await expect(page.locator('#entityList')).not.toContainText('Philodendron Micans');
+  await expect(page.locator('#entitySearchCount')).toContainText('1 / 2');
+
+  await search.fill('shrimp');
+  await expect(page.locator('#entityList .row')).toHaveCount(1);
+  await expect(page.locator('#entityList')).toContainText('Fancy Tiger Red');
+
+  await search.fill('greenhouse');
+  await expect(page.locator('#entityList .row')).toHaveCount(1);
+  await expect(page.locator('#entityList')).toContainText('Fancy Tiger Red');
+
+  await search.fill('does-not-exist');
+  await expect(page.locator('#entityList')).toContainText('Nu există entități care corespund căutării.');
+  await expect(page.locator('#entitySearchCount')).toContainText('0 / 2');
+
+  await search.fill('');
+  await expect(page.locator('#entityList .row')).toHaveCount(2);
+  await expect(page.locator('#entitySearchCount')).toBeEmpty();
+});
