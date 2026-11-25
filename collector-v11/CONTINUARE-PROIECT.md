@@ -759,7 +759,7 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 - Commit checklist: `efd4100333cf8fac8279215825281228814933bb`.
 
 
-## Continuare verificare directă GitHub — 26 nov 2026, 00:xx EET
+## Continuare verificare directă GitHub — 26 nov 2026 (ora locală)
 
 - PR #55 verificat direct: OPEN, DRAFT, base `main`, mergeable; branch `feature/openai-provider-integration`.
 - HEAD verificat înaintea acestui checkpoint: `74bd2f847cedf65128027cdb936922ad6d91c22b`.
