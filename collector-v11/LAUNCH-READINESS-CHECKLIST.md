@@ -1,11 +1,13 @@
 # Collector — checklist de pregătire pentru lansare
 
-Ultima verificare: 25 noiembrie 2026  
+Ultima verificare: 25 noiembrie 2026 (actualizare CI)
 Branch de lucru: feature/openai-provider-integration · PR #55 (draft)
 
 Scop: diferențiază codul implementat, CI automat și validarea externă/fizică. Un build verde nu înseamnă aprobarea pentru publicare.
 
 ## Starea actuală
+
+**CI pe HEAD `d3bd4e543bc18f5beef3b166e0d6269f32aeaa17`: Quality Suite SUCCESS, Cloud API SUCCESS, Android debug APK SUCCESS, iOS Simulator build SUCCESS. Acesta este un SHA complet validat automat; nu reprezintă validare pe dispozitive fizice sau build de release semnat.
 
 | Domeniu | Stare verificată | Gate pentru lansare |
 |---|---|---|
@@ -15,7 +17,7 @@ Scop: diferențiază codul implementat, CI automat și validarea externă/fizic�
 | Notificări | Local Notifications native, snooze/cancel și rollback logic | Restart, Doze, Focus și permisiuni pe Android/iOS reale |
 | Stocare mobilă | SQLite nativ, migrare legacy v7; criptarea at-rest este dezactivată | Decizie și implementare criptare/migrare fără pierderi |
 | AI cloud | Endpoint server-side, context allowlisted, Core preview/confirm | Supabase real, HTTPS deploy, secrete, e2e și spend caps |
-| Billing | RevenueCat client + webhook/entitlement/meters SQL în cod | Sandbox store tests și webhook pe proiect real |
+| Billing | RevenueCat client + webhook/entitlement/meters SQL implementate în PR #55 | Configurare proiect real + sandbox store tests + webhook verificat |
 | Sincronizare | Nu este implementată | Nu promite sync/backup multi-device |
 | Pachete native | Versiuni directe pin-uite în workflow; package-lock nu conține toolchain-ul complet | Lockfile reproductibil pentru toolchain mobil |
 | Distribuție | CI produce APK debug și iOS Simulator app, nu pachete semnate | AAB/IPA/archive semnate, provisioning și store upload |
