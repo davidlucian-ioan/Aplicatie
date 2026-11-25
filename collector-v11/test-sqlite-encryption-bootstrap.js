@@ -57,6 +57,9 @@ test('migrarea plaintext face backup read-back, convertește și verifică toate
  assert.deepEqual(state,{encrypted:true,mode:'secret',state:'converted-existing'});
  assert.equal(m.rows.get('collector_mvp_v2'),'{"schemaVersion":7}');
  assert.equal(m.rows.get('workDraft'),'draft');
+ assert.notEqual(backup.getItem(BACKUP_KEY),null,'backup must remain until Core replay validation');
+ const {completeSQLiteEncryptionMigration}=require('./sqlite-encryption-bootstrap');
+ assert.equal(completeSQLiteEncryptionMigration({backupStorage:backup}),true);
  assert.equal(backup.getItem(BACKUP_KEY),null);
  assert.ok(m.calls.some(c=>c[0]==='createConnection'&&c[1].mode==='encryption'));
  assert.ok(m.calls.some(c=>c[0]==='isDatabaseEncrypted'));
@@ -80,6 +83,9 @@ test('recuperarea unei migrări întrerupte restaurează snapshotul verificat î
  const state=await prepareSQLiteEncryption({sqlite:m.sqlite,backupStorage:backup});
  assert.deepEqual(state,{encrypted:true,mode:'secret',state:'existing-encrypted-recovered'});
  assert.deepEqual([...m.rows],[['good','restored']]);
+ assert.notEqual(backup.getItem(BACKUP_KEY),null,'recovery backup remains until Core validates');
+ const {completeSQLiteEncryptionMigration}=require('./sqlite-encryption-bootstrap');
+ assert.equal(completeSQLiteEncryptionMigration({backupStorage:backup}),true);
  assert.equal(backup.getItem(BACKUP_KEY),null);
 });
 test('bootstrap fail-closed dacă secure random nu este disponibil',async()=>{
@@ -108,6 +114,9 @@ test('adapterul migrează plaintext în encrypted mode înainte să expună read
  assert.equal(await adapter.readRaw('old'),'preserved');
  assert.ok(m.calls.some(c=>c[0]==='createConnection'&&c[1].mode==='encryption'));
  assert.ok(m.calls.some(c=>c[0]==='createConnection'&&c[1].mode==='secret'));
+ assert.notEqual(legacy.getItem(BACKUP_KEY),null,'migration backup should remain until Core validation');
+ assert.equal(adapter.completeEncryptionMigration(),true);
+ assert.equal(legacy.getItem(BACKUP_KEY),null);
 });
 test('adapterul refuză acces dacă native config nu are encryption activ',async()=>{
  const m=mockSQLite({configEncryption:false});
