@@ -867,3 +867,4 @@ Authored tests and workflow checks are not yet validated by CI on this round's l
 Commits acest set: 2cc00fb, 8e05c76, 8507b0c, 18c8668, 286336f, f2ff143, 0acd95a, 66d0d4a, 7b547fa, c1686ad, a9a923b, 416175b, 5c4e9da, cf17753, b6d1ee4, dc881cf, 9e81a63, 9eae62f, a13bcdd, ca838f3.
 
 No merge, deploy, store release or device-level validation performed. Tests are authored but pending CI on final HEAD.
+- Final follow-up: audio import additionally validates ID length and parseable creation timestamp before filesystem writes. Commit `0728ae3e1162b3c34b4f63461601fd2c94248854`.
