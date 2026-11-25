@@ -196,3 +196,38 @@ Collector is **an intelligent recorder + persistent, searchable memory of the us
 
 ### Next engineering discovery
 Before implementation, audit existing data/event structures and identify a canonical event model; map current records (audio, transcripts, reminders, item/collection changes, confirmed AI actions) to that model without duplicating authoritative Core state. Create a source-linked retrieval architecture and a phased implementation/test plan. Prioritize reliable retrieval and provenance over a large “AI memory” feature. Do not change D-001–D-044 without an impact review.
+
+
+## Product/business model correction — trial-led subscription (user clarified, 26 Nov 2026)
+
+### Decision
+Collector will **not be Free forever with a broad feature set**. The acquisition/retention strategy is a generous time-limited full-featured trial (initial test: 30 days; campaigns/early adopters may test 60–90 days), followed by a paid subscription. The objective is habit formation and recurring long-term value: user captures naturally, Collector organizes and remembers, and recall becomes useful enough to justify continuing.
+
+### Trial experience
+During trial, provide a coherent, near-complete Pro experience, including Work capture, app-wide Collection Intelligence/recall, AI assistance, collection organization, reminders, history and advanced insights, within transparent fair-use/cost limits. Avoid feature-tour overload: optimize for habitual workflows and the first meaningful value moments.
+
+Activation targets to validate: create a collection, capture 3 items, make at least one voice capture, and successfully retrieve/recall something. These are hypotheses/experiments, not established benchmarks.
+
+### Post-trial product boundary
+- Keep user data, recordings, collection records and export/access rights intact; never hold data hostage.
+- A limited Basic mode may preserve local access and basic management after trial, but premium/costly processing and advanced convenience may require subscription.
+- Collection Intelligence is a core product promise, not a separately marketed addon. Basic history/data access should remain available; the subscription can fund full conversational/advanced recall, processing capacity and premium workflows, with clear limits and no deceptive paywall.
+- AI usage caps, fair-use policy, cost alerts and transparent failure/low-confidence handling are needed to protect unit economics.
+
+### Subscription hypotheses (not final pricing)
+- Full trial: initially 30 days; test 60/90-day acquisition campaigns only where justified.
+- One primary Pro subscription with monthly and discounted annual options; keep tiers simple.
+- Basic post-trial fallback: access/ownership, local basic use, and export; define exact capabilities after entitlement audit.
+- No final prices until measured AI/cloud/store/support costs, conversion, retention, refunds and gross margin.
+
+### Habit and conversion design
+- Optimize for repeated useful capture and recall, not a feature checklist.
+- Trigger contextual subscription messaging at meaningful premium moments (advanced AI analysis, high-cost processing, advanced insight), not aggressive generic nags.
+- Trial-expiry messaging should summarize demonstrated value/usage and explain what changes; preserve data and avoid manipulative urgency.
+- Offer annual plan as a transparent long-term value option; don't use dark patterns.
+
+### Metrics
+Track trial activation and conversion by behavior cohort: first collection/3 items, voice capture, active days/weeks, recall queries and successful source-grounded retrieval, accepted AI proposals, trial-to-paid, monthly-to-annual, churn at 1/3/6 months, refunds, cost per trial/paid active user, AI cost per successful outcome, gross margin and crash/data-loss guardrails. Instrument only with disclosure/consent and privacy minimization.
+
+### Required implementation impact audit before code changes
+Audit existing RevenueCat/subscription/entitlement/usage-metering implementation, app onboarding, paywall, trial messaging, expiry handling, settings/restore purchases, backend authorization, and launch checklist. Map what already exists, identify mismatches, and change only after confirming current state. Trial entitlement must be server/store-authoritative and testable in sandbox; don't hard-code an expiry or unlock premium solely client-side. Trial/expiry, cancellation, renewal, grace/billing issue, restore and account deletion require tests. No live billing configuration or production deployment without explicit approval.
