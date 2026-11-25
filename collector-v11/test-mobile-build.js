@@ -93,5 +93,5 @@ test('Android CI retries only transient Maven throttling and limits Gradle worke
  assert.match(step,/--max-workers=2/);
  assert.match(step,/for attempt in 1 2 3/);
  assert.match(step,/HTTP 429|status code 429|Too Many Requests/);
- assert.match(step,/status code 5[0-9][0-9]/);
+ assert.ok(step.includes('status code 5[0-9][0-9]'));
 });
