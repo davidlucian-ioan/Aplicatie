@@ -803,3 +803,11 @@ Nicio tranzacție, configurare live, deploy, merge sau publicare efectuată.
 - Existing valid-backup restore E2E already checks that import restores the backup and discards entities added after that snapshot; existing incompatible-projection test also checks no mutation on rejection.
 - Commit: `22e38631191325599bf1c6a207dd96ad73cc481d`.
 - Test authored; exact-HEAD CI validation pending. This does not yet validate encrypted SQLite/native recovery, audio file restoration, or crash-interrupted restore on physical devices.
+
+
+## Backup JSON transparency — audio excluded — 26 nov 2026
+
+- Export JSON now includes `format: collector-backup.v1`, `audioIncluded: false`, and a Romanian metadata note; the Audit screen explicitly warns that audio recordings are not included or transferred by JSON export/import.
+- Added E2E assertions for the backup metadata.
+- Commits: `5fa4537a0e1ee7ab55e4c7746c2559ccbda697ac` (export metadata), `dc2399be28a3e44cdce2829dfc79299a8bbb4094` (UI warning), `554562509d351197a9fcb21e023278bcdd2acbbd` (regression).
+- Audio file export/backup and restore remains a product gap; this change is disclosure only, not an audio-backup feature. CI validation pending.
