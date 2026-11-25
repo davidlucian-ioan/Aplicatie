@@ -435,3 +435,12 @@ Next actions:
 - Added regression/static coverage to `test-mobile-build.js` for queue ordering and clear-after-pending-write behavior.
 - Commit: `720b4a48fc2da6a214926884c221a9de3f86b640` (implementation), `2298812ecfd4a37212604493058b0d4575dc8e70` (test).
 - CI has not yet been confirmed for the latest HEAD.
+
+
+## Reminder initialization retry fix — 2026-11-25
+
+- Fixed a retryability issue: reminder initialization previously marked itself complete before verifying the UI and successfully constructing the notification service. A transient storage/plugin setup failure prevented a later retry.
+- Initialization now marks completion only after successful service setup; absent UI is not consumed, and unsupported web contexts remain intentionally disabled.
+- Added regression coverage in `test-mobile-build.js`.
+- Commits: `964b064f16e7b481bff852b8300d790a81d14bf6` (fix), `30787fce7d605db9743637b6dc5171de3cd2b8c4` (test).
+- Await CI for latest HEAD.
