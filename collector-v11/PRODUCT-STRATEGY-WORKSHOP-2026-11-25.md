@@ -165,3 +165,34 @@ North star: **weekly useful collection actions per active user** (capture, updat
 - Phase 2: improve search, duplicates, locations, bulk/import/export based on feedback.
 - Phase 3: cloud sync/account recovery/Pro and AI enrichment only after privacy/cost/reliability validated.
 - Phase 4: one add-on pack chosen by usage data; test willingness to pay.
+
+
+## Product direction correction — Collection Intelligence is CORE (user clarified)
+
+The user clarified that **Collection Intelligence is standard/core, not a paid add-on**. Collector is intended to be an intelligent voice recorder and app-wide memory that knows the user's actions and records across the app and can retrieve/replay relevant history whenever asked.
+
+### Product promise
+“Collector remembers what you captured and did in the app, so you can ask later and recover the relevant details.” It must cover app activity, not only audio transcripts: recordings, transcripts, summaries, saved items/collection records, edits, confirmed AI actions, reminders, decisions, notes and relationships—subject to privacy settings and what the user explicitly records/does.
+
+### Core memory architecture (proposed; do not imply already implemented)
+- **Event/Activity Ledger:** append-only, provenance-aware records of meaningful user actions, confirmed changes and captured content; distinguish user statements, user-confirmed facts, inferred AI suggestions and system events.
+- **Knowledge/Memory Index:** derived searchable index across records (keyword + semantic retrieval when available); references source record IDs, timestamps and collection/item IDs.
+- **Temporal retrieval:** answer “what did I do/decide/change/buy/record last week/month?”; filter by date, collection, item, type and source.
+- **Grounded answers:** every factual response should link to source(s), with timestamps or jump-to-audio/transcript; explicitly say unknown or insufficient evidence rather than fabricate.
+- **Replay/recall UX:** return a concise answer and the underlying timeline/evidence; user can open the exact recording, transcript segment, event or item record.
+- **Memory lifecycle:** user can review, correct, pin, exclude, delete/export; deletion must propagate to derived indexes. Respect retention, consent, privacy and local/cloud boundaries.
+- **Core data semantics:** standard collection intelligence is available to all users; advanced AI processing may be subject to transparent usage limits/cost controls, but basic history/search/retrieval should not be positioned as a Pro-only feature.
+
+### Core experience examples
+- “What have I done with this collection this month?”
+- “When did I last change this item's location and why?”
+- “What did I say about this issue last time?”
+- “Which reminders or tasks did I create, and which are completed?”
+- “Summarize everything I recorded about X and show me the source moments.”
+- “What changed since my previous update?”
+
+### Product positioning revised
+Collector is **an intelligent recorder + persistent, searchable memory of the user's activity and collections**, with capture-first Work and recall/analysis in Think. Collection Intelligence is part of the base product value, not a separate add-on. Future paid add-ons may include specialist packs, sync/storage, advanced external research/market data or integrations—not the basic ability to remember and query what the user did in Collector.
+
+### Next engineering discovery
+Before implementation, audit existing data/event structures and identify a canonical event model; map current records (audio, transcripts, reminders, item/collection changes, confirmed AI actions) to that model without duplicating authoritative Core state. Create a source-linked retrieval architecture and a phased implementation/test plan. Prioritize reliable retrieval and provenance over a large “AI memory” feature. Do not change D-001–D-044 without an impact review.
