@@ -685,3 +685,14 @@ User clarified the commercial direction: **not Free forever**. The strategy is t
 - Launch checklist's P2 statement was updated to trial-led 30-day hypothesis, 60–90-day campaign experiments, one Pro monthly/annual hypothesis, Basic fallback definition and post-expiry data/export protection.
 - The checklist documents RevenueCat client + webhook/entitlement/meters as implemented in PR #55, but external products/entitlement/offering/webhook and store sandbox lifecycle are still launch gates. **This is documentation evidence only; I have not yet inspected the actual billing code, paywall, onboarding, entitlement enforcement, or expiry behavior.** Connector code search returned no results, and direct git clone was unavailable in this environment; no code changes are made based on guesses.
 - Next: inspect actual billing implementation and tests; map entitlement states (trial, active, grace/billing issue, cancelled-but-active, expired, restored, account recovery); verify trial authority and premium gates; create sandbox test matrix; then correct onboarding/paywall/expiry UX. Preserve data and avoid manipulative expiry messaging. No live billing/deploy/release.
+
+
+## Trial support impact audit — existing billing foundation reviewed (26 Nov 2026)
+
+- Read `collector-v11/MONETIZATION-AND-COST-MODEL.md`, `cloud-api/billing-service.js` and `cloud-api/migrations/001_billing_and_ai_usage.sql` directly.
+- Existing backend checks active `pro` entitlement + expiry before AI usage, and SQL/webhook handles initial purchase, renewal, cancellation semantics, billing issue/grace, expiry/refund-related states as documented. Trial from store can likely map to active Pro entitlement while trialing; confirm with sandbox, not assumptions.
+- No explicit trial-tier entitlement is needed as a first hypothesis; use one Pro entitlement with introductory offer if RevenueCat/store configuration supports the chosen trial and lifecycle. Store offer configuration and eligibility are external and unverified.
+- Remaining product gaps: actual onboarding/paywall copy and trial disclosure, introductory trial setup, trial-expiry UX, Basic post-trial local/data/export behavior, trial quotas/fair-use, and sandbox lifecycle coverage.
+- Updated monetization/cost model document with this impact audit: commit `1ec0eeab061a4a9801ec0c66435ba05eebcc11e0`.
+- **No application code changed** because mobile paywall/onboarding and store configuration have not yet been directly inspected; avoid guessing paths/behavior. Next action is source-level audit of purchase/paywall UI and its tests, then implement the lowest-risk corrections and regression tests.
+- Keep P0 launch priorities; trial monetization is now an explicit release requirement. No live billing/deploy/merge/publish.
