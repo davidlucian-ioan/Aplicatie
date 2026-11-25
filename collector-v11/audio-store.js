@@ -91,6 +91,7 @@
     return saveNative({...record,filePath,uri:location.uri});
    },
    saveNative,
+   async rename(id,title){await initialize();const name=String(title||'').trim();if(!name||name.length>100)throw new Error('Titlul trebuie să aibă 1–100 de caractere.');const rows=await readIndex(),row=rows.find(item=>item.id===id);if(!row)throw new Error('Înregistrarea nu a fost găsită în indexul nativ.');row.title=name;await writeIndex(rows);return row},
    async get(id){await initialize();const row=(await readIndex()).find(item=>item.id===id);return row||legacyStore.get(id)},
    async list(){
     await initialize();
