@@ -218,3 +218,10 @@ header p{color:#687487;font-size:13px}
 .work-recorder #audioRecorderTimer{background:#fff;border:1px solid #e3e8ef;border-radius:10px;padding:8px 10px}
 @media(min-width:1100px){.think-metrics .card{min-height:124px}.think-actions .quick-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:640px){.think-metrics .card{min-height:100px}.think-actions .quick-grid{grid-template-columns:1fr 1fr}}
+
+/* Entity list usability: persistent quick search */
+.entity-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.entity-search-wrap{flex:1 1 250px;min-width:0}
+.entity-search-wrap input{width:100%;min-height:44px;padding:10px 13px;border:1px solid #d8e0ea;border-radius:12px;background:#fff;font:inherit}
+.entity-search-wrap input:focus{outline:3px solid #2763eb20;border-color:#6d95f4}
+#entitySearchCount{white-space:nowrap;font-size:12px}
