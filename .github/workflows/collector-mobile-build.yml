@@ -67,9 +67,29 @@ jobs:
       - name: Sync Android native project
         working-directory: collector-v11
         run: npx cap sync android
-      - name: Build Android debug APK
+      - name: Build Android debug APK (retry transient Maven throttling)
         working-directory: collector-v11
-        run: cd android && ./gradlew assembleDebug
+        shell: bash
+        run: |
+          set -uo pipefail
+          log_file="$(mktemp)"
+          trap 'rm -f "$log_file"' EXIT
+          for attempt in 1 2 3; do
+            echo "Android Gradle build attempt ${attempt}/3"
+            if (cd android && ./gradlew assembleDebug --no-daemon --max-workers=2) 2>&1 | tee "$log_file"; then
+              exit 0
+            fi
+            if ! grep -Eiq 'HTTP 429|status code 429|Too Many Requests|HTTP 5[0-9][0-9]|status code 5[0-9][0-9]' "$log_file"; then
+              echo "Build failed for a non-transient reason; not retrying."
+              exit 1
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Maven repository throttling persisted after three attempts."
+              exit 1
+            fi
+            sleep $((attempt * 30))
+            : > "$log_file"
+          done
       - name: Upload Android debug APK
         uses: actions/upload-artifact@v4
         with:

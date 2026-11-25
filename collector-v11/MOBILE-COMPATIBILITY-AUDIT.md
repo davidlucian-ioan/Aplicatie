@@ -66,3 +66,13 @@ Acesta este un audit static al fișierelor de pe branch, nu un test pe dispoziti
 - `.github/workflows/collector-mobile-build.yml` generează build Android debug și iOS Simulator; un build anterior cu Capacitor și Local Notifications a trecut pe ambele platforme.
 - Build-ul cu SQLite pe branch-ul curent este în curs de verificare; auditul rămâne static și nu înlocuiește testarea pe telefoane fizice.
 - Audio rămâne în IndexedDB și folosește MediaRecorder; migrarea în Filesystem nativ și înregistrarea în background sunt încă de făcut.
+
+
+## Actualizare recorder / launch review — 2026-11-25
+
+- Recorder nativ: AAC prin plugin Capacitor, fișierul final copiat în Filesystem privat, metadate în indexul SQLite. Checkpoint-ul sesiunii este persistat înainte de start și poate fi prezentat pentru recuperare la următoarea pornire.
+- Recorder web: sesiunea și fiecare fragment MediaRecorder sunt salvate incremental în IndexedDB (recording_sessions + recording_chunks); recuperarea reconstituie Blob-ul în ordinea secvenței, îl salvează ca înregistrare obișnuită și apoi curăță checkpoint-ul.
+- Recuperarea după terminarea forțată a procesului nativ rămâne best-effort: depinde de URI-ul expus de plugin sau de fișierul privat copiat înaintea întreruperii. Necesită testare pe hardware real.
+- Android background recording nu are încă un foreground service explicit documentat/validat. UI avertizează că browserul/OS poate suspenda captura; nu promite înregistrare garantată în background.
+- Build-ul Android a întâmpinat HTTP 429 de la Maven Central în run #670. Workflow-ul a fost harden-uit cu retries limitate pentru 429/5xx și max-workers=2; verdictul pe noul HEAD este obligatoriu.
+- SQLite at-rest encryption este încă dezactivată; decizia și migrarea pentru criptare sunt restante. Import/export nativ și share sheet trebuie verificate separat de build.

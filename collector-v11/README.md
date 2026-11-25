@@ -53,7 +53,7 @@ Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile real
 
 ## Aplicație mobilă comercială
 
-Direcția de produs confirmată este distribuția prin Google Play și Apple App Store. Shell-ul Capacitor, bundle-ul mobile, StorageAdapter SQLite, Work/Think și reminders native sunt implementate în branch-ul de lucru. Backend-ul cloud, autentificarea, sincronizarea, billing-ul, audio nativ complet și build-urile semnate rămân de realizat. Vezi [MOBILE-APP-AND-COMMERCIAL-ROADMAP.md](MOBILE-APP-AND-COMMERCIAL-ROADMAP.md).
+Direcția de produs confirmată este distribuția prin Google Play și Apple App Store. Shell-ul Capacitor, bundle-ul mobile, StorageAdapter SQLite, Work/Think și reminders native sunt implementate în branch-ul de lucru. Backend-ul cloud, autentificarea, sincronizarea, billing-ul, audio nativ complet și build-urile semnate rămân de realizat. Vezi [MOBILE-APP-AND-COMMERCIAL-ROADMAP.md](MOBILE-APP-AND-COMMERCIAL-ROADMAP.md) și [LAUNCH-READINESS-CHECKLIST.md](LAUNCH-READINESS-CHECKLIST.md). Drafturile interne pentru confidențialitate și termeni sunt în PRIVACY-POLICY-DRAFT-RO.md și TERMENI-UTILIZARE-DRAFT-RO.md; nu sunt gata de publicare.
 
 ## Funcții mobile implementate în branch
 

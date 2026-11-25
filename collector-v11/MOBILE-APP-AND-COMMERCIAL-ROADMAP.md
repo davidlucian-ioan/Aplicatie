@@ -212,3 +212,13 @@ Surse oficiale:
 - Nu activa endpoint-ul AI public înainte de entitlement server-side și usage budget persistent.
 - Estimare de bază pentru început: ~32 USD/lună pentru Render Starter + Supabase Pro, fără AI, taxe, domeniu și scalare. OpenAI la modelul curent: aproximativ 0,009–0,020 USD per solicitare în scenariile de tokeni documentate.
 - Reduceri sigure: AI numai la cerere, context minim, STT/audio local, model mai economic doar după benchmark de contract/regresie, buget pe tokeni și plafon de cheltuieli. Nu reduce securitatea, validarea Core sau confirmarea utilizatorului.
+
+
+## Pre-lansare — actualizare 2026-11-25
+
+- Work păstrează înregistrările native în fișiere private AAC și metadatele în indexul SQLite; fallback-ul browser folosește IndexedDB. Pentru browser, fragmentele sunt checkpoint-uite incremental și pot fi recuperate explicit după reload. Acest flux nu certifică recuperarea după terminarea procesului de către OS.
+- PR #55 rămâne draft. Cloud API CI a trecut pe HEAD-ul documentat anterior, dar build-ul Android a eșuat în run #670 din cauza răspunsurilor HTTP 429 de la Maven Central (rate limiting), nu din cauza unei erori de compilare. Workflow-ul Android are acum retry cu backoff pentru 429/5xx și limitează Gradle la doi workers; rezultatul trebuie verificat pe noul HEAD.
+- Lista de dependențe native este încă instalată separat de package-lock în workflow; versiunile directe sunt pin-uite, dar lockfile-ul complet de build mobil rămâne de finalizat pentru reproductibilitate locală.
+- SQLite encryption rămâne dezactivată (androidIsEncryption=false, iosIsEncryption=false). Nu o activa prin simpla schimbare a flag-ului: este necesară o strategie verificată de cheie și migrare fără pierderea bazelor existente. Acesta este un blocker pentru acceptarea riscului de stocare locală la lansarea comercială.
+- Nu există încă Supabase/RevenueCat configurate în conturi reale, migrare SQL aplicată în producție, backend HTTPS deployat, tranzacții sandbox, build-uri semnate, privacy policy/termeni publicați sau verificare fizică Android/iOS.
+- Drafturile juridice și checklist-ul de lansare sunt documente interne de lucru; nu le publica fără completarea operatorului, adreselor, contactului, furnizorilor/regiunilor/retention și revizuire juridică.

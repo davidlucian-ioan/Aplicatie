@@ -82,3 +82,16 @@ test('iOS build installs Supabase Secure Storage and esbuild for the native auth
   assert.ok(iosSection.includes(dependency),'iOS build must install '+dependency);
  }
 });
+
+test('Android CI retries only transient Maven throttling and limits Gradle workers',async()=>{
+ const workflow=await fs.readFile(path.join(__dirname,'..','.github','workflows','collector-mobile-build.yml'),'utf8');
+ const start=workflow.indexOf('name: Build Android debug APK (retry transient Maven throttling)');
+ const end=workflow.indexOf('name: Upload Android debug APK',start);
+ assert.notEqual(start,-1,'Android build step must exist');
+ assert.notEqual(end,-1,'Android artifact upload step must exist');
+ const step=workflow.slice(start,end);
+ assert.match(step,/--max-workers=2/);
+ assert.match(step,/for attempt in 1 2 3/);
+ assert.match(step,/HTTP 429|status code 429|Too Many Requests/);
+ assert.match(step,/status code 5[0-9][0-9]/);
+});
