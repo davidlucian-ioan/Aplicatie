@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const {prepareSQLiteEncryption}=require('./sqlite-encryption-bootstrap');
 const {createSQLiteStorageAdapter}=require('./storage-adapter');
 const BACKUP_KEY='collector_sqlite_encryption_migration_backup_v1';
-function mockStorage(initial={}){const map=new Map(Object.entries(initial));return {getItem(k){return map.has(k)?map.get(k):null},setItem(k,v){map.set(k,String(v))},removeItem(k){map.delete(k)},dump(){return Object.fromEntries(map)}}}
+function mockStorage(initial={}){const map=new Map(Object.entries(initial));return {get length(){return map.size},key(i){return [...map.keys()][i]??null},getItem(k){return map.has(k)?map.get(k):null},setItem(k,v){map.set(k,String(v))},removeItem(k){map.delete(k)},dump(){return Object.fromEntries(map)}}}
 function mockSQLite({exists=false,encrypted=false,secret=false,verifySecret=true,configEncryption=true,conversionSucceeds=true,verifyEncryption=true}={}){
  const calls=[];let stored=secret,opened=false,dbEncrypted=encrypted;const rows=new Map();
  return {calls,rows,sqlite:{
@@ -107,16 +107,21 @@ test('adapterul requireEncryption creează DB encrypted și verifică encryption
 });
 test('adapterul migrează plaintext în encrypted mode înainte să expună read/write',async()=>{
  const m=mockSQLite({exists:true,encrypted:false});m.rows.set('old','preserved');
- const legacy=mockStorage();
+ const legacy=mockStorage({collector_mvp_v1:'legacy-v6',collector_work_draft_v1:'draft',collector_cloud_opt_out:'1'});
  const adapter=createSQLiteStorageAdapter({sqlite:m.sqlite,legacyStorage:legacy,encryptionBootstrap:{prepareSQLiteEncryption:args=>prepareSQLiteEncryption({...args,cryptoImpl:fakeCrypto()}),completeSQLiteEncryptionMigration:args=>require('./sqlite-encryption-bootstrap').completeSQLiteEncryptionMigration(args)},requireEncryption:true});
  await adapter.initialize();
  assert.equal(adapter.getEncryptionState().state,'converted-existing');
  assert.equal(await adapter.readRaw('old'),'preserved');
+ assert.equal(await adapter.readRaw('collector_mvp_v1'),'legacy-v6');
+ assert.equal(await adapter.readRaw('collector_work_draft_v1'),'draft');
  assert.ok(m.calls.some(c=>c[0]==='createConnection'&&c[1].mode==='encryption'));
  assert.ok(m.calls.some(c=>c[0]==='createConnection'&&c[1].mode==='secret'));
  assert.notEqual(legacy.getItem(BACKUP_KEY),null,'migration backup should remain until Core validation');
  assert.equal(adapter.completeEncryptionMigration(),true);
  assert.equal(legacy.getItem(BACKUP_KEY),null);
+ assert.equal(legacy.getItem('collector_mvp_v1'),null);
+ assert.equal(legacy.getItem('collector_work_draft_v1'),null);
+ assert.equal(legacy.getItem('collector_cloud_opt_out'),'1');
 });
 test('adapterul refuză acces dacă native config nu are encryption activ',async()=>{
  const m=mockSQLite({configEncryption:false});
