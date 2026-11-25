@@ -82,3 +82,14 @@ test('failed recovery keeps checkpoint for another attempt',async()=>{
  await assert.rejects(NativeRecorder.stop(),/native session unavailable/);
  assert.equal((await NativeRecorder.getPending()).id,'retry-recovery');
 });
+
+test('recovery prefers an already copied app-private audio file after metadata failure',async()=>{
+ const x=fixture();const session=await NativeRecorder.start({id:'already-copied'});
+ x.files.set(session.filePath,Buffer.from('saved-audio'));
+ const stopCallsBefore=x.calls.filter(call=>call[0]==='stopRecording').length;
+ const result=await NativeRecorder.stop();
+ assert.equal(result.filePath,session.filePath);assert.equal(result.size,12);
+ assert.equal(x.calls.filter(call=>call[0]==='stopRecording').length,stopCallsBefore);
+ assert.equal(x.files.has(session.filePath),true);
+ await NativeRecorder.complete(result.id);
+});
