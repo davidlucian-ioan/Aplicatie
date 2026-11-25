@@ -120,3 +120,10 @@ test('adapterul refuză DB dacă verificarea encryption post-open e falsă',asyn
  const adapter=createSQLiteStorageAdapter({sqlite:m.sqlite,legacyStorage:mockStorage(),encryptionBootstrap:{prepareSQLiteEncryption:args=>prepareSQLiteEncryption({...args,cryptoImpl:fakeCrypto()})},requireEncryption:true});
  await assert.rejects(adapter.initialize(),/verification failed/);
 });
+
+test('auto adapter refuză web storage plaintext când encryption este obligatorie',()=>{
+ const backing=mockStorage();
+ assert.throws(()=>createSQLiteStorageAdapter({sqlite:null,legacyStorage:backing,requireEncryption:true}),/SQLite encryption\/migration APIs are incomplete/);
+ const {createAutoStorageAdapter}=require('./storage-adapter');
+ assert.throws(()=>createAutoStorageAdapter({capacitor:{isNativePlatform:()=>false},legacyStorage:backing,requireEncryption:true}),/unavailable on the web platform/);
+});
