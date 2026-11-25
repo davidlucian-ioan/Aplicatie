@@ -546,7 +546,29 @@ document.getElementById('audioRecordPause').addEventListener('click',pauseAudioR
 document.getElementById('audioRecordResume').addEventListener('click',resumeAudioRecording);
 document.getElementById('audioRecordStop').addEventListener('click',stopAudioRecording);
 document.getElementById('globalVoice').onclick=()=>{showPage('assistant');if(audioRecorder&&(audioRecorder.state==='recording'||audioRecorder.state==='paused'))stopAudioRecording();else startAudioRecording()};
-// Conversation context expires after 30 minutes; persistent entities and event history are unaffected.
+// Work draft: isolated local autosave. This never writes to the event journal or database.
+const WORK_DRAFT_KEY='collector_work_command_draft_v1';
+function initializeWorkDraft(){
+ const input=document.getElementById('commandInput'),status=document.getElementById('workDraftStatus'),clear=document.getElementById('clearWorkDraft');
+ if(!input)return;
+ try{const saved=localStorage.getItem(WORK_DRAFT_KEY);if(saved){input.value=saved;status.textContent='Draft recuperat automat de pe acest dispozitiv.'}}
+ catch(error){status.textContent='Salvarea draftului local nu este disponibilă.'}
+ input.addEventListener('input',()=>{
+  try{if(input.value.trim())localStorage.setItem(WORK_DRAFT_KEY,input.value);else localStorage.removeItem(WORK_DRAFT_KEY);status.textContent=input.value.trim()?'Draft salvat local automat.':'Draft gol.'}
+  catch(error){status.textContent='Nu am putut salva draftul local: '+error.message}
+ });
+ clear?.addEventListener('click',()=>{
+  if(!input.value.trim()){try{localStorage.removeItem(WORK_DRAFT_KEY)}catch{};status.textContent='Draft gol.';return}
+  if(!confirm('Ștergi textul draftului? Nu a fost salvat ca eveniment.'))return;
+  input.value='';try{localStorage.removeItem(WORK_DRAFT_KEY)}catch(error){status.textContent='Textul a fost golit, dar draftul nu a putut fi șters din stocare.'}
+  status.textContent='Draft șters. Niciun eveniment nu a fost modificat.';input.focus();
+ });
+ document.querySelectorAll('[data-command-template]').forEach(button=>button.addEventListener('click',()=>{
+  const template=button.dataset.commandTemplate||'',start=input.selectionStart??input.value.length,end=input.selectionEnd??input.value.length;
+  input.setRangeText(template,start,end,'end');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
+ }));
+}
+\n// Conversation context expires after 30 minutes; persistent entities and event history are unaffected.
 // Do not persist stale in-memory snapshots on focus; context expiry is evaluated when commands are handled.
 // Every committed change is persisted before publication; never write a stale in-memory snapshot on unload.
 async function initializeCollectorApp(){
