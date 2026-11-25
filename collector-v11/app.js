@@ -546,22 +546,29 @@ document.getElementById('audioRecordPause').addEventListener('click',pauseAudioR
 document.getElementById('audioRecordResume').addEventListener('click',resumeAudioRecording);
 document.getElementById('audioRecordStop').addEventListener('click',stopAudioRecording);
 document.getElementById('globalVoice').onclick=()=>{showPage('assistant');if(audioRecorder&&(audioRecorder.state==='recording'||audioRecorder.state==='paused'))stopAudioRecording();else startAudioRecording()};
-// Work draft: isolated local autosave. This never writes to the event journal or database.
+// Work draft: isolated autosave through the selected StorageAdapter. It never writes to the event journal.
 const WORK_DRAFT_KEY='collector_work_command_draft_v1';
 function initializeWorkDraft(){
  const input=document.getElementById('commandInput'),status=document.getElementById('workDraftStatus'),clear=document.getElementById('clearWorkDraft');
  if(!input)return;
- try{const saved=localStorage.getItem(WORK_DRAFT_KEY);if(saved){input.value=saved;status.textContent='Draft recuperat automat de pe acest dispozitiv.'}}
- catch(error){status.textContent='Salvarea draftului local nu este disponibilă.'}
+ let writeVersion=0;
+ (async()=>{
+  try{const saved=await storageAdapter.readRaw(WORK_DRAFT_KEY);if(saved&&input.value===''){input.value=saved;status.textContent='Draft recuperat automat de pe acest dispozitiv.'}}
+  catch(error){status.textContent='Salvarea draftului local nu este disponibilă.'}
+ })();
  input.addEventListener('input',()=>{
-  try{if(input.value.trim())localStorage.setItem(WORK_DRAFT_KEY,input.value);else localStorage.removeItem(WORK_DRAFT_KEY);status.textContent=input.value.trim()?'Draft salvat local automat.':'Draft gol.'}
-  catch(error){status.textContent='Nu am putut salva draftul local: '+error.message}
+  const version=++writeVersion,value=input.value;
+  storageAdapter[(value.trim()?'writeRaw':'removeRaw')](WORK_DRAFT_KEY,...(value.trim()?[value]:[])).then(()=>{
+   if(version===writeVersion)status.textContent=value.trim()?'Draft salvat local automat.':'Draft gol.';
+  }).catch(error=>{if(version===writeVersion)status.textContent='Nu am putut salva draftul local: '+error.message});
  });
- clear?.addEventListener('click',()=>{
-  if(!input.value.trim()){try{localStorage.removeItem(WORK_DRAFT_KEY)}catch{};status.textContent='Draft gol.';return}
+ clear?.addEventListener('click',async()=>{
+  if(!input.value.trim()){try{await storageAdapter.removeRaw(WORK_DRAFT_KEY)}catch{};status.textContent='Draft gol.';return}
   if(!confirm('Ștergi textul draftului? Nu a fost salvat ca eveniment.'))return;
-  input.value='';try{localStorage.removeItem(WORK_DRAFT_KEY)}catch(error){status.textContent='Textul a fost golit, dar draftul nu a putut fi șters din stocare.'}
-  status.textContent='Draft șters. Niciun eveniment nu a fost modificat.';input.focus();
+  input.value='';++writeVersion;
+  try{await storageAdapter.removeRaw(WORK_DRAFT_KEY);status.textContent='Draft șters. Niciun eveniment nu a fost modificat.'}
+  catch(error){status.textContent='Textul a fost golit, dar draftul nu a putut fi șters din stocare.'}
+  input.focus();
  });
  document.querySelectorAll('[data-command-template]').forEach(button=>button.addEventListener('click',()=>{
   const template=button.dataset.commandTemplate||'',start=input.selectionStart??input.value.length,end=input.selectionEnd??input.value.length;
