@@ -680,6 +680,6 @@ test('caută entități live după nume, tip și locație și permite resetarea 
   await expect(page.locator('#entitySearchCount')).toContainText('0 / 3');
 
   await search.fill('');
-  await expect(page.locator('#entityList .row')).toHaveCount(2);
+  await expect(page.locator('#entityList .row')).toHaveCount(3);
   await expect(page.locator('#entitySearchCount')).toBeEmpty();
 });
