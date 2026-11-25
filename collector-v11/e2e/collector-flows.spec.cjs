@@ -195,6 +195,28 @@ test('Replay din interfață reconstruiește proiecțiile fără avertismente', 
   expect(after.warnings).toEqual([]);
 });
 
+test('Collector Basic fără entitlement păstrează funcțiile locale și exportul', async ({ page }) => {
+  // Browser platform has no RevenueCat entitlement; local functionality must not depend on Pro.
+  await createEntity(page, 'Entitate Basic păstrată', 'plant');
+  const before = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return { entityCount: db.entities.length, eventCount: db.events.length, names: db.entities.map(e => e.name) };
+  });
+  expect(before.entityCount).toBe(1);
+  expect(before.eventCount).toBeGreaterThan(0);
+  expect(before.names).toContain('Entitate Basic păstrată');
+
+  await page.locator('.nav[data-page="audit"]').click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export JSON' }).click()
+  ]);
+  const backup = JSON.parse(await require('node:fs/promises').readFile(await download.path(), 'utf8'));
+  expect(backup.db.entities.map(e => e.name)).toContain('Entitate Basic păstrată');
+  expect(backup.db.events.length).toBeGreaterThan(0);
+  expect(backup.db.schemaVersion).toBe(7);
+});
+
 test('backup JSON valid poate fi exportat și restaurat fără datele adăugate ulterior', async ({ page }) => {
   await createEntity(page, 'Entitate backup originală', 'plant');
   await page.locator('.nav[data-page="audit"]').click();
