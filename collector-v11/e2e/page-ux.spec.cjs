@@ -87,3 +87,5 @@ test('relations workspace uses a split desktop layout and stacks on mobile', asy
   const mobile = await page.locator('.relations-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns);
   expect(mobile.trim().split(/\\s+/).length).toBe(1);
 });
+
+test('modal dialog manages keyboard focus, Escape, and return focus', async ({ page }) => {\n  await page.goto('/index-server.html');\n  await page.locator('.nav[data-page="entities"]').click();\n  const opener = page.locator('#entities .toolbar button.primary');\n  await opener.click();\n  const modal = page.locator('#modal');\n  await expect(modal).toBeVisible();\n  await expect(modal.locator('[role="dialog"]')).toHaveAttribute('aria-modal', 'true');\n  await expect(page.locator('#newName')).toBeFocused();\n  await page.keyboard.press('Shift+Tab');\n  await expect(modal.locator('.close')).toBeFocused();\n  await page.keyboard.press('Escape');\n  await expect(modal).toBeHidden();\n  await expect(opener).toBeFocused();\n});\n
