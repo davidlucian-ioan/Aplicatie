@@ -79,4 +79,7 @@ See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. Th
 - [x] Disclosure prezent în toate cele trei entry points și regression test adăugat.
 - [ ] CI complet verde pe HEAD după modificările de disclosure.
 - [ ] Trial metadata disclosure (durată, eligibilitate, preț ulterior, auto-renew) bazat pe metadata Store/RevenueCat reală; copy nu trebuie inventat.
-- [ ] Post-expiry Basic behavior testat manual și automat, inclusiv acces la date/export.
+- [ ] Post-expiry Basic behavior testat pe native device și sandbox.
+- [x] Regresie Cloud API pentru entitlement cu expires_at în trecut (status downgrade + provider blocked) — test authored; CI validation pending.
+- [x] Playwright browser regression pentru local Basic CRUD + JSON export (schema v7, journal) — test authored; CI validation pending.
+- [ ] Trial disclosure real: RevenueCat/store metadata pentru intro price/period, eligibility și renewal price/auto-renew; API metadata incomplete/eligibility nu poate fi dedusă, deci fără copy până la store sandbox/config validation.
