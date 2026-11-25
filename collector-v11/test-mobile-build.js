@@ -156,7 +156,11 @@ test('reminder initialization remains retryable after transient service setup fa
  const initialize=reminders.slice(reminders.indexOf('async function initialize(){'),reminders.indexOf('root.CollectorReminders='));
  assert.ok(initialize.includes('try{service=createService({storage,plugin})}'));
  assert.ok(initialize.includes('catch(error){if(status)status.textContent=error.message;return}'),'failed setup must return without marking initialized');
- assert.ok(initialize.indexOf('initialized=true')>initialize.indexOf('try{service=createService({storage,plugin})'),'native service initialization is marked complete only after successful setup');
+ const nativeSetup=initialize.slice(initialize.indexOf('const storage='));
+ const setupTry=nativeSetup.indexOf('try{service=createService({storage,plugin})}');
+ const setupCatch=nativeSetup.indexOf('catch(error){if(status)status.textContent=error.message;return}',setupTry);
+ const successfulInit=nativeSetup.indexOf('initialized=true;',setupCatch);
+ assert.ok(setupTry>=0&&setupCatch>setupTry&&successfulInit>setupCatch,'native service initialization is marked complete only after successful setup');
  assert.ok(initialize.includes('if(!form)return;'),'missing UI must not permanently consume initialization');
 });
 
