@@ -1,1 +1,1 @@
-(function(root){'use strict';root.CollectorConfig=Object.freeze({apiBaseUrl:'',supabaseUrl:'',supabaseAnonKey:'',revenueCatAppleApiKey:'',revenueCatGoogleApiKey:''});})(typeof window!=='undefined'?window:globalThis);
+(function(root){'use strict';root.CollectorConfig=Object.freeze({apiBaseUrl:'',supabaseUrl:'',supabaseAnonKey:'',revenueCatAppleApiKey:'',revenueCatGoogleApiKey:'',sqliteEncryptionEnabled:false});})(typeof window!=='undefined'?window:globalThis);
