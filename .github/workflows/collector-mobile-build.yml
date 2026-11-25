@@ -51,7 +51,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Capacitor 8 toolchain
         working-directory: collector-v11
-        run: npm run mobile:install-toolchain && npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/android@8.6.2
+        run: npm run mobile:install-toolchain && ./node_modules/.bin/cap --version
       - name: Verify app and native plugin wiring
         working-directory: collector-v11
         run: npm test
@@ -60,13 +60,13 @@ jobs:
         run: npm run mobile:build
       - name: Generate Android native project
         working-directory: collector-v11
-        run: npx cap add android
+        run: ./node_modules/.bin/cap add android
       - name: Configure microphone permission
         working-directory: collector-v11
         run: node configure-native-projects.js android
       - name: Sync Android native project
         working-directory: collector-v11
-        run: npx cap sync android
+        run: ./node_modules/.bin/cap sync android
       - name: Build Android debug APK (retry transient Maven throttling)
         working-directory: collector-v11
         shell: bash
@@ -122,7 +122,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Capacitor 8 toolchain
         working-directory: collector-v11
-        run: npm run mobile:install-toolchain && npm install --no-save --no-package-lock --no-audit --no-fund @capacitor/ios@8.6.2
+        run: npm run mobile:install-toolchain && ./node_modules/.bin/cap --version
       - name: Verify app and native plugin wiring
         working-directory: collector-v11
         run: npm test
@@ -131,13 +131,13 @@ jobs:
         run: npm run mobile:build
       - name: Generate iOS native project
         working-directory: collector-v11
-        run: npx cap add ios
+        run: ./node_modules/.bin/cap add ios
       - name: Configure microphone usage description
         working-directory: collector-v11
         run: node configure-native-projects.js ios
       - name: Sync iOS native project
         working-directory: collector-v11
-        run: npx cap sync ios
+        run: ./node_modules/.bin/cap sync ios
       - name: Build iOS simulator app
         working-directory: collector-v11
         run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
