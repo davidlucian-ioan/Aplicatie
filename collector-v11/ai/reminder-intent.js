@@ -48,21 +48,25 @@ function resolveDue(due,{now=new Date(),timezone='UTC',defaultHour=9,defaultMinu
 }
 
 function localDateTimeToUtc(date,hour,minute,timezone){
-  // Iterative offset resolution; verify round-trip to reject DST gaps and ambiguous wall times.
+  // Resolve possible timezone offsets around the requested wall-clock time.
+  // DST gaps have zero candidates; fall-back overlaps have two and are rejected.
   const [y,m,d]=date.split('-').map(Number);
   const target=Date.UTC(y,m-1,d,hour,minute,0,0);
-  let guess=target;
-  for(let i=0;i<4;i++){
-    const parts=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(guess));
-    const values=Object.fromEntries(parts.map(p=>[p.type,p.value]));
-    const represented=Date.UTC(Number(values.year),Number(values.month)-1,Number(values.day),Number(values.hour),Number(values.minute));
-    guess+=target-represented;
+  const formatter=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+  const offsets=new Set();
+  for(let delta=-36;delta<=36;delta+=3){
+    const sample=new Date(target+delta*60*60*1000);
+    const parts=Object.fromEntries(formatter.formatToParts(sample).map(p=>[p.type,p.value]));
+    const represented=Date.UTC(Number(parts.year),Number(parts.month)-1,Number(parts.day),Number(parts.hour),Number(parts.minute));
+    offsets.add(represented-sample.getTime());
   }
-  const final=new Date(guess);
-  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(final);
-  const values=Object.fromEntries(parts.map(p=>[p.type,p.value]));
-  if(values.year!==String(y)||values.month!==String(m).padStart(2,'0')||values.day!==String(d).padStart(2,'0')||values.hour!==String(hour).padStart(2,'0')||values.minute!==String(minute).padStart(2,'0'))return null;
-  return final;
+  const matches=[];
+  for(const offset of offsets){
+    const candidate=new Date(target-offset);
+    const parts=Object.fromEntries(formatter.formatToParts(candidate).map(p=>[p.type,p.value]));
+    if(parts.year===String(y)&&parts.month===String(m).padStart(2,'0')&&parts.day===String(d).padStart(2,'0')&&parts.hour===String(hour).padStart(2,'0')&&parts.minute===String(minute).padStart(2,'0'))matches.push(candidate);
+  }
+  return matches.length===1?matches[0]:null;
 }
 
 module.exports={validateReminderSuggestion,resolveDue,localDateTimeToUtc};
