@@ -499,3 +499,15 @@ Next actions:
 - Commits: `17989d6e831601e3d1904a811b1b95531e9da91d` (app fix), `cb247f3261a90227247b9b45c71fec64fbd5add5` (syntax regression test).
 - The previous HEAD `c9f3e63369af872e1d6fa1445a7305c1be52f12f` had Cloud API SUCCESS and Android+iOS Mobile Build SUCCESS; only Quality Suite failed due app.js syntax error.
 - New CI must validate latest branch HEAD. No local npm/E2E run is claimed. PR #55 stays draft; no merge/deploy.
+
+
+## Continuare development — prioritizare pre-launch (2026-11-25)
+
+- PR #55 este OPEN/DRAFT, base main, fără merge; branch `feature/openai-provider-integration`.
+- HEAD verificat înainte de acest batch: `01ef1539e6735525b6c49ab58a164ab43bb266a4`.
+- CI pentru acel HEAD: Cloud API run 443 SUCCESS; Quality Suite run 1685 SUCCESS; Mobile Build run 789 SUCCESS (Android și iOS joburile workflow au trecut). Aceste rezultate sunt pentru SHA-ul de mai sus.
+- Reanaliza checklist-ului de lansare confirmă blocker-ul tehnic P0: SQLite at-rest encryption. Adapterul deschide DB cu encrypted:false; Capacitor config are androidIsEncryption/iosIsEncryption false. Nu activăm flagurile direct, deoarece instalările existente au DB plaintext și conversia greșită poate bloca accesul la date.
+- Am creat `collector-v11/SQLITE-ENCRYPTION-MIGRATION-PLAN.md` cu auditul API SQLCipher și etapizarea: secret per-install criptografic random în secure store, new-db encryption, migrare plaintext recoverable/backup, marker de migrare crash-safe, Core validation/replay, fail-closed la secret lipsă/invalid, și teste fizice Android+iOS. Checklist-ul de lansare a fost actualizat să trimită la acest plan.
+- Documentația pluginului confirmă SQLCipher AES-256 și API-uri secure-secret / encryption conversion. Config rămâne dezactivat până când bootstrap+migrări și testarea fizică sunt implementate.
+- Commit-uri de documentare: `5ebb5bb9a44d776d8b64d26b15e9c99e858f1a31` (plan) și `cc01ac1567e265a4d4b6241f5ce5120f678e3288` (checklist). Aceste commits sunt în branch și trebuie verificate CI pe noul HEAD.
+- Următoarea implementare: Stage A — teste state-machine/mock pentru bootstrap criptat și migration states, fără toggling encryption; apoi Stage B implementare guarded. Nu configura Supabase/RevenueCat, nu deploy, nu merge, nu schimba secrete fără aprobarea utilizatorului.
