@@ -155,3 +155,26 @@ test('auto adapter refuză web storage plaintext când encryption este obligator
  const {createAutoStorageAdapter}=require('./storage-adapter');
  assert.throws(()=>createAutoStorageAdapter({capacitor:{isNativePlatform:()=>false},legacyStorage:backing,requireEncryption:true}),/unavailable on the web platform/);
 });
+
+test('backup corupt fail-closed înainte de accesul la DB',async()=>{
+ const m=mockSQLite({exists:true,encrypted:true,secret:true});
+ const backup=mockStorage({[BACKUP_KEY]:'{broken-json'});
+ await assert.rejects(prepareSQLiteEncryption({sqlite:m.sqlite,backupStorage:backup}),/unreadable/);
+ assert.equal(m.calls.some(c=>c[0]==='createConnection'),false,'must not open or mutate DB when backup cannot be parsed');
+ assert.equal(backup.getItem(BACKUP_KEY),'{broken-json}','corrupt recovery data must be preserved');
+});
+test('cleanup migrare nu șterge legacy keys modificate după snapshot',()=>{
+ const {completeSQLiteEncryptionMigration}=require('./sqlite-encryption-bootstrap');
+ const backup=mockStorage({
+  collector_work_draft_v1:'old-draft',
+  collector_mvp_v2:'snapshot-old',
+  collector_cloud_opt_out:'1',
+  [BACKUP_KEY]:JSON.stringify({version:1,database:'collector',phase:'prepared',createdAt:'x',entries:[],legacyEntries:[{key:'collector_work_draft_v1',value:'old-draft'},{key:'collector_mvp_v2',value:'snapshot-old'}]})
+ });
+ backup.setItem('collector_work_draft_v1','new-draft');
+ assert.equal(completeSQLiteEncryptionMigration({backupStorage:backup}),true);
+ assert.equal(backup.getItem('collector_work_draft_v1'),'new-draft','changed source key must survive cleanup');
+ assert.equal(backup.getItem('collector_mvp_v2'),null,'unchanged captured key may be cleaned');
+ assert.equal(backup.getItem('collector_cloud_opt_out'),'1','opt-out must never be migrated or deleted');
+ assert.equal(backup.getItem(BACKUP_KEY),null);
+});
