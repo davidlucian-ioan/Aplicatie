@@ -671,7 +671,8 @@ test('caută entități live după nume, tip și locație și permite resetarea 
 
   await search.fill('greenhouse');
   await expect(page.locator('#entityList .row')).toHaveCount(1);
-  await expect(page.locator('#entityList')).toContainText('Fancy Tiger Red');
+  await expect(page.locator('#entityList')).toContainText('Philodendron Micans');
+  await expect(page.locator('#entityList')).not.toContainText('Fancy Tiger Red');
 
   await search.fill('does-not-exist');
   await expect(page.locator('#entityList')).toContainText('Nu există entități care corespund căutării.');
