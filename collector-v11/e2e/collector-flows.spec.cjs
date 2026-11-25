@@ -207,6 +207,7 @@ test('Collector Basic fără entitlement păstrează funcțiile locale și expor
   expect(before.names).toContain('Entitate Basic păstrată');
 
   await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#audit')).toContainText('nu include fișierele audio');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Export JSON' }).click()
