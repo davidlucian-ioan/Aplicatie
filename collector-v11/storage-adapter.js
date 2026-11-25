@@ -68,7 +68,11 @@
     }
     if(typeof sqlite.isConnection==='function'){
      const state=await sqlite.isConnection(connection);
-     if(!state?.result)await sqlite.createConnection({database,encrypted:encryptionState?.encrypted===true,mode:encryptionState?.mode||'no-encryption',version:1,readonly:false});
+     if(state?.result&&requireEncryption){
+      if(typeof sqlite.closeConnection!=='function')throw new Error('Cannot safely refresh existing SQLite connection for encryption verification.');
+      await sqlite.closeConnection(connection);
+     }
+     if(!state?.result||requireEncryption)await sqlite.createConnection({database,encrypted:encryptionState?.encrypted===true,mode:encryptionState?.mode||'no-encryption',version:1,readonly:false});
     }else{
      await sqlite.createConnection({database,encrypted:encryptionState?.encrypted===true,mode:encryptionState?.mode||'no-encryption',version:1,readonly:false});
     }
