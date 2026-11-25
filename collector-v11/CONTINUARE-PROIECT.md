@@ -265,3 +265,22 @@ Acest checkpoint supersedează orice afirmație anterioară din document care de
 - User requested autonomous continuation, no confirmation prompts for implementation decisions.
 - Keep PR draft; do not merge or modify `main`.
 - Batch implementation, tests, CI, and checkpoint updates.
+
+
+## CHECKPOINT CURENT — 2026-11-25 (navigation/accessibility batch)
+- Latest implementation HEAD before checkpoint: `5447bed`.
+- Added entity detail heading focus target (`#entityDetailTitle`, tabindex -1); opening entity detail and completing rename moves keyboard focus to the heading. E2E asserts focus after rename.
+- Relations now make both source and target entities clickable to open detail.
+- Locations list entries open their entity detail.
+- Inventory population rows open population detail; location remains displayed (linking it is next).
+- Finance ledger entity names now link to entity detail.
+- Added `.link-button` visual and keyboard focus styles.
+- Commits in batch: `2f8b276` focus handling, `b1cd43a` relations/locations navigation, `98e8db1` inventory population links, `4ab8f7f` link styles, `c988e25` focus regression, `5447bed` finance links.
+- Cloud API workflow succeeded at `c988e25`; Quality and Mobile builds were restarted/cancelled by subsequent branch pushes and must be checked on final HEAD.
+- PR #55 remains open/draft; main untouched. No merge.
+### Next
+1. Wait for CI on final checkpoint, inspect any failures/logs.
+2. Add E2E navigation coverage for relations/location/inventory/finance links, verify link markup and entity focus.
+3. Link inventory locations and other entity references where useful.
+4. Continue full form validation and CRUD accessibility audit.
+5. External Supabase/RevenueCat deployment/sandbox testing remains a release blocker; do not claim live validation.
