@@ -661,3 +661,19 @@ Checkpoint-ul trebuie actualizat după progres semnificativ și înainte de limi
 - Basic searchable memory/history is standard for all tiers; AI processing may have transparent usage limits, but don't paywall basic recall.
 - Examples: “What did I do with this collection this month?”, “When did I move this item?”, “What did I say last time?”, “What reminders did I create?”, “Summarize everything about X with source moments.”
 - Strategy document updated to reflect this. Next: inspect current event/data structures and design canonical memory ledger/retrieval without altering D-001–D-044 before impact review.
+
+
+## Monetization strategy correction — trial-led paid subscription (26 Nov 2026)
+
+User clarified the commercial direction: **not Free forever**. The strategy is to offer a generous full experience for a limited free trial so the user forms a recurring habit and experiences the lasting value of Collector's intelligent recorder and app-wide memory, then converts to a long-term paid subscription.
+
+- Initial hypothesis: 30-day full trial; consider 60–90-day early-adopter campaigns as experiments, not default.
+- During trial: Work capture, Collection Intelligence/recall, AI, reminders, history, insights and organization in one coherent experience, with fair-use/cost caps.
+- After trial: preserve user data, ownership/access and export. A Basic fallback may retain local/basic access; advanced AI processing, premium insights and cost-intensive convenience can be subscription-gated. Exact Basic-vs-Pro boundary needs an audit and decision.
+- Collection Intelligence remains CORE product positioning. Avoid selling it as a separate add-on; subscription pays for ongoing premium processing/advanced capability, not access to user's data.
+- Subscription hypothesis: one primary Pro tier, monthly + discounted annual; pricing only after unit economics/conversion tests.
+- Habit-loop design: capture -> organize -> retrieve/recall -> repeated usefulness. Trial conversion should be based on demonstrated value, contextual prompts, not manipulative nags.
+- Measure activation (collection + 3 items + voice capture + successful recall), active days, capture/recall frequency, trial-to-paid, annual conversion, churn/refunds, AI/cloud cost and gross margin.
+- **Impact audit required:** reconcile current RevenueCat, entitlements, usage metering, onboarding, paywall, trial/expiry, restore purchases, backend access and launch checklist before implementation. Trial must be store/server-authoritative and sandbox-testable. Do not activate live billing or deploy without approval.
+- Strategy doc updated: `collector-v11/PRODUCT-STRATEGY-WORKSHOP-2026-11-25.md`.
+- Next step: audit the actual branch implementation and update a gap matrix, then safely correct docs/tests/code as warranted. Do not assume current billing code matches this model.
