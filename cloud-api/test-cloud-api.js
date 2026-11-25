@@ -281,3 +281,24 @@ test('RevenueCat webhook safely ignores out-of-range timestamps instead of retry
   assert.equal(received.eventTimestamp,new Date(1800000000000).toISOString());
  });
 });
+
+
+test('expired Pro entitlement is downgraded to Basic in AI status and usage is not exposed',async()=>{
+ let usageCalled=false;
+ const billingService={configured:true,getEntitlement:async()=>({entitlement:'pro',is_active:true,expires_at:'2020-01-01T00:00:00.000Z'}),getUsage:async()=>{usageCalled=true;return {budget_microusd:1000000,used_microusd:0,reserved_microusd:0}},reserve:async()=>({allowed:false,reason:'subscription_required'}),settle:async()=>({})};
+ await withServer({env:baseEnv,fetchImpl:authFetch(),billingService},async base=>{
+  const response=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer valid-token'}});
+  assert.equal(response.status,200);const status=await response.json();
+  assert.equal(status.entitlement,'free');assert.equal(status.configured,false);assert.equal(status.aiAvailable,false);
+  assert.equal(status.subscriptionExpiresAt,null);assert.equal(status.aiUsage,null);assert.equal(usageCalled,false);
+ });
+});
+
+test('expired Pro entitlement cannot reach the AI provider even if is_active remains true',async()=>{
+ let providerCalled=false;
+ const billingService={configured:true,getEntitlement:async()=>({entitlement:'pro',is_active:true,expires_at:'2020-01-01T00:00:00.000Z'}),reserve:async()=>({allowed:false,reason:'subscription_required'}),settle:async()=>({})};
+ await withServer({env:baseEnv,fetchImpl:authFetch(),billingService,providerFactory:()=>{providerCalled=true;return {interpret:async()=>({})}}},async base=>{
+  const response=await fetch(base+'/api/ai/interpret',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'application/json'},body:JSON.stringify({text:'test'})});
+  assert.equal(response.status,403);assert.equal((await response.json()).code,'subscription_required');assert.equal(providerCalled,false);
+ });
+});
