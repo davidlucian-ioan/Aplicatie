@@ -618,7 +618,6 @@ function initializeWorkDraft(){
   }
   if(!confirm('Ștergi textul draftului? Nu a fost salvat ca eveniment.'))return;
   input.value='';
-  const version=++writeVersion;
   try{await enqueueDraftWrite('',version);status.textContent='Draft șters. Niciun eveniment nu a fost modificat.'}
   catch(error){status.textContent='Textul a fost golit, dar draftul nu a putut fi șters din stocare.'}
   input.focus();
