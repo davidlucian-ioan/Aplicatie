@@ -7,9 +7,9 @@
   return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
  }
  async function prepareSQLiteEncryption({sqlite,database=DB,cryptoImpl=root.crypto}={}){
-  const required=['isDBExists','isDatabaseEncrypted','isSecretStored','setEncryptionSecret','createConnection'];
+  const required=['isDatabase','isDatabaseEncrypted','isSecretStored','setEncryptionSecret','createConnection'];
   if(!sqlite||required.some(method=>typeof sqlite[method]!=='function'))throw new Error('SQLite encryption APIs are incomplete; refusing plaintext fallback.');
-  const dbExists=(await sqlite.isDBExists({database})).result;
+  const dbExists=(await sqlite.isDatabase({database})).result;
   const secretStored=(await sqlite.isSecretStored()).result;
   if(typeof dbExists!=='boolean'||typeof secretStored!=='boolean')throw new Error('SQLite encryption state is unknown; recovery required.');
   if(!dbExists){
