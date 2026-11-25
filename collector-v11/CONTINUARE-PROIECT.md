@@ -567,3 +567,41 @@ Next actions:
 - Commit: `e968af9f957e68148090024090702c5bbd4c80ed`.
 - Pe commitul `cd739aee`, Cloud API, Quality Suite și Mobile Build (Android debug + iOS simulator) au trecut SUCCESS.
 - Commitul de hardening va fi verificat de CI; următorul audit se concentrează pe reproducibilitatea dependențelor, deployment/release și testele native.
+
+
+---
+## Checkpoint — 25 noiembrie 2026
+
+### CI verificat
+Repo: `davidlucian-ioan/Aplicatie`, branch `feature/openai-provider-integration`, PR #55 draft.
+Commit testat `aa2b368361d0e953a55dd8af08f0ff2553ad3e63`:
+- Quality Suite SUCCESS — run `45702294884`
+- Cloud API SUCCESS — run `45702295443`
+- Android debug APK + iOS Simulator SUCCESS — run `45702294870`
+Cancels de concurrency sunt superseded, nu failures.
+Checklist-ul de lansare a fost actualizat în commit `63975777d7157926ccc01e04f8045f75ad074c2b`.
+
+### Lucru recent
+- Workflow Cloud API: explicit `permissions: contents: read`.
+- Mobile bundle regression test: scană string-uri/pattern-uri pentru OpenAI key, Supabase service-role, RevenueCat webhook secret și fixtures server-only.
+- Launch readiness checklist reflectă CI verde și blockerii reali.
+- CI produce Android debug APK și iOS Simulator app, nu release builds semnate.
+- Toolchain Capacitor/pluginuri este instalat prin `npm install --no-save --no-package-lock`; versiuni directe pin-uite, dar tranzitivele nu sunt lock-uite. Nu fabrica manual lockfile; generează-l cu npm într-un mediu real, apoi validează `npm ci`.
+- Workflow vechi `.github/workflows/import-collector-v11.yml` are `contents: write`, checkout cu credentials persistente și commit automat. Necesită audit; nu a fost modificat.
+
+### Blockere de lansare
+**P0 beta:** Supabase real + Auth + migration/RLS/RPC + staging; Cloud API HTTPS/secrets/CORS/monitoring/spend limits; OpenAI provider și cost config; RevenueCat products/entitlement/webhook + sandbox purchase/restore/renew/cancel/refund/expiry/billing issue/grace/account recovery; Privacy/Terms finalizate (operator/contact/retention/subprocessors/GDPR); test account deletion; testare fizică Android/iOS (migration, upgrade/restart, storage full, recording/background/interruption/Bluetooth/playback/notifications); manual acceptance.
+
+**P1 store:** lockfile/toolchain reproducibil; Android signed AAB + Play App Signing; iOS signed archive/IPA + provisioning/TestFlight; bundle secret audit complet; listing/icon/screenshots/privacy labels/support/deletion URLs; monitoring, cost alerts, backup/restore, rollback.
+
+**Limitări:** fără sync multi-device/cloud backup; SpeechRecognition nu e universal/offline garantat; background recording nu e garantat înainte de validarea native; AI doar propunere + confirmare; SQLite encryption gate OFF (temporary plaintext snapshot în localStorage, teste fizice/crash/quota/key lifecycle/replay necesare); RevenueCat Restore Behavior Keep with original App User ID până transfer handling validat.
+
+### Next steps autonom
+1. Poll CI pe HEAD actual.
+2. Auditează workflow import `contents: write` (branch trigger, archive handling, permissions/credential persistence) și hardening safe.
+3. Continuă audit toolchain/release reproducibility.
+4. Verifică allowlist/bundle și workflow permissions.
+5. Doar schimbări safe, non-destructive și testabile; CI și checkpoint după progres.
+6. Fără merge/deploy, activare encryption/billing, signing secrets sau publicare fără aprobare.
+
+Checkpoint-ul trebuie actualizat după progres semnificativ și înainte de limita chatului.
