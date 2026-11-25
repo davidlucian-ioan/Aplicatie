@@ -73,3 +73,14 @@ test('Work prioritizes the recorder before reminders on mobile', async ({ page }
   const remindersTop = await page.locator('.work-reminders').evaluate(el => el.getBoundingClientRect().top);
   expect(recorderTop).toBeLessThan(remindersTop);
 });
+
+test('relations workspace uses a split desktop layout and stacks on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="relations"]').click();
+  const desktop = await page.locator('.relations-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns);
+  expect(desktop.trim().split(/\\s+/).length).toBe(2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobile = await page.locator('.relations-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns);
+  expect(mobile.trim().split(/\\s+/).length).toBe(1);
+});
