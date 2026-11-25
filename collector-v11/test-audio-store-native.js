@@ -56,3 +56,4 @@ test('native audio adapter rejects a corrupted metadata index without overwritin
  await assert.rejects(x.store.initialize());
  assert.equal(x.values.get('collector_audio_index_v1'),'not-json');
 });
+\ntest('native recording metadata can be renamed without changing audio file',async()=>{\n const x=fixture();await x.store.initialize();const record={id:'audio-title',createdAt:'2026-11-24T11:00:00.000Z',durationMs:5000,mimeType:'audio/aac',size:10,filePath:'collector-audio/audio-title.aac',uri:'file:///app/collector-audio/audio-title.aac'};x.files.set(record.filePath,Buffer.from('audio'));await x.store.saveNative(record);const renamed=await x.store.rename(record.id,'B3 verificare pH');assert.equal(renamed.title,'B3 verificare pH');assert.equal((await x.store.get(record.id)).title,'B3 verificare pH');assert.ok(x.files.has(record.filePath));\n});\n
