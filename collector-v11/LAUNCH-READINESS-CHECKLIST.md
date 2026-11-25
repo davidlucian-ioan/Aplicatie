@@ -85,3 +85,5 @@ See `SQLITE-ENCRYPTION-MIGRATION-PLAN.md` for the staged SQLCipher migration. Th
 - [ ] Trial disclosure real: RevenueCat/store metadata pentru intro price/period, eligibility și renewal price/auto-renew; API metadata incomplete/eligibility nu poate fi dedusă, deci fără copy până la store sandbox/config validation.
 
 - [x] Playwright regression: malformed JSON and backup missing valid Collector schema are rejected without changing existing local data — test authored; CI validation pending (26 Nov 2026).
+
+- [x] JSON export now labels format and explicitly discloses `audioIncluded: false`; Audit UI warns recordings are not transferred by JSON export/import. Audio export/restore remains a separate launch/product gap (test authored; CI pending).
