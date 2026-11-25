@@ -33,8 +33,8 @@
  async function resume(){if(!active)throw new Error('Nu există o înregistrare activă.');await plugin.resumeRecording()}
  async function stop(){
   if(!active)throw new Error('Nu există o înregistrare activă sau recuperabilă.');
-  const session=active;let result,alreadySaved=false,size=0;
-  try{const existing=await filesystem.stat({path:session.filePath,directory:'DATA'});if(Number(existing?.size)>0){alreadySaved=true;size=Number(existing.size);const existingUri=await filesystem.getUri({path:session.filePath,directory:'DATA'});result={uri:existingUri.uri,duration:Date.now()-session.startedAt,recovered:true}}}catch{}
+  const session=active;let result,alreadySaved=false,size=0,location=null;
+  try{const existing=await filesystem.stat({path:session.filePath,directory:'DATA'});if(Number(existing?.size)>0){alreadySaved=true;size=Number(existing.size);location=await filesystem.getUri({path:session.filePath,directory:'DATA'});result={uri:location.uri,duration:Date.now()-session.startedAt,recovered:true}}}catch{}
   if(!alreadySaved){
    try{result=await plugin.stopRecording()}
    catch(error){
