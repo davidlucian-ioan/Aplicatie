@@ -2,14 +2,14 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createService}=require('./reminders');
-function fixture({permission='granted',scheduleError=null,random=Math.random}={}){
+function fixture({permission='granted',scheduleError=null,cancelError=null,random=Math.random}={}){
  let raw=null;const calls=[];
  const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');raw=value}};
  const plugin={
   async checkPermissions(){return {display:permission}},
   async requestPermissions(){return {display:permission}},
   async schedule(value){calls.push({type:'schedule',value});if(scheduleError)throw new Error(scheduleError)},
-  async cancel(value){calls.push({type:'cancel',value})}
+  async cancel(value){calls.push({type:'cancel',value});if(cancelError)throw new Error(cancelError)}
  };
  const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:00:00.000Z'),random});
  return {service,calls,raw:()=>raw};
@@ -42,4 +42,4 @@ test('anularea notificării elimină alarma doar după confirmarea pluginului',a
  assert.equal(await x.service.cancel(item.id),true);assert.deepEqual(JSON.parse(x.raw()),[]);
  assert.equal(x.calls.at(-1).type,'cancel');assert.equal(x.calls.at(-1).value.notifications[0].id,item.notificationId);
 });
-\ntest('cancel failure keeps reminder in local list',async()=>{\n const x=fixture();const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});x.service.cancel=undefined;\n // Plugin cancellation failure must not delete persisted reminder.\n const failing=fixture();const created=await failing.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});failing.calls.push({type:'cancel-failure'});\n assert.equal(await failing.service.cancel(created.id),true);assert.equal(JSON.parse(failing.raw()).length,0);\n assert.equal(item.title,'Reminder');\n});\n
+\ntest('cancel failure keeps reminder persisted',async()=>{\n const x=fixture({cancelError:'notification plugin offline'});const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});\n await assert.rejects(x.service.cancel(item.id),/notification plugin offline/);assert.equal(JSON.parse(x.raw()).length,1);\n});\n
