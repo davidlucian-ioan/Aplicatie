@@ -654,6 +654,7 @@ test('caută entități live după nume, tip și locație și permite resetarea 
   await page.locator('#relType').selectOption('located_in');
   await page.locator('#relTarget').selectOption(ids.location);
   await page.locator('#modal button.primary').click();
+  await page.locator('.nav[data-page="entities"]').click();
 
   const search = page.locator('#entitySearch');
   await expect(search).toBeVisible();
