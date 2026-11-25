@@ -283,3 +283,5 @@ header p{color:#687487;font-size:13px}
 .modal-box .form textarea{min-height:110px}
 .modal-box .form input:focus,.modal-box .form select:focus,.modal-box .form textarea:focus{outline:3px solid #2763eb20;border-color:#6d95f4}
 @media(max-width:640px){.modal-box .form-actions{display:grid;grid-template-columns:1fr 1fr}.modal-box .form-actions button{width:100%;min-width:0}}
+
+.relations-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:16px;align-items:start}.relations-grid>.panel{min-width:0;margin-bottom:0}@media(max-width:760px){.relations-grid{grid-template-columns:1fr;gap:12px}}
