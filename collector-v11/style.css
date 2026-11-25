@@ -289,3 +289,15 @@ header p{color:#687487;font-size:13px}
 .finance-metrics{margin:12px 0 18px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr)}.finance-transactions-title{margin:20px 0 12px;font-size:15px;letter-spacing:-.01em}
 
 .link-button{border:0;background:transparent;color:#174ea6;padding:0;font:inherit;font-weight:650;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px}.link-button:hover{text-decoration-color:currentColor}.link-button:focus-visible{outline:2px solid #174ea6;outline-offset:3px;border-radius:3px}
+
+/* Work-first experience: one clear capture flow on every screen */
+.work-layout{grid-template-columns:minmax(0,1fr);max-width:980px;margin-inline:auto;gap:16px}
+.work-layout>.panel{height:auto}
+.work-recorder{order:1;border:1px solid #cbd6e4;background:linear-gradient(180deg,#fff,#fbfcfe)}
+.work-recorder .recorder-controls{padding:14px;background:#f5f7fa;border:1px solid #e5e9ef;border-radius:12px}
+.work-recorder #audioRecordStart{min-height:52px;min-width:180px;font-size:15px}
+.work-recorder #audioRecorderTimer{font-size:22px;font-variant-numeric:tabular-nums;margin-left:auto}
+.work-command{order:2;grid-column:auto}
+.work-reminders{order:3}
+.work-command textarea{min-height:130px;font-size:16px;line-height:1.5}
+@media(max-width:640px){.work-layout{gap:12px}.work-recorder{order:1}.work-command{order:2}.work-reminders{order:3}.work-recorder #audioRecordStart{min-width:0;flex:1}.work-recorder #audioRecorderTimer{width:100%;margin:4px 0;text-align:left}.recorder-controls{display:flex;flex-wrap:wrap}.work-command .toolbar{display:grid;grid-template-columns:1fr 1fr}.work-command .toolbar button{min-height:48px}.work-command .toolbar .primary{grid-column:1/-1}}
