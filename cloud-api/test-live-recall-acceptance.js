@@ -49,7 +49,8 @@ test('mocked acceptance proves status preflight precedes one authenticated, read
  assert.equal(calls[0].options.headers.Authorization,'Bearer test-access-token');
  assert.equal(calls[1].options.headers.Authorization,'Bearer test-access-token');
  const sent=JSON.parse(calls[1].options.body);
- assert.equal(sent.text.includes('successorDueAt'),true);
+ assert.ok(sent.text.includes('după amânare'));
+ assert.equal(sent.context.recallEvidence[0].successorDueAt,LIVE_RECALL_TASK.successorDueAt);
  assert.deepEqual(sent.context.recallEvidence,[LIVE_RECALL_TASK]);
  assert.equal(result.answer,'Verificarea este la 09:15.');
  assert.deepEqual(result.answerSources,[LIVE_RECALL_SOURCE_ID]);
