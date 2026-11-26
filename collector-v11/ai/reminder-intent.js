@@ -41,7 +41,8 @@ function resolveDue(due,{now=new Date(),timezone='UTC',defaultHour=9,defaultMinu
     [hour,minute]=due.time.split(':').map(Number);
   }
   // Convert the requested local wall-clock time in an IANA timezone to UTC.
-  let dueAt;\n  try{dueAt=localDateTimeToUtc(date,hour,minute,timezone)}catch(error){return {action:'clarify',question:'Fusul orar identificat nu este valid. Confirmă fusul orar pentru reminder.'}}
+  let dueAt;
+  try{dueAt=localDateTimeToUtc(date,hour,minute,timezone)}catch(error){return {action:'clarify',question:'Fusul orar identificat nu este valid. Confirmă fusul orar pentru reminder.'}}
   if(!dueAt)return {action:'clarify',question:'Ora locală este ambiguă sau nu există din cauza schimbării fusului orar. Alege o oră clară.'};
   if(dueAt.getTime()<=now.getTime())return {action:'clarify',question:'Data/ora este în trecut. Pentru când să setez reminderul?'};
   return {action:'schedule',dueAt:dueAt.toISOString(),usedDefaultTime:due.time==null||due.time==='',localDate:date,localTime:`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`};
