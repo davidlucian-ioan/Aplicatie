@@ -59,7 +59,7 @@ test('snooze rejects unsupported delay and leaves original alarm unchanged',asyn
 test('cancel rolls back native notification when local metadata write fails',async()=>{
  const x=fixture({failStorageWriteAt:2});
  const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});
- await assert.rejects(x.service.cancel(item.id),/Anularea a fost rollback-uită/);
+ await assert.rejects(x.service.cancel(item.id),/Schimbarea stării a fost rollback-uită/);
  assert.equal(JSON.parse(x.raw()).length,1);
  assert.equal(x.calls.at(-1).type,'schedule');
  assert.equal(x.calls.at(-1).value.notifications[0].id,item.notificationId);
