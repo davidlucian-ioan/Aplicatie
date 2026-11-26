@@ -53,7 +53,7 @@ class OpenAITranscriptionProvider {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
         const error = new Error('Providerul de transcriere nu a putut procesa înregistrarea.');
-        error.status = response.status >= 400 && response.status < 500 ? 422 : 502;
+        error.status = response.status === 429 ? 429 : (response.status === 400 || response.status === 415 || response.status === 422 ? 422 : 502);
         throw error;
       }
       if (typeof body.text !== 'string' || !body.text.trim()) {
