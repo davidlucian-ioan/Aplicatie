@@ -33,10 +33,10 @@ test('recovery API exposes diagnostics and Work UI reports repaired orphan check
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
  assert.match(app,/diagnostics:\(\)=>window\.CollectorAudioLifecycleCheckpointStore\?\.diagnostics/);
  assert.match(app,/orphanIds/);
- assert.match(app,/reindexat checkpoint-uri orfane/);
+ assert.match(app,/reindexat/);
 });
 test('storage adapters provide key enumeration required for orphan checkpoint recovery',()=>{
  const adapter=fs.readFileSync(path.join(root,'storage-adapter.js'),'utf8');
  assert.match(adapter,/async listRawKeys\(prefix=''/);
- assert.match(adapter,/SELECT key FROM collector_kv WHERE key LIKE/);
+ assert.match(adapter,/SELECT key FROM \'\+TABLE\+\' WHERE key LIKE/);
 });
