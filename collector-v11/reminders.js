@@ -12,16 +12,21 @@
    if(!Array.isArray(parsed)||parsed.some(row=>!row||typeof row.id!=='string'||!Number.isInteger(row.notificationId)||typeof row.title!=='string'||typeof row.at!=='string'))throw new Error('Lista alarmelor este invalidă. Datele nu au fost suprascrise.');
    return parsed;
   }
-  async function create({title,at}={}){
+  async function create({title,at,sourceId=null,context='',idempotencyKey=null}={}){
    const name=String(title||'').trim();
    if(!name||name.length>160)throw new Error('Descrierea alarmei trebuie să aibă între 1 și 160 de caractere.');
    const date=new Date(at);
    if(!Number.isFinite(date.getTime())||date.getTime()<=now().getTime())throw new Error('Alege o dată și o oră din viitor.');
-   const rows=await list(),used=new Set(rows.map(row=>row.notificationId));
+   const key=typeof idempotencyKey==='string'?idempotencyKey.trim().slice(0,200):'';
+   const source=typeof sourceId==='string'?sourceId.trim().slice(0,200):'';
+   const sourceContext=typeof context==='string'?context.trim().slice(0,500):'';
+   const rows=await list();
+   if(key){const existing=rows.find(row=>row.idempotencyKey===key);if(existing)return {...existing,alreadyScheduled:true}}
+   const used=new Set(rows.map(row=>row.notificationId));
    let notificationId=0;
    for(let attempt=0;attempt<20&&!notificationId;attempt++){const candidate=Math.floor(random()*2147483646)+1;if(!used.has(candidate))notificationId=candidate}
    if(!notificationId)throw new Error('Nu am putut genera un identificator unic pentru alarmă.');
-   const reminder={id:'reminder-'+Date.now().toString(36)+'-'+notificationId.toString(36),notificationId,title:name,at:date.toISOString(),createdAt:now().toISOString()};
+   const reminder={id:'reminder-'+Date.now().toString(36)+'-'+notificationId.toString(36),notificationId,title:name,at:date.toISOString(),createdAt:now().toISOString(),status:'scheduled',sourceId:source||null,sourceContext:sourceContext||null,idempotencyKey:key||null};
    const next=[...rows,reminder];
    await storage.writeRaw(KEY,JSON.stringify(next));
    try{
@@ -30,7 +35,7 @@
      if(permission?.display!=='granted'&&typeof plugin.requestPermissions==='function')permission=await plugin.requestPermissions();
      if(permission?.display!=='granted')throw new Error('Permisiunea pentru notificări nu a fost acordată.');
     }
-    await plugin.schedule({notifications:[{id:notificationId,title:'Collector',body:name,schedule:{at:date},extra:{reminderId:reminder.id},isExactNotification:false}]});
+    await plugin.schedule({notifications:[{id:notificationId,title:'Collector',body:name,schedule:{at:date},extra:{reminderId:reminder.id,sourceId:reminder.sourceId,idempotencyKey:reminder.idempotencyKey},isExactNotification:false}]});
     return reminder;
    }catch(error){
     try{await storage.writeRaw(KEY,JSON.stringify(rows))}catch(rollbackError){throw new Error('Alarma nu a putut fi programată, iar lista locală necesită verificare: '+error.message+'; '+rollbackError.message)}
@@ -38,24 +43,32 @@
    }
   }
   async function snooze(id,minutes){
-   if(![5,10,30,60].includes(minutes))throw new Error('Durata amânării nu este acceptată.');const rows=await list(),target=rows.find(row=>row.id===id);if(!target)throw new Error('Alarma nu mai există.');const replacement=await create({title:target.title,at:new Date(now().getTime()+minutes*60_000).toISOString()});try{await cancel(id);return replacement}catch(error){try{await cancel(replacement.id)}catch(rollbackError){throw new Error('Amânarea a eșuat, iar alarma nouă nu a putut fi anulată: '+error.message+'; '+rollbackError.message)}throw error}
+   if(![5,10,30,60].includes(minutes))throw new Error('Durata amânării nu este acceptată.');
+   const rows=await list(),target=rows.find(row=>row.id===id);
+   if(!target||target.status==='cancelled'||target.status==='completed')throw new Error('Alarma nu mai există.');
+   const replacement=await create({title:target.title,at:new Date(now().getTime()+minutes*60_000).toISOString(),sourceId:target.sourceId,context:target.sourceContext,idempotencyKey:'snooze:'+target.id+':'+minutes+':'+now().getTime()});
+   try{await cancel(id);return replacement}catch(error){try{await cancel(replacement.id)}catch(rollbackError){throw new Error('Amânarea a eșuat, iar alarma nouă nu a putut fi anulată: '+error.message+'; '+rollbackError.message)}throw error}
   }
-  async function cancel(id){
+  async function updateStatus(id,status){
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target)return false;
+   if(target.status==='completed'||target.status==='cancelled')return false;
    await plugin.cancel({notifications:[{id:target.notificationId}]});
-   try{await storage.writeRaw(KEY,JSON.stringify(rows.filter(row=>row.id!==id)))}
+   const updated={...target,status,[status==='completed'?'completedAt':'cancelledAt']:now().toISOString()};
+   try{await storage.writeRaw(KEY,JSON.stringify(rows.map(row=>row.id===id?updated:row)))}
    catch(error){
-    try{await plugin.schedule({notifications:[{id:target.notificationId,title:'Collector',body:target.title,schedule:{at:new Date(target.at)},extra:{reminderId:target.id},isExactNotification:false}]})}
-    catch(rollbackError){throw new Error('Alarma anulată de sistem, dar nu am putut actualiza stocarea sau restaura notificarea: '+error.message+'; '+rollbackError.message)}
-    throw new Error('Anularea a fost rollback-uită: notificarea a fost reprogramată, dar lista locală nu a putut fi actualizată: '+error.message);
+    try{await plugin.schedule({notifications:[{id:target.notificationId,title:'Collector',body:target.title,schedule:{at:new Date(target.at)},extra:{reminderId:target.id,sourceId:target.sourceId,idempotencyKey:target.idempotencyKey},isExactNotification:false}]})}
+    catch(rollbackError){throw new Error('Notificarea a fost anulată, dar starea locală nu a putut fi actualizată și notificarea nu a putut fi restaurată: '+error.message+'; '+rollbackError.message)}
+    throw new Error('Schimbarea stării a fost rollback-uită: notificarea a fost reprogramată, dar stocarea nu a putut fi actualizată: '+error.message);
    }
-   return true;
+   return updated;
   }
+  async function cancel(id){return Boolean(await updateStatus(id,'cancelled'))}
+  async function complete(id){return await updateStatus(id,'completed')}
   async function clearAll(){
    const rows=await list();
    if(!rows.length){if(typeof storage.removeRaw==='function')await storage.removeRaw(KEY);return 0}
-   const notifications=rows.map(row=>({id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id},isExactNotification:false}));
+   const notifications=rows.filter(row=>row.status!=='cancelled'&&row.status!=='completed').map(row=>({id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id,sourceId:row.sourceId,idempotencyKey:row.idempotencyKey},isExactNotification:false}));
    await plugin.cancel({notifications});
    try{
     if(typeof storage.removeRaw!=='function')throw new Error('Stocarea nu poate elimina metadatele alarmelor.');
@@ -67,7 +80,7 @@
    }
    return rows.length;
   }
-  return Object.freeze({list,create,cancel,snooze,clearAll});
+  return Object.freeze({list,create,cancel,snooze,complete,clearAll});
  }
  let service=null,initialized=false;
  async function clearAll(){
@@ -86,8 +99,11 @@
   const listElement=root.document?.getElementById('reminderList');
   if(!listElement||!service)return;
   try{
-   const rows=(await service.list()).filter(row=>new Date(row.at).getTime()>Date.now()).sort((a,b)=>a.at.localeCompare(b.at));
-   listElement.innerHTML=rows.length?rows.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">'+esc(new Date(row.at).toLocaleString('ro-RO'))+'</div></div><div class="row-actions"><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="10">+10 min</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="60">+1 h</button><button class="secondary" type="button" data-reminder-cancel="'+esc(row.id)+'">Anulează</button></div></div>').join():'<p class="muted">Nu ai alarme programate.</p>';
+   const all=await service.list(),rows=all.filter(row=>(row.status||'scheduled')==='scheduled'&&new Date(row.at).getTime()>Date.now()).sort((a,b)=>a.at.localeCompare(b.at));
+   const completed=all.filter(row=>row.status==='completed').sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||'')).slice(0,5);
+   const activeHtml=rows.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">'+esc(new Date(row.at).toLocaleString('ro-RO'))+'</div>'+(row.sourceContext?'<div class="muted">Sursă Work: '+esc(row.sourceContext.slice(0,140))+'</div>':'')+'</div><div class="row-actions"><button class="secondary" type="button" data-reminder-complete="'+esc(row.id)+'">✓ Gata</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="10">+10 min</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="60">+1 h</button><button class="secondary" type="button" data-reminder-cancel="'+esc(row.id)+'">Anulează</button></div></div>').join();
+   const historyHtml=completed.length?'<h3>Finalizate recent</h3>'+completed.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">Finalizat · '+esc(new Date(row.completedAt||row.at).toLocaleString('ro-RO'))+'</div>'+(row.sourceContext?'<div class="muted">Sursă Work: '+esc(row.sourceContext.slice(0,140))+'</div>':'')+'</div></div>').join():'';
+   listElement.innerHTML=(activeHtml||'<p class="muted">Nu ai alarme programate.</p>')+historyHtml;
   }catch(error){listElement.textContent='Nu pot încărca alarmele: '+error.message}
  }
  async function initialize(){
@@ -125,10 +141,9 @@
    finally{if(submit)submit.disabled=false}
   });
   listElement?.addEventListener('click',async event=>{
+   const complete=event.target.closest('[data-reminder-complete]');if(complete){complete.disabled=true;try{await service.complete(complete.dataset.reminderComplete);if(status)status.textContent='Reminder marcat ca finalizat.';await render()}catch(error){complete.disabled=false;if(status)status.textContent='Nu am putut finaliza reminderul: '+error.message}return}
    const snooze=event.target.closest('[data-reminder-snooze]');if(snooze){snooze.disabled=true;try{await service.snooze(snooze.dataset.reminderSnooze,Number(snooze.dataset.minutes));if(status)status.textContent='Alarma a fost amânată.';await render()}catch(error){snooze.disabled=false;if(status)status.textContent='Nu am putut amâna alarma: '+error.message}return}
-   const button=event.target.closest('[data-reminder-cancel]');
-   if(!button)return;
-   button.disabled=true;
+   const button=event.target.closest('[data-reminder-cancel]');if(!button)return;button.disabled=true;
    try{await service.cancel(button.dataset.reminderCancel);if(status)status.textContent='Alarma a fost anulată.';await render()}
    catch(error){button.disabled=false;if(status)status.textContent='Nu am putut anula alarma: '+error.message}
   });
