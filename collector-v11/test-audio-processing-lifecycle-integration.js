@@ -71,3 +71,12 @@ test('all entrypoints load the source-bound transcript checkpoint store before a
  const build=fs.readFileSync(path.join(root,'build-mobile.js'),'utf8');
  for(const pathName of ['ai/audio-transcript-checkpoints.js','ai/structured-memory-browser.js','ai/structured-recall-browser.js','ai/audio-capture-recovery.js','audio-processing-lifecycle.js'])assert.ok(build.includes("'"+pathName+"'"),pathName+' missing from mobile runtime allowlist');
 });
+test('cancelling audio deletion preserves the transcript and does not checkpoint deletion pending',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function transcribeAndInterpretAudioRecording'));
+ const confirmAt=deletion.indexOf('if(confirmBeforeDelete&&!confirm(');
+ const clearAt=deletion.indexOf('await clearAudioTranscriptCheckpoint(recordingId)');
+ const pendingAt=deletion.indexOf("writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending'");
+ assert.ok(confirmAt>=0&&clearAt>confirmAt&&pendingAt>clearAt,'confirmation must precede transcript clearing and deletion checkpoint');
+ assert.match(deletion,/return \{status:'cancelled'\}/);
+});
