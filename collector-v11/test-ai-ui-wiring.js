@@ -294,13 +294,25 @@ test('audio source deletion uses the storage adapter independent absence verifie
 });
 
 
-test('The generic audio list delete action cannot bypass verified Core checkpoint deletion',()=>{
+test('The generic audio list delete action requires verified Core state after processing begins',()=>{
  const app=fs.readFileSync('app.js','utf8');
  const remove=app.slice(app.indexOf('async function deleteAudioRecording'),app.indexOf('async function writeAudioLifecycleCheckpoint'));
  assert.ok(remove.includes('CollectorAudioLifecycleCheckpointStore'));
- assert.ok(remove.includes("!['source_retained','audio_deletion_pending'].includes(checkpoint.state)"));
+ assert.ok(remove.includes("['source_retained','audio_deletion_pending'].includes(checkpoint.state)"));
  assert.ok(remove.includes('deleteAudioFromVerifiedCheckpoint(recordId)'));
- assert.doesNotMatch(remove,/CollectorAudioStore\.remove\(recordId\)/);
+ assert.ok(remove.includes('if(checkpoint){'));
+ assert.ok(remove.includes("if(!confirm('Această înregistrare nu are niciun checkpoint de procesare."));
+ assert.ok(remove.includes('CollectorAudioStore.verifyRemoved(recordId)'));
  const ui=app.slice(app.indexOf('async function renderAudioRecordings'),app.indexOf('function initializeWorkDraft'));
- assert.ok(ui.includes("remove.addEventListener('click',()=>deleteAudioRecording(record.id))"));
+ assert.ok(ui.includes("remove.addEventListener('click',()=>deleteAudioRecording(record.id)"));
+});
+
+test('Audio processing stops when its durable start checkpoint cannot be written',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const audio=app.slice(app.indexOf("const transcribe=document.createElement('button')"),app.indexOf("const rename=document.createElement('button')"));
+ assert.ok(audio.includes("writeAudioLifecycleCheckpoint(record.id,'processing',{incrementAttempt:true})"));
+ assert.ok(audio.includes('Checkpoint-ul de recovery nu a putut fi salvat. Procesarea a fost oprită'));
+ const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
+ assert.ok(run.includes("writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')"));
+ assert.ok(run.includes('Interpretarea a fost oprită'));
 });
