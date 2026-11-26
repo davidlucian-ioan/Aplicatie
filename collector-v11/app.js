@@ -5,10 +5,11 @@ const storageAdapter=window.CollectorStorageAdapter.createAutoStorageAdapter({ca
 window.CollectorStorage=storageAdapter;
 const titles={dashboard:['Think','Analize, grafice, configurare și administrarea datelor.'],entities:['Entități','Entități universale, atribute temporale și cronologie.'],relations:['Relații & locații','Relații de prim rang, localizare temporală și ierarhie.'],inventory:['Populații & solduri','Cantități anonime și solduri derivate din evenimente.'],finance:['Financiar','Tranzacții pe evenimente și indicatori derivați.'],attributes:['Atribute','Definiții configurabile cu tip, rol, natură, proprietar și reguli.'],events:['Evenimente','Jurnalul de evenimente append-only.'],history:['Istoric','Cronologie completă și filtrabilă.'],assistant:['Work','Înregistrare rapidă, alarme și introducere vocală, cu confirmare înainte de salvare.'],audit:['Audit & date','Replay, export, import și limitele implementării.']};
 let integrityBlocked=false, integrityBlockReason=null, integrityRawBackup=null, integrityCanRebuild=false;
-let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null, pendingAIEnhancements=null, localDataErasing=false;
+let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null, pendingAIEnhancements=null, localDataErasing=false, activeAudioRecordingId=null;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
+function stableAudioCaptureTurnId(recordingId,transcript){let hash=2166136261;const value=String(transcript||'');for(let index=0;index<value.length;index++){hash^=value.charCodeAt(index);hash=Math.imul(hash,16777619)}return 'audio:'+String(recordingId)+':'+(hash>>>0).toString(16)}
 async function loadDb(){
  let raw=null,rawText=null,parseError=null,sourceKey=KEY;
  try{rawText=await storageAdapter.readRaw(KEY);if(rawText!==null)raw=JSON.parse(rawText)}catch(error){parseError=error}
@@ -309,6 +310,16 @@ async function confirmCoreCommand(){
    const extras=extrasState?renderAIEnhancements(extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId):'';
    box.innerHTML=message+extras;
    if(extrasState)bindAIEnhancements(box,extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId);
+   if(extrasState?.audioRecordingId&&(result.status==='committed'||result.status==='duplicate')){
+    const deleteSource=document.createElement('button');deleteSource.type='button';deleteSource.className='secondary';deleteSource.textContent='Șterge audio original';
+    deleteSource.addEventListener('click',async()=>{
+     if(!confirm('Datele structurate sunt salvate și verificate în jurnal. Ștergi definitiv înregistrarea audio originală de pe acest dispozitiv?'))return;
+     deleteSource.disabled=true;
+     try{await CollectorAudioStore.remove(extrasState.audioRecordingId);const remaining=await CollectorAudioStore.get(extrasState.audioRecordingId);if(remaining!==null&&remaining!==undefined)throw Error('Fișierul audio există încă după ștergere.');deleteSource.textContent='Audio original șters ✓';activeAudioRecordingId=null;await renderAudioRecordings()}
+     catch(error){deleteSource.disabled=false;deleteSource.textContent='Reîncearcă ștergerea audio';box.insertAdjacentHTML('beforeend','<p class="note">Audio-ul original a fost păstrat: '+esc(error.message)+'</p>')}
+    });
+    box.append(deleteSource);
+   }
   } else if(result.status==='verification_failed'){
    integrityBlocked=true;
    integrityBlockReason='Ultima salvare nu a putut fi verificată independent. Reîncarcă aplicația pentru revalidarea jurnalului înainte de alte modificări.';
@@ -391,7 +402,7 @@ async function runAICommand(){
    entities:db.entities.slice(0,150).map(e=>({id:e.id,name:e.name,type:e.type})),
    attributes:db.attributes.slice(0,100).map(a=>({id:a.id,name:a.name,type:a.type,required:Boolean(a.required),identifying:Boolean(a.identifying),temporal:Boolean(a.temporal),min:a.min??null,max:a.max??null}))
   };
-  const turnId=E.uid(),sourceId='work:'+turnId;
+  const turnId=activeAudioRecordingId?stableAudioCaptureTurnId(activeAudioRecordingId,text):E.uid(),sourceId=activeAudioRecordingId?'audio:'+activeAudioRecordingId:'work:'+turnId;
   const response=await CollectorOpenAIProvider.interpret(text,context);
   void refreshAIProviderStatus();
   const ai=response.interpretation||{};
@@ -421,7 +432,7 @@ async function runAICommand(){
    payload:{...(ai.command.payload||{}),sourceId},
    source:'ai-openai'
   };
-  pendingAIEnhancements={ai,sourceText:text,sourceId,turnId};
+  pendingAIEnhancements={ai,sourceText:text,sourceId,turnId,audioRecordingId:activeAudioRecordingId};
   const preview=await ensureAICorePort().preview(command);
   if(preview.status!=='preview_ok'){
    box.innerHTML='<p>'+esc(preview.status==='duplicate'?'Această intenție a fost deja înregistrată.':'Core a respins preview-ul: '+preview.status)+'</p>'+extras;
@@ -720,7 +731,7 @@ async function renderAudioRecordings(){
    name.textContent=record.title||new Date(record.createdAt).toLocaleString('ro-RO');meta.textContent=new Date(record.createdAt).toLocaleString('ro-RO')+' · '+formatAudioDuration(record.durationMs)+' · '+Math.round(record.size/1024)+' KB'+(record.warning?' · '+record.warning:'');info.append(name,meta);
    const actions=document.createElement('div');actions.className='row-actions';
    const play=document.createElement('button');play.className='secondary';play.type='button';play.textContent='Redă';play.setAttribute('aria-label','Redă înregistrarea din '+name.textContent);play.addEventListener('click',()=>playAudioRecording(record.id));
-   const transcribe=document.createElement('button');transcribe.className='secondary';transcribe.type='button';transcribe.textContent='Transcrie + AI';transcribe.setAttribute('aria-label','Transcrie și interpretează audio '+name.textContent);transcribe.addEventListener('click',async()=>{transcribe.disabled=true;transcribe.textContent='Transcriere…';setAudioUi('idle','Audio trimis pentru transcriere. Înregistrarea originală rămâne locală.');try{if(!window.CollectorOpenAIProvider?.transcribe)throw Error('Modulul de transcriere nu este încărcat.');let source=await CollectorAudioStore.get(record.id);let blob=source?.blob;if(!(blob instanceof Blob)&&source?.uri){const playable=window.CollectorNativeAudioRecorder?.toPlayableUrl(source.uri)||window.Capacitor?.convertFileSrc?.(source.uri)||source.uri;const response=await fetch(playable);if(!response.ok)throw Error('Nu pot citi fișierul audio nativ.');blob=await response.blob()}if(!(blob instanceof Blob)||!blob.size)throw Error('Fișierul audio nu este disponibil pentru transcriere.');const result=await CollectorOpenAIProvider.transcribe(blob);const input=document.getElementById('commandInput');input.value=result.text;input.dispatchEvent(new Event('input',{bubbles:true}));showPage('assistant');setAudioUi('idle','Transcriere reușită. Textul a fost pus în Work; verifică și apasă Interpretează cu AI. Audio original este păstrat.');await renderAudioRecordings();document.getElementById('commandInput')?.focus()}catch(error){setAudioUi('idle','Transcriere eșuată: '+error.message)}finally{transcribe.disabled=false;transcribe.textContent='Transcrie + AI'}});
+   const transcribe=document.createElement('button');transcribe.className='secondary';transcribe.type='button';transcribe.textContent='Transcrie + AI';transcribe.setAttribute('aria-label','Transcrie și interpretează audio '+name.textContent);transcribe.addEventListener('click',async()=>{transcribe.disabled=true;transcribe.textContent='Transcriere…';setAudioUi('idle','Audio trimis pentru transcriere. Înregistrarea originală rămâne locală.');try{if(!window.CollectorOpenAIProvider?.transcribe)throw Error('Modulul de transcriere nu este încărcat.');let source=await CollectorAudioStore.get(record.id);let blob=source?.blob;if(!(blob instanceof Blob)&&source?.uri){const playable=window.CollectorNativeAudioRecorder?.toPlayableUrl(source.uri)||window.Capacitor?.convertFileSrc?.(source.uri)||source.uri;const response=await fetch(playable);if(!response.ok)throw Error('Nu pot citi fișierul audio nativ.');blob=await response.blob()}if(!(blob instanceof Blob)||!blob.size)throw Error('Fișierul audio nu este disponibil pentru transcriere.');const result=await CollectorOpenAIProvider.transcribe(blob);const input=document.getElementById('commandInput');activeAudioRecordingId=record.id;input.value=result.text;input.dispatchEvent(new Event('input',{bubbles:true}));showPage('assistant');setAudioUi('idle','Transcriere reușită. AI interpretează acum; verifică propunerea și confirmă explicit înainte de salvare. Audio original este păstrat.');await renderAudioRecordings();document.getElementById('commandInput')?.focus();await runAICommand()}catch(error){setAudioUi('idle','Transcriere eșuată: '+error.message)}finally{transcribe.disabled=false;transcribe.textContent='Transcrie + AI'}});
    const rename=document.createElement('button');rename.className='secondary';rename.type='button';rename.textContent='Redenumește';rename.setAttribute('aria-label','Redenumește înregistrarea '+name.textContent);rename.addEventListener('click',async()=>{const next=prompt('Titlu pentru această înregistrare:',record.title||name.textContent);if(next===null)return;try{await CollectorAudioStore.rename(record.id,next);await renderAudioRecordings()}catch(error){setAudioUi('idle','Nu am putut redenumi înregistrarea: '+error.message)}});const remove=document.createElement('button');remove.className='secondary';remove.type='button';remove.textContent='Șterge';remove.setAttribute('aria-label','Șterge înregistrarea din '+name.textContent);remove.addEventListener('click',()=>deleteAudioRecording(record.id));
    actions.append(play,transcribe,rename,remove);row.append(info,actions);list.append(row);
   }
@@ -755,6 +766,7 @@ function initializeWorkDraft(){
   void enqueueDraftWrite(value,version);
  });
  clear?.addEventListener('click',async()=>{
+  activeAudioRecordingId=null;
   const version=++writeVersion;
   if(!input.value.trim()){
    try{await enqueueDraftWrite('',version);status.textContent='Draft gol.'}catch(error){status.textContent='Draftul gol nu a putut fi șters din stocare.'}
