@@ -122,7 +122,7 @@ const server = http.createServer(async (req, res) => {
       if (!extensions[contentType]) return send(res, 415, { error: 'Format audio neacceptat.' });
       try {
         const chunks=[];let size=0;
-        for await (const chunk of req) { size+=chunk.length;if(size>25*1024*1024){req.destroy();return}chunks.push(chunk)}
+        for await (const chunk of req) { size+=chunk.length;if(size>25*1024*1024){send(res,413,{error:'Audio depășește limita de 25 MB.'});req.resume();return}chunks.push(chunk)}
         if(!size)return send(res,400,{error:'Fișier audio gol.'});
         const form=new FormData();form.append('file',new Blob(chunks,{type:contentType}),'recording.'+extensions[contentType]);
         const model=process.env.OPENAI_TRANSCRIPTION_MODEL||'gpt-4o-mini-transcribe';
