@@ -292,9 +292,11 @@ async function runStructuredRecall(query){
 }
 function openRecallEvent(eventId){
  showPage('events');
+ // The generic event filter is text-based, not an ID lookup. Clear it so the
+ // source event is not hidden, then scroll to the exact row by its stable ID.
  const input=document.querySelector('[data-filter-target="eventList"]');
- if(input){input.value=eventId;input.dispatchEvent(new Event('input',{bubbles:true}))}
- setTimeout(()=>{const row=document.querySelector('[data-event-id="'+CSS.escape(eventId)+'"]');if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('recall-source-highlight')}},0);
+ if(input&&input.value){input.value='';input.dispatchEvent(new Event('input',{bubbles:true}))}
+ requestAnimationFrame(()=>{const row=document.querySelector('#eventList > [data-event-id="'+CSS.escape(eventId)+'"]');if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('recall-source-highlight')}else{setAppStatus('Evenimentul sursă există în jurnal, dar nu este vizibil în lista curentă.')}})
 }
 async function confirmCoreCommand(){
  const box=document.getElementById('commandResult');if(!pendingCoreCommand)return;
