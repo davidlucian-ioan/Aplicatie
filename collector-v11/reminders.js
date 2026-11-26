@@ -98,8 +98,8 @@
    let notificationId=0;
    for(let attempt=0;attempt<20&&!notificationId;attempt++){const candidate=Math.floor(random()*2147483646)+1;if(!used.has(candidate))notificationId=candidate}
    if(!notificationId)throw new Error('Nu am putut genera un identificator unic pentru alarmă.');
-   const createdAt=now().toISOString();
-   const reminder={id:'reminder-'+Date.now().toString(36)+'-'+notificationId.toString(36),notificationId,title:name,at:date.toISOString(),createdAt,status:'scheduled',sourceId:source||null,sourceContext:sourceContext||null,idempotencyKey:key||null,coreOutbox:coreEventHandler?[makeCoreLifecycleEvent({id:'reminder-'+Date.now().toString(36)+'-'+notificationId.toString(36),title:name,at:date.toISOString(),sourceId:source||null},'scheduled',createdAt)]:[]};
+   const createdAt=now().toISOString(),reminderId='reminder-'+Date.now().toString(36)+'-'+notificationId.toString(36);
+   const reminder={id:reminderId,notificationId,title:name,at:date.toISOString(),createdAt,status:'scheduled',sourceId:source||null,sourceContext:sourceContext||null,idempotencyKey:key||null,coreOutbox:coreEventHandler?[makeCoreLifecycleEvent({id:reminderId,title:name,at:date.toISOString(),sourceId:source||null},'scheduled',createdAt)]:[]};
    const next=[...rows,reminder];
    // Persist and read back before scheduling a native side effect.
    await persistRows(next);
@@ -208,7 +208,7 @@
   function syncCoreOutbox(){return serialized(syncCoreOutboxInternal)}
   return Object.freeze({list,create,cancel,snooze,complete,clearAll,setCoreEventHandler,syncCoreOutbox});
  }
- let service=null,initialized=false;
+ let service=null,initialized=false,coreEventHandler=null;
  async function clearAll(){
   if(service)return service.clearAll();
   const storage=root.CollectorStorage;
@@ -235,8 +235,8 @@
  }
  async function initialize({onCoreEvent:handler}={}){
   if(typeof handler==='function'){
+   coreEventHandler=handler;
    if(service)service.setCoreEventHandler(handler);
-   else coreEventHandler=handler;
   }
   if(initialized){if(service){await service.syncCoreOutbox();await render()}return;}
   const form=root.document?.getElementById('reminderForm');
@@ -266,7 +266,7 @@
     await service.create({title,at});
     form.reset();
     if(dateInput){const min=new Date(Date.now()+60_000);dateInput.min=new Date(min.getTime()-min.getTimezoneOffset()*60_000).toISOString().slice(0,16)}
-    const stored=(await service.list()).find(row=>row.id===undefined); 
+    const created=await service.list();
     if(status)status.textContent='Alarma a fost programată pe acest telefon.';
     await render();
    }catch(error){if(status)status.textContent='Nu am putut programa alarma: '+error.message}
