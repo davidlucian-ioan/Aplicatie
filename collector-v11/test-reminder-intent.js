@@ -42,8 +42,6 @@ test('DST gap is rejected instead of silently changing time',()=>{
  const result=resolveDue({date:'2027-03-28',time:'03:30'},{now:new Date('2027-03-01'),timezone:'Europe/Bucharest'});
  assert.equal(result.action,'clarify');
 });
-
-
 test('ora locală ambiguă în DST fall-back este clarificată',()=>{
  const result=resolveDue({date:'2026-11-01',time:'01:30'},{now:new Date('2026-10-01T00:00:00Z'),timezone:'America/New_York'});
  assert.equal(result.action,'clarify');
