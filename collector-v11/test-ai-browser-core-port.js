@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const Core = require('./engine');
 const { BrowserCorePort } = require('./ai/core-port-browser');
 
-function setup({ failPersist = false } = {}) {
+function setup({ failPersist = false, failReadback = false, corruptReadback = false } = {}) {
   let state = Core.emptyState();
   let persisted = null;
   let published = 0;
@@ -13,6 +13,7 @@ function setup({ failPersist = false } = {}) {
     store: {
       getState: () => state,
       persistState: async next => { if (failPersist) return false; persisted = structuredClone(next); return true; },
+      readPersistedState: async () => { if (failReadback) throw new Error('readback unavailable'); return corruptReadback ? Core.emptyState() : structuredClone(persisted); },
       publishState: async next => { state = next; published++; }
     }
   });
@@ -43,4 +44,28 @@ test('Browser Core Port respectă requiresConfirmation pentru orice comandă', a
   assert.equal(rejected.status,'rejected'); assert.equal(x.state.events.length,0); assert.equal(x.published,0);
   const accepted=await x.port.execute(command,{confirmed:true});
   assert.equal(accepted.status,'committed'); assert.equal(x.state.entities.length,1); assert.equal(x.published,1);
+});
+
+
+test('Browser Core Port independently reads and validates persisted event before publishing', async () => {
+  const x=setup(); const result=await x.port.execute(cmd());
+  assert.equal(result.status,'committed');
+  assert.equal(x.persisted.events.some(event=>event.id===result.eventId&&event.intentKey==='browser-port-1'),true);
+  assert.equal(x.state.events.some(event=>event.id===result.eventId),true);
+  assert.equal(x.published,1);
+});
+
+test('Browser Core Port refuses to publish when readback omits the committed event', async () => {
+  const x=setup({corruptReadback:true}); const result=await x.port.execute(cmd());
+  assert.equal(result.status,'verification_failed');
+  assert.equal(x.persisted.entities.length,1);
+  assert.equal(x.state.entities.length,0);
+  assert.equal(x.published,0);
+});
+
+test('Browser Core Port keeps UI unpublished when independent readback is unavailable', async () => {
+  const x=setup({failReadback:true}); const result=await x.port.execute(cmd());
+  assert.equal(result.status,'verification_failed');
+  assert.equal(x.state.events.length,0);
+  assert.equal(x.published,0);
 });
