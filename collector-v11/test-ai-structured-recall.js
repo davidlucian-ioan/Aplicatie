@@ -58,6 +58,9 @@ test('Node and browser structured recall return identical projections and eviden
 test('Recall evidence exposes stable source identifiers for every evidence kind',()=>{
  const r=searchStructuredMemory(state,'Mihai pump');
  for(const evidence of r.evidence)assert.equal(typeof evidence.sourceId,'string');
+ assert.ok(r.evidence.some(row=>row.kind==='entity'&&row.sourceId==='entity:p1'));
+ assert.ok(r.evidence.some(row=>row.kind==='relation'&&row.sourceId==='relation:r1'));
+ assert.ok(r.evidence.some(row=>row.kind==='event'&&row.sourceId==='event:ev1'));
  assert.ok(r.evidence.some(row=>row.kind==='attribute'&&row.sourceId==='attribute:o1:condition'));
  assert.ok(r.evidence.some(row=>row.kind==='event_attribute'&&row.sourceId==='event-attribute:ev1:context'));
 });
