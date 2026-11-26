@@ -372,3 +372,12 @@ test('audio commit recovery detects existing commits before retranscription and 
  assert.ok(fs.readFileSync('ai/audio-capture-recovery.js','utf8').includes('collector-memory-capture:'));
  assert.ok(app.includes('Nu am retranscris și nu am creat duplicate'));
 });
+
+test('audio deletion requires at least one structured Core operation beyond an event note',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const verify=app.slice(app.indexOf('async function verifyAudioCheckpointEvent'),app.indexOf('async function deleteAudioFromVerifiedCheckpoint'));
+ const recovery=fs.readFileSync('ai/audio-capture-recovery.js','utf8');
+ assert.ok(verify.includes('hasStructuredOperations(event)'));
+ assert.ok(recovery.includes("operation.operation!=='event.note'"));
+ assert.ok(app.includes('fără memorie structurată'));
+});
