@@ -44,3 +44,17 @@ test('storage adapters provide key enumeration required for orphan checkpoint re
  assert.match(adapter,/async listRawKeys\(prefix=''/);
  assert.match(adapter,/SELECT key FROM \'\+TABLE\+\' WHERE key LIKE/);
 });
+
+
+test('audio deletion verifies checkpoint identity, Core event, source recording ID and structured operation',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ const recovery=fs.readFileSync(path.join(root,'ai','audio-capture-recovery.js'),'utf8');
+ const verify=app.slice(app.indexOf('async function verifyAudioCheckpointEvent'),app.indexOf('async function recoverCommittedAudioCapture'));
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(verify.includes('Recovery.verifyCheckpointEvent(state,cp)'));
+ assert.ok(deletion.includes('await verifyAudioCheckpointEvent(cp)'));
+ assert.ok(deletion.includes('await verifyAudioCheckpointEvent(await store.get(recordingId))'));
+ assert.ok(recovery.includes("event.payload?.sourceId!==sourceId"));
+ assert.ok(recovery.includes("event.status!=='committed'"));
+ assert.ok(recovery.includes('STRUCTURED_OPERATIONS.has(operation.operation.trim())'));
+});

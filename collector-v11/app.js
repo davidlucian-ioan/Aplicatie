@@ -795,14 +795,13 @@ async function writeAudioLifecycleCheckpoint(recordingId,state,{error=null,incre
  await store.put(cp);return cp;
 }
 async function verifyAudioCheckpointEvent(cp){
- if(!cp||cp.persisted!==true||cp.persistenceVerified!==true||!cp.persistResult?.eventId||!cp.persistResult?.intentKey)throw Error('Checkpoint-ul nu conține dovada completă a commit-ului.');
  const raw=await storageAdapter.readRaw(KEY);
  if(typeof raw!=='string'||!raw)throw Error('Jurnalul persistent nu este disponibil pentru verificare.');
  const state=E.validateImport(JSON.parse(raw));
- const event=state.events.find(item=>item.id===cp.persistResult.eventId&&item.intentKey===cp.persistResult.intentKey);
- if(!event)throw Error('Evenimentul asociat înregistrării nu a fost găsit în jurnalul persistent.');
- if(!window.CollectorAudioCaptureRecovery?.hasStructuredOperations(event))throw Error('Commit-ul conține doar o notă de eveniment, fără entități, atribute, relații sau alte operații structurate. Audio-ul original a fost păstrat.');
- return event;
+ const Recovery=window.CollectorAudioCaptureRecovery;
+ if(!Recovery?.verifyCheckpointEvent)throw Error('Verificarea legăturii checkpoint–înregistrare nu este disponibilă.');
+ try{return Recovery.verifyCheckpointEvent(state,cp)}
+ catch(error){throw Error('Verificarea checkpoint-ului audio a eșuat: '+String(error?.message||error))}
 }
 async function recoverCommittedAudioCapture(recordingId){
  try{

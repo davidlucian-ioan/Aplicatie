@@ -238,7 +238,12 @@ test('Audio deletion requires its checkpoint event to be found in the independen
  const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
  assert.ok(verify.includes('storageAdapter.readRaw(KEY)'));
  assert.ok(verify.includes('E.validateImport(JSON.parse(raw))'));
- assert.ok(verify.includes('item.id===cp.persistResult.eventId&&item.intentKey===cp.persistResult.intentKey'));
+ assert.ok(verify.includes('Recovery.verifyCheckpointEvent(state,cp)'));
+ const recovery=fs.readFileSync('ai/audio-capture-recovery.js','utf8');
+ assert.ok(recovery.includes('event.payload?.sourceId!==sourceId'));
+ assert.ok(recovery.includes('allowedIntentKeys.has(persist.intentKey)'));
+ assert.ok(recovery.includes("event.status!=='committed'"));
+ assert.ok(recovery.includes('verifyCheckpointEvent'));
  assert.ok(deletion.includes("['source_retained','audio_deletion_pending'].includes(cp.state)"));
  assert.ok(deletion.includes('await verifyAudioCheckpointEvent(cp)'));
  assert.ok(deletion.includes("writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending'"));
