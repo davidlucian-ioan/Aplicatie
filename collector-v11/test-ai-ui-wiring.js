@@ -508,3 +508,14 @@ test('Work creates general tasks without scheduling notifications and Think prev
  assert.ok(handler.indexOf('port.preview(command)')<handler.indexOf('if(!confirm('));
  assert.ok(handler.indexOf('if(!confirm(')<handler.indexOf('port.execute(command,{confirmed:true})'));
 });
+
+test('Think task board exposes start, hold, completion and cancel lifecycle actions',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const board=app.slice(app.indexOf('function renderTasks'),app.indexOf('function render(){'));
+ assert.ok(board.includes('data-task-action="in_progress"'));
+ assert.ok(board.includes('data-task-action="open"'));
+ assert.ok(board.includes('data-task-action="completed"'));
+ assert.ok(board.includes('data-task-action="cancelled"'));
+ const handler=app.slice(app.indexOf("document.getElementById('taskBoard')?.addEventListener"),app.indexOf('function applyPageFilters'));
+ assert.ok(handler.includes("['in_progress','open','completed','cancelled'].includes(nextStatus)"));
+});

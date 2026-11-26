@@ -228,7 +228,8 @@ function renderTasks(){
   const priority={urgent:'Urgentă',high:'Ridicată',normal:'Normală',low:'Scăzută'}[a.priority]||'Normală';
   const blockers=(db.relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===task.id&&!relation.endedAt).map(relation=>db.entities.find(entity=>entity.id===relation.targetId)).filter(dependency=>!dependency||dependency.attributes?.status!=='completed');
   const blockerText=blockers.length?'<div class="muted">Blocat de: '+blockers.map(dependency=>esc(dependency?.name||'dependență lipsă')).join(', ')+'</div>':'';
-  return '<div class="row task-row"><div class="task-row-main"><b>'+esc(task.name)+'</b><div class="muted">'+status+' · '+esc(due)+' · Prioritate '+esc(priority)+'</div>'+blockerText+'</div><div class="task-row-actions"><button class="secondary" type="button" data-task-action="completed" data-task-id="'+esc(a.taskId||'')+'" '+(blockers.length?'disabled title="Finalizează mai întâi dependențele"':'')+'>Finalizează</button><button class="secondary" type="button" data-task-action="cancelled" data-task-id="'+esc(a.taskId||'')+'">Anulează</button></div></div>';
+  const progressButton=a.status==='in_progress'?'<button class="secondary" type="button" data-task-action="open" data-task-id="'+esc(a.taskId||'')+'">Pune în așteptare</button>':'<button class="secondary" type="button" data-task-action="in_progress" data-task-id="'+esc(a.taskId||'')+'">Începe</button>';
+  return '<div class="row task-row"><div class="task-row-main"><b>'+esc(task.name)+'</b><div class="muted">'+status+' · '+esc(due)+' · Prioritate '+esc(priority)+'</div>'+blockerText+'</div><div class="task-row-actions">'+progressButton+'<button class="secondary" type="button" data-task-action="completed" data-task-id="'+esc(a.taskId||'')+'" '+(blockers.length?'disabled title="Finalizează mai întâi dependențele"':'')+'>Finalizează</button><button class="secondary" type="button" data-task-action="cancelled" data-task-id="'+esc(a.taskId||'')+'">Anulează</button></div></div>';
  }).join('');
 }
 function render(){document.getElementById('entityCount').textContent=db.entities.length;document.getElementById('eventCount').textContent=db.events.length;document.getElementById('relationCount').textContent=db.relations.filter(r=>!r.endedAt).length;document.getElementById('stockCount').textContent=E.balances(db).filter(x=>x.disposition==='active').reduce((sum,x)=>sum+Number(x.quantity||0),0);renderEntities();renderRelations();renderInventory();renderFinance();renderAttributes();renderTasks();document.getElementById('eventList').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';document.getElementById('recentEvents').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';renderHistory();renderAudit();applyPageFilters();if(currentEntityId&&document.getElementById('entityChartBox'))drawEntityChart(currentEntityId)}
@@ -237,10 +238,10 @@ document.getElementById('quickEvent').onclick=()=>showPage('assistant');document
 document.getElementById('taskBoard')?.addEventListener('click',async event=>{
  const button=event.target.closest('[data-task-action]');if(!button||button.disabled)return;
  const taskId=button.dataset.taskId,nextStatus=button.dataset.taskAction;
- if(!taskId||!['completed','cancelled'].includes(nextStatus))return;
+ if(!taskId||!['in_progress','open','completed','cancelled'].includes(nextStatus))return;
  const task=db.entities.find(entity=>entity.attributes?.taskKind==='user'&&entity.attributes?.taskId===taskId);
  if(!task)return;
- const label=nextStatus==='completed'?'finalizezi':'anulezi';
+ const label={in_progress:'începi',open:'pui în așteptare',completed:'finalizezi',cancelled:'anulezi'}[nextStatus];
  button.disabled=true;
  try{
   const api=window.CollectorTaskCommand;
