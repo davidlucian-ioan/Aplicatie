@@ -105,3 +105,9 @@ test('complete cancels native alarm and keeps completed lifecycle in local histo
  assert.equal(x.calls.at(-1).type,'cancel');
  assert.equal(await x.service.complete(item.id),false,'completed task must be idempotent');
 });
+
+test('clearAll safely removes completed-only history without sending empty native cancel batch',async()=>{
+ const x=fixture();const item=await x.service.create({title:'Task completat',at:'2026-11-24T12:00:00.000Z'});await x.service.complete(item.id);
+ assert.equal(await x.service.clearAll(),1);assert.equal(x.raw(),null);
+ assert.equal(x.calls.filter(call=>call.type==='cancel').length,1,'clearAll must not call plugin.cancel with an empty notifications array');
+});
