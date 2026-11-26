@@ -116,10 +116,10 @@ const server = http.createServer(async (req, res) => {
       if (!rateLimit(req.socket.remoteAddress || 'local')) return send(res, 429, { error: 'Prea multe cereri. Încearcă din nou peste un minut.' });
       const origin = req.headers.origin;
       if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return send(res, 403, { error: 'Origine nepermisă.' });
-      if (!process.env.OPENAI_API_KEY) return send(res, 503, { error: 'Configurează OPENAI_API_KEY pentru transcriere.' });
       const contentType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
       const extensions = {'audio/webm':'webm','audio/mp4':'mp4','audio/mpeg':'mp3','audio/mp3':'mp3','audio/wav':'wav','audio/x-wav':'wav','audio/ogg':'ogg','audio/aac':'aac','audio/m4a':'m4a','audio/x-m4a':'m4a'};
       if (!extensions[contentType]) return send(res, 415, { error: 'Format audio neacceptat.' });
+      if (!process.env.OPENAI_API_KEY) return send(res, 503, { error: 'Configurează OPENAI_API_KEY pentru transcriere.' });
       try {
         const chunks=[];let size=0;
         for await (const chunk of req) { size+=chunk.length;if(size>25*1024*1024){send(res,413,{error:'Audio depășește limita de 25 MB.'});req.resume();return}chunks.push(chunk)}
