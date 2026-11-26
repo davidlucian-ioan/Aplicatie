@@ -519,3 +519,16 @@ test('Think task board exposes start, hold, completion and cancel lifecycle acti
  const handler=app.slice(app.indexOf("document.getElementById('taskBoard')?.addEventListener"),app.indexOf('function applyPageFilters'));
  assert.ok(handler.includes("['in_progress','open','completed','cancelled'].includes(nextStatus)"));
 });
+
+test('Think task dependency modal previews and confirms before committing a cycle-safe relation',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const modal=app.slice(app.indexOf('function addTaskDependency'),app.indexOf('function render(){'));
+ assert.ok(modal.includes('addDependencyCommand'));
+ assert.ok(modal.includes('selectField'));
+ assert.ok(modal.includes('port.preview(command)'));
+ assert.ok(modal.indexOf('port.preview(command)')<modal.indexOf("if(!confirm("));
+ assert.ok(modal.indexOf("if(!confirm(")<modal.indexOf('port.execute(command,{confirmed:true})'));
+ assert.ok(modal.includes('task.id'));
+ const board=app.slice(app.indexOf('function renderTasks'),app.indexOf('function addTaskDependency'));
+ assert.ok(board.includes('data-task-dependency'));
+});

@@ -229,12 +229,43 @@ function renderTasks(){
   const blockers=(db.relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===task.id&&!relation.endedAt).map(relation=>db.entities.find(entity=>entity.id===relation.targetId)).filter(dependency=>!dependency||dependency.attributes?.status!=='completed');
   const blockerText=blockers.length?'<div class="muted">Blocat de: '+blockers.map(dependency=>esc(dependency?.name||'dependență lipsă')).join(', ')+'</div>':'';
   const progressButton=a.status==='in_progress'?'<button class="secondary" type="button" data-task-action="open" data-task-id="'+esc(a.taskId||'')+'">Pune în așteptare</button>':'<button class="secondary" type="button" data-task-action="in_progress" data-task-id="'+esc(a.taskId||'')+'">Începe</button>';
-  return '<div class="row task-row"><div class="task-row-main"><b>'+esc(task.name)+'</b><div class="muted">'+status+' · '+esc(due)+' · Prioritate '+esc(priority)+'</div>'+blockerText+'</div><div class="task-row-actions">'+progressButton+'<button class="secondary" type="button" data-task-action="completed" data-task-id="'+esc(a.taskId||'')+'" '+(blockers.length?'disabled title="Finalizează mai întâi dependențele"':'')+'>Finalizează</button><button class="secondary" type="button" data-task-action="cancelled" data-task-id="'+esc(a.taskId||'')+'">Anulează</button></div></div>';
+  return '<div class="row task-row"><div class="task-row-main"><b>'+esc(task.name)+'</b><div class="muted">'+status+' · '+esc(due)+' · Prioritate '+esc(priority)+'</div>'+blockerText+'</div><div class="task-row-actions"><button class="secondary" type="button" data-task-dependency="'+esc(a.taskId||'')+'">Dependență…</button>'+progressButton+'<button class="secondary" type="button" data-task-action="completed" data-task-id="'+esc(a.taskId||'')+'" '+(blockers.length?'disabled title="Finalizează mai întâi dependențele"':'')+'>Finalizează</button><button class="secondary" type="button" data-task-action="cancelled" data-task-id="'+esc(a.taskId||'')+'">Anulează</button></div></div>';
  }).join('');
+}
+function addTaskDependency(taskId){
+ const task=db.entities.find(entity=>entity.type==='task'&&entity.attributes?.taskKind==='user'&&entity.attributes?.taskId===taskId);
+ if(!task)return;
+ const existing=new Set((db.relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===task.id&&!relation.endedAt).map(relation=>relation.targetId));
+ const available=db.entities.filter(entity=>entity.type==='task'&&['user','reminder'].includes(entity.attributes?.taskKind)&&entity.id!==task.id&&!existing.has(entity.id));
+ if(!available.length){setAppStatus('Nu există alte task-uri disponibile pentru a crea o dependență.');return}
+ const options=available.map(entity=>[entity.id,entity.name+' · '+String(entity.attributes?.status||'open')]);
+ openModal('<h2>Dependență pentru '+esc(task.name)+'</h2><div class="form">'+selectField('Task prerequisite','taskDependencyTarget',options)+'<p class="muted">Task-ul curent nu va putea fi finalizat până când prerequisite-ul nu este marcat ca finalizat. Core respinge ciclurile și duplicatele.</p><div class="form-actions"><button class="secondary" type="button" onclick="closeModal()">Anulează</button><button class="primary" type="button" id="saveTaskDependency">Adaugă dependență</button></div></div>');
+ const save=document.getElementById('saveTaskDependency');
+ save?.addEventListener('click',async()=>{
+  const dependencyId=document.getElementById('taskDependencyTarget')?.value;
+  if(!dependencyId){setAppStatus('Selectează task-ul prerequisite.');return}
+  save.disabled=true;
+  try{
+   const api=window.CollectorTaskCommand;
+   if(!api?.addDependencyCommand)throw new Error('Modelul de dependențe Task nu este încărcat.');
+   const occurredAt=E.now();
+   const command=api.addDependencyCommand({taskId:task.id,dependsOnTaskId:dependencyId,idempotencyKey:'collector-task-dependency:'+task.id+':'+dependencyId,occurredAt},db);
+   const port=ensureAICorePort(),preview=await port.preview(command);
+   if(!['preview_ok','duplicate'].includes(preview.status))throw new Error('Core a respins dependența: '+preview.status);
+   if(!confirm('Confirmi că „'+task.name+'” depinde de „'+(db.entities.find(entity=>entity.id===dependencyId)?.name||'task-ul selectat')+'”?')){save.disabled=false;return}
+   const result=await serializeMutation(()=>port.execute(command,{confirmed:true}));
+   if(!['committed','duplicate'].includes(result.status)||!result.eventId)throw new Error('Core nu a confirmat dependența: '+result.status);
+   closeModal();renderTasks();setAppStatus('Dependența a fost salvată în jurnalul Core.');
+  }catch(error){save.disabled=false;setAppStatus('Dependența nu a fost salvată: '+error.message)}
+ });
 }
 function render(){document.getElementById('entityCount').textContent=db.entities.length;document.getElementById('eventCount').textContent=db.events.length;document.getElementById('relationCount').textContent=db.relations.filter(r=>!r.endedAt).length;document.getElementById('stockCount').textContent=E.balances(db).filter(x=>x.disposition==='active').reduce((sum,x)=>sum+Number(x.quantity||0),0);renderEntities();renderRelations();renderInventory();renderFinance();renderAttributes();renderTasks();document.getElementById('eventList').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';document.getElementById('recentEvents').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';renderHistory();renderAudit();applyPageFilters();if(currentEntityId&&document.getElementById('entityChartBox'))drawEntityChart(currentEntityId)}
 document.getElementById('quickEvent').onclick=()=>showPage('assistant');document.getElementById('historyEntityFilter').onchange=renderHistory;document.getElementById('historyTypeFilter').onchange=renderHistory;
 
+document.getElementById('taskBoard')?.addEventListener('click',event=>{
+ const dependencyButton=event.target.closest('[data-task-dependency]');
+ if(dependencyButton){addTaskDependency(dependencyButton.dataset.taskDependency);return}
+});
 document.getElementById('taskBoard')?.addEventListener('click',async event=>{
  const button=event.target.closest('[data-task-action]');if(!button||button.disabled)return;
  const taskId=button.dataset.taskId,nextStatus=button.dataset.taskAction;
