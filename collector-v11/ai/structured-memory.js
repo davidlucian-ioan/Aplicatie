@@ -53,7 +53,7 @@ function validateExtraction(input){
  });
  const summary=text(input.summary||'Structured memory capture','summary',{max:1000});
  const confidence=input.confidence===undefined?0.5:input.confidence;if(typeof confidence!=='number'||!Number.isFinite(confidence)||confidence<0||confidence>1)throw new TypeError('Extraction confidence invalid');
- return {summary,entities:normalizedEntities,facts:normalizedFacts,relations:normalizedRelations,clarification:typeof input.clarification==='string'?input.clarification.slice(0,500):'',confidence};
+ return {summary,entities:normalizedEntities,facts:normalizedFacts,relations:normalizedRelations,clarification:typeof input.clarification==='string'?input.clarification.trim().slice(0,500):'',confidence};
 }
 
 function normalizeName(v){return String(v||'').normalize('NFKC').toLocaleLowerCase().replace(/[’']/g,"'").replace(/[^\p{L}\p{N}]+/gu,' ').trim()}

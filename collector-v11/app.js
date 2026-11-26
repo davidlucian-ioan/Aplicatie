@@ -345,7 +345,7 @@ async function confirmCoreCommand(){
 function renderAIEnhancements(ai,sourceText,sourceId,turnId){
  const parts=[];
  if(ai.semanticSummary)parts.push('<section class="note"><b>Sumar inteligent</b><p>'+esc(ai.semanticSummary)+'</p></section>');
- if((ai.semanticSummary||Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length)&&sourceText)parts.push('<section class="note"><b>Memorie candidată · nu este salvată încă</b>'+ (Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length?'<ul>'+ai.memoryFacts.slice(0,10).map(fact=>'<li>'+esc(fact)+'</li>').join('')+'</ul>':'')+'<button class="secondary" type="button" data-ai-memory-save="1">Salvează în memorie</button></section>');
+ if(ai.intent!=='clarify'&&(ai.semanticSummary||Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length)&&sourceText)parts.push('<section class="note"><b>Memorie candidată · nu este salvată încă</b>'+ (Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length?'<ul>'+ai.memoryFacts.slice(0,10).map(fact=>'<li>'+esc(fact)+'</li>').join('')+'</ul>':'')+'<button class="secondary" type="button" data-ai-memory-save="1">Salvează în memorie</button></section>');
  if(Array.isArray(ai.reminderSuggestions)&&ai.reminderSuggestions.length){
   parts.push('<section class="note"><b>Reminders sugerate</b>'+ai.reminderSuggestions.slice(0,5).map((suggestion,index)=>{
    const due=suggestion.due||{},when=due.date?(due.date+(due.time?' · '+due.time:'')):'Dată neclară';
@@ -428,15 +428,19 @@ async function runAICommand(){
   if(ai.structuredMemory&&window.CollectorStructuredMemory){
    const sm=CollectorStructuredMemory.validateExtraction(ai.structuredMemory);
    if(sm.entities.length||sm.facts.length||sm.relations.length){
+    if(sm.clarification){
+    ai.intent='clarify';ai.question=sm.clarification;delete ai.command;
+   }else{
     const resolutions=CollectorStructuredMemory.resolveEntities(sm,db);
     const ambiguous=resolutions.filter(r=>r.match==='ambiguous');
     if(ambiguous.length){
      const names=ambiguous.map(r=>r.name+' ('+r.candidateIds.map(id=>db.entities.find(e=>e.id===id)?.name||id).join(', ')+')').join('; ');
-     ai.intent='clarify';ai.question='Am găsit identități ambigue și nu le voi uni automat: '+names+'. Confirmă entitatea corectă.';
+     ai.intent='clarify';ai.question='Am găsit identități ambigue sau posibile duplicate și nu le voi uni automat: '+names+'. Confirmă entitatea corectă.';
     }else{
      ai.command=CollectorStructuredMemory.createCommand(sm,resolutions,{captureId:turnId,turnId});
      ai.intent='propose';ai.semanticSummary=sm.summary;ai.memoryFacts=sm.facts.map(f=>{const entity=sm.entities.find(e=>e.key===f.subject);return (entity?.name||f.subject)+': '+f.name+' = '+String(f.value)});
     }
+   }
    }
   }
   const extras=renderAIEnhancements(ai,text,sourceId,turnId);

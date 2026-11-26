@@ -38,3 +38,9 @@ test('browser resolver does not confuse a distinct cultivar with a typo',()=>{
  const extraction=M.validateExtraction({entities:[{key:'plant',name:'Philodendron Micans Pink Mint',type:'plant'}],facts:[],relations:[]});
  assert.equal(M.resolveEntities(extraction,state)[0].match,'new');
 });
+
+
+test('browser structured memory clarification is trimmed without being discarded',()=>{
+ const x=M.validateExtraction({entities:[],facts:[],relations:[],clarification:'  Confirm which plant?  '});
+ assert.equal(x.clarification,'Confirm which plant?');
+});

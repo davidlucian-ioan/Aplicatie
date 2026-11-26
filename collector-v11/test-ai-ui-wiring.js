@@ -427,3 +427,15 @@ test('Work discards Core preview snapshots when commands are rejected, cancelled
  assert.ok(voice.includes('discardPreview?.(cancelled)'));
  assert.ok(clear.includes('discardPreview?.(cancelled)'));
 });
+
+
+test('structured-memory clarification blocks Core preview and partial memory save controls',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
+ const render=app.slice(app.indexOf('function renderAIEnhancements'),app.indexOf('function bindAIEnhancements'));
+ assert.ok(run.indexOf('if(sm.clarification)')<run.indexOf('CollectorStructuredMemory.resolveEntities'));
+ assert.ok(run.includes("ai.intent='clarify';ai.question=sm.clarification"));
+ assert.ok(run.indexOf("if(ai.intent==='clarify'||")<run.indexOf('await ensureAICorePort().preview(command)'));
+ assert.ok(run.includes("writeAudioLifecycleCheckpoint(sourceRecordingId,'failed'"));
+ assert.ok(render.includes("ai.intent!=='clarify'"));
+});

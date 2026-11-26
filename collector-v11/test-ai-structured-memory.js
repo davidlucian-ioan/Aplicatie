@@ -95,3 +95,9 @@ test('fuzzy candidates are limited to the same entity type and threshold is conf
  assert.equal(M.resolveEntities(extraction,state,{threshold:.999})[0].match,'new');
  assert.throws(()=>M.resolveEntities(extraction,state,{threshold:1.5}),/threshold/);
 });
+
+
+test('structured memory clarification is normalized and preserved for the UI gate',()=>{
+ const x=M.validateExtraction({entities:[],facts:[],relations:[],clarification:'  Confirm which plant?  '});
+ assert.equal(x.clarification,'Confirm which plant?');
+});
