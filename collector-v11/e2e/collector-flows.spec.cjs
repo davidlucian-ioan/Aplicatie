@@ -766,6 +766,7 @@ test('caută entități live după nume, tip și locație și permite resetarea 
 
 test('Work Recall caută memorie structurată și navighează la evenimentul sursă',async({page})=>{
  await createEntity(page,'Pompa acvariu recall','object');
+ await page.locator('.nav[data-page="assistant"]').click();
  await page.locator('#memoryRecallQuery').fill('Pompa acvariu recall');
  await page.locator('#memoryRecallForm').getByRole('button',{name:'Caută în memorie'}).click();
  await expect(page.locator('#memoryRecallStatus')).toContainText('dovezi găsite');
