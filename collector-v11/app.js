@@ -265,7 +265,7 @@ function openRecallEvent(eventId){
  if(input){input.value=eventId;input.dispatchEvent(new Event('input',{bubbles:true}))}
  setTimeout(()=>{const row=document.querySelector('[data-event-id="'+CSS.escape(eventId)+'"]');if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('recall-source-highlight')}},0);
 }
-function runCommand(){
+async function runCommand(){
  const text=document.getElementById('commandInput').value,parsed=parseCommand(text),box=document.getElementById('commandResult');
  if(parsed.error){box.textContent=parsed.error;return}
  let operations=[],payload={},summary='';
