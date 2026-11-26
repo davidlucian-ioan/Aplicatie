@@ -112,12 +112,14 @@ test('voice session accumulates multiple phrases and previews one note without a
   await expect(page.locator('#voiceSessionButton')).toContainText('Oprește transcrierea');
   await page.evaluate(() => {
     const rec = window.__collectorRecognition;
-    const first = [{ transcript: 'B3 are pH 6.4' }]; first.isFinal = true;
+    const first = [{ transcript: 'Observație: B3 are pH 6.4' }]; first.isFinal = true;
     const second = [{ transcript: 'Temperatura este 22 de grade' }]; second.isFinal = true;
     rec.onresult({ resultIndex: 0, results: [first, second] });
   });
-  await expect(page.locator('#commandInput')).toHaveValue('B3 are pH 6.4 Temperatura este 22 de grade');
+  await expect(page.locator('#commandInput')).toHaveValue('Observație: B3 are pH 6.4 Temperatura este 22 de grade');
   await page.locator('#voiceSessionButton').click();
+  // AI cloud is intentionally unavailable in CI; validate the local Core preview fallback.
+  await page.locator('#parseCommand').click();
   await expect(page.locator('#confirmCoreCommand')).toBeVisible();
   await expect(page.locator('#commandResult')).toContainText('Observație');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
