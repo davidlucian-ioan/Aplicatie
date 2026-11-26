@@ -2,13 +2,13 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createService}=require('./reminders');
-function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,failStorageRemove=false,cancelErrorCount=Infinity,onCoreEvent=null,random=Math.random}={}){
+function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,failStorageRemove=false,cancelErrorCount=Infinity,onCoreEvent=null,onSchedule=null,random=Math.random}={}){
  let raw=null,writeCount=0,cancelFailuresRemaining=cancelError?cancelErrorCount:0;const calls=[],coreCalls=[];
  const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');writeCount++;if(writeCount===failStorageWriteAt)throw new Error('storage write failed');raw=value;return true},async removeRaw(key){assert.equal(key,'collector_reminders_v1');if(failStorageRemove)throw new Error('storage remove failed');raw=null;return true}};
  const plugin={
   async checkPermissions(){return {display:permission}},
   async requestPermissions(){return {display:permission}},
-  async schedule(value){calls.push({type:'schedule',value});if(scheduleError)throw new Error(scheduleError)},
+  async schedule(value){calls.push({type:'schedule',value});if(onSchedule)await onSchedule(value,raw);if(scheduleError)throw new Error(scheduleError)},
   async cancel(value){calls.push({type:'cancel',value});if(cancelError&&cancelFailuresRemaining>0){cancelFailuresRemaining--;throw new Error(cancelError)}}
  };
  const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:00:00.000Z'),random,onCoreEvent:async event=>{
@@ -28,7 +28,7 @@ test('concurrent reminder creation with same idempotency key schedules only once
 test('alarma se persistă și se programează prin notificare locală',async()=>{
  const x=fixture({random:()=>0.25});
  const item=await x.service.create({title:'Verifică B3',at:'2026-11-24T12:00:00.000Z'});
- assert.equal(item.title,'Verifică B3');assert.equal(JSON.parse(x.raw()).length,1);
+ assert.equal(item.title,'Verifică B3');assert.equal(JSON.parse(x.raw()).length,1);assert.equal(JSON.parse(x.raw())[0].scheduleState,'scheduled');
  assert.equal(x.calls[0].type,'schedule');assert.equal(x.calls[0].value.notifications[0].body,'Verifică B3');
  assert.equal(x.calls[0].value.notifications[0].isExactNotification,false);
 });
@@ -68,7 +68,7 @@ test('snooze rejects unsupported delay and leaves original alarm unchanged',asyn
 });
 
 test('cancel rolls back native notification when local metadata write fails',async()=>{
- const x=fixture({failStorageWriteAt:3});
+ const x=fixture({failStorageWriteAt:4});
  const item=await x.service.create({title:'Reminder',at:'2026-11-24T12:00:00.000Z'});
  await assert.rejects(x.service.cancel(item.id),/Schimbarea stării a fost rollback-uită/);
  assert.equal(JSON.parse(x.raw()).length,1);
@@ -273,9 +273,62 @@ test('uncertain native scheduling writes an uncertainty lifecycle event to the C
  await assert.rejects(x.service.create({title:'Verifică sera',at:'2026-11-24T12:00:00Z'}),/este incertă/);
  const row=JSON.parse(x.raw())[0];
  assert.equal(row.scheduleUncertain,true);
+ assert.equal(row.scheduleState,'uncertain');
  assert.equal(row.coreOutbox.length,1);
  assert.equal(row.coreOutbox[0].lifecycle,'schedule_uncertain');
  const sync=await x.service.syncCoreOutbox();
  assert.equal(sync.pending,0);
  assert.equal(x.coreCalls[0].lifecycle,'schedule_uncertain');
+});
+
+
+test('native scheduling sees a durable pending intent and Core only receives a confirmed schedule',async()=>{
+ let rawAtSchedule=null;
+ const x=fixture({onSchedule:async(_value,raw)=>{rawAtSchedule=raw}});
+ const item=await x.service.create({title:'Verifică temperatura',at:'2026-11-24T12:00:00Z'});
+ const before=JSON.parse(rawAtSchedule)[0];
+ assert.equal(before.scheduleState,'pending');
+ assert.equal(before.coreOutbox.length,0,'Core must not see a schedule event before native schedule succeeds');
+ const after=JSON.parse(x.raw())[0];
+ assert.equal(after.scheduleState,'scheduled');
+ assert.equal(x.coreCalls.length,1);
+ assert.equal(x.coreCalls[0].lifecycle,'scheduled');
+ assert.equal(item.coreSyncPending,false);
+});
+
+test('startup recovery replays a persisted pending schedule using the same native ID before Core journaling',async()=>{
+ const pending={id:'reminder-recovered',notificationId:4242,title:'Verifică filtrul',at:'2026-11-24T12:00:00.000Z',createdAt:'2026-11-24T10:00:00.000Z',status:'scheduled',scheduleState:'pending',sourceId:'work:turn-recovery',idempotencyKey:'recovery-key',coreOutbox:[]};
+ let raw=JSON.stringify([pending]);const native=[],core=[];
+ const storage={async readRaw(){return raw},async writeRaw(_key,value){raw=value;return true}};
+ const plugin={async schedule(value){native.push(value)},async cancel(){throw new Error('not expected')}};
+ const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:01:00.000Z'),onCoreEvent:async event=>{core.push(event);return {status:'committed',eventId:'core-recovered-1'}}});
+ const recovered=await service.recoverPendingSchedules();
+ assert.deepEqual(recovered,{recovered:1,failed:0,uncertain:0});
+ assert.equal(native.length,1);
+ assert.equal(native[0].notifications[0].id,4242);
+ let rows=JSON.parse(raw);
+ assert.equal(rows[0].scheduleState,'scheduled');
+ assert.equal(rows[0].coreOutbox[0].lifecycle,'scheduled');
+ const synced=await service.syncCoreOutbox();
+ assert.equal(synced.pending,0);
+ rows=JSON.parse(raw);
+ assert.equal(rows[0].coreOutbox.length,0);
+ assert.equal(core[0].lifecycle,'scheduled');
+});
+
+test('recovery does not publish a false scheduled Core event when native rescheduling remains uncertain',async()=>{
+ const pending={id:'reminder-uncertain-recovery',notificationId:5151,title:'Verifică filtrul',at:'2026-11-24T12:00:00.000Z',createdAt:'2026-11-24T10:00:00.000Z',status:'scheduled',scheduleState:'pending',coreOutbox:[]};
+ let raw=JSON.stringify([pending]),scheduled=0,cancelled=0,core=[];
+ const storage={async readRaw(){return raw},async writeRaw(_key,value){raw=value;return true}};
+ const plugin={async schedule(){scheduled++;throw new Error('native result unknown')},async cancel(){cancelled++;throw new Error('cancel result unknown')}};
+ const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:01:00.000Z'),onCoreEvent:async event=>{core.push(event);return {status:'committed',eventId:'core-uncertain'}}});
+ const result=await service.recoverPendingSchedules();
+ assert.deepEqual(result,{recovered:0,failed:0,uncertain:1});
+ const row=JSON.parse(raw)[0];
+ assert.equal(row.scheduleState,'uncertain');
+ assert.equal(row.scheduleUncertain,true);
+ assert.equal(row.coreOutbox[0].lifecycle,'schedule_uncertain');
+ await service.syncCoreOutbox();
+ assert.deepEqual(core.map(event=>event.lifecycle),['schedule_uncertain']);
+ assert.equal(scheduled,1);assert.equal(cancelled,1);
 });
