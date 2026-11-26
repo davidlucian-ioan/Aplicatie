@@ -17,3 +17,8 @@ test('browser entity resolution retains aliases for explicit ID links',()=>{
  const extraction=M.validateExtraction({entities:[{key:'p',name:'Mihai',type:'person',existingId:'e1',aliases:['Michael']}],facts:[],relations:[]});
  assert.deepEqual(M.resolveEntities(extraction,state)[0].aliases,['Mike','Michael']);
 });
+
+test('browser validator rejects invalid certainty and invalid temporal data',()=>{
+ assert.throws(()=>M.validateExtraction({entities:[{key:'p',name:'Mihai'}],facts:[{subject:'p',name:'x',value:1,certainty:'probably'}],relations:[]}),/certainty/);
+ assert.throws(()=>M.validateExtraction({entities:[{key:'p',name:'Mihai'}],facts:[{subject:'p',name:'x',value:1,validAt:'2026-11-26T12:30:00'}],relations:[]}),/ISO date/);
+});
