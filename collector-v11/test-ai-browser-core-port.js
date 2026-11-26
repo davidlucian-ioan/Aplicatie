@@ -4,20 +4,22 @@ const assert = require('node:assert/strict');
 const Core = require('./engine');
 const { BrowserCorePort } = require('./ai/core-port-browser');
 
-function setup({ failPersist = false, failReadback = false, corruptReadback = false } = {}) {
+function setup({ failPersist = false, failReadback = false, corruptReadback = false, persistThenThrow = false, persistThenFalse = false } = {}) {
   let state = Core.emptyState();
   let persisted = null;
   let published = 0;
+  let verificationFailure = null;
   const port = new BrowserCorePort({
     core: Core,
     store: {
       getState: () => state,
-      persistState: async next => { if (failPersist) return false; persisted = structuredClone(next); return true; },
-      readPersistedState: async () => { if (failReadback) throw new Error('readback unavailable'); return corruptReadback ? Core.emptyState() : structuredClone(persisted); },
+      persistState: async next => { if (failPersist) return false; persisted = structuredClone(next); if (persistThenThrow) throw new Error('commit response lost'); if (persistThenFalse) return false; return true; },
+      readPersistedState: async () => { if (failReadback) throw new Error('readback unavailable'); return corruptReadback ? Core.emptyState() : structuredClone(persisted || Core.emptyState()); },
+      onVerificationFailure: error => { verificationFailure = String(error?.message || error); },
       publishState: async next => { state = next; published++; }
     }
   });
-  return { port, get state(){ return state; }, get persisted(){ return persisted; }, get published(){ return published; } };
+  return { port, get state(){ return state; }, get persisted(){ return persisted; }, get published(){ return published; }, get verificationFailure(){ return verificationFailure; } };
 }
 function cmd() { return { contractVersion:'collector.command.v1', intent:'entity.create', idempotencyKey:'browser-port-1', payload:{name:'Test plant'}, operations:[{operation:'entity.create',target:'plant-1',data:{name:'Test plant',type:'plant'}}] }; }
 
@@ -68,4 +70,26 @@ test('Browser Core Port keeps UI unpublished when independent readback is unavai
   assert.equal(result.status,'verification_failed');
   assert.equal(x.state.events.length,0);
   assert.equal(x.published,0);
+});
+
+
+test('Browser Core Port recovers a lost persistence response from verified durable readback', async () => {
+  const x=setup({persistThenThrow:true}); const result=await x.port.execute(cmd());
+  assert.equal(result.status,'committed');
+  assert.equal(x.state.events.length,1);
+  assert.equal(x.published,1);
+  assert.equal(x.verificationFailure,null);
+});
+
+test('Browser Core Port trusts verified readback over a false persistence response', async () => {
+  const x=setup({persistThenFalse:true}); const result=await x.port.execute(cmd());
+  assert.equal(result.status,'committed');
+  assert.equal(x.state.entities.length,1);
+  assert.equal(x.published,1);
+});
+
+test('Browser Core Port invokes the integrity lock when readback is ambiguous', async () => {
+  const x=setup({failReadback:true}); const result=await x.port.execute(cmd());
+  assert.equal(result.status,'verification_failed');
+  assert.match(x.verificationFailure,/readback unavailable/);
 });
