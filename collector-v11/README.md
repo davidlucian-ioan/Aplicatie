@@ -2,6 +2,10 @@
 
 Aplicația executabilă Collector v11. Documentele canonice de produs și deciziile sunt în rădăcina repository-ului.
 
+## Recovery audio și procesare AI
+
+Checkpoint-urile de procesare audio sunt persistente și au reindexare de recovery pentru crash-uri. Recovery-ul rămâne manual și non-destructiv; audio-ul nu este șters automat. Detalii: [Audio lifecycle recovery](./AUDIO-LIFECYCLE-RECOVERY-v0.2.md).
+
 ## Aplicație mobilă
 
 Collector este în curs de portare ca aplicație instalabilă Android și iOS. Utilizatorul final nu are nevoie de PC sau de un server pornit acasă. Work și Think sunt ecranele principale; datele mobile folosesc SQLite nativ, iar alarmele folosesc notificări locale.
