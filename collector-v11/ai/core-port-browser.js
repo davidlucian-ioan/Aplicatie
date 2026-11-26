@@ -40,8 +40,9 @@
       if((risky||command.requiresConfirmation===true)&&confirmed!==true) return {status:'rejected',errors:['Este necesară confirmarea explicită a utilizatorului.']};
       const current=this.snapshot(), result=this.core.commit(current,ev);
       if(result.duplicate) return {status:'duplicate',eventId:result.event?.id||null};
-      let ok=false; try { ok=await this.store.persistState(clone(result.db))===true; } catch(error) { return {status:'unavailable',errors:[`Persistența a eșuat: ${error.message}`]}; }
-      if(!ok) return {status:'unavailable',errors:['Persistența a eșuat; starea activă nu a fost publicată.']};
+      let persistConfirmed=false, persistError=null;
+      try { persistConfirmed=await this.store.persistState(clone(result.db))===true; }
+      catch(error) { persistError=error; }
       let verifiedState;
       try {
         const persistedState = await this.store.readPersistedState();
@@ -50,9 +51,13 @@
           ? this.core.validateImport(clone(persistedState))
           : this.core.normDb(clone(persistedState));
         const persistedEvent = verifiedState.events.find(item => item.id === ev.id && item.intentKey === command.idempotencyKey);
-        if (!persistedEvent) throw new Error('Evenimentul confirmat nu a fost găsit în jurnalul recitit.');
+        if (!persistedEvent) {
+          if (!persistConfirmed || persistError) return {status:'unavailable',eventId:ev.id,errors:[`Commit-ul nu a fost găsit în jurnalul recitit; starea activă nu a fost publicată.${persistError ? ' Persistența a raportat: '+persistError.message : ''}`]};
+          throw new Error('Persistența a raportat succes, dar evenimentul confirmat lipsește din jurnalul recitit.');
+        }
         if (JSON.stringify(persistedEvent.operations) !== JSON.stringify(ev.operations)) throw new Error('Operațiile recitite diferă de operațiile confirmate.');
       } catch (error) {
+        try { if (typeof this.store.onVerificationFailure === 'function') this.store.onVerificationFailure(error); } catch (_) {}
         return {status:'verification_failed',eventId:ev.id,errors:[`Verificarea independentă a persistenței a eșuat: ${error.message}`]};
       }
       if(this.store.publishState) await this.store.publishState(clone(verifiedState));
