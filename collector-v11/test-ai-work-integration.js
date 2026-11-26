@@ -65,6 +65,9 @@ test('native reminder lifecycle uses the verified Core Port and a stable idempot
  assert.match(app,/CollectorReminders\?\.initialize\(\{onCoreEvent:recordReminderLifecycleInCore\}\)/);
  assert.match(reminders,/coreOutbox/);
  assert.match(reminders,/async function syncCoreOutboxInternal/);
+ assert.match(reminders,/async function recoverPendingSchedulesInternal/);
+ assert.match(reminders,/scheduleState:'pending'/);
+ assert.match(reminders,/scheduleState:'uncertain'/);
  assert.match(reminders,/data-reminder-core-sync/);
  assert.match(reminders,/pendingCoreCount\(rows\)>0/);
 });
