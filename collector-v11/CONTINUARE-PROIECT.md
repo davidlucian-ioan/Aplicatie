@@ -990,3 +990,11 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Regression test added for invalid timezone string.
 - Reminder queue hardening, audio backup fixture correction, and continuous voice-session AI routing remain included in this branch.
 - CI for this latest HEAD must be checked; no runs were returned at the moment of this checkpoint.
+
+
+## Work memory save — 2026-11-26
+- Code checkpoint before documentation commit: `7c2e77f31b0091ab3ab4a72a0bd36bcaa8a59b47`.
+- AI semantic summary and memory-fact candidates now have an explicit “Salvează în memorie” action. The user sees the summary/facts and source text; the action previews an append-only `event.note` through Core and requires explicit confirmation before execution.
+- Stored note includes sourceId, candidate facts, summary, and a bounded excerpt of the original transcript in its description/payload. AI candidates are not persisted automatically.
+- Static regression verifies memory save uses Core preview, explicit confirmation, and per-turn idempotency.
+- Important product gap remains: no dedicated retrieval/recall interface that searches stored source notes and returns grounded answers with source navigation. This is the next memory MVP after CI validation.
