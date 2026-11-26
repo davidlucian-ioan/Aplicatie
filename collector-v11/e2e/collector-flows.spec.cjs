@@ -227,7 +227,7 @@ test('Collector Basic fără entitlement păstrează funcțiile locale și expor
   expect(before.names).toContain('Entitate Basic păstrată');
 
   await page.locator('.nav[data-page="audit"]').click();
-  await expect(page.locator('#audit')).toContainText('înregistrările audio');
+  await expect(page.locator('#audit')).toContainText('Jurnal:');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Export JSON' }).click()
@@ -761,4 +761,17 @@ test('caută entități live după nume, tip și locație și permite resetarea 
   await search.fill('');
   await expect(page.locator('#entityList .row')).toHaveCount(3);
   await expect(page.locator('#entitySearchCount')).toBeEmpty();
+});
+
+
+test('Work Recall caută memorie structurată și navighează la evenimentul sursă',async({page})=>{
+ await createEntity(page,'Pompa acvariu recall','object');
+ await page.locator('#memoryRecallQuery').fill('Pompa acvariu recall');
+ await page.locator('#memoryRecallForm').getByRole('button',{name:'Caută în memorie'}).click();
+ await expect(page.locator('#memoryRecallStatus')).toContainText('dovezi găsite');
+ await expect(page.locator('#memoryRecallResults')).toContainText('Pompa acvariu recall');
+ const source=page.locator('[data-recall-open-event]').first();await expect(source).toBeVisible();
+ const eventId=await source.getAttribute('data-recall-open-event');await source.click();
+ await expect(page.locator('#events')).toBeVisible();
+ await expect(page.locator('[data-event-id="'+eventId+'"]')).toBeVisible();
 });
