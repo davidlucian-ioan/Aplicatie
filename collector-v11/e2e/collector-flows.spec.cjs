@@ -774,5 +774,5 @@ test('Work Recall caută memorie structurată și navighează la evenimentul sur
  const source=page.locator('[data-recall-open-event]').first();await expect(source).toBeVisible();
  const eventId=await source.getAttribute('data-recall-open-event');await source.click();
  await expect(page.locator('#events')).toBeVisible();
- await expect(page.locator('[data-event-id="'+eventId+'"]')).toBeVisible();
+ await expect(page.locator('#eventList > [data-event-id="'+eventId+'"]')).toBeVisible();
 });
