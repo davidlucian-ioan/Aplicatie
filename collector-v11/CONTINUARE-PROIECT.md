@@ -962,3 +962,13 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 3. După CI, următorul bloc este audio → transcription → interpretation → memory/source record → TTS, apoi retrieval grounded.
 4. Entitlements Trial/Small/Medium/Large: definește capabilități și măsurători/usage budgets, dar fără inventarea limitelor și fără billing live.
 5. PR #55 rămâne draft; nu merge în main, nu deploy, nu release fără aprobare explicită.
+
+
+## Checkpoint autonom — 2026-11-26 (09:xx, reminder concurrency + CI regression)
+- HEAD checkpoint: `c4437dae170e02d110077d511156dd826baafb06` (verify live branch SHA before relying on it).
+- Fixed the remaining audio backup test fixture: its malformed record now uses an unsupported MIME type so it actually exercises the metadata validator; the previous fixture was valid and caused “Missing expected rejection”.
+- Reminder service mutations now use a serialized promise queue for create, cancel/complete status changes, and clear-all. This closes a race where simultaneous AI reminder requests with the same idempotency key could both schedule separate native notifications.
+- Added regression test for concurrent reminder creation with the same idempotency key: one reminder/notification should be created, the second result should return the existing record.
+- Cloud API CI was successful on prior failing-fix HEAD; latest HEAD CI is running. Quality Suite + Android/iOS verification must complete before claiming this batch green.
+- Do not merge/deploy, configure live billing, or release without explicit approval.
+- Next: validate CI. Then inspect Work memory facts/semantic summary behavior and implement source-grounded persistence/recall carefully; improve voice capture→transcription→AI→spoken response without sending audio unless user action/policy explicitly allows.
