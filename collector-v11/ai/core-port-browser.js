@@ -40,6 +40,8 @@
       if((risky||command.requiresConfirmation===true)&&confirmed!==true) return {status:'rejected',errors:['Este necesară confirmarea explicită a utilizatorului.']};
       const current=this.snapshot(), result=this.core.commit(current,ev);
       if(result.duplicate){
+        const priorCommand=result.event;
+        if(JSON.stringify(priorCommand?.operations)!==JSON.stringify(ev.operations))return {status:'conflict',eventId:priorCommand?.id||null,errors:['Idempotency key already belongs to a different set of Core operations. No additional mutation was applied.']};
         let verifiedState;
         try {
           const persistedState=await this.store.readPersistedState();
