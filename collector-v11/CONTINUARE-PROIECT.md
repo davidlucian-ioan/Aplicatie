@@ -1036,3 +1036,12 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Important: source navigation and AI-grounded synthesis remain partial; Work Recall currently presents evidence rather than a natural-language AI answer. Next: test UI recall end-to-end, refine retrieval ranking/temporal parsing, and connect evidence-only context to a server-side synthesis endpoint with citations/source IDs and strict insufficient-evidence behavior.
 - Audio lifecycle is still not implemented end-to-end: audio recordings remain locally stored; there is no transcription/interpretation pipeline that commits structured memory and verifies persistence before deleting source audio. Do not claim automatic deletion. Next audio milestone is a recoverable state machine and disclosed transcription route; after commit verification, deletion must be attempted and itself verified, with failure/retry metadata.
 - Current CI runs triggered by these commits were in progress at checkpoint; quality had cancelled older runs because commits were pushed rapidly. Check HEAD-associated workflow runs.
+
+
+## Continuare Work Recall — E2E și entry points (2026-11-26)
+- Recall panel + browser adapter + source navigation sunt acum incluse în toate cele 3 HTML entry points (`index.html`, `index-server.html`, `Deschide-prin-dublu-click.html`), nu doar în index-ul principal.
+- E2E pentru recall creează o entitate, caută din Work, verifică evidence și navighează la event source. Testul navighează explicit în Work înainte de query.
+- E2E assertions corectate: audit verifică text stabil din jurnal; Work draft status folosește Playwright `expect`.
+- `test-ai-structured-recall-browser.js` acoperă adapter browser. Unicode normalization regex a fost corectată.
+- Current HEAD before this checkpoint: `25b13d4f33d6e1fe939cd7b5ba596ee4f31d96a5`. CI triggered by rapid pushes may cancel earlier runs; let the current HEAD workflows finish before another code push. Do not claim Quality Suite pass until the exact HEAD is green.
+- Audio remains a launch-critical unfinished feature: raw recordings are still saved locally and no complete transcription → structured extraction → Core commit → persistence verification → audio deletion pipeline exists. Existing audio is not automatically deleted. The product principle requires temporary source audio to be deleted only after structured persistence is verified, with recovery on any failure. Implement and test this before release.
