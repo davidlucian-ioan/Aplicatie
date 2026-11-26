@@ -1,6 +1,6 @@
 # Collector — AI Structured Memory & Audio-Minimization Architecture v0.1
 
-Status: proposed implementation direction, accepted as product direction on 2026-11-26.
+Status: accepted product direction; first implementation slice present on 2026-11-26.
 This document does not supersede Core invariants, decisions D-001–D-044, privacy, or explicit confirmation rules.
 
 ## Product principle
@@ -76,5 +76,7 @@ F. Test ambiguous names, alias collisions, date/time parsing, duplicate capture/
 
 ## MVP implementation progress (26 Nov)
 - First implementation increment now exists in the branch: strict extraction validation, entity resolution, command generation, structured recall evidence, provider schema output and Work UI preview wiring.
-- This is still proposal-first: no silent auto-commit, no automatic audio deletion yet. Ambiguous identity is a hard clarification.
-- Next acceptance slice: CI validation and integration tests for structured extraction through browser UI/Core; then durable audio-retention state machine and source-linked recall UI.
+- This remains proposal-first: no silent Core auto-commit; user confirmation is still required. Ambiguous identity is a hard clarification.
+- After a confirmed Core commit and independent journal readback, the temporary transcript draft is cleared and source audio is deleted by default, with an explicit Work preference to retain recordings. Failed or uncertain processing always retains the source.
+- The browser flow now uses OpenAI transcription/interpretation, strict structured-memory validation, entity resolution, Core preview, explicit confirmation and independent persisted-journal readback. Structured entities, attributes, relations and events are the durable memory; original audio is not required for reconstruction.
+- Rich source-linked playback/recall, natural-language playback/TTS, automatic background queueing and physical-device validation remain follow-up work.
