@@ -217,6 +217,7 @@
   if(raw===null){if(typeof storage.removeRaw==='function')await storage.removeRaw(KEY);return 0}
   const rows=JSON.parse(raw);
   if(!Array.isArray(rows)||rows.some(row=>!row||typeof row.id!=='string'||!Number.isInteger(row.notificationId)||typeof row.title!=='string'||typeof row.at!=='string'))throw new Error('Lista alarmelor este invalidă. Datele nu au fost șterse.');
+  if(rows.some(row=>Array.isArray(row.coreOutbox)&&row.coreOutbox.length))throw new Error('Există evenimente reminder nesincronizate cu jurnalul Core. Deschide Collector pe un dispozitiv cu notificările native și sincronizează înainte de ștergere.');
   const native=typeof root.Capacitor?.isNativePlatform==='function'&&root.Capacitor.isNativePlatform();
   if(native&&rows.length)throw new Error('Serviciul de notificări nu este disponibil; alarmele nu au fost șterse ca să nu rămână notificări active.');
   if(typeof storage.removeRaw!=='function'||await storage.removeRaw(KEY)!==true||(await storage.readRaw(KEY))!==null)throw new Error('Stocarea nu a confirmat ștergerea istoricului reminderelor.');return rows.length;
@@ -263,9 +264,6 @@
    const submit=form.querySelector('button[type="submit"]');
    if(submit)submit.disabled=true;
    try{
-    await service.create({title,at});
-    form.reset();
-    if(dateInput){const min=new Date(Date.now()+60_000);dateInput.min=new Date(min.getTime()-min.getTimezoneOffset()*60_000).toISOString().slice(0,16)}
     const created=await service.create({title,at});
     form.reset();
     if(dateInput){const min=new Date(Date.now()+60_000);dateInput.min=new Date(min.getTime()-min.getTimezoneOffset()*60_000).toISOString().slice(0,16)}
