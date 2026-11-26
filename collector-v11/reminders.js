@@ -5,7 +5,9 @@
  function createService({storage,plugin,now=()=>new Date(),random=Math.random}={}){
   if(!storage||typeof storage.readRaw!=='function'||typeof storage.writeRaw!=='function')throw new TypeError('Stocarea pentru alarme nu este disponibilă.');
   if(!plugin||typeof plugin.schedule!=='function'||typeof plugin.cancel!=='function')throw new TypeError('Notificările native nu sunt disponibile pe acest dispozitiv.');
-  let mutationQueue=Promise.resolve();\n  function serialized(task){const next=mutationQueue.then(task,task);mutationQueue=next.catch(()=>{});return next}\n  async function list(){
+  let mutationQueue=Promise.resolve();
+  function serialized(task){const next=mutationQueue.then(task,task);mutationQueue=next.catch(()=>{});return next}
+  async function list(){
    const raw=await storage.readRaw(KEY);
    if(raw===null)return [];
    const parsed=JSON.parse(raw);
@@ -42,7 +44,8 @@
     throw error;
    }
   }
-  function create(input){return serialized(()=>createInternal(input))}\n  async function snooze(id,minutes){
+  function create(input){return serialized(()=>createInternal(input))}
+  async function snooze(id,minutes){
    if(![5,10,30,60].includes(minutes))throw new Error('Durata amânării nu este acceptată.');
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target||target.status==='cancelled'||target.status==='completed')throw new Error('Alarma nu mai există.');
@@ -63,7 +66,8 @@
    }
    return updated;
   }
-  function updateStatus(id,status){return serialized(()=>updateStatusInternal(id,status))}\n  async function cancel(id){return Boolean(await updateStatus(id,'cancelled'))}
+  function updateStatus(id,status){return serialized(()=>updateStatusInternal(id,status))}
+  async function cancel(id){return Boolean(await updateStatus(id,'cancelled'))}
   async function complete(id){return await updateStatus(id,'completed')}
   async function clearAllInternal(){
    const rows=await list();
@@ -80,7 +84,8 @@
    }
    return rows.length;
   }
-  function clearAll(){return serialized(clearAllInternal)}\n  return Object.freeze({list,create,cancel,snooze,complete,clearAll});
+  function clearAll(){return serialized(clearAllInternal)}
+  return Object.freeze({list,create,cancel,snooze,complete,clearAll});
  }
  let service=null,initialized=false;
  async function clearAll(){
