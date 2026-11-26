@@ -152,7 +152,7 @@ test('audio backup exports file contents and imports only new recordings',async(
 
 test('audio backup import rejects malformed records rather than silently skipping them',async()=>{
  const x=fixture();await x.store.initialize();
- await assert.rejects(x.store.importBackup({format:'collector-audio-backup.v1',recordings:[{id:'invalid-record',createdAt:'2026-11-25T10:00:00.000Z',data:'YQ==',durationMs:1,mimeType:'audio/aac'}]}),/element invalid/);
+ await assert.rejects(x.store.importBackup({format:'collector-audio-backup.v1',recordings:[{id:'invalid-record',createdAt:'2026-11-25T10:00:00.000Z',data:'YQ==',durationMs:1,mimeType:'text/plain'}]}),/element invalid/);
  assert.equal(x.files.size,0);
 });
 
