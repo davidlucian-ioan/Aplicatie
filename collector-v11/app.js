@@ -215,9 +215,46 @@ async function correctAnyEvent(eventId){
 }
 function renderHistory(){const entityFilter=document.getElementById('historyEntityFilter'),typeFilter=document.getElementById('historyTypeFilter'),prev=entityFilter.value,prevType=typeFilter.value;entityFilter.innerHTML='<option value="">Toate elementele</option>'+db.entities.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');entityFilter.value=prev;typeFilter.innerHTML='<option value="">Toate tipurile</option>'+[...new Set(visibleEvents().map(e=>e.type))].sort().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');typeFilter.value=prevType;const eid=entityFilter.value,typ=typeFilter.value;const events=visibleEvents().filter(ev=>(!typ||ev.type===typ)&&(!eid||ev.payload?.entityId===eid||ev.payload?.sourceId===eid||ev.payload?.targetId===eid||ev.operations?.some(o=>o.target===eid||o.data?.entityId===eid||o.data?.sourceId===eid||o.data?.targetId===eid))).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));document.getElementById('historyList').innerHTML=events.map(eventRow).join('')||'<div class="empty">Niciun eveniment pentru filtrele selectate.</div>'}
 function renderAudit(){const warnings=db.meta?.replayWarnings||[];const integrityNotice=integrityBlocked?'<p class="status-warn"><b>MOD NUMAI CITIRE</b> · '+esc(integrityBlockReason)+'. Exportul original rămâne disponibil; poți reconstrui doar dacă jurnalul este valid sau poți importa un backup verificat.</p>':'';document.getElementById('auditSummary').innerHTML=`Jurnal: <b>${db.events.length}</b> evenimente · Entități: <b>${db.entities.length}</b> · Relații: <b>${db.relations.length}</b> · Erori la replay: <b>${warnings.length}</b> · Context conversațional: <b>${E.contextIsActive(db)?'activ':'expirat'}</b>.${integrityNotice}`;document.getElementById('auditList').innerHTML=[...warnings.map(w=>`<div class="row"><div><b class="status-warn">Eroare replay</b><div>${esc(w.eventId)} · ${esc(w.error)}</div></div></div>`),...visibleEvents().slice(-10).reverse().map(eventRow)].join('')||'<div class="empty">Nu există evenimente.</div>'}
-function render(){document.getElementById('entityCount').textContent=db.entities.length;document.getElementById('eventCount').textContent=db.events.length;document.getElementById('relationCount').textContent=db.relations.filter(r=>!r.endedAt).length;document.getElementById('stockCount').textContent=E.balances(db).filter(x=>x.disposition==='active').reduce((sum,x)=>sum+Number(x.quantity||0),0);renderEntities();renderRelations();renderInventory();renderFinance();renderAttributes();document.getElementById('eventList').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';document.getElementById('recentEvents').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';renderHistory();renderAudit();applyPageFilters();if(currentEntityId&&document.getElementById('entityChartBox'))drawEntityChart(currentEntityId)}
+function renderTasks(){
+ const box=document.getElementById('taskBoard'),count=document.getElementById('taskBoardCount');
+ if(!box)return;
+ const tasks=db.entities.filter(entity=>entity.type==='task'&&entity.attributes?.taskKind==='user'&&!['completed','cancelled'].includes(entity.attributes?.status||'open'));
+ tasks.sort((a,b)=>String(a.attributes?.dueDate||'9999-99-99').localeCompare(String(b.attributes?.dueDate||'9999-99-99'))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+ if(count)count.textContent=tasks.length+' active';
+ if(!tasks.length){box.innerHTML='<div class="empty">Nu ai task-uri active. Spune în Work „Creează un task…” pentru a adăuga unul.</div>';return}
+ box.innerHTML=tasks.slice(0,20).map(task=>{
+  const a=task.attributes||{},status=a.status==='in_progress'?'În lucru':'Deschis';
+  const due=a.dueDate?(a.dueDate+(a.dueTime?' · '+a.dueTime+' '+(a.timezone||''):'')):'Fără termen';
+  const priority={urgent:'Urgentă',high:'Ridicată',normal:'Normală',low:'Scăzută'}[a.priority]||'Normală';
+  const blockers=(db.relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===task.id&&!relation.endedAt).map(relation=>db.entities.find(entity=>entity.id===relation.targetId)).filter(dependency=>!dependency||dependency.attributes?.status!=='completed');
+  const blockerText=blockers.length?'<div class="muted">Blocat de: '+blockers.map(dependency=>esc(dependency?.name||'dependență lipsă')).join(', ')+'</div>':'';
+  return '<div class="row task-row"><div class="task-row-main"><b>'+esc(task.name)+'</b><div class="muted">'+status+' · '+esc(due)+' · Prioritate '+esc(priority)+'</div>'+blockerText+'</div><div class="task-row-actions"><button class="secondary" type="button" data-task-action="completed" data-task-id="'+esc(a.taskId||'')+'" '+(blockers.length?'disabled title="Finalizează mai întâi dependențele"':'')+'>Finalizează</button><button class="secondary" type="button" data-task-action="cancelled" data-task-id="'+esc(a.taskId||'')+'">Anulează</button></div></div>';
+ }).join('');
+}
+function render(){document.getElementById('entityCount').textContent=db.entities.length;document.getElementById('eventCount').textContent=db.events.length;document.getElementById('relationCount').textContent=db.relations.filter(r=>!r.endedAt).length;document.getElementById('stockCount').textContent=E.balances(db).filter(x=>x.disposition==='active').reduce((sum,x)=>sum+Number(x.quantity||0),0);renderEntities();renderRelations();renderInventory();renderFinance();renderAttributes();renderTasks();document.getElementById('eventList').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';document.getElementById('recentEvents').innerHTML=visibleEvents().slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5).map(eventRow).join('')||'<div class="empty">Niciun eveniment.</div>';renderHistory();renderAudit();applyPageFilters();if(currentEntityId&&document.getElementById('entityChartBox'))drawEntityChart(currentEntityId)}
 document.getElementById('quickEvent').onclick=()=>showPage('assistant');document.getElementById('historyEntityFilter').onchange=renderHistory;document.getElementById('historyTypeFilter').onchange=renderHistory;
 
+document.getElementById('taskBoard')?.addEventListener('click',async event=>{
+ const button=event.target.closest('[data-task-action]');if(!button||button.disabled)return;
+ const taskId=button.dataset.taskId,nextStatus=button.dataset.taskAction;
+ if(!taskId||!['completed','cancelled'].includes(nextStatus))return;
+ const task=db.entities.find(entity=>entity.attributes?.taskKind==='user'&&entity.attributes?.taskId===taskId);
+ if(!task)return;
+ const label=nextStatus==='completed'?'finalizezi':'anulezi';
+ if(!confirm('Confirmi că '+label+' task-ul „'+task.name+'”?'))return;
+ button.disabled=true;
+ try{
+  const api=window.CollectorTaskCommand;
+  if(!api?.transitionTaskCommand)throw new Error('Modelul de lifecycle Task nu este încărcat.');
+  const occurredAt=E.now();
+  const command=api.transitionTaskCommand({taskId,status:nextStatus,idempotencyKey:'collector-task-transition:'+taskId+':'+nextStatus+':'+occurredAt,occurredAt},db);
+  const port=ensureAICorePort(),preview=await port.preview(command);
+  if(!['preview_ok','duplicate'].includes(preview.status))throw new Error('Core a respins tranziția: '+preview.status);
+  const result=await serializeMutation(()=>port.execute(command,{confirmed:true}));
+  if(!['committed','duplicate'].includes(result.status))throw new Error('Core nu a confirmat tranziția: '+result.status);
+  renderTasks();
+ }catch(error){setAppStatus('Task-ul nu a fost actualizat: '+error.message);button.disabled=false}
+});
 function applyPageFilters(){document.querySelectorAll('[data-filter-target]').forEach(input=>{const target=document.getElementById(input.dataset.filterTarget);if(!target)return;const q=(input.value||'').trim().toLocaleLowerCase('ro-RO');const rows=[...target.children].filter(el=>el.classList.contains('row'));let shown=0;rows.forEach(row=>{const match=!q||row.textContent.toLocaleLowerCase('ro-RO').includes(q);row.hidden=!match;if(match)shown++});target.querySelectorAll('.empty').forEach(el=>el.hidden=Boolean(q&&rows.length));let noMatch=target.querySelector('[data-filter-empty]');if(q&&rows.length&&!shown){if(!noMatch){noMatch=document.createElement('div');noMatch.className='empty filter-empty';noMatch.dataset.filterEmpty='true';noMatch.setAttribute('role','status');target.appendChild(noMatch)}noMatch.textContent='Nu exista rezultate pentru: '+input.value.trim()}else if(noMatch)noMatch.remove()})}
 document.addEventListener('input',ev=>{if(ev.target.matches('[data-filter-target]'))applyPageFilters()});
 function exportData(){const blob=new Blob([JSON.stringify({format:'collector-backup.v1',exportedAt:E.now(),app:'Collector MVP v6',audioIncluded:false,audioNote:'Fișierele audio nu sunt incluse în backupul JSON.',db:integrityRawBackup||db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='collector-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href)}
@@ -403,11 +440,11 @@ function renderAIEnhancements(ai,sourceText,sourceId,turnId){
  if(ai.semanticSummary)parts.push('<section class="note"><b>Sumar inteligent</b><p>'+esc(ai.semanticSummary)+'</p></section>');
  if(ai.intent!=='clarify'&&(ai.semanticSummary||Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length)&&sourceText)parts.push('<section class="note"><b>Memorie candidată · nu este salvată încă</b>'+ (Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length?'<ul>'+ai.memoryFacts.slice(0,10).map(fact=>'<li>'+esc(fact)+'</li>').join('')+'</ul>':'')+'<button class="secondary" type="button" data-ai-memory-save="1">Salvează în memorie</button></section>');
  if(Array.isArray(ai.reminderSuggestions)&&ai.reminderSuggestions.length){
-  parts.push('<section class="note"><b>Reminders sugerate</b>'+ai.reminderSuggestions.slice(0,5).map((suggestion,index)=>{
+  parts.push('<section class="note"><b>Task-uri și reminders sugerate</b>'+ai.reminderSuggestions.slice(0,5).map((suggestion,index)=>{
    const due=suggestion.due||{},when=due.date?(due.date+(due.time?' · '+due.time:'')):'Dată neclară';
    const title=String(suggestion.title||'Acțiune').trim();
-   const detail=suggestion.clarificationQuestion||((suggestion.certainty==='certain'&&suggestion.explicitIntent&&!suggestion.negated)?'':'Necesită clarificare înainte de programare.');
-   return '<div class="row reminder-row"><div><b>'+esc(title)+'</b><div class="muted">'+esc(when)+'</div>'+(detail?'<div class="muted">'+esc(detail)+'</div>':'')+'</div><button class="secondary" type="button" data-ai-reminder-index="'+index+'">Programează…</button></div>';
+   const isTask=suggestion.intent==='task';const detail=suggestion.clarificationQuestion||((suggestion.certainty==='certain'&&suggestion.explicitIntent&&!suggestion.negated)?'':(isTask?'Necesită clarificare înainte de creare.':'Necesită clarificare înainte de programare.'));
+   return '<div class="row reminder-row"><div><b>'+esc(title)+'</b><div class="muted">'+esc(when)+'</div>'+(detail?'<div class="muted">'+esc(detail)+'</div>':'')+'</div><button class="secondary" type="button" data-ai-reminder-index="'+index+'">'+(isTask?'Creează task…':'Programează…')+'</button></div>';
   }).join('')+'</section>');
  }
  return parts.join('');
@@ -450,6 +487,23 @@ function bindAIEnhancements(box,ai,sourceText,sourceId,turnId){
     },{timezone,defaultHour:9,defaultMinute:0});
     if(checked.action==='skip'){button.textContent='Nu necesită reminder';return}
     if(checked.action==='clarify'){button.disabled=false;button.textContent='Clarifică';document.getElementById('commandResult').insertAdjacentHTML('beforeend','<p class="note">'+esc(checked.question)+'</p>');return}
+    if(checked.action==='create_task'){
+     const taskApi=window.CollectorTaskCommand;
+     if(!taskApi?.createTaskCommand)throw new Error('Modelul Core pentru task-uri nu este încărcat.');
+     const task=checked.task;
+     const command=taskApi.createTaskCommand({taskId:turnId+':'+index,idempotencyKey:task.idempotencyKey||('collector-ai-task:'+turnId+':'+index),title:task.title,dueDate:task.dueDate,dueTime:task.dueTime,timezone:task.timezone,sourceId:task.sourceId,occurredAt:E.now()},db);
+     const port=ensureAICorePort(),preview=await port.preview(command);
+     if(!['preview_ok','duplicate'].includes(preview.status))throw new Error('Core a respins task-ul: '+preview.status);
+     const deadline=task.dueDate?(task.dueDate+(task.dueTime?' · '+task.dueTime+' '+(task.timezone||timezone):'')):'fără termen';
+     if(!confirm('Creez task-ul în memoria Core?\\n\\n'+task.title+'\\nTermen: '+deadline+'\\n\\nNu se programează nicio notificare.')){button.disabled=false;return}
+     const result=await serializeMutation(()=>port.execute(command,{confirmed:true}));
+     if(!['committed','duplicate'].includes(result.status)||!result.eventId)throw new Error('Core nu a confirmat task-ul: '+result.status);
+     button.textContent=result.status==='duplicate'?'Task deja creat':'Task creat ✓';
+     document.getElementById('commandResult').insertAdjacentHTML('beforeend','<p class="status-ok">Task '+(result.status==='duplicate'?'deja existent':'salvat')+': '+esc(task.title)+' · '+esc(deadline)+'. Nu a fost programată nicio notificare.</p>');
+     render();
+     return;
+    }
+    if(checked.action!=='schedule'||!checked.reminder)throw new Error('Acțiunea AI nu este validă pentru un reminder.');
     const dueText=new Date(checked.reminder.dueAt).toLocaleString('ro-RO');
     if(!confirm('Programez reminderul?\n\n'+checked.reminder.title+'\n'+dueText+'\n\nSursa: Work (textul original este păstrat în contextul reminderului).')){button.disabled=false;return}
     const scheduled=await window.CollectorReminders?.schedule?.({title:checked.reminder.title,at:checked.reminder.dueAt,sourceId:checked.reminder.sourceId,context:checked.reminder.context,idempotencyKey:checked.reminder.idempotencyKey});
