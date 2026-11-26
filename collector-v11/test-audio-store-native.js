@@ -41,7 +41,7 @@ test('native audio deletion refuses a corrupted index path and preserves the fil
  const row={id:'audio-path-guard',createdAt:'2026-11-25T10:00:00.000Z',durationMs:100,mimeType:'audio/aac',size:4,filePath:'../private/secret.aac',uri:'file:///app/private/secret.aac'};
  x.values.set('collector_audio_index_v1',JSON.stringify([row]));
  x.files.set('../private/secret.aac',Buffer.from('secret'));
- await assert.rejects(x.store.remove(row.id),/Calea înregistrării audio este invalidă/);
+ await assert.rejects(x.store.remove(row.id),/Indexul audio nativ este invalid/);
  assert.equal(x.files.has('../private/secret.aac'),true,'must not delete a file outside the managed audio folder');
  assert.deepEqual(JSON.parse(x.values.get('collector_audio_index_v1')),[row],'must preserve corrupted metadata for recovery');
 });
@@ -152,13 +152,13 @@ test('audio backup exports file contents and imports only new recordings',async(
 
 test('audio backup import rejects malformed records rather than silently skipping them',async()=>{
  const x=fixture();await x.store.initialize();
- await assert.rejects(x.store.importBackup({format:'collector-audio-backup.v1',recordings:[{data:'YQ==',durationMs:1,mimeType:'audio/aac'}]}),/element invalid/);
+ await assert.rejects(x.store.importBackup({format:'collector-audio-backup.v1',recordings:[{id:'invalid-record',createdAt:'2026-11-25T10:00:00.000Z',data:'YQ==',durationMs:1,mimeType:'audio/aac'}]}),/element invalid/);
  assert.equal(x.files.size,0);
 });
 
 test('audio backup import rejects malformed base64 and rolls back written files when index commit fails',async()=>{
  const x=fixture({failIndexWrite:true});await x.store.initialize();
- const malformed={format:'collector-audio-backup.v1',recordings:[{id:'bad',durationMs:1,mimeType:'audio/aac',data:'!invalid!'}]};
+ const malformed={format:'collector-audio-backup.v1',recordings:[{id:'bad',createdAt:'2026-11-25T10:00:00.000Z',durationMs:1,mimeType:'audio/aac',data:'!invalid!'}]};
  await assert.rejects(x.store.importBackup(malformed),/base64 invalide/);
  const valid={format:'collector-audio-backup.v1',recordings:[{id:'new',createdAt:'2026-11-25T10:00:00.000Z',durationMs:10,mimeType:'audio/aac',size:3,data:Buffer.from('abc').toString('base64')}]};
  await assert.rejects(x.store.importBackup(valid),/index unavailable/);
@@ -168,9 +168,9 @@ test('audio backup import rejects malformed base64 and rolls back written files 
 
 test('audio backup import enforces recording count and aggregate size limits',async()=>{
  const x=fixture();await x.store.initialize();
- const tooMany={format:'collector-audio-backup.v1',recordings:Array.from({length:101},(_,i)=>({id:'id'+i,durationMs:1,mimeType:'audio/aac',data:'YQ=='}))};
+ const tooMany={format:'collector-audio-backup.v1',recordings:Array.from({length:101},(_,i)=>({id:'id'+i,createdAt:'2026-11-25T10:00:00.000Z',durationMs:1,mimeType:'audio/aac',data:'YQ=='}))};
  await assert.rejects(x.store.importBackup(tooMany),/Format backup audio invalid/);
- const tooLarge={format:'collector-audio-backup.v1',recordings:[{id:'big',durationMs:1,mimeType:'audio/aac',data:'A'.repeat(70*1024*1024)}]};
+ const tooLarge={format:'collector-audio-backup.v1',recordings:[{id:'big',createdAt:'2026-11-25T10:00:00.000Z',durationMs:1,mimeType:'audio/aac',data:'A'.repeat(70*1024*1024)}]};
  await assert.rejects(x.store.importBackup(tooLarge),/limita totală|metadata sau fișier invalid/);
 });
 
