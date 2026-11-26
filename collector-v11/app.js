@@ -868,6 +868,7 @@ async function deleteAudioFromVerifiedCheckpoint(recordingId,{confirmBeforeDelet
 }
 async function transcribeAndInterpretAudioRecording(recordingId,button){
  if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){setAudioUi('idle','Există deja o interpretare sau o salvare în curs. Confirmă ori anulează propunerea curentă înainte de a procesa altă înregistrare.');return}
+ activeAudioRecordingId=null;
  const store=window.CollectorAudioTranscriptCheckpointStore;
  if(!store){setAudioUi('idle','Stocarea transcriptelor nu este disponibilă. Audio-ul original a fost păstrat.');return}
  button.disabled=true;

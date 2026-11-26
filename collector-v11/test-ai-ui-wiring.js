@@ -139,11 +139,12 @@ test('A failed independent readback locks further writes until journal revalidat
 
 test('Audio Transcrie + AI continues into AI interpretation and retains source until confirmed Core save',()=>{
  const app=fs.readFileSync('app.js','utf8');
- const start=app.indexOf("const transcribe=document.createElement('button')");
- const end=app.indexOf("const rename=document.createElement('button')",start);
+ const start=app.indexOf('async function transcribeAndInterpretAudioRecording');
+ const end=app.indexOf('async function renderAudioRecordings',start);
  const flow=app.slice(start,end);
- assert.ok(flow.includes('activeAudioRecordingId=record.id'));
+ assert.ok(flow.includes('activeAudioRecordingId=recordingId'));
  assert.ok(flow.includes('await runAICommand()'));
+ assert.ok(flow.includes('store.get(recordingId)'));
  assert.doesNotMatch(flow,/CollectorAudioStore\.remove/);
  assert.ok(app.includes('stableAudioCaptureTurnId(sourceRecordingId)'));
  assert.ok(app.includes("sourceId=sourceRecordingId?'audio:'+sourceRecordingId"));
@@ -174,7 +175,7 @@ test('Concurrent audio AI runs are rejected and each interpretation keeps its or
  assert.ok(run.includes('aiInterpretationPending=true'));
  assert.ok(run.includes('aiInterpretationPending=false'));
  assert.ok(run.includes('stableAudioCaptureTurnId(sourceRecordingId)'));
- const audio=app.slice(app.indexOf("const transcribe=document.createElement('button')"),app.indexOf("const rename=document.createElement('button')"));
+ const audio=app.slice(app.indexOf('async function transcribeAndInterpretAudioRecording'),app.indexOf('async function renderAudioRecordings'));
  assert.ok(audio.includes('if(aiInterpretationPending||pendingCoreCommand||coreCommitPending)'));
  assert.ok(audio.includes('activeAudioRecordingId=null'));
 });
@@ -213,7 +214,7 @@ test('Work recovery lists only actionable interrupted checkpoints and offers an 
 
 test('audio checkpoint records manual stages without persisting transcript or audio payload',()=>{
  const app=fs.readFileSync('app.js','utf8');
- const helper=app.slice(app.indexOf('async function writeAudioLifecycleCheckpoint'),app.indexOf('async function renderAudioRecordings'));
+ const helper=app.slice(app.indexOf('async function writeAudioLifecycleCheckpoint'),app.indexOf('async function clearAudioTranscriptCheckpoint'));
  assert.ok(helper.includes("idempotencyKey:'audio:'+String(recordingId)"));
  assert.ok(helper.includes("state==='source_retained'"));
  assert.ok(helper.includes('persistenceVerified:verified'));
@@ -315,8 +316,8 @@ test('The generic audio list delete action requires verified Core state after pr
 
 test('Audio processing stops when its durable start checkpoint cannot be written',()=>{
  const app=fs.readFileSync('app.js','utf8');
- const audio=app.slice(app.indexOf("const transcribe=document.createElement('button')"),app.indexOf("const rename=document.createElement('button')"));
- assert.ok(audio.includes("writeAudioLifecycleCheckpoint(record.id,'processing',{incrementAttempt:true})"));
+ const audio=app.slice(app.indexOf('async function transcribeAndInterpretAudioRecording'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(audio.includes("writeAudioLifecycleCheckpoint(recordingId,'processing',{incrementAttempt:true})"));
  assert.ok(audio.includes('Checkpoint-ul de recovery nu a putut fi salvat. Procesarea a fost oprită'));
  const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
  assert.ok(run.includes("writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')"));
@@ -370,8 +371,9 @@ test('Audio deletion is gated on verified Core event, cleared temporary transcri
 
 test('audio commit recovery detects existing commits before retranscription and prevents duplicate AI charges',()=>{
  const app=fs.readFileSync('app.js','utf8');
- const flow=app.slice(app.indexOf("const transcribe=document.createElement('button')"),app.indexOf("const rename=document.createElement('button')"));
- assert.ok(flow.indexOf('recoverCommittedAudioCapture(record.id)')<flow.indexOf('CollectorOpenAIProvider.transcribe'));
+ const flow=app.slice(app.indexOf('async function transcribeAndInterpretAudioRecording'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(flow.indexOf('recoverCommittedAudioCapture(recordingId)')<flow.indexOf('CollectorOpenAIProvider.transcribe(blob)'));
+ assert.ok(flow.indexOf('store.get(recordingId)')<flow.indexOf('CollectorOpenAIProvider.transcribe(blob)'));
  assert.ok(app.includes('stableAudioCaptureIntentKey(sourceRecordingId)'));
  assert.ok(app.includes('findCommittedEvent(persisted,recordingId)'));
  assert.ok(fs.readFileSync('ai/audio-capture-recovery.js','utf8').includes('collector-memory-capture:'));
