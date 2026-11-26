@@ -135,3 +135,28 @@ test('A failed independent readback locks further writes until journal revalidat
  assert.ok(handler.includes('Reîncarcă aplicația'));
  assert.ok(handler.includes('setAppStatus('));
 });
+
+
+test('Audio Transcrie + AI continues into AI interpretation and retains source until confirmed Core save',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const start=app.indexOf("const transcribe=document.createElement('button')");
+ const end=app.indexOf("const rename=document.createElement('button')",start);
+ const flow=app.slice(start,end);
+ assert.ok(flow.includes('activeAudioRecordingId=record.id'));
+ assert.ok(flow.includes('await runAICommand()'));
+ assert.doesNotMatch(flow,/CollectorAudioStore\.remove/);
+ assert.ok(app.includes('stableAudioCaptureTurnId(activeAudioRecordingId,text)'));
+ assert.ok(app.includes("sourceId=activeAudioRecordingId?'audio:'+activeAudioRecordingId"));
+ assert.ok(app.includes('audioRecordingId:activeAudioRecordingId'));
+ const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
+ assert.ok(confirm.includes('Șterge audio original'));
+ assert.ok(confirm.includes("confirm('Datele structurate sunt salvate și verificate în jurnal."));
+ assert.ok(confirm.includes('await CollectorAudioStore.remove(extrasState.audioRecordingId)'));
+});
+
+test('Stable audio capture key changes with transcript and is deterministic for retries',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ assert.match(app,/function stableAudioCaptureTurnId\(recordingId,transcript\)/);
+ assert.ok(app.includes('hash=Math.imul(hash,16777619)'));
+ assert.ok(app.includes("return 'audio:'+String(recordingId)+':'+(hash>>>0).toString(16)"));
+});
