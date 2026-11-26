@@ -9,7 +9,7 @@ let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
-function stableAudioCaptureTurnId(recordingId,transcript){let hash=2166136261;const value=String(transcript||'');for(let index=0;index<value.length;index++){hash^=value.charCodeAt(index);hash=Math.imul(hash,16777619)}return 'audio:'+String(recordingId)+':'+(hash>>>0).toString(16)}
+function stableAudioCaptureTurnId(recordingId,transcript){let primary=2166136261,secondary=0x9e3779b9;const value=String(transcript||'');for(let index=0;index<value.length;index++){const code=value.charCodeAt(index);primary=Math.imul(primary^code,16777619);secondary=Math.imul(secondary^(code+index),2246822519);secondary^=secondary>>>13}const fingerprint=(primary>>>0).toString(16).padStart(8,'0')+(secondary>>>0).toString(16).padStart(8,'0');return 'audio:'+String(recordingId)+':'+value.length+':'+fingerprint}
 async function loadDb(){
  let raw=null,rawText=null,parseError=null,sourceKey=KEY;
  try{rawText=await storageAdapter.readRaw(KEY);if(rawText!==null)raw=JSON.parse(rawText)}catch(error){parseError=error}
