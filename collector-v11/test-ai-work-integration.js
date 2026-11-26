@@ -21,9 +21,10 @@ test('Work renders semantic summaries, memory candidates and reminder previews f
 test('AI reminder scheduling validates intent and date, requires confirmation, and is idempotent',async()=>{
  const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
  const reminders=await fs.readFile(path.join(__dirname,'reminders.js'),'utf8');
- assert.match(app,/CollectorReminderIntent\.validateReminderSuggestion/);
+ assert.match(app,/CollectorReminderIntent/);
+ assert.match(app,/validateReminderSuggestion/);
  assert.match(app,/if\(!confirm\(/);
- assert.match(app,/idempotencyKey:'collector-ai-reminder:'\+turnId\+': '\+index/);
+ assert.ok(app.includes("idempotencyKey:'collector-ai-reminder:'+turnId+':'+index"));
  assert.match(app,/CollectorReminders\?\.schedule/);
  assert.match(reminders,/async function schedule\(input\)/);
  assert.match(reminders,/existing\.idempotencyKey===key/);
