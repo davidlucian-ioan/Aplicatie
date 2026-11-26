@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - 'feature/**'
     paths:
       - collector-v11/**
       - .github/workflows/collector-mobile-build.yml
