@@ -982,3 +982,11 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Corrected the audio-backup malformed fixture that had accidentally been valid (unsupported MIME now tests the intended metadata rejection).
 - CI was running on the previous checkpoint; verify latest HEAD workflows before calling this batch validated. Cloud API success had been observed on the preceding batch.
 - Remaining voice pipeline gap: native/browser audio recordings are retained locally, but they are not automatically transcribed/attached to an AI memory record; live dictation is browser SpeechRecognition and platform/browser availability varies. Next work should design a reliable, explicit audio-transcription path and durable source-grounded memory storage, without silently uploading recordings.
+
+
+## Checkpoint reminder timezone validation — 2026-11-26
+- Latest code HEAD before this documentation update: `f8282f85b34d1b691d6747eb42dc443d16abfd01`.
+- Reminder-intent validator now converts invalid/non-IANA timezone exceptions into a user clarification instead of allowing a thrown Intl RangeError to break scheduling.
+- Regression test added for invalid timezone string.
+- Reminder queue hardening, audio backup fixture correction, and continuous voice-session AI routing remain included in this branch.
+- CI for this latest HEAD must be checked; no runs were returned at the moment of this checkpoint.
