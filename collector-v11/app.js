@@ -73,22 +73,15 @@ async function loadDb(){
 async function persistRaw(x){if(localDataErasing)return false;try{await storageAdapter.writeRaw(KEY,JSON.stringify(x));return true}catch(err){console.error(err);return false}}
 async function recordReminderLifecycleInCore(entry){
  if(integrityBlocked)throw new Error('Jurnalul Core este în mod numai citire: '+integrityBlockReason);
- if(!entry||typeof entry.idempotencyKey!=='string'||!entry.idempotencyKey.trim()||typeof entry.reminderId!=='string'||!['scheduled','completed','cancelled','schedule_uncertain'].includes(entry.lifecycle))throw new TypeError('Evenimentul de lifecycle al reminderului este invalid.');
- const labels={scheduled:'programat',completed:'finalizat',cancelled:'anulat',schedule_uncertain:'cu programare incertă'};
- const description='Reminder '+labels[entry.lifecycle]+': '+String(entry.title||'Reminder')+' · termen: '+String(entry.dueAt||'necunoscut')+' · sursă: '+String(entry.sourceId||'manual');
- const command={
-  contractVersion:'collector.command.v1',intent:'reminder.lifecycle',source:'reminder-service',certainty:'certain',
-  idempotencyKey:entry.idempotencyKey,turnId:entry.reminderId,
-  payload:{domain:'reminder',reminderId:entry.reminderId,reminderLifecycle:entry.lifecycle,reminderTitle:String(entry.title||'').slice(0,160),dueAt:entry.dueAt||null,sourceId:entry.sourceId||null,occurredAt:entry.occurredAt,summary:description},
-  operations:[{operation:'event.note',target:null,data:{description}}],
-  requiresConfirmation:true
- };
+ if(!entry||typeof entry.idempotencyKey!=='string'||!entry.idempotencyKey.trim()||typeof entry.reminderId!=='string'||!['scheduled','completed','cancelled','schedule_uncertain','snoozed'].includes(entry.lifecycle))throw new TypeError('Evenimentul de lifecycle al reminderului este invalid.');
+ if(!window.CollectorReminderTask?.buildCommand)throw new Error('Modelul canonic Task pentru reminders nu este încărcat.');
  return serializeMutation(async()=>{
+  const command=window.CollectorReminderTask.buildCommand(entry,db);
   const port=ensureAICorePort();
   const preview=await port.preview(command);
-  if(!['preview_ok','duplicate'].includes(preview.status))throw new Error('Preview-ul evenimentului reminder a fost respins: '+preview.status);
+  if(!['preview_ok','duplicate'].includes(preview.status))throw new Error('Preview-ul task-ului reminder a fost respins: '+preview.status);
   const result=await port.execute(command,{confirmed:true});
-  if(!['committed','duplicate'].includes(result.status)||!result.eventId)throw new Error('Core nu a confirmat jurnalizarea reminderului: '+result.status+' '+(result.errors||[]).join(' '));
+  if(!['committed','duplicate'].includes(result.status)||!result.eventId)throw new Error('Core nu a confirmat salvarea task-ului reminder: '+result.status+' '+(result.errors||[]).join(' '));
   return {status:result.status,eventId:result.eventId};
  });
 }

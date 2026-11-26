@@ -1,7 +1,7 @@
 (function(root){
  'use strict';
  const KEY='collector_reminders_v1';
- const ALLOWED_STATUSES=new Set(['suggested','confirmed','scheduled','completed','cancelled']);
+ const ALLOWED_STATUSES=new Set(['suggested','confirmed','scheduled','completed','cancelled','snoozed']);
  const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
  function createService({storage,plugin,now=()=>new Date(),random=Math.random,onCoreEvent=null}={}){
   if(!storage||typeof storage.readRaw!=='function'||typeof storage.writeRaw!=='function')throw new TypeError('Stocarea pentru alarme nu este disponibilă.');
@@ -24,11 +24,11 @@
     if(ids.has(row.id)||notificationIds.has(row.notificationId))throw new Error('Lista alarmelor conține identificatori duplicați. Datele nu au fost suprascrise.');
     if(row.idempotencyKey&&idempotencyKeys.has(row.idempotencyKey))throw new Error('Lista alarmelor conține chei idempotente duplicate. Datele nu au fost suprascrise.');
     const outbox=Array.isArray(row.coreOutbox)?row.coreOutbox:[];
-    if(outbox.length>500||outbox.some(item=>!item||typeof item!=='object'||typeof item.idempotencyKey!=='string'||!item.idempotencyKey.trim()||typeof item.lifecycle!=='string'||!['scheduled','completed','cancelled','schedule_uncertain'].includes(item.lifecycle)||typeof item.occurredAt!=='string'||!Number.isFinite(Date.parse(item.occurredAt))))throw new Error('Coada de sincronizare Core a unui reminder este invalidă. Datele nu au fost suprascrise.');
+    if(outbox.length>500||outbox.some(item=>!item||typeof item!=='object'||typeof item.idempotencyKey!=='string'||!item.idempotencyKey.trim()||typeof item.lifecycle!=='string'||!['scheduled','completed','cancelled','schedule_uncertain','snoozed'].includes(item.lifecycle)||typeof item.occurredAt!=='string'||!Number.isFinite(Date.parse(item.occurredAt))))throw new Error('Coada de sincronizare Core a unui reminder este invalidă. Datele nu au fost suprascrise.');
     const outboxKeys=new Set();for(const item of outbox){if(outboxKeys.has(item.idempotencyKey))throw new Error('Coada de sincronizare Core conține evenimente duplicate. Datele nu au fost suprascrise.');outboxKeys.add(item.idempotencyKey)}
     ids.add(row.id);notificationIds.add(row.notificationId);if(row.idempotencyKey)idempotencyKeys.add(row.idempotencyKey);
    }
-   return parsed.map(row=>({...row,status:row.status||'scheduled',scheduleState:row.scheduleState||(['completed','cancelled'].includes(row.status)?'settled':'scheduled'),coreOutbox:Array.isArray(row.coreOutbox)?row.coreOutbox:[]}));
+   return parsed.map(row=>({...row,status:row.status||'scheduled',scheduleState:row.scheduleState||(['completed','cancelled','snoozed'].includes(row.status)?'settled':'scheduled'),coreOutbox:Array.isArray(row.coreOutbox)?row.coreOutbox:[]}));
   }
   async function list(){
    const raw=await storage.readRaw(KEY);
@@ -42,11 +42,12 @@
    if(await storage.readRaw(KEY)!==serialized)throw new Error('Verificarea independentă (readback) a stocării alarmelor a eșuat.');
    return true;
   }
-  function makeCoreLifecycleEvent(reminder,lifecycle,occurredAt=now().toISOString()){
+  function makeCoreLifecycleEvent(reminder,lifecycle,occurredAt=now().toISOString(),details={}){
    return {
     idempotencyKey:'collector-reminder-lifecycle:'+reminder.id+':'+lifecycle+':'+occurredAt,
     reminderId:reminder.id,lifecycle,title:reminder.title,dueAt:reminder.at,
-    occurredAt,sourceId:reminder.sourceId||null
+    occurredAt,sourceId:reminder.sourceId||null,
+    ...(lifecycle==='snoozed'?{replacementReminderId:details.replacementReminderId,replacementAt:details.replacementAt}: {})
    };
   }
   function pendingCoreCount(rows){return rows.reduce((sum,row)=>sum+(Array.isArray(row.coreOutbox)?row.coreOutbox.length:0),0)}
@@ -175,11 +176,11 @@
   async function snoozeInternal(id,minutes){
    if(![5,10,30,60].includes(minutes))throw new Error('Durata amânării nu este acceptată.');
    const rows=await list(),target=rows.find(row=>row.id===id);
-   if(!target||target.status==='cancelled'||target.status==='completed')throw new Error('Alarma nu mai există.');
+   if(!target||['cancelled','completed','snoozed'].includes(target.status))throw new Error('Alarma nu mai există.');
    const replacement=await createInternal({title:target.title,at:new Date(now().getTime()+minutes*60_000).toISOString(),sourceId:target.sourceId,context:target.sourceContext,idempotencyKey:'snooze:'+target.id+':'+minutes+':'+now().getTime()});
    try{
-    const cancelled=await updateStatusInternal(id,'cancelled');
-    if(!cancelled)throw new Error('Alarma originală nu a mai putut fi anulată.');
+    const cancelled=await updateStatusInternal(id,'snoozed',{replacementReminderId:replacement.id,replacementAt:replacement.at});
+    if(!cancelled)throw new Error('Alarma originală nu a mai putut fi marcată ca amânată.');
     return replacement;
    }catch(error){
     try{await updateStatusInternal(replacement.id,'cancelled')}catch(rollbackError){throw new Error('Amânarea a eșuat, iar alarma nouă nu a putut fi anulată: '+error.message+'; '+rollbackError.message)}
@@ -187,15 +188,15 @@
    }
   }
   function snooze(id,minutes){return serialized(()=>snoozeInternal(id,minutes))}
-  async function updateStatusInternal(id,status){
-   if(!['completed','cancelled'].includes(status))throw new Error('Starea reminderului nu este permisă.');
+  async function updateStatusInternal(id,status,details={}){
+   if(!['completed','cancelled','snoozed'].includes(status))throw new Error('Starea reminderului nu este permisă.');
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target)return false;
-   if(target.status==='completed'||target.status==='cancelled')return false;
+   if(['completed','cancelled','snoozed'].includes(target.status))return false;
    await plugin.cancel({notifications:[{id:target.notificationId}]});
    const occurredAt=now().toISOString();
-   const lifecycleEvent=coreEventHandler?makeCoreLifecycleEvent(target,status,occurredAt):null;
-   const updated={...target,status,scheduleState:'settled',scheduleUncertain:false,[status==='completed'?'completedAt':'cancelledAt']:occurredAt,coreOutbox:lifecycleEvent?[...(target.coreOutbox||[]),lifecycleEvent]:[...(target.coreOutbox||[])]};
+   const lifecycleEvent=coreEventHandler?makeCoreLifecycleEvent(target,status,occurredAt,details):null;
+   const updated={...target,status,scheduleState:'settled',scheduleUncertain:false,[status==='completed'?'completedAt':status==='snoozed'?'snoozedAt':'cancelledAt']:occurredAt,coreOutbox:lifecycleEvent?[...(target.coreOutbox||[]),lifecycleEvent]:[...(target.coreOutbox||[])]};
    try{await persistRows(rows.map(row=>row.id===id?updated:row))}
    catch(error){
     let restoreError=null;
