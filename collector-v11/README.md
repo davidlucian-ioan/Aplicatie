@@ -4,7 +4,7 @@ Aplicația executabilă Collector v11. Documentele canonice de produs și decizi
 
 ## Recovery audio și procesare AI
 
-Checkpoint-urile de procesare audio sunt persistente și au reindexare de recovery pentru crash-uri. Work conectează acțiunea manuală „Transcrie + AI” cu interpretarea AI, preview Core, confirmare explicită și recitire independentă a jurnalului. Înregistrarea originală este păstrată; ștergerea necesită o acțiune separată și confirmare. Motorul de lifecycle păstrează audio implicit și nu este încă legat de procesare automată în fundal. Detalii: [Audio lifecycle recovery](./AUDIO-LIFECYCLE-RECOVERY-v0.2.md).
+Checkpoint-urile de procesare audio sunt persistente și au reindexare de recovery pentru crash-uri. Work conectează acțiunea manuală „Transcrie + AI” cu interpretarea AI, preview Core, confirmare explicită și recitire independentă a jurnalului. Înregistrarea originală este păstrată; ștergerea după procesare cere recitirea independentă a evenimentului Core și confirmarea absenței fișierului și metadata audio. O înregistrare fără checkpoint poate fi eliminată manual cu confirmare; odată începută procesarea, ștergerea este blocată până la salvarea verificată. Transcriptul temporar este eliminat din draft după commit-ul verificat, iar cheia idempotentă este stabilă pe ID-ul înregistrării, independent de textul transcrierii. Motorul de lifecycle păstrează audio implicit și nu este încă legat de procesare automată în fundal. Detalii: [Audio lifecycle recovery](./AUDIO-LIFECYCLE-RECOVERY-v0.2.md).
 
 ## Aplicație mobilă
 
