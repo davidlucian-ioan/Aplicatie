@@ -791,6 +791,7 @@ async function verifyAudioCheckpointEvent(cp){
  const state=E.validateImport(JSON.parse(raw));
  const event=state.events.find(item=>item.id===cp.persistResult.eventId&&item.intentKey===cp.persistResult.intentKey);
  if(!event)throw Error('Evenimentul asociat înregistrării nu a fost găsit în jurnalul persistent.');
+ if(!window.CollectorAudioCaptureRecovery?.hasStructuredOperations(event))throw Error('Commit-ul conține doar o notă de eveniment, fără entități, atribute, relații sau alte operații structurate. Audio-ul original a fost păstrat.');
  return event;
 }
 async function recoverCommittedAudioCapture(recordingId){
@@ -802,6 +803,7 @@ async function recoverCommittedAudioCapture(recordingId){
   const persisted=E.validateImport(JSON.parse(raw));
   const event=Recovery.findCommittedEvent(persisted,recordingId);
   if(!event)return null;
+  if(!Recovery.hasStructuredOperations(event))return {status:'blocked',message:'Există deja un commit Core, dar conține doar o notă, nu memorie structurată. Nu retranscriu pentru a evita duplicate și costuri; audio-ul original rămâne păstrat pentru completarea structurii.'};
   await writeAudioLifecycleCheckpoint(recordingId,'source_retained',{captureId:stableAudioCaptureTurnId(recordingId),eventId:event.id,intentKey:event.intentKey});
   const draftCleared=await window.CollectorClearAudioDraft?.()===true;
   if(!draftCleared)return {status:'recovered',message:'Am găsit commit-ul Core anterior și l-am verificat independent. Draftul temporar nu a putut fi eliminat; audio-ul a fost păstrat.'};
