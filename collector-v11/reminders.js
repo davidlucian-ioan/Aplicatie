@@ -33,7 +33,7 @@
   async function persistRows(rows){
    const serialized=JSON.stringify(rows);
    if(await storage.writeRaw(KEY,serialized)!==true)throw new Error('Stocarea alarmelor nu a confirmat scrierea.');
-   if(await storage.readRaw(KEY)!==serialized)throw new Error('Verificarea independentă a stocării alarmelor a eșuat.');
+   if(await storage.readRaw(KEY)!==serialized)throw new Error('Verificarea independentă (readback) a stocării alarmelor a eșuat.');
    return true;
   }
   async function createInternal({title,at,sourceId=null,context='',idempotencyKey=null}={}){
