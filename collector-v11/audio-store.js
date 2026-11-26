@@ -194,7 +194,7 @@
    async importBackup(backup){
     await initialize();
     if(!backup||backup.format!=='collector-audio-backup.v1'||!Array.isArray(backup.recordings)||backup.recordings.length>100)throw new Error('Format backup audio invalid sau prea mare.');
-    const rows=await readIndex(),known=new Set(rows.map(row=>row.id)),prepared=[],totalBytes=0;
+    const rows=await readIndex(),known=new Set(rows.map(row=>row.id)),prepared=[];let totalBytes=0;
     for(const item of backup.recordings){
      if(!item||typeof item.id!=='string'||!item.id.trim()||item.id.length>200||typeof item.data!=='string'||!item.data||!Number.isFinite(Date.parse(item.createdAt||''))||!/^(?:audio\/(?:aac|webm|mp4|mpeg|ogg)|application\/octet-stream)$/i.test(item.mimeType||''))throw new Error('Backup audio conține un element invalid.');
      if(known.has(item.id))continue;
