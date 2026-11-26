@@ -123,3 +123,16 @@ Authoritative decision document: `PRODUCT-DECISIONS-2026-11-26.md`.
 - [ ] Trial expiry and each tier boundary tests; data/export remains accessible; no live billing changes without explicit approval.
 
 Audit finding: current branch has only the generic Core-operation AI proposal contract and a standalone native reminder service. Reminder AI integration, semantic audio summary/TTS, memory retrieval and 3-tier pricing/quotas are not yet implemented/validated.
+
+
+## Implementation progress update — 26 November 2026
+
+The following capabilities have received implementation in the current feature branch; these entries do **not** replace their end-to-end release acceptance:
+
+- Structured Recall includes AI synthesis over a bounded allowlist of local retrieved evidence, namespaced source IDs, exact source-ID validation and event-source navigation. Real OpenAI/browser/device validation remains open.
+- Native reminders now require verified local persistence before scheduling, use state-aware idempotency, serialize snooze and attempt compensating rollback. Uncertain notification scheduling is explicitly surfaced and duplicate creation is blocked.
+- Reminder completion/snooze still update the local reminder service only; they are not yet represented as canonical Core task/event records or exposed through Activity/Memory recall.
+- The current recorder → AI → Core path remains user-triggered. Background/unattended processing is not enabled.
+- TTS/voice playback, tiered subscriptions, external sandbox tests, encryption/privacy review, physical-device acceptance and signed store builds remain outstanding.
+
+Latest code CI checkpoint before the documentation update: Cloud API PASS, Android debug APK PASS, iOS Simulator PASS; Node/Core, Chromium and Firefox PASS; WebKit E2E still running. Recheck the new HEAD's workflow runs before claiming the complete suite is green.

@@ -55,3 +55,21 @@ PR remains unmerged. No production deployment, live billing activation or store 
 - Added a regression in `test-audio-processing-lifecycle-integration.js` for confirmation-before-transcript-clear/deletion checkpoint ordering and absent-source recovery cleanup.
 - CI workflow triggers were adjusted to avoid duplicate feature-branch push and PR runs: feature PRs run on `pull_request`, main runs on `push`; Quality also supports `workflow_dispatch`. The latest HEAD must validate these workflow changes.
 - Last fully verified HEAD before this batch: `88c08475` — Cloud API, Quality Suite and Android/iOS simulator builds all passed. New code/workflow commits after it are pending validation; do not claim green until the latest HEAD completes.
+
+
+## Batch 2026-11-26 — Recall synthesis and reminder transaction hardening
+
+- Reminder service now validates persisted rows and rejects invalid/duplicate identifiers and unknown states before use.
+- Local reminder writes are acknowledged and read back before native scheduling. Completion/cancellation and clear-all verify persistence; failure paths attempt compensation and retain metadata where notification state is uncertain.
+- Snooze is serialized as one transaction. An uncertain native schedule/cancel outcome is exposed on the reminder row and blocks an idempotent duplicate until the user resolves the existing reminder.
+- Structured Recall evidence now includes namespaced, stable source IDs for entities, relations, events, attributes and event attributes.
+- Cloud context sanitizer accepts only bounded Recall evidence kinds and scalar evidence values. Recall provider mode is read-only, grounded only in retrieved evidence, and requires answer source IDs filtered against the provided evidence list.
+- Think/Recall now includes explicit AI synthesis action. The UI only displays citations that match the local evidence set and supports navigation to cited Core events.
+- This is code-level implementation, not a claim of real-provider, WebKit, physical-device or store acceptance. Recall does not receive raw audio or the full event journal.
+
+### Remaining
+- Real OpenAI Recall validation and browser/native E2E coverage.
+- Canonical Core task/reminder ledger and Activity/Memory linkage.
+- Offline retry queue and controlled recovery UX.
+- TTS/voice playback.
+- Tiered plans, store sandbox cases, external Supabase/RevenueCat setup, encryption/privacy and physical-device acceptance.

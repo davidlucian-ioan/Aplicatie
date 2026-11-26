@@ -1141,3 +1141,59 @@ Do not merge PR #55, deploy production, enable billing or claim store readiness 
 ## CI follow-up — 2026-11-26
 
 At commit `65bb3530`, Cloud API was successful; Quality Suite and Mobile Build were pending. This is not the final head because this checkpoint is being updated; check the current PR head and its workflow runs before claiming validation.
+
+
+## Bulk batch — 10 prioritare implementate (2026-11-26)
+
+Repository: `davidlucian-ioan/Aplicatie`  
+Branch: `feature/openai-provider-integration`  
+PR #55: remains **open / draft / not merged**. Do not merge into `main`.
+
+### Implemented
+
+1. **Reminder record validation** — validates IDs, notification IDs, titles, dates, status values and uniqueness; malformed persisted reminder lists fail closed and are not overwritten.
+2. **Verified reminder persistence** — reminder metadata must be acknowledged by storage and read back byte-for-byte before a native notification is scheduled.
+3. **State-aware idempotency** — a repeated key returns an existing scheduled reminder only when it is in a known-safe state; cancelled/completed/uncertain intents cannot silently be treated as scheduled.
+4. **Serialized snooze transaction** — creation of replacement reminder and cancellation of original are serialized; failed replacement rollback is surfaced.
+5. **Reminder state rollback** — completion/cancellation now use verified persistence and attempt to restore the previous metadata and native notification if the state write fails.
+6. **Verified clear-all** — notification cancellation is followed by acknowledged metadata deletion and readback of key absence; failure attempts to restore metadata and notifications.
+7. **Uncertain scheduling recovery** — if native schedule fails and compensating cancel also fails, the reminder is retained with `scheduleUncertain`, shown as requiring verification, and duplicate creation with the same idempotency key is blocked. A later successful completion/cancellation clears the uncertainty marker.
+8. **Namespaced Recall evidence IDs** — entities, relations and events use type-prefixed source IDs; attributes and event attributes also have stable source IDs to avoid collisions.
+9. **Recall server safety and contract** — only bounded allowlisted evidence reaches OpenAI; Recall mode instructs the model to answer solely from that evidence, never mutate Core, and return source IDs. The server-side provider filters citations against exact IDs in the supplied evidence.
+10. **Recall UI synthesis** — Think/Recall can request an AI natural-language answer from local structured evidence only; it displays only source IDs present in the local retrieval result and allows navigation to cited events.
+
+Regression tests were added for reminder persistence/rollback/idempotency/concurrent snooze/uncertain notification recovery, Recall evidence IDs/sanitization/source validation, and Recall UI wiring.
+
+### Latest CI checked before this documentation checkpoint
+
+Pre-documentation code HEAD: `cad2e9f1f283759fe676538655164fe0dc651578`.
+
+- Collector Cloud API: **PASS**.
+- Android debug APK: **PASS**.
+- iOS Simulator build: **PASS**.
+- Quality Suite: Node/Core tests, generated invariants, generated Core sequences, coverage and Replay benchmark: **PASS**.
+- Chromium E2E: **PASS**.
+- Firefox E2E: **PASS**.
+- WebKit E2E: **IN PROGRESS** at the last check.
+
+The documentation-only commit below changes no runtime code; confirm the new HEAD's Quality/Mobile workflow runs before calling the final CI state green.
+
+### Still not launch-complete
+
+- Reminder completion/snooze are still local reminder metadata; they are not yet a canonical Core task/event ledger linked to Activity/Memory.
+- Offline retry queue and crash-safe user-facing recovery need further implementation and E2E tests.
+- Recorder-to-AI-to-Core processing is still user-triggered; do not enable unattended/background processing.
+- Recall synthesis has code-level source-ID filtering, but a real OpenAI call, evidence quality evaluation and full UI E2E validation remain outstanding.
+- TTS/voice playback is not implemented.
+- Tiered subscription pricing, store sandbox purchase/restore/renew/refund tests, Supabase production isolation, device validation, encryption/privacy review and signed store builds remain release gates.
+
+### Next priority order
+
+1. Finish latest-head WebKit E2E and verify all CI on the current PR head.
+2. Design and implement the canonical task/reminder ledger in Core, including source-event links, open/completed/snoozed/cancelled lifecycle and Recall visibility.
+3. Add offline processing/retry queue UX with explicit user control; preserve audio on every uncertain state.
+4. Test Recall against real provider responses and add failure/unsupported-answer E2E cases.
+5. Implement TTS only after source navigation and evidence behavior are stable.
+6. Complete pricing/tier/entitlement, external service, security, device and store acceptance.
+
+Release boundary unchanged: no merge, production deployment, live billing activation or store-readiness claim without explicit approval and external/device validation.
