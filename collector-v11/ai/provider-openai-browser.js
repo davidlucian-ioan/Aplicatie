@@ -33,5 +33,17 @@
     if(!response.ok)throw new Error(body.error||'Cererea AI a eșuat.');
     return body;
   }
-  root.CollectorOpenAIProvider={status,interpret};
+  async function transcribe(blob){
+    if(isNative()&&!apiBase())throw new Error('AI cloud nu este configurat pentru transcriere.');
+    if(!(blob instanceof Blob)||!blob.size)throw new Error('Înregistrarea audio este goală sau indisponibilă.');
+    if(blob.size>25*1024*1024)throw new Error('Înregistrarea depășește limita de 25 MB pentru transcriere.');
+    const auth=await authHeaders();if(!auth)throw new Error('Autentificarea cloud nu este configurată.');
+    const type=blob.type||'audio/webm';
+    const response=await fetch(apiUrl('/api/ai/transcribe'),{method:'POST',headers:{'Content-Type':type,...auth},body:blob});
+    const body=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(body.error||'Transcrierea audio a eșuat.');
+    if(typeof body.text!=='string'||!body.text.trim())throw new Error('Transcrierea nu a returnat text.');
+    return body;
+  }
+  root.CollectorOpenAIProvider={status,interpret,transcribe};
 })(typeof window!=='undefined'?window:globalThis);
