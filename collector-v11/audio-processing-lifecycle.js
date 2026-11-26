@@ -63,7 +63,7 @@
    inFlight.set(id,task);
    try{return await task}finally{if(inFlight.get(id)===task)inFlight.delete(id)}
   }
-  async function recoverDetails(){const rows=await checkpoints.list?.()||[];return rows.filter(cp=>!TERMINAL.includes(cp.state)).map(cp=>({id:cp.id,state:cp.state,attempts:Number(cp.attempts)||0,recoveryRequired:!!cp.recoveryRequired,error:cp.error||null,updatedAt:cp.updatedAt||null,audioDeleted:!!cp.audioDeleted,persistenceVerified:!!cp.persistenceVerified})).sort((a,b)=>String(a.updatedAt||'').localeCompare(String(b.updatedAt||'')))}
+  async function recoverDetails(){const rows=await checkpoints.list?.()||[];return rows.filter(cp=>!TERMINAL.includes(cp.state)&&cp.state!=='captured').map(cp=>({id:cp.id,state:cp.state,attempts:Number(cp.attempts)||0,recoveryRequired:!!cp.recoveryRequired,error:cp.error||null,updatedAt:cp.updatedAt||null,audioDeleted:!!cp.audioDeleted,persistenceVerified:!!cp.persistenceVerified})).sort((a,b)=>String(a.updatedAt||'').localeCompare(String(b.updatedAt||'')))}
   async function recover(){return (await recoverDetails()).map(cp=>cp.id)}
   return Object.freeze({process,recover,recoverDetails,states:STATES.slice()});
  }
