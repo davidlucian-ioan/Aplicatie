@@ -77,3 +77,21 @@ test('Recall evidence sanitizer rejects unsupported kinds and non-scalar fact va
  ]});
  assert.deepEqual(safe.recallEvidence,[{kind:'attribute',sourceId:'attr-1',entityId:'e1',entityName:'Pump',name:'spec',value:null}]);
 });
+
+test('Recall sanitizer allows bounded canonical task evidence and strips unknown fields',()=>{
+ const input={recallEvidence:[{
+  kind:'task',sourceId:'task:task:reminder:r1',reminderId:'r1',title:'Verifică pompa',status:'snoozed',
+  dueAt:'2026-11-27T09:00:00Z',sourceRef:'audio:capture-1',scheduleState:'settled',
+  successorReminderId:'r2',successorTaskId:'task:reminder:r2',successorDueAt:'2026-11-27T10:00:00Z',
+  transcript:'must-not-send',rawAudio:'secret',extraSecret:'strip'
+ }]};
+ const result=safeContext(input).recallEvidence;
+ assert.deepEqual(result,[{
+  kind:'task',sourceId:'task:task:reminder:r1',reminderId:'r1',title:'Verifică pompa',status:'snoozed',
+  dueAt:'2026-11-27T09:00:00Z',sourceRef:'audio:capture-1',scheduleState:'settled',
+  successorReminderId:'r2',successorTaskId:'task:reminder:r2',successorDueAt:'2026-11-27T10:00:00Z'
+ }]);
+ assert.equal(Object.hasOwn(result[0],'transcript'),false);
+ assert.equal(Object.hasOwn(result[0],'rawAudio'),false);
+ assert.equal(Object.hasOwn(result[0],'extraSecret'),false);
+});

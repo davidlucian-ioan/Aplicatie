@@ -471,3 +471,12 @@ test('transcript checkpoint is cleared before source deletion and after a verifi
  assert.ok(commit.includes('audioTranscriptCheckpointCleared'));
  assert.ok(deletion.indexOf('await clearAudioTranscriptCheckpoint(recordingId)')<deletion.indexOf('await CollectorAudioStore.remove(recordingId)'));
 });
+
+test('Recall UI renders canonical reminder tasks from structured evidence',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const recall=app.slice(app.indexOf('async function runStructuredRecall'),app.indexOf('function openRecallEvent'));
+ assert.match(recall,/result\\.tasks\\?\\.length/);
+ assert.match(recall,/Task-uri \\/ reminders/);
+ assert.match(recall,/task\\.successorDueAt/);
+ assert.match(recall,/row\\.kind==='task'/);
+});

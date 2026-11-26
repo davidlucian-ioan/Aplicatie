@@ -302,6 +302,7 @@ async function runStructuredRecall(query){
   status.textContent=total?total+' dovezi găsite în memoria structurată. Răspunsul este bazat exclusiv pe aceste înregistrări.':'Nu am găsit dovezi structurate pentru această întrebare. Nu voi completa prin presupuneri.';
   if(!total){box.innerHTML='<div class="empty">Nu există suficiente date salvate pentru a reconstrui acest context.</div>';return}
   const sections=[];
+  if(result.tasks?.length)sections.push('<section class="recall-section"><b>Task-uri / reminders</b>'+result.tasks.map(task=>{const status=task.status==='completed'?'Finalizat':task.status==='cancelled'?'Anulat':task.status==='snoozed'?'Amânat':'Deschis';const due=task.dueAt?new Date(task.dueAt).toLocaleString('ro-RO'):'Termen necunoscut';const source=task.sourceId?' · Sursă '+esc(task.sourceId):'';const successor=task.successorReminderId?' · Reprogramat '+esc(task.successorDueAt||task.successorReminderId):'';return '<div class="row"><div><b>'+esc(task.title)+'</b><div class="muted">'+status+' · '+esc(due)+source+successor+'</div></div></div>'}).join('')+'</section>');
   if(result.entities.length)sections.push('<section class="recall-section"><b>Entități</b>'+result.entities.map(e=>'<div class="row"><div><b>'+esc(e.name)+'</b><span class="muted"> · '+esc(e.type)+'</span><div>'+esc(JSON.stringify(e.attributes||{}))+'</div></div></div>').join('')+'</section>');
   if(result.attributes.length)sections.push('<section class="recall-section"><b>Facts / atribute</b>'+result.attributes.map(a=>'<div class="row"><div><b>'+esc(a.entityName)+' · '+esc(a.name)+'</b><div>'+esc(typeof a.value==='string'?a.value:JSON.stringify(a.value))+'</div></div></div>').join('')+'</section>');
   if(result.relations.length)sections.push('<section class="recall-section"><b>Relații</b>'+result.relations.map(r=>'<div class="row"><div><b>'+esc(r.sourceName)+' → '+esc(r.type)+' → '+esc(r.targetName)+'</b><div class="muted">'+esc(r.startedAt||r.createdAt||'')+'</div></div></div>').join('')+'</section>');
@@ -326,6 +327,7 @@ async function runStructuredRecall(query){
      else if(row.kind==='event')label=(row.summary||'Eveniment')+' · '+id.slice(0,10);
      else if(row.kind==='attribute')label=row.entityName+' · '+row.name;
      else if(row.kind==='event_attribute')label='Eveniment · '+row.name;
+     else if(row.kind==='task')label=(row.title||'Task')+' · '+(row.status||'open')+(row.dueAt?' · '+row.dueAt:'');
      return row.kind==='event'?'<button class="secondary" type="button" data-recall-open-event="'+esc(row.id)+'">'+esc(label)+'</button>':'<span class="muted">'+esc(label)+'</span>';
     }).join(' ');
     answerBox.innerHTML='<section class="note"><b>Răspuns Collector</b><p>'+esc(ai.answer)+'</p><div class="row"><b>Surse verificate:</b> '+sourceHtml+'</div></section>';
