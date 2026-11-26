@@ -282,3 +282,11 @@ test('Verified audio commit clears the temporary Work transcript draft before of
  assert.ok(confirm.includes('activeAudioRecordingId=null'));
  assert.ok(confirm.includes('audioCheckpointReady&&audioDraftCleared'));
 });
+
+
+test('audio source deletion uses the storage adapter independent absence verifier',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(deletion.includes('CollectorAudioStore.verifyRemoved(recordingId)'));
+ assert.ok(deletion.includes('AudioStore nu a confirmat independent eliminarea'));
+});
