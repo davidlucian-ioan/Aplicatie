@@ -899,7 +899,12 @@ async function refreshAudioLifecycleRecovery(){
   const availableIds=new Set(audioRows.map(record=>record.id));
   const repairNote=diagnostics?.orphanIds?.length?'<p class="note">Recovery a detectat și reindexat '+diagnostics.orphanIds.length+' checkpoint-uri orfane după o întrerupere.</p>':'';
   if(!pending.length){box.innerHTML=repairNote+'<p class="muted">Nu există procesări AI audio întrerupte. Înregistrările păstrate rămân disponibile în Work.</p>';return}
-  box.innerHTML=repairNote+'<p><b>'+pending.length+'</b> procesări audio necesită verificare. Recuperarea este manuală; nimic nu este retranscris sau șters automat.</p>'+pending.map(cp=>'<div class="row"><div><b>'+esc(cp.id)+'</b><div class="muted">'+esc(cp.state)+' · încercări '+(Number(cp.attempts)||0)+(cp.error?' · '+esc(cp.error):'')+'</div></div>'+(availableIds.has(cp.id)?'<button class="secondary" type="button" data-audio-lifecycle-retry="'+esc(cp.id)+'">Reia transcriere + AI</button>':'<span class="muted">Sursa audio nu este disponibilă local.</span>')+'</div>').join('');
+  box.innerHTML=repairNote+'<p><b>'+pending.length+'</b> procesări audio necesită verificare. Recuperarea este manuală; nimic nu este retranscris sau șters automat.</p>'+pending.map(cp=>{
+   const action=cp.state==='audio_deletion_pending'
+    ?'<button class="secondary" type="button" data-audio-lifecycle-delete="'+esc(cp.id)+'">Verifică finalizarea ștergerii</button>'
+    :availableIds.has(cp.id)?'<button class="secondary" type="button" data-audio-lifecycle-retry="'+esc(cp.id)+'">Reia transcriere + AI</button>':'<span class="muted">Sursa audio nu este disponibilă local.</span>';
+   return '<div class="row"><div><b>'+esc(cp.id)+'</b><div class="muted">'+esc(cp.state)+' · încercări '+(Number(cp.attempts)||0)+(cp.error?' · '+esc(cp.error):'')+'</div></div>'+action+'</div>';
+  }).join('');
   box.querySelectorAll('[data-audio-lifecycle-retry]').forEach(button=>button.addEventListener('click',async()=>{
    button.disabled=true;
    try{
@@ -908,6 +913,14 @@ async function refreshAudioLifecycleRecovery(){
     if(!target)throw Error('Nu am găsit controlul pentru înregistrarea audio recuperată.');
     showPage('assistant');target.click();
    }catch(error){button.disabled=false;button.textContent='Reîncearcă recovery';box.insertAdjacentHTML('beforeend','<p class="note">'+esc(error.message)+'</p>')}
+  }));
+  box.querySelectorAll('[data-audio-lifecycle-delete]').forEach(button=>button.addEventListener('click',async()=>{
+   button.disabled=true;
+   try{
+    const deletion=await deleteAudioFromVerifiedCheckpoint(button.dataset.audioLifecycleDelete);
+    if(deletion.status==='cancelled'){button.disabled=false;return}
+    await renderAudioRecordings();await refreshAudioLifecycleRecovery();
+   }catch(error){button.disabled=false;button.textContent='Reîncearcă verificarea';box.insertAdjacentHTML('beforeend','<p class="note">'+esc(error.message)+'</p>')}
   }));
  }catch(error){box.textContent='Nu pot citi checkpoint-urile de recovery: '+String(error?.message||error)}
 }
