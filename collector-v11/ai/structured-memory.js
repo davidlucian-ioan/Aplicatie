@@ -41,8 +41,8 @@ function resolveEntities(extraction,state,{threshold=0.92}={}){
  const all=Array.isArray(state?.entities)?state.entities:[];
  return extraction.entities.map(candidate=>{
   if(candidate.existingId){const exact=all.find(e=>e.id===candidate.existingId);if(!exact)throw new Error('Unknown existing entity ID');return {...candidate,resolvedId:exact.id,match:'explicit'};}
-  const names=[candidate.name,...candidate.aliases].map(normalizeName).filter(Boolean);
-  const matches=all.filter(e=>e.type===candidate.type&&names.includes(normalizeName(e.name)));
+  const storedAliases=Array.isArray(e.attributes?.aliases)?e.attributes.aliases:[];const names=[candidate.name,...candidate.aliases].map(normalizeName).filter(Boolean);
+  const matches=all.filter(e=>e.type===candidate.type&&names.includes(normalizeName(e.name))||storedAliases.some(a=>names.includes(normalizeName(a))));
   const unique=[...new Map(matches.map(e=>[e.id,e])).values()];
   if(unique.length===1)return {...candidate,resolvedId:unique[0].id,match:'exact'};
   if(unique.length>1)return {...candidate,resolvedId:null,match:'ambiguous',candidateIds:unique.map(e=>e.id)};
