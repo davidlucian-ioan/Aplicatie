@@ -12,9 +12,13 @@
    if(!id)fail('Recording ID required');
    let cp=await checkpoints.get(id);
    if(cp&&TERMINAL.includes(cp.state))return cp;
+   if(cp&&cp.state==='audio_deleted'){cp.state='completed';cp.completedAt=cp.completedAt||new Date().toISOString();await saveCheckpoint(cp);return cp;}
    if(cp&&!retry&&cp.state==='failed')fail('Processing previously failed; call retry explicitly');
    const record=await audioStore.get(id);
-   if(!record)fail('Audio source missing; cannot recover processing');
+   if(!record){
+    if(cp&&cp.state==='audio_deletion_pending'&&cp.persistenceVerified===true){cp.audioDeleted=true;cp.state='audio_deleted';await saveCheckpoint(cp);cp.state='completed';cp.completedAt=new Date().toISOString();await saveCheckpoint(cp);return cp;}
+    fail('Audio source missing; cannot recover processing');
+   }
    cp=cp||{id,state:'captured',attempts:0,idempotencyKey:'audio:'+id,createdAt:new Date().toISOString()};
    cp.attempts=(cp.attempts||0)+1;cp.error=null;cp.recoveryRequired=false;
    try{
@@ -42,7 +46,7 @@
     throw error;
    }
   }
-  async function recover(){const rows=await checkpoints.list?.()||[];const pending=[];for(const cp of rows)if(!TERMINAL.includes(cp.state)&&cp.recoveryRequired)pending.push(cp.id);return pending}
+  async function recover(){const rows=await checkpoints.list?.()||[];const pending=[];for(const cp of rows)if(!TERMINAL.includes(cp.state))pending.push(cp.id);return pending}
   return Object.freeze({process,recover,states:STATES.slice()});
  }
  const api={STATES,createAudioProcessingLifecycle};
