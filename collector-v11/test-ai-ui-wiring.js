@@ -379,5 +379,5 @@ test('audio deletion requires at least one structured Core operation beyond an e
  const recovery=fs.readFileSync('ai/audio-capture-recovery.js','utf8');
  assert.ok(verify.includes('hasStructuredOperations(event)'));
  assert.ok(recovery.includes("operation.operation!=='event.note'"));
- assert.ok(app.includes('fără memorie structurată'));
+ assert.ok(app.includes('fără entități, atribute, relații sau alte operații structurate'));
 });
