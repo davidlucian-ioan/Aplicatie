@@ -55,7 +55,7 @@ test('AI memory candidates are only persisted through explicit Core preview and 
  assert.ok(app.includes("operation:'event.note'"),'memory is persisted as an append-only Core note');
  assert.ok(app.includes('ensureAICorePort().preview(command)'),'memory save must preview through Core');
  assert.ok(app.includes('execute(command,{confirmed:true})'),'memory save must require explicit confirmation');
- assert.ok(app.includes('collector-ai-memory:'+"turnId"),'memory idempotency is scoped to AI turn');
+ assert.ok(app.includes("collector-ai-memory:'+turnId"),'memory idempotency is scoped to AI turn');
 });
 test('UI expune providerul OpenAI separat de interpretarea locală',()=>{
  const html=fs.readFileSync('index-server.html','utf8');
