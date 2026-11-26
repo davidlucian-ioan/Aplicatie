@@ -12,7 +12,7 @@ function fixture({verify=true,deleteOk=true,failAt=null}={}){
  validate:async x=>{maybe('validate');return x},
  persist:async(x)=>{maybe('persist');return {commitId:'c1'}},
  verifyPersisted:async()=>{maybe('verify');return verify}});
- return {lifecycle,audio,cps,calls,setFailAt(value){currentFail=value}};
+ return {lifecycle,audio,store,cps,calls,setFailAt(value){currentFail=value}};
 }
 test('audio deleted only after persistence verification and deletion verification',async()=>{const x=fixture();const cp=await x.lifecycle.process('a1');assert.equal(cp.state,'completed');assert.equal(x.audio.has('a1'),false);assert.deepEqual(x.calls,['interpret','extract','validate','persist','verify','delete'])});
 test('failed persistence retains original audio and recovery checkpoint',async()=>{const x=fixture({failAt:'persist'});await assert.rejects(x.lifecycle.process('a1'),/persist failure/);assert.equal(x.audio.has('a1'),true);assert.equal(x.cps.get('a1').state,'failed');assert.equal(x.cps.get('a1').recoveryRequired,true);assert.ok(!x.calls.includes('delete'))});
@@ -27,8 +27,8 @@ test('crash after audio deletion but before completion checkpoint recovers witho
 test('concurrent duplicate requests for one recording share a single processing run',async()=>{const x=fixture();const [a,b]=await Promise.all([x.lifecycle.process('a1'),x.lifecycle.process('a1')]);assert.equal(a.state,'completed');assert.equal(b.state,'completed');assert.equal(x.calls.filter(v=>v==='interpret').length,1);assert.equal(x.calls.filter(v=>v==='delete').length,1)});
 
 test('recovery handles delete succeeding before a thrown response by re-verifying persistence',async()=>{
- const x=fixture();const originalRemove=x.audio.get.bind(x.audio);let first=true;
- x.audio.remove=async id=>{if(first){first=false;x.audio.delete(id);throw Error('lost delete response')}return originalRemove(id)};
+ const x=fixture();const originalRemove=x.store.remove.bind(x.store);let first=true;
+ x.store.remove=async id=>{if(first){first=false;x.audio.delete(id);throw Error('lost delete response')}return originalRemove(id)};
  await assert.rejects(x.lifecycle.process('a1'),/lost delete response/);
  assert.equal(x.audio.has('a1'),false);
  assert.equal(x.cps.get('a1').state,'failed');
@@ -43,6 +43,6 @@ test('checkpoint identity mismatch fails closed without touching audio or provid
 });
 test('missing audio without independently verified persistence cannot be marked complete',async()=>{
  const x=fixture();x.audio.delete('a1');x.cps.set('a1',{id:'a1',state:'failed',idempotencyKey:'audio:a1',persistenceVerified:false});
- await assert.rejects(x.lifecycle.process('a1'),/cannot recover processing/);
+ await assert.rejects(x.lifecycle.process('a1',{retry:true}),/cannot recover processing/);
  assert.notEqual(x.cps.get('a1').state,'completed');
 });
