@@ -8,5 +8,6 @@ module.exports = {
   ...require('./core-adapter'),
   ...require('./core-port'),
   ...require('./orchestrator'),
-  ...require('./structured-memory')
+  ...require('./structured-memory'),
+  ...require('./structured-recall')
 };
