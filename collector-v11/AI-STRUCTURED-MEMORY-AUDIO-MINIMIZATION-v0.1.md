@@ -72,3 +72,9 @@ F. Test ambiguous names, alias collisions, date/time parsing, duplicate capture/
 - Audio is not deleted until durable structured commit succeeds; after success deletion is verified and user policy honored.
 - Recall answers only from retrieved evidence, distinguish plans from completed actions and expose source links.
 - Full original audio is not required for recall.
+
+
+## MVP implementation progress (26 Nov)
+- First implementation increment now exists in the branch: strict extraction validation, entity resolution, command generation, structured recall evidence, provider schema output and Work UI preview wiring.
+- This is still proposal-first: no silent auto-commit, no automatic audio deletion yet. Ambiguous identity is a hard clarification.
+- Next acceptance slice: CI validation and integration tests for structured extraction through browser UI/Core; then durable audio-retention state machine and source-linked recall UI.
