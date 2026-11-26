@@ -759,6 +759,33 @@ async function writeAudioLifecycleCheckpoint(recordingId,state,{error=null,incre
  if(state==='source_retained'&&eventId)cp.persistResult={eventId:String(eventId),intentKey:String(intentKey||'')};
  await store.put(cp);return cp;
 }
+async function verifyAudioCheckpointEvent(cp){
+ if(!cp||cp.persisted!==true||cp.persistenceVerified!==true||!cp.persistResult?.eventId||!cp.persistResult?.intentKey)throw Error('Checkpoint-ul nu conține dovada completă a commit-ului.');
+ const raw=await storageAdapter.readRaw(KEY);
+ if(typeof raw!=='string'||!raw)throw Error('Jurnalul persistent nu este disponibil pentru verificare.');
+ const state=E.validateImport(JSON.parse(raw));
+ const event=state.events.find(item=>item.id===cp.persistResult.eventId&&item.intentKey===cp.persistResult.intentKey);
+ if(!event)throw Error('Evenimentul asociat înregistrării nu a fost găsit în jurnalul persistent.');
+ return event;
+}
+async function deleteAudioFromVerifiedCheckpoint(recordingId){
+ const store=window.CollectorAudioLifecycleCheckpointStore;
+ if(!store)throw Error('Stocarea checkpoint-urilor audio nu este disponibilă.');
+ let cp=await store.get(recordingId);
+ if(!cp||!['source_retained','audio_deletion_pending'].includes(cp.state))throw Error('Ștergerea este permisă doar după un commit verificat în Core.');
+ await verifyAudioCheckpointEvent(cp);
+ let source=await CollectorAudioStore.get(recordingId);
+ if(source!==null&&source!==undefined){
+  if(!confirm('Evenimentul structurat a fost verificat independent în jurnal. Ștergi definitiv înregistrarea audio originală de pe acest dispozitiv?'))return {status:'cancelled'};
+  await writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending',{eventId:cp.persistResult.eventId,intentKey:cp.persistResult.intentKey});
+  try{await CollectorAudioStore.remove(recordingId)}catch(removeError){const afterFailure=await CollectorAudioStore.get(recordingId);if(afterFailure!==null&&afterFailure!==undefined)throw removeError}
+ }
+ const remaining=await CollectorAudioStore.get(recordingId);
+ if(remaining!==null&&remaining!==undefined)throw Error('Înregistrarea audio există încă după solicitarea de ștergere.');
+ await verifyAudioCheckpointEvent(await store.get(recordingId));
+ await writeAudioLifecycleCheckpoint(recordingId,'completed',{eventId:cp.persistResult.eventId,intentKey:cp.persistResult.intentKey});
+ return {status:'completed'};
+}
 async function renderAudioRecordings(){
  const list=document.getElementById('audioRecordingList');if(!list||!window.CollectorAudioStore)return;
  try{
