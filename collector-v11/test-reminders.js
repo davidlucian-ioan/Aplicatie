@@ -177,7 +177,7 @@ test('concurrent snooze requests for one reminder are serialized and create at m
  assert.equal(results.filter(result=>result.status==='rejected').length,1);
  const rows=JSON.parse(x.raw());
  assert.equal(rows.filter(row=>row.status==='scheduled').length,1);
- assert.equal(rows.filter(row=>row.status==='cancelled').length,1);
+ assert.equal(rows.filter(row=>row.status==='snoozed').length,1);
  assert.equal(x.calls.filter(call=>call.type==='schedule').length,2);
 });
 
@@ -260,7 +260,7 @@ test('schedule, snooze and completion are each appended to Core as distinct life
  const first=await x.service.create({title:'Verifică filtrul',at:'2026-11-24T12:00:00Z',sourceId:'work:turn-9'});
  const replacement=await x.service.snooze(first.id,10);
  await x.service.complete(replacement.id);
- assert.deepEqual(x.coreCalls.map(event=>event.lifecycle),['scheduled','scheduled','cancelled','completed']);
+ assert.deepEqual(x.coreCalls.map(event=>event.lifecycle),['scheduled','scheduled','snoozed','completed']);
  assert.ok(x.coreCalls.every(event=>typeof event.idempotencyKey==='string'&&event.idempotencyKey.startsWith('collector-reminder-lifecycle:')));
  const completed=JSON.parse(x.raw()).find(row=>row.id===replacement.id);
  assert.equal(completed.status,'completed');

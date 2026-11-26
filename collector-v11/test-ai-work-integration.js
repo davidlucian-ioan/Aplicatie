@@ -64,8 +64,8 @@ test('native reminder lifecycle persists a canonical Task entity through the ver
  assert.match(app,/CollectorReminders\?\.initialize\(\{onCoreEvent:recordReminderLifecycleInCore\}\)/);
  assert.match(app,/snoozed/);
  assert.match(helper,/operation:'entity\.create'/);
- assert.match(helper,/name:'taskKind',value:'reminder'/);
- assert.match(helper,/name:'status',value:'open'/);
+ assert.match(helper,/set\('taskKind','reminder'\)/);
+ assert.match(helper,/set\('status','open'\)/);
  assert.match(helper,/successorReminderId/);
  assert.doesNotMatch(app.slice(app.indexOf('async function recordReminderLifecycleInCore'),app.indexOf('function ensureAICorePort')),/operation:'event\.note'/);
  assert.match(reminders,/coreOutbox/);
