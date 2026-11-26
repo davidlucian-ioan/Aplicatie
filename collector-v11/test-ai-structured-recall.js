@@ -101,3 +101,23 @@ test('reminder task Recall evidence is prioritized and not duplicated as a gener
  assert.equal(result.evidence[0].kind,'task');
  assert.equal(result.evidence[0].sourceId,'task:task:reminder:priority');
 });
+
+test('Recall exposes general user tasks with deadlines, priorities and incomplete dependencies',()=>{
+ const task={id:'task:user:substrate',name:'Pregătește substratul',type:'task',attributes:{taskKind:'user',taskId:'substrate',status:'open',dueDate:'2026-11-27',priority:'high',sourceId:'work:turn-9'}};
+ const prerequisite={id:'task:user:stock',name:'Verifică stocul',type:'task',attributes:{taskKind:'user',taskId:'stock',status:'open',priority:'normal'}};
+ const relation={id:'dep-stock',sourceId:task.id,targetId:prerequisite.id,type:'depends_on',endedAt:null};
+ const fixture={...state,entities:[...state.entities,task,prerequisite],relations:[...state.relations,relation]};
+ const result=searchStructuredMemory(fixture,'pregătește substratul');
+ assert.equal(result.tasks.length,1);
+ assert.equal(result.tasks[0].taskKind,'user');
+ assert.equal(result.tasks[0].taskId,'substrate');
+ assert.equal(result.tasks[0].dueDate,'2026-11-27');
+ assert.equal(result.tasks[0].priority,'high');
+ assert.equal(result.tasks[0].blockedBy[0].title,'Verifică stocul');
+ assert.equal(result.entities.some(entity=>entity.id===task.id),false);
+ assert.equal(result.evidence[0].kind,'task');
+ assert.equal(result.evidence[0].blockedBy[0].taskId,prerequisite.id);
+ require('./ai/structured-recall-browser.js');
+ const browser=globalThis.CollectorStructuredRecall.searchStructuredMemory(fixture,'pregătește substratul');
+ assert.deepEqual(browser,result);
+});

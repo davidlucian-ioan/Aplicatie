@@ -489,3 +489,22 @@ test('Recall UI clearly distinguishes uncertain native reminder scheduling',()=>
  assert.ok(recall.includes("task.scheduleState==='scheduled'"));
  assert.ok(recall.includes('Notificare programată'));
 });
+
+test('Work creates general tasks without scheduling notifications and Think previews before confirm',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const enhancement=app.slice(app.indexOf('function renderAIEnhancements'),app.indexOf('async function runAICommand'));
+ const taskBranch=enhancement.slice(enhancement.indexOf("if(checked.action==='create_task')"),enhancement.indexOf("if(checked.action!=='schedule'"));
+ assert.ok(enhancement.includes("suggestion.intent==='task'"));
+ assert.ok(taskBranch.includes('taskApi.createTaskCommand'));
+ assert.ok(taskBranch.includes('port.preview(command)'));
+ assert.ok(!taskBranch.includes('CollectorReminders'));
+ assert.ok(taskBranch.includes('Nu se programează nicio notificare'));
+ const board=app.slice(app.indexOf('function renderTasks'),app.indexOf('function render(){'));
+ assert.ok(board.includes("taskKind==='user'"));
+ assert.ok(board.includes('taskBoard'));
+ assert.ok(board.includes('blockers.length'));
+ assert.ok(board.includes('data-task-action'));
+ const handler=app.slice(app.indexOf("document.getElementById('taskBoard')?.addEventListener"),app.indexOf('function applyPageFilters'));
+ assert.ok(handler.indexOf('port.preview(command)')<handler.indexOf('if(!confirm('));
+ assert.ok(handler.indexOf('if(!confirm(')<handler.indexOf('port.execute(command,{confirmed:true})'));
+});

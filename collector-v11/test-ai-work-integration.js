@@ -89,3 +89,18 @@ test('canonical reminder tasks store structured lifecycle metadata without trans
  assert.match(helper,/set\('sourceId',sourceId\)/);
  assert.doesNotMatch(helper,/sourceContext|transcript|rawTranscript/);
 });
+
+test('explicit task suggestions become replayable Core user tasks without notification side effects',async()=>{
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ const helper=await fs.readFile(path.join(__dirname,'ai','task-command.js'),'utf8');
+ const intent=await fs.readFile(path.join(__dirname,'ai','reminder-intent.js'),'utf8');
+ const branch=app.slice(app.indexOf("if(checked.action==='create_task')"),app.indexOf("if(checked.action!=='schedule'"));
+ assert.match(intent,/intent==='task'/);
+ assert.match(intent,/action:'create_task'/);
+ assert.match(branch,/taskApi\.createTaskCommand/);
+ assert.match(branch,/port\.preview\(command\)/);
+ assert.doesNotMatch(branch,/CollectorReminders/);
+ assert.match(helper,/set\('taskKind','user'\)/);
+ assert.match(helper,/operation:'entity\.create'/);
+ assert.match(helper,/relation\.create/);
+});

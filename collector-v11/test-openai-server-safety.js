@@ -95,3 +95,18 @@ test('Recall sanitizer allows bounded canonical task evidence and strips unknown
  assert.equal(Object.hasOwn(result[0],'rawAudio'),false);
  assert.equal(Object.hasOwn(result[0],'extraSecret'),false);
 });
+
+test('Recall sanitizer allowlists general-task metadata and strips transcript and arbitrary dependency fields',()=>{
+ const safe=safeContext({recallEvidence:[{
+  kind:'task',sourceId:'task:task:user:t1',taskKind:'user',taskId:'t1',title:'Pregătește substratul',status:'open',
+  dueDate:'2026-11-27',dueTime:'09:30',timezone:'Europe/Bucharest',priority:'high',
+  dependencyIds:['task:user:t2'],blockedBy:[{taskId:'task:user:t2',title:'Verifică stocul',status:'open',secret:'strip'}],
+  transcript:'do-not-send',rawAudio:'secret',privateField:'strip'
+ }]});
+ assert.deepEqual(safe.recallEvidence,[{
+  kind:'task',sourceId:'task:task:user:t1',taskKind:'user',taskId:'t1',reminderId:'',title:'Pregătește substratul',status:'open',
+  dueAt:'',dueDate:'2026-11-27',dueTime:'09:30',timezone:'Europe/Bucharest',priority:'high',sourceRef:'',
+  scheduleState:'',successorReminderId:'',successorTaskId:'',successorDueAt:'',
+  dependencyIds:['task:user:t2'],blockedBy:[{taskId:'task:user:t2',title:'Verifică stocul',status:'open'}]
+ }]);
+});
