@@ -34,6 +34,10 @@ test('invalid date and invalid time rejected or clarified',()=>{
 test('invalid title is rejected',()=>{
  assert.throws(()=>validateReminderSuggestion({...base,title:' '.repeat(2)}),/Descrierea reminder/);
 });
+test('timezone IANA invalid is clarified instead of crashing scheduling flow',()=>{
+ const result=resolveDue({date:'2026-11-27',time:'09:00'},{now,timezone:'Romania/Invalid'});
+ assert.equal(result.action,'clarify');assert.match(result.question,/fusul orar/i);
+});
 test('DST gap is rejected instead of silently changing time',()=>{
  const result=resolveDue({date:'2027-03-28',time:'03:30'},{now:new Date('2027-03-01'),timezone:'Europe/Bucharest'});
  assert.equal(result.action,'clarify');
