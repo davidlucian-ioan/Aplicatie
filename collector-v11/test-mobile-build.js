@@ -234,7 +234,7 @@ test('all entrypoints expose guarded full local-data erasure without cloud accou
  assert.ok(app.includes('await mutationQueue.catch(()=>undefined)'));
  assert.ok(app.includes('await window.CollectorNativeAudioRecorder?.discardPending?.()'));
  assert.ok(app.includes('await window.CollectorAudioStore.clearAll()'));
- assert.ok(app.includes('await window.CollectorReminders?.clearAll?.()'));
+ assert.ok(app.includes('await window.CollectorReminders?.clearAll?.({discardPendingCoreEvents:true})'));
  assert.ok(app.includes('await storageAdapter.clearCollectorData()'));
 });
 
