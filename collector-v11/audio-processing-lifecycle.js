@@ -86,7 +86,7 @@
   let queue=Promise.resolve();
   function enqueue(fn){const task=queue.then(fn);queue=task.catch(()=>{});return task}
   async function readIndex(){const raw=await storage.readRaw(indexKey);if(raw===null||raw===undefined)return [];let ids;try{ids=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint index is corrupt')}if(!Array.isArray(ids)||ids.some(id=>typeof id!=='string'||!id.trim())||new Set(ids).size!==ids.length)fail('Audio lifecycle checkpoint index is invalid');return ids}
-  async function readCheckpoint(id){if(typeof id!=='string'||!id.trim())fail('Checkpoint ID required');const raw=await storage.readRaw(keyFor(id));if(raw===null||raw===undefined)return null;let cp;try{cp=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint is corrupt: '+id)}return validateCheckpoint(cp,id)}
+  async function readCheckpoint(id){if(typeof id!=='string'||!id.trim())fail('Checkpoint ID required');const raw=await storage.readRaw(keyFor(id));if(raw===null||raw===undefined)return null;if(String(raw).length>maxCheckpointBytes)fail('Audio lifecycle checkpoint exceeds storage limit: '+id);let cp;try{cp=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint is corrupt: '+id)}return validateCheckpoint(cp,id)}
   async function writeIndex(ids){const unique=[...new Set(ids)].sort();const serialized=JSON.stringify(unique);if(await storage.writeRaw(indexKey,serialized)!==true)fail('Checkpoint index write was not acknowledged');const readback=await storage.readRaw(indexKey);if(readback!==serialized)fail('Checkpoint index readback verification failed');return unique}
   async function scanKeys(){
    if(typeof storage.listRawKeys!=='function')return null;
