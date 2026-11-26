@@ -194,3 +194,34 @@ test('Work recovery diagnostics omit successfully retained audio checkpoints',()
  assert.ok(refresh.includes("!['completed','source_retained'].includes(cp.state)"));
  assert.ok(refresh.includes('Nu există procesări AI audio întrerupte'));
 });
+
+
+test('Work recovery lists only actionable interrupted checkpoints and offers an explicit manual retry',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const recovery=app.slice(app.indexOf('async function refreshAudioLifecycleRecovery'),app.indexOf('async function initializeCollectorApp'));
+ assert.ok(recovery.includes("!['completed','source_retained','captured'].includes(cp.state)"));
+ assert.ok(recovery.includes('data-audio-lifecycle-retry'));
+ assert.ok(recovery.includes('data-audio-transcribe-id'));
+ assert.ok(recovery.includes('await renderAudioRecordings()'));
+ assert.ok(recovery.includes('target.click()'));
+ assert.ok(recovery.includes('if(!target)throw Error'));
+ assert.ok(recovery.includes('nimic nu este retranscris sau șters automat'));
+});
+
+test('audio checkpoint records manual stages without persisting transcript or audio payload',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const helper=app.slice(app.indexOf('async function writeAudioLifecycleCheckpoint'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(helper.includes("idempotencyKey:'audio:'+String(recordingId)"));
+ assert.ok(helper.includes("state==='source_retained'"));
+ assert.ok(helper.includes('persistenceVerified:verified'));
+ assert.ok(helper.includes('sourceRetained:state===\'source_retained\''));
+ assert.ok(helper.includes('persistResult={eventId:String(eventId),intentKey:String(intentKey||\'\')}'));
+ assert.doesNotMatch(helper,/transcript|audioData|blob:/i);
+ const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
+ assert.ok(run.includes("writeAudioLifecycleCheckpoint(sourceRecordingId,'validated'"));
+ assert.ok(run.includes("writeAudioLifecycleCheckpoint(sourceRecordingId,'failed'"));
+ const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
+ assert.ok(confirm.includes("writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'source_retained'"));
+ assert.ok(confirm.includes("writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'audio_deletion_pending'"));
+ assert.ok(confirm.includes("writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'completed'"));
+});
