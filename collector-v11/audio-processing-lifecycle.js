@@ -8,7 +8,7 @@
   if(!audioStore||typeof audioStore.get!=='function'||typeof audioStore.remove!=='function')fail('Audio store must support get/remove');
   const checkpoints=checkpointStore||{async get(){return null},async put(){},async remove(){}};
   async function saveCheckpoint(cp){cp.updatedAt=new Date().toISOString();await checkpoints.put(cp);return cp}
-  async function process(id,{retry=false}={}){
+  async function processUnlocked(id,{retry=false}={}){
    if(!id)fail('Recording ID required');
    let cp=await checkpoints.get(id);
    if(cp&&TERMINAL.includes(cp.state))return cp;
@@ -45,6 +45,14 @@
     await saveCheckpoint(cp).catch(()=>{});
     throw error;
    }
+  }
+  const inFlight=new Map();
+  async function process(id,options={}){
+   if(!id)fail('Recording ID required');
+   if(inFlight.has(id))return inFlight.get(id);
+   const task=processUnlocked(id,options);
+   inFlight.set(id,task);
+   try{return await task}finally{if(inFlight.get(id)===task)inFlight.delete(id)}
   }
   async function recover(){const rows=await checkpoints.list?.()||[];const pending=[];for(const cp of rows)if(!TERMINAL.includes(cp.state))pending.push(cp.id);return pending}
   return Object.freeze({process,recover,states:STATES.slice()});
