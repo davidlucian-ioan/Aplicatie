@@ -1107,7 +1107,7 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Recovery poate confirma un delete care s-a întâmplat, dar numai cu re-verificarea structurii persistate; fără audio și fără dovadă, lifecycle rămâne fail-closed.
 - Checkpoint identity guard reduce riscul de cross-recording processing și commit-key reuse.
 - Testul Recall are acum pași reali în UI și verifică resetarea filtrului, evitând false-negative din cauza locatorilor ascunși.
-- Lifecycle rămâne modul separat, netransformat încă în pipeline-ul Recorder→AI→Core. Auto-delete în produs nu este activat; următoarea integrare trebuie să fie staged și cu opt-in/guard până la testarea E2E.
+- Această notă descria starea anterioară și este supersedată de implementarea manuală actuală: Work conectează Transcrie + AI la Core, cu preview și confirmare explicită. După commit verificat independent, audio-ul se elimină implicit dacă preferința nu este Keep; nu există procesare/retry unattended în background.
 
 ### Corectarea testelor din această rundă
 - CI a expus două defecte în testele noi, nu în codul lifecycle: fixture-ul returna Map-ul audio dar testul încerca să înlocuiască `audio.remove` (metoda reală aparține store-ului); iar testul pentru missing source cu checkpoint failed trebuia să folosească `retry:true` conform contractului.
@@ -1119,7 +1119,7 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 ### Verified repository state at handoff
 - Repository: `davidlucian-ioan/Aplicatie`; branch: `feature/openai-provider-integration`; PR #55 remains open, draft, not merged.
 - Before the latest hardening batch, HEAD `88c08475` had **all three workflows green**: Cloud API, Quality Suite and Mobile Build (Android debug APK + iOS simulator).
-- New hardening commits after that green HEAD: `21f25c1d` (audio deletion cancellation ordering), `883ef4a8` (regression test), `e59cf81c` (cleanup transcript after lost audio-delete response), `e48f88b6` (regression coverage), plus CI workflow trigger changes. Latest branch HEAD at checkpoint: `c9276158`; workflows were queued/in progress. Verify CI against the latest HEAD before marking these changes validated.
+- New hardening commits after that green HEAD: `21f25c1d` (audio deletion cancellation ordering), `883ef4a8` (regression test), `e59cf81c` (cleanup transcript after lost audio-delete response), `e48f88b6` (regression coverage), plus CI workflow trigger changes. Latest branch HEAD at that checkpoint: `c9276158`; workflows were queued/in progress. A subsequent documentation checkpoint is `65bb3530`: Cloud API passed, while Quality and Mobile were pending. Verify CI against the latest HEAD before marking these changes validated.
 
 ### Implemented in this continuation
 1. Audio-delete cancellation no longer clears the temporary transcript before user confirmation.
@@ -1136,3 +1136,8 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 
 ### Release boundary
 Do not merge PR #55, deploy production, enable billing or claim store readiness without explicit approval and external/device validation.
+
+
+## CI follow-up — 2026-11-26
+
+At commit `65bb3530`, Cloud API was successful; Quality Suite and Mobile Build were pending. This is not the final head because this checkpoint is being updated; check the current PR head and its workflow runs before claiming validation.
