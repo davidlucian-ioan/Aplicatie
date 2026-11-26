@@ -196,7 +196,7 @@
     if(!backup||backup.format!=='collector-audio-backup.v1'||!Array.isArray(backup.recordings)||backup.recordings.length>100)throw new Error('Format backup audio invalid sau prea mare.');
     const rows=await readIndex(),known=new Set(rows.map(row=>row.id)),prepared=[],totalBytes=0;
     for(const item of backup.recordings){
-     if(!item||typeof item.id!=='string'||!item.id.trim()||item.id.length>200||typeof item.data!=='string'||!item.data||!Number.isFinite(Date.parse(item.createdAt||''))||!/^(?:audio\\/(?:aac|webm|mp4|mpeg|ogg)|application\\/octet-stream)$/i.test(item.mimeType||''))throw new Error('Backup audio conține un element invalid.');
+     if(!item||typeof item.id!=='string'||!item.id.trim()||item.id.length>200||typeof item.data!=='string'||!item.data||!Number.isFinite(Date.parse(item.createdAt||''))||!/^(?:audio\/(?:aac|webm|mp4|mpeg|ogg)|application\/octet-stream)$/i.test(item.mimeType||''))throw new Error('Backup audio conține un element invalid.');
      if(known.has(item.id))continue;
      if(!/^[A-Za-z0-9+/]*={0,2}$/.test(item.data)||item.data.length%4!==0)throw new Error('Backup audio conține date base64 invalide.');
      const size=Math.floor(item.data.length*3/4)-(item.data.endsWith('==')?2:item.data.endsWith('=')?1:0);
