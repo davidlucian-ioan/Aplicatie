@@ -878,6 +878,9 @@ async function deleteAudioFromVerifiedCheckpoint(recordingId,{confirmBeforeDelet
   await clearAudioTranscriptCheckpoint(recordingId);
   await writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending',{eventId:cp.persistResult.eventId,intentKey:cp.persistResult.intentKey});
   try{await CollectorAudioStore.remove(recordingId)}catch(removeError){if(!(await verifyAudioRemoval()))throw removeError}
+ }else{
+  // A prior removal may have succeeded before its response/checkpoint was lost.
+  await clearAudioTranscriptCheckpoint(recordingId);
  }
  if(!(await verifyAudioRemoval()))throw Error('AudioStore nu a confirmat independent eliminarea fișierului și a metadata înregistrării.');
  await verifyAudioCheckpointEvent(await store.get(recordingId));
