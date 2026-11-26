@@ -9,7 +9,7 @@ let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
-function stableAudioCaptureTurnId(recordingId,transcript){let primary=2166136261,secondary=0x9e3779b9;const value=String(transcript||'');for(let index=0;index<value.length;index++){const code=value.charCodeAt(index);primary=Math.imul(primary^code,16777619);secondary=Math.imul(secondary^(code+index),2246822519);secondary^=secondary>>>13}const fingerprint=(primary>>>0).toString(16).padStart(8,'0')+(secondary>>>0).toString(16).padStart(8,'0');return 'audio:'+String(recordingId)+':'+value.length+':'+fingerprint}
+function stableAudioCaptureTurnId(recordingId){if(typeof recordingId!=='string'||!recordingId.trim())throw new TypeError('Audio recording ID is required');return 'audio:'+recordingId}
 async function loadDb(){
  let raw=null,rawText=null,parseError=null,sourceKey=KEY;
  try{rawText=await storageAdapter.readRaw(KEY);if(rawText!==null)raw=JSON.parse(rawText)}catch(error){parseError=error}
@@ -307,13 +307,18 @@ async function confirmCoreCommand(){
  try{
   const result=await serializeMutation(()=>ensureAICorePort().execute(command,{confirmed:true}));
   if(result.status==='committed'||result.status==='duplicate'){
-   let audioCheckpointReady=!extrasState?.audioRecordingId,audioCheckpointError=null;
-   if(extrasState?.audioRecordingId){try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'source_retained',{captureId:extrasState.turnId,eventId:result.eventId,intentKey:command.idempotencyKey}) ;audioCheckpointReady=true}catch(error){audioCheckpointError=error}}
+   let audioCheckpointReady=!extrasState?.audioRecordingId,audioCheckpointError=null,audioDraftCleared=true,audioDraftError=null;
+   if(extrasState?.audioRecordingId){
+    activeAudioRecordingId=null;
+    audioDraftCleared=await window.CollectorClearAudioDraft?.()===true;
+    if(!audioDraftCleared)audioDraftError='Transcriptul temporar nu a putut fi eliminat și verificat din draftul local.';
+    try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'source_retained',{captureId:extrasState.turnId,eventId:result.eventId,intentKey:command.idempotencyKey});audioCheckpointReady=true}catch(error){audioCheckpointError=error}
+   }
    const message='<b class="status-ok">'+(result.status==='committed'?'Salvat cu succes':'Comandă deja procesată')+'</b><p>Event ID: '+esc(result.eventId||'—')+'</p>';
    const extras=extrasState?renderAIEnhancements(extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId):'';
-   box.innerHTML=message+extras+(audioCheckpointError?'<p class="note">Core a confirmat salvarea, dar checkpoint-ul audio nu a putut fi actualizat. Înregistrarea este păstrată și ștergerea nu este disponibilă: '+esc(audioCheckpointError.message)+'</p>':'');
+   box.innerHTML=message+extras+(audioDraftError?'<p class="note">'+esc(audioDraftError)+' Înregistrarea audio originală a fost păstrată; ștergerea nu este disponibilă din această confirmare.</p>':'')+(audioCheckpointError?'<p class="note">Core a confirmat salvarea, dar checkpoint-ul audio nu a putut fi actualizat. Înregistrarea originală este păstrată și ștergerea nu este disponibilă: '+esc(audioCheckpointError.message)+'</p>':'');
    if(extrasState)bindAIEnhancements(box,extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId);
-   if(extrasState?.audioRecordingId&&audioCheckpointReady&&(result.status==='committed'||result.status==='duplicate')){
+   if(extrasState?.audioRecordingId&&audioCheckpointReady&&audioDraftCleared&&(result.status==='committed'||result.status==='duplicate')){
     const deleteSource=document.createElement('button');deleteSource.type='button';deleteSource.className='secondary';deleteSource.textContent='Șterge audio original';
     deleteSource.addEventListener('click',async()=>{
      deleteSource.disabled=true;
@@ -412,7 +417,7 @@ async function runAICommand(){
    entities:db.entities.slice(0,150).map(e=>({id:e.id,name:e.name,type:e.type})),
    attributes:db.attributes.slice(0,100).map(a=>({id:a.id,name:a.name,type:a.type,required:Boolean(a.required),identifying:Boolean(a.identifying),temporal:Boolean(a.temporal),min:a.min??null,max:a.max??null}))
   };
-  const turnId=sourceRecordingId?stableAudioCaptureTurnId(sourceRecordingId,text):E.uid(),sourceId=sourceRecordingId?'audio:'+sourceRecordingId:'work:'+turnId;
+  const turnId=sourceRecordingId?stableAudioCaptureTurnId(sourceRecordingId):E.uid(),sourceId=sourceRecordingId?'audio:'+sourceRecordingId:'work:'+turnId;
   const response=await CollectorOpenAIProvider.interpret(text,context);
   void refreshAIProviderStatus();
   const ai=response.interpretation||{};
@@ -818,6 +823,16 @@ function initializeWorkDraft(){
    if(version===writeVersion)status.textContent=value.trim()?'Draft salvat local automat.':'Draft gol.';
   }).catch(error=>{if(version===writeVersion)status.textContent='Nu am putut salva draftul local: '+error.message});
   return draftWriteQueue;
+ };
+ window.CollectorClearAudioDraft=async()=>{
+  const version=++writeVersion;input.value='';
+  draftWriteQueue=draftWriteQueue.catch(()=>undefined).then(async()=>{
+   await storageAdapter.removeRaw(WORK_DRAFT_KEY);
+   const remaining=await storageAdapter.readRaw(WORK_DRAFT_KEY);
+   if(remaining!==null)throw Error('Draftul audio există încă după eliminare.');
+   if(version===writeVersion&&status)status.textContent='Transcriptul temporar audio a fost eliminat după salvarea verificată.';
+  });
+  try{await draftWriteQueue;return true}catch(error){if(version===writeVersion&&status)status.textContent='Transcriptul a fost scos din Work, dar draftul persistent nu a putut fi verificat: '+error.message;return false}
  };
  (async()=>{
   const version=writeVersion;
