@@ -1,18 +1,40 @@
 (function(root){
  'use strict';
  const KEY='collector_reminders_v1';
+ const ALLOWED_STATUSES=new Set(['suggested','confirmed','scheduled','completed','cancelled']);
  const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
  function createService({storage,plugin,now=()=>new Date(),random=Math.random}={}){
   if(!storage||typeof storage.readRaw!=='function'||typeof storage.writeRaw!=='function')throw new TypeError('Stocarea pentru alarme nu este disponibilă.');
   if(!plugin||typeof plugin.schedule!=='function'||typeof plugin.cancel!=='function')throw new TypeError('Notificările native nu sunt disponibile pe acest dispozitiv.');
   let mutationQueue=Promise.resolve();
   function serialized(task){const next=mutationQueue.then(task,task);mutationQueue=next.catch(()=>{});return next}
+  function validateRows(parsed){
+   if(!Array.isArray(parsed))throw new Error('Lista alarmelor este invalidă. Datele nu au fost suprascrise.');
+   const ids=new Set(),notificationIds=new Set(),idempotencyKeys=new Set();
+   for(const row of parsed){
+    if(!row||typeof row!=='object'||Array.isArray(row)||typeof row.id!=='string'||!row.id.trim()||row.id.length>180||
+      !Number.isInteger(row.notificationId)||row.notificationId<1||row.notificationId>2147483647||
+      typeof row.title!=='string'||!row.title.trim()||row.title.length>160||
+      typeof row.at!=='string'||!Number.isFinite(Date.parse(row.at)))throw new Error('Lista alarmelor este invalidă. Datele nu au fost suprascrise.');
+    const status=row.status||'scheduled';
+    if(!ALLOWED_STATUSES.has(status))throw new Error('Lista alarmelor conține o stare necunoscută. Datele nu au fost suprascrise.');
+    if(ids.has(row.id)||notificationIds.has(row.notificationId))throw new Error('Lista alarmelor conține identificatori duplicați. Datele nu au fost suprascrise.');
+    if(row.idempotencyKey&&idempotencyKeys.has(row.idempotencyKey))throw new Error('Lista alarmelor conține chei idempotente duplicate. Datele nu au fost suprascrise.');
+    ids.add(row.id);notificationIds.add(row.notificationId);if(row.idempotencyKey)idempotencyKeys.add(row.idempotencyKey);
+   }
+   return parsed.map(row=>row.status?row:{...row,status:'scheduled'});
+  }
   async function list(){
    const raw=await storage.readRaw(KEY);
-   if(raw===null)return [];
-   const parsed=JSON.parse(raw);
-   if(!Array.isArray(parsed)||parsed.some(row=>!row||typeof row.id!=='string'||!Number.isInteger(row.notificationId)||typeof row.title!=='string'||typeof row.at!=='string'))throw new Error('Lista alarmelor este invalidă. Datele nu au fost suprascrise.');
-   return parsed;
+   if(raw===null||raw===undefined)return [];
+   let parsed;try{parsed=JSON.parse(raw)}catch{throw new Error('Lista alarmelor este coruptă. Datele nu au fost suprascrise.')}
+   return validateRows(parsed);
+  }
+  async function persistRows(rows){
+   const serialized=JSON.stringify(rows);
+   if(await storage.writeRaw(KEY,serialized)!==true)throw new Error('Stocarea alarmelor nu a confirmat scrierea.');
+   if(await storage.readRaw(KEY)!==serialized)throw new Error('Verificarea independentă a stocării alarmelor a eșuat.');
+   return true;
   }
   async function createInternal({title,at,sourceId=null,context='',idempotencyKey=null}={}){
    const name=String(title||'').trim();
@@ -23,14 +45,21 @@
    const source=typeof sourceId==='string'?sourceId.trim().slice(0,200):'';
    const sourceContext=typeof context==='string'?context.trim().slice(0,500):'';
    const rows=await list();
-   if(key){const existing=rows.find(row=>row.idempotencyKey===key);if(existing)return {...existing,alreadyScheduled:true}}
+   if(key){
+    const existing=rows.find(row=>row.idempotencyKey===key);
+    if(existing){
+     if((existing.status||'scheduled')==='scheduled')return {...existing,alreadyScheduled:true};
+     throw new Error('Această intenție de reminder este deja în starea '+existing.status+'; creează o intenție nouă doar după o decizie explicită.');
+    }
+   }
    const used=new Set(rows.map(row=>row.notificationId));
    let notificationId=0;
    for(let attempt=0;attempt<20&&!notificationId;attempt++){const candidate=Math.floor(random()*2147483646)+1;if(!used.has(candidate))notificationId=candidate}
    if(!notificationId)throw new Error('Nu am putut genera un identificator unic pentru alarmă.');
    const reminder={id:'reminder-'+Date.now().toString(36)+'-'+notificationId.toString(36),notificationId,title:name,at:date.toISOString(),createdAt:now().toISOString(),status:'scheduled',sourceId:source||null,sourceContext:sourceContext||null,idempotencyKey:key||null};
    const next=[...rows,reminder];
-   await storage.writeRaw(KEY,JSON.stringify(next));
+   // Persist and read back before scheduling a native side effect.
+   await persistRows(next);
    try{
     if(typeof plugin.checkPermissions==='function'){
      let permission=await plugin.checkPermissions();
@@ -40,29 +69,41 @@
     await plugin.schedule({notifications:[{id:notificationId,title:'Collector',body:name,schedule:{at:date},extra:{reminderId:reminder.id,sourceId:reminder.sourceId,idempotencyKey:reminder.idempotencyKey},isExactNotification:false}]});
     return reminder;
    }catch(error){
-    try{await storage.writeRaw(KEY,JSON.stringify(rows))}catch(rollbackError){throw new Error('Alarma nu a putut fi programată, iar lista locală necesită verificare: '+error.message+'; '+rollbackError.message)}
+    try{await persistRows(rows)}catch(rollbackError){throw new Error('Alarma nu a putut fi programată, iar rollback-ul listei locale nu a putut fi verificat: '+error.message+'; '+rollbackError.message)}
     throw error;
    }
   }
   function create(input){return serialized(()=>createInternal(input))}
-  async function snooze(id,minutes){
+  async function snoozeInternal(id,minutes){
    if(![5,10,30,60].includes(minutes))throw new Error('Durata amânării nu este acceptată.');
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target||target.status==='cancelled'||target.status==='completed')throw new Error('Alarma nu mai există.');
-   const replacement=await create({title:target.title,at:new Date(now().getTime()+minutes*60_000).toISOString(),sourceId:target.sourceId,context:target.sourceContext,idempotencyKey:'snooze:'+target.id+':'+minutes+':'+now().getTime()});
-   try{await cancel(id);return replacement}catch(error){try{await cancel(replacement.id)}catch(rollbackError){throw new Error('Amânarea a eșuat, iar alarma nouă nu a putut fi anulată: '+error.message+'; '+rollbackError.message)}throw error}
+   const replacement=await createInternal({title:target.title,at:new Date(now().getTime()+minutes*60_000).toISOString(),sourceId:target.sourceId,context:target.sourceContext,idempotencyKey:'snooze:'+target.id+':'+minutes+':'+now().getTime()});
+   try{
+    const cancelled=await updateStatusInternal(id,'cancelled');
+    if(!cancelled)throw new Error('Alarma originală nu a mai putut fi anulată.');
+    return replacement;
+   }catch(error){
+    try{await updateStatusInternal(replacement.id,'cancelled')}catch(rollbackError){throw new Error('Amânarea a eșuat, iar alarma nouă nu a putut fi anulată: '+error.message+'; '+rollbackError.message)}
+    throw error;
+   }
   }
+  function snooze(id,minutes){return serialized(()=>snoozeInternal(id,minutes))}
   async function updateStatusInternal(id,status){
+   if(!['completed','cancelled'].includes(status))throw new Error('Starea reminderului nu este permisă.');
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target)return false;
    if(target.status==='completed'||target.status==='cancelled')return false;
    await plugin.cancel({notifications:[{id:target.notificationId}]});
    const updated={...target,status,[status==='completed'?'completedAt':'cancelledAt']:now().toISOString()};
-   try{await storage.writeRaw(KEY,JSON.stringify(rows.map(row=>row.id===id?updated:row)))}
+   try{await persistRows(rows.map(row=>row.id===id?updated:row))}
    catch(error){
     try{await plugin.schedule({notifications:[{id:target.notificationId,title:'Collector',body:target.title,schedule:{at:new Date(target.at)},extra:{reminderId:target.id,sourceId:target.sourceId,idempotencyKey:target.idempotencyKey},isExactNotification:false}]})}
-    catch(rollbackError){throw new Error('Notificarea a fost anulată, dar starea locală nu a putut fi actualizată și notificarea nu a putut fi restaurată: '+error.message+'; '+rollbackError.message)}
-    throw new Error('Schimbarea stării a fost rollback-uită: notificarea a fost reprogramată, dar stocarea nu a putut fi actualizată: '+error.message);
+    catch(rollbackError){
+     // The cancelled notification could not be restored; persist an explicit recovery warning instead of claiming a clean rollback.
+     throw new Error('Notificarea a fost anulată, iar starea locală și restaurarea notificării au eșuat: '+error.message+'; '+rollbackError.message);
+    }
+    throw new Error('Schimbarea stării a fost rollback-uită: notificarea a fost reprogramată, dar stocarea nu a putut fi verificată: '+error.message);
    }
    return updated;
   }
@@ -71,15 +112,25 @@
   async function complete(id){return await updateStatus(id,'completed')}
   async function clearAllInternal(){
    const rows=await list();
-   if(!rows.length){if(typeof storage.removeRaw==='function')await storage.removeRaw(KEY);return 0}
+   if(!rows.length){
+    if(typeof storage.removeRaw==='function'){
+     if(await storage.removeRaw(KEY)!==true||((await storage.readRaw(KEY))!==null&&(await storage.readRaw(KEY))!==undefined))throw new Error('Stocarea alarmelor nu a confirmat eliminarea listei goale.');
+    }
+    return 0;
+   }
    const notifications=rows.filter(row=>row.status!=='cancelled'&&row.status!=='completed').map(row=>({id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id,sourceId:row.sourceId,idempotencyKey:row.idempotencyKey},isExactNotification:false}));
    if(notifications.length)await plugin.cancel({notifications});
    try{
     if(typeof storage.removeRaw!=='function')throw new Error('Stocarea nu poate elimina metadatele alarmelor.');
-    await storage.removeRaw(KEY);
+    if(await storage.removeRaw(KEY)!==true)throw new Error('Stocarea nu a confirmat eliminarea alarmelor.');
+    const remaining=await storage.readRaw(KEY);
+    if(remaining!==null&&remaining!==undefined)throw new Error('Lista alarmelor este încă prezentă după ștergere.');
    }catch(error){
-    try{await plugin.schedule({notifications})}
-    catch(rollbackError){throw new Error('Alarmele au fost anulate, dar metadatele nu au putut fi șterse și notificările nu au putut fi restaurate: '+error.message+'; '+rollbackError.message)}
+    let restoreError=null;
+    try{await persistRows(rows)}catch(failure){restoreError=failure}
+    try{if(notifications.length)await plugin.schedule({notifications})}
+    catch(rollbackError){throw new Error('Alarmele au fost anulate, dar restaurarea metadatelor/notificărilor a eșuat: '+error.message+'; '+(restoreError?.message||'')+'; '+rollbackError.message)}
+    if(restoreError)throw new Error('Ștergerea alarmelor a fost rollback-uită parțial; notificările au fost reprogramate, dar metadatele nu au putut fi verificate: '+error.message+'; '+restoreError.message);
     throw new Error('Ștergerea alarmelor a fost rollback-uită; notificările au fost reprogramate: '+error.message);
    }
    return rows.length;
