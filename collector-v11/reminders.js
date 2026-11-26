@@ -19,6 +19,8 @@
       typeof row.at!=='string'||!Number.isFinite(Date.parse(row.at)))throw new Error('Lista alarmelor este invalidă. Datele nu au fost suprascrise.');
     const status=row.status||'scheduled';
     if(!ALLOWED_STATUSES.has(status))throw new Error('Lista alarmelor conține o stare necunoscută. Datele nu au fost suprascrise.');
+    const scheduleState=row.scheduleState||(['completed','cancelled'].includes(status)?'settled':'scheduled');
+    if(!['pending','scheduled','uncertain','settled'].includes(scheduleState))throw new Error('Lista alarmelor conține o stare de programare necunoscută. Datele nu au fost suprascrise.');
     if(ids.has(row.id)||notificationIds.has(row.notificationId))throw new Error('Lista alarmelor conține identificatori duplicați. Datele nu au fost suprascrise.');
     if(row.idempotencyKey&&idempotencyKeys.has(row.idempotencyKey))throw new Error('Lista alarmelor conține chei idempotente duplicate. Datele nu au fost suprascrise.');
     const outbox=Array.isArray(row.coreOutbox)?row.coreOutbox:[];
@@ -26,7 +28,7 @@
     const outboxKeys=new Set();for(const item of outbox){if(outboxKeys.has(item.idempotencyKey))throw new Error('Coada de sincronizare Core conține evenimente duplicate. Datele nu au fost suprascrise.');outboxKeys.add(item.idempotencyKey)}
     ids.add(row.id);notificationIds.add(row.notificationId);if(row.idempotencyKey)idempotencyKeys.add(row.idempotencyKey);
    }
-   return parsed.map(row=>({...row,status:row.status||'scheduled',coreOutbox:Array.isArray(row.coreOutbox)?row.coreOutbox:[]}));
+   return parsed.map(row=>({...row,status:row.status||'scheduled',scheduleState:row.scheduleState||(['completed','cancelled'].includes(row.status)?'settled':'scheduled'),coreOutbox:Array.isArray(row.coreOutbox)?row.coreOutbox:[]}));
   }
   async function list(){
    const raw=await storage.readRaw(KEY);
@@ -77,6 +79,35 @@
    const remaining=await list();
    return {synced,pending:pendingCoreCount(remaining),error:error?String(error.message||error):null};
   }
+  async function recoverPendingSchedulesInternal(){
+   let recovered=0,failed=0,uncertain=0;
+   const initial=await list();
+   for(const row of initial){
+    if(row.status!=='scheduled'||(row.scheduleState||'scheduled')!=='pending')continue;
+    let scheduleAttempted=false;
+    try{
+     scheduleAttempted=true;
+     await plugin.schedule({notifications:[{id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id,sourceId:row.sourceId,idempotencyKey:row.idempotencyKey},isExactNotification:false}]});
+     const current=await list(),target=current.find(candidate=>candidate.id===row.id);
+     if(!target)throw new Error('Reminderul în recuperare nu mai există în stocarea locală.');
+     const scheduled={...target,scheduleState:'scheduled',scheduleUncertain:false,coreOutbox:coreEventHandler?[...(target.coreOutbox||[]),makeCoreLifecycleEvent(target,'scheduled',now().toISOString())]:[...(target.coreOutbox||[])]};
+     await persistRows(current.map(candidate=>candidate.id===row.id?scheduled:candidate));
+     recovered++;
+    }catch(error){
+     let cancelError=null;
+     if(scheduleAttempted){try{await plugin.cancel({notifications:[{id:row.notificationId}]})}catch(failure){cancelError=failure}}
+     const current=await list(),target=current.find(candidate=>candidate.id===row.id);
+     if(!target)throw new Error('Recuperarea reminderului a eșuat, iar înregistrarea locală a dispărut: '+error.message);
+     const occurredAt=now().toISOString();
+     const updated=cancelError
+      ?{...target,scheduleState:'uncertain',scheduleUncertain:true,coreOutbox:coreEventHandler?[...(target.coreOutbox||[]),makeCoreLifecycleEvent(target,'schedule_uncertain',occurredAt)]:[...(target.coreOutbox||[])]}
+      :{...target,status:'cancelled',scheduleState:'settled',scheduleUncertain:false,cancelledAt:occurredAt,coreOutbox:coreEventHandler?[...(target.coreOutbox||[]),makeCoreLifecycleEvent(target,'cancelled',occurredAt)]:[...(target.coreOutbox||[])]};
+     await persistRows(current.map(candidate=>candidate.id===row.id?updated:candidate));
+     if(cancelError)uncertain++;else failed++;
+    }
+   }
+   return {recovered,failed,uncertain};
+  }
   async function createInternal({title,at,sourceId=null,context='',idempotencyKey=null}={}){
    const name=String(title||'').trim();
    if(!name||name.length>160)throw new Error('Descrierea alarmei trebuie să aibă între 1 și 160 de caractere.');
@@ -90,7 +121,10 @@
     const existing=rows.find(row=>row.idempotencyKey===key);
     if(existing){
      if((existing.status||'scheduled')==='scheduled'&&existing.scheduleUncertain===true)throw new Error('Programarea acestei notificări are o stare incertă. Verifică sau anulează reminderul existent înainte de a crea altul.');
-     if((existing.status||'scheduled')==='scheduled'){await syncCoreOutboxInternal();const current=(await list()).find(row=>row.id===existing.id)||existing;return {...current,alreadyScheduled:true,coreSyncPending:(current.coreOutbox||[]).length>0}}
+     if((existing.status||'scheduled')==='scheduled'&&(existing.scheduleState||'scheduled')==='pending')await recoverPendingSchedulesInternal();
+     const refreshed=(await list()).find(row=>row.id===existing.id)||existing;
+     if((refreshed.status||'scheduled')==='scheduled'&&refreshed.scheduleUncertain===true)throw new Error('Programarea acestei notificări are o stare incertă. Verifică sau anulează reminderul existent înainte de a crea altul.');
+     if((refreshed.status||'scheduled')==='scheduled'){await syncCoreOutboxInternal();const current=(await list()).find(row=>row.id===existing.id)||refreshed;return {...current,alreadyScheduled:true,coreSyncPending:(current.coreOutbox||[]).length>0}}
      throw new Error('Această intenție de reminder este deja în starea '+existing.status+'; creează o intenție nouă doar după o decizie explicită.');
     }
    }
@@ -99,7 +133,7 @@
    for(let attempt=0;attempt<20&&!notificationId;attempt++){const candidate=Math.floor(random()*2147483646)+1;if(!used.has(candidate))notificationId=candidate}
    if(!notificationId)throw new Error('Nu am putut genera un identificator unic pentru alarmă.');
    const createdAt=now().toISOString(),reminderId='reminder-'+Date.now().toString(36)+'-'+notificationId.toString(36);
-   const reminder={id:reminderId,notificationId,title:name,at:date.toISOString(),createdAt,status:'scheduled',sourceId:source||null,sourceContext:sourceContext||null,idempotencyKey:key||null,coreOutbox:coreEventHandler?[makeCoreLifecycleEvent({id:reminderId,title:name,at:date.toISOString(),sourceId:source||null},'scheduled',createdAt)]:[]};
+   const reminder={id:reminderId,notificationId,title:name,at:date.toISOString(),createdAt,status:'scheduled',scheduleState:'pending',sourceId:source||null,sourceContext:sourceContext||null,idempotencyKey:key||null,coreOutbox:[]};
    const next=[...rows,reminder];
    // Persist and read back before scheduling a native side effect.
    await persistRows(next);
@@ -112,6 +146,10 @@
     }
     scheduleAttempted=true;
     await plugin.schedule({notifications:[{id:notificationId,title:'Collector',body:name,schedule:{at:date},extra:{reminderId:reminder.id,sourceId:reminder.sourceId,idempotencyKey:reminder.idempotencyKey},isExactNotification:false}]});
+    const current=await list(),target=current.find(row=>row.id===reminder.id);
+    if(!target)throw new Error('Reminderul programat nu mai există în stocarea locală.');
+    const scheduled={...target,scheduleState:'scheduled',coreOutbox:coreEventHandler?[...(target.coreOutbox||[]),makeCoreLifecycleEvent(target,'scheduled',now().toISOString())]:[...(target.coreOutbox||[])]};
+    await persistRows(current.map(row=>row.id===reminder.id?scheduled:row));
     await syncCoreOutboxInternal();
     const persisted=(await list()).find(row=>row.id===reminder.id)||reminder;
     return {...persisted,coreSyncPending:(persisted.coreOutbox||[]).length>0};
@@ -124,7 +162,7 @@
     // If compensation cannot be confirmed, retain the metadata row so a possibly
     // scheduled native notification is still represented and can be managed.
     if(cancelError){
-     const uncertain={...reminder,scheduleUncertain:true,coreOutbox:coreEventHandler?[makeCoreLifecycleEvent(reminder,'schedule_uncertain',now().toISOString())]:[]};
+     const uncertain={...reminder,scheduleState:'uncertain',scheduleUncertain:true,coreOutbox:coreEventHandler?[makeCoreLifecycleEvent(reminder,'schedule_uncertain',now().toISOString())]:[]};
      try{await persistRows(next.map(row=>row.id===reminder.id?uncertain:row))}
      catch(readbackError){throw new Error('Starea notificării este incertă; reminderul inițial a fost păstrat, dar indicatorul de recovery nu a putut fi confirmat: '+error.message+'; '+cancelError.message+'; '+readbackError.message)}
      throw new Error('Starea notificării este incertă după eșecul programării. Am păstrat reminderul și l-am marcat pentru recovery; verifică-l înainte de a crea altul: '+error.message+'; '+cancelError.message);
@@ -157,7 +195,7 @@
    await plugin.cancel({notifications:[{id:target.notificationId}]});
    const occurredAt=now().toISOString();
    const lifecycleEvent=coreEventHandler?makeCoreLifecycleEvent(target,status,occurredAt):null;
-   const updated={...target,status,scheduleUncertain:false,[status==='completed'?'completedAt':'cancelledAt']:occurredAt,coreOutbox:lifecycleEvent?[...(target.coreOutbox||[]),lifecycleEvent]:[...(target.coreOutbox||[])]};
+   const updated={...target,status,scheduleState:'settled',scheduleUncertain:false,[status==='completed'?'completedAt':'cancelledAt']:occurredAt,coreOutbox:lifecycleEvent?[...(target.coreOutbox||[]),lifecycleEvent]:[...(target.coreOutbox||[])]};
    try{await persistRows(rows.map(row=>row.id===id?updated:row))}
    catch(error){
     let restoreError=null;
@@ -177,6 +215,7 @@
   async function cancel(id){return Boolean(await updateStatus(id,'cancelled'))}
   async function complete(id){return await updateStatus(id,'completed')}
   async function clearAllInternal(){
+   await recoverPendingSchedulesInternal();
    await syncCoreOutboxInternal();
    const rows=await list();
    if(pendingCoreCount(rows)>0)throw new Error('Există evenimente reminder nesincronizate cu jurnalul Core. Reîncearcă sincronizarea înainte de a șterge istoricul.');
@@ -206,7 +245,8 @@
   function clearAll(){return serialized(clearAllInternal)}
   function setCoreEventHandler(handler){if(typeof handler!=='function')throw new TypeError('Core event handler invalid.');coreEventHandler=handler;return true}
   function syncCoreOutbox(){return serialized(syncCoreOutboxInternal)}
-  return Object.freeze({list,create,cancel,snooze,complete,clearAll,setCoreEventHandler,syncCoreOutbox});
+  function recoverPendingSchedules(){return serialized(recoverPendingSchedulesInternal)}
+  return Object.freeze({list,create,cancel,snooze,complete,clearAll,setCoreEventHandler,syncCoreOutbox,recoverPendingSchedules});
  }
  let service=null,initialized=false,coreEventHandler=null;
  async function clearAll(){
@@ -281,7 +321,9 @@
    try{await service.cancel(button.dataset.reminderCancel);if(status)status.textContent='Alarma a fost anulată.';await render()}
    catch(error){button.disabled=false;if(status)status.textContent='Nu am putut anula alarma: '+error.message}
   });
+  const recovery=await service.recoverPendingSchedules();
   const syncResult=await service.syncCoreOutbox();
+  if(status&&(recovery.recovered||recovery.failed||recovery.uncertain))status.textContent='Recovery reminders: '+recovery.recovered+' reprogramat(e), '+recovery.failed+' anulată/anulate, '+recovery.uncertain+' cu stare incertă.';
   if(status&&syncResult.pending)status.textContent='Alarmele sunt active; '+syncResult.pending+' eveniment(e) așteaptă sincronizarea cu jurnalul Core.';
   await render();
  }
