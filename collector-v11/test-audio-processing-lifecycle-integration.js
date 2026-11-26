@@ -79,4 +79,5 @@ test('cancelling audio deletion preserves the transcript and does not checkpoint
  const pendingAt=deletion.indexOf("writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending'");
  assert.ok(confirmAt>=0&&clearAt>confirmAt&&pendingAt>clearAt,'confirmation must precede transcript clearing and deletion checkpoint');
  assert.match(deletion,/return \{status:'cancelled'\}/);
+ assert.match(deletion,/else\{\s*\/\/ A prior removal may have succeeded before its response\/checkpoint was lost\.\s*await clearAudioTranscriptCheckpoint\(recordingId\)/);
 });
