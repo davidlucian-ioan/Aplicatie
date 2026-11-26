@@ -57,20 +57,51 @@ function validateExtraction(input){
 }
 
 function normalizeName(v){return String(v||'').normalize('NFKC').toLocaleLowerCase().replace(/[’']/g,"'").replace(/[^\p{L}\p{N}]+/gu,' ').trim()}
+function ngramDice(a,b,n=3){
+ if(a.length<n||b.length<n)return 0;
+ const left=new Set(),right=new Set();
+ for(let i=0;i<=a.length-n;i++)left.add(a.slice(i,i+n));
+ for(let i=0;i<=b.length-n;i++)right.add(b.slice(i,i+n));
+ let overlap=0;for(const gram of left)if(right.has(gram))overlap++;
+ return left.size+right.size?2*overlap/(left.size+right.size):0;
+}
+function tokenDice(a,b){
+ const left=new Set(a.split(' ').filter(Boolean)),right=new Set(b.split(' ').filter(Boolean));
+ let overlap=0;for(const token of left)if(right.has(token))overlap++;
+ return left.size+right.size?2*overlap/(left.size+right.size):0;
+}
+function nameSimilarity(first,second){
+ const a=normalizeName(first),b=normalizeName(second);
+ if(!a||!b)return 0;
+ if(a===b)return 1;
+ if(Math.min(a.length,b.length)<8)return 0;
+ return Math.max(ngramDice(a,b,3),tokenDice(a,b));
+}
 function mergeAliases(existing,candidate){const output=[],seen=new Set();for(const alias of [...(Array.isArray(existing)?existing:[]),...(Array.isArray(candidate)?candidate:[])]){if(typeof alias!=='string'||!alias.trim())continue;const key=normalizeName(alias);if(!key||seen.has(key))continue;seen.add(key);output.push(alias.trim())}return output}
 function resolveEntities(extraction,state,{threshold=0.92}={}){
+ if(typeof threshold!=='number'||!Number.isFinite(threshold)||threshold<=0||threshold>1)throw new TypeError('Entity similarity threshold must be between 0 and 1');
  const all=Array.isArray(state?.entities)?state.entities:[];
  return extraction.entities.map(candidate=>{
-  if(candidate.existingId){const exact=all.find(e=>e.id===candidate.existingId);if(!exact)throw new Error('Unknown existing entity ID');if(exact.type!==candidate.type)throw new Error('Existing entity type mismatch');return {...candidate,aliases:mergeAliases(exact.attributes?.aliases,candidate.aliases),resolvedId:exact.id,match:'explicit'};}
+  if(candidate.existingId){
+   const exact=all.find(e=>e.id===candidate.existingId);
+   if(!exact)throw new Error('Unknown existing entity ID');
+   if(exact.type!==candidate.type)throw new Error('Existing entity type mismatch');
+   return {...candidate,aliases:mergeAliases(exact.attributes?.aliases,candidate.aliases),resolvedId:exact.id,match:'explicit'};
+  }
   const names=[candidate.name,...candidate.aliases].map(normalizeName).filter(Boolean);
   const matches=all.filter(e=>e.type===candidate.type&&(names.includes(normalizeName(e.name))||(Array.isArray(e.attributes?.aliases)&&e.attributes.aliases.some(a=>names.includes(normalizeName(a))))));
   const unique=[...new Map(matches.map(e=>[e.id,e])).values()];
   if(unique.length===1)return {...candidate,aliases:mergeAliases(unique[0].attributes?.aliases,candidate.aliases),resolvedId:unique[0].id,match:'exact'};
   if(unique.length>1)return {...candidate,resolvedId:null,match:'ambiguous',candidateIds:unique.map(e=>e.id)};
+  const near=all.filter(e=>e.type===candidate.type).map(entity=>{
+   const existingNames=[entity.name,...(Array.isArray(entity.attributes?.aliases)?entity.attributes.aliases:[])].filter(x=>typeof x==='string');
+   const similarity=Math.max(0,...names.flatMap(name=>existingNames.map(existing=>nameSimilarity(name,existing))));
+   return {entity,similarity};
+  }).filter(item=>item.similarity>=threshold).sort((a,b)=>b.similarity-a.similarity||String(a.entity.id).localeCompare(String(b.entity.id)));
+  if(near.length)return {...candidate,resolvedId:null,match:'ambiguous',candidateIds:near.map(x=>x.entity.id),candidateMatches:near.map(x=>({id:x.entity.id,similarity:Number(x.similarity.toFixed(3))}))};
   return {...candidate,resolvedId:null,match:'new'};
  });
 }
-
 function buildOperations(extraction,resolutions,{idFactory=()=> 'mem-'+Math.random().toString(36).slice(2,12)}={}){
  const map=new Map(),operations=[];
  for(const r of resolutions){
@@ -89,4 +120,4 @@ function createCommand(extraction,resolutions,{captureId,turnId=null}={}){
  const built=buildOperations(extraction,resolutions,{idFactory:(()=>{let n=0;return()=>captureId+':entity:'+ ++n})()});
  return {contractVersion:'collector.command.v1',intent:'structured_memory.capture',idempotencyKey:'collector-memory-capture:'+captureId,certainty:extraction.confidence>=0.8?'certain':'uncertain',requiresConfirmation:built.requiresConfirmation,payload:{captureId,turnId,summary:extraction.summary,entityIds:built.entityIds},operations:built.operations};
 }
-module.exports={validateExtraction,resolveEntities,buildOperations,createCommand,normalizeName,MAX_ENTITIES,MAX_FACTS,MAX_RELATIONS};
+module.exports={validateExtraction,resolveEntities,buildOperations,createCommand,normalizeName,nameSimilarity,MAX_ENTITIES,MAX_FACTS,MAX_RELATIONS};
