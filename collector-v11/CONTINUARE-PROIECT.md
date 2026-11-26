@@ -998,3 +998,12 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Stored note includes sourceId, candidate facts, summary, and a bounded excerpt of the original transcript in its description/payload. AI candidates are not persisted automatically.
 - Static regression verifies memory save uses Core preview, explicit confirmation, and per-turn idempotency.
 - Important product gap remains: no dedicated retrieval/recall interface that searches stored source notes and returns grounded answers with source navigation. This is the next memory MVP after CI validation.
+
+
+## Decizie de produs — Structured AI Memory (2026-11-26)
+- Direcția confirmată: audio este input temporar, nu memoria permanentă. AI extrage entități, aliasuri, atribute, relații, evenimente, timp, task-uri/reminders și confidence/provenance.
+- După commit durabil verificat, audio temporar poate fi șters automat conform politicii; la eșec rămâne recuperabil. Retenția audio permanentă este opt-in, nu default.
+- Recall reconstruiește răspunsurile din graful de entități + relații + evenimente + atribute + task-uri, cu evidence/source IDs și link/jump către surse. Vector search este opțional ulterior, nu înlocuiește date structurate.
+- Nu se face merge automat la identități ambigue; AI propune, Core validează și aplică, iar acțiunile cu impact necesită confirmare.
+- Specificația completă: `AI-STRUCTURED-MEMORY-AUDIO-MINIMIZATION-v0.1.md`.
+- Următorul workstream: contract extraction + validator, entity resolution, Core command builder, retrieval și lifecycle audio cu testare idempotency/failure.
