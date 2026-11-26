@@ -31,7 +31,7 @@ The user-triggered Work path now connects `Transcrie + AI` to server transcripti
 Legacy checkpoints are read with schemaVersion 1. Corrupt data fails closed and is surfaced in the recovery panel.
 
 ## Recovery diagnostics
-`CollectorAudioLifecycleRecovery.list()` returns the checkpoint rows. The panel shows ID, state, attempt count and error. `refresh()` re-reads durable storage. Recovery is manual and read-only in this version.
+`CollectorAudioLifecycleRecovery.list()` returns the checkpoint rows. The panel shows ID, state, attempt count and error. `refresh()` re-reads durable storage. The user can explicitly resume transcription/AI for a surviving source recording or independently verify/finalize an already-requested deletion. No retry, transcription or deletion runs in the background.
 
 ## Next integration gates
 Before enabling automatic processing:
@@ -41,7 +41,7 @@ Before enabling automatic processing:
 - commit through Core using the stable idempotency key;
 - read back committed facts/entities/relations/events independently;
 - add end-to-end crash tests for every checkpoint boundary;
-- add a user-visible recovery action with explicit retry and retention behavior;
+- continue hardening the user-visible manual recovery actions and their crash-boundary E2E coverage;
 - keep deletion feature flag off until all native/web E2E paths pass and product/privacy review approves it.
 
 ## Recovery hardening batch — 10+ checks
@@ -72,3 +72,8 @@ Checkpoint storage now has additional crash-recovery safeguards:
 7. Only after a verified committed or idempotent duplicate result does Work offer **Șterge audio original**. The user must confirm again; AudioStore is read after removal to verify the result.
 
 If independent readback is unavailable or does not match the confirmed command, the UI is locked into read-only mode until reload and journal revalidation. This prevents a second write from masking an uncertain first commit.
+
+
+## Manual checkpoint/recovery integration
+
+The Work UI records metadata-only checkpoints for each selected recording: `processing`, `validated`, `failed`, `captured`, and after a verified Core commit `source_retained`. Checkpoints do not copy transcript text or audio bytes. A failed/interrupted item can be retried only by pressing the recovery action for that recording. A pending deletion can only be finalized after the helper revalidates the referenced event against the persisted Core journal and confirms that the audio source is absent. There is no background retry or deletion.
