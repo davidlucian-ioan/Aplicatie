@@ -51,11 +51,11 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  const matchedEventIds=new Set(filteredEvents.map(event=>event.id));
  const selectedEventAttributes=eventAttributes.filter(attribute=>matchedEventIds.has(attribute.eventId));
  const evidence=[
-  ...matched.slice(0,boundedLimit).map(entity=>({kind:'entity',id:entity.id,label:entity.name,type:entity.type})),
-  ...relationEvidence.slice(0,boundedLimit).map(relation=>({kind:'relation',id:relation.id,source:relation.sourceName,type:relation.type,target:relation.targetName,at:relation.startedAt||relation.createdAt||null})),
-  ...filteredEvents.map(event=>({kind:'event',id:event.id,at:event.timestamp,summary:event.payload?.summary||event.payload?.description||event.operations?.find(operation=>operation.operation==='event.note')?.data?.description||event.type,certainty:event.certainty,status:event.status})),
-  ...attributeRows.slice(0,boundedLimit).map(attribute=>({kind:'attribute',entityId:attribute.entityId,entityName:attribute.entityName,name:attribute.name,value:attribute.value})),
-  ...selectedEventAttributes.slice(0,boundedLimit).map(attribute=>({kind:'event_attribute',eventId:attribute.eventId,name:attribute.name,value:attribute.value}))
+  ...matched.slice(0,boundedLimit).map(entity=>({kind:'entity',id:entity.id,sourceId:entity.id,label:entity.name,type:entity.type})),
+  ...relationEvidence.slice(0,boundedLimit).map(relation=>({kind:'relation',id:relation.id,sourceId:relation.id,source:relation.sourceName,type:relation.type,target:relation.targetName,at:relation.startedAt||relation.createdAt||null})),
+  ...filteredEvents.map(event=>({kind:'event',id:event.id,sourceId:event.id,at:event.timestamp,summary:event.payload?.summary||event.payload?.description||event.operations?.find(operation=>operation.operation==='event.note')?.data?.description||event.type,certainty:event.certainty,status:event.status})),
+  ...attributeRows.slice(0,boundedLimit).map(attribute=>({kind:'attribute',sourceId:'attribute:'+attribute.entityId+':'+attribute.name,entityId:attribute.entityId,entityName:attribute.entityName,name:attribute.name,value:attribute.value})),
+  ...selectedEventAttributes.slice(0,boundedLimit).map(attribute=>({kind:'event_attribute',sourceId:'event-attribute:'+attribute.eventId+':'+attribute.name,eventId:attribute.eventId,name:attribute.name,value:attribute.value}))
  ];
  return {entities:matched.slice(0,boundedLimit),relations:relationEvidence.slice(0,boundedLimit),events:filteredEvents,attributes:attributeRows.slice(0,boundedLimit),eventAttributes:selectedEventAttributes.slice(0,boundedLimit),evidence:evidence.slice(0,boundedLimit)};
 }
