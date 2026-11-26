@@ -214,11 +214,13 @@
   function updateStatus(id,status){return serialized(()=>updateStatusInternal(id,status))}
   async function cancel(id){return Boolean(await updateStatus(id,'cancelled'))}
   async function complete(id){return await updateStatus(id,'completed')}
-  async function clearAllInternal(){
-   await recoverPendingSchedulesInternal();
-   await syncCoreOutboxInternal();
+  async function clearAllInternal({discardPendingCoreEvents=false}={}){
+   if(!discardPendingCoreEvents){
+    await recoverPendingSchedulesInternal();
+    await syncCoreOutboxInternal();
+   }
    const rows=await list();
-   if(pendingCoreCount(rows)>0)throw new Error('Există evenimente reminder nesincronizate cu jurnalul Core. Reîncearcă sincronizarea înainte de a șterge istoricul.');
+   if(!discardPendingCoreEvents&&pendingCoreCount(rows)>0)throw new Error('Există evenimente reminder nesincronizate cu jurnalul Core. Reîncearcă sincronizarea înainte de a șterge istoricul.');
    if(!rows.length){
     if(typeof storage.removeRaw==='function'){
      if(await storage.removeRaw(KEY)!==true||((await storage.readRaw(KEY))!==null&&(await storage.readRaw(KEY))!==undefined))throw new Error('Stocarea alarmelor nu a confirmat eliminarea listei goale.');
@@ -228,7 +230,7 @@
    const notifications=rows.filter(row=>row.status!=='cancelled'&&row.status!=='completed').map(row=>({id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id,sourceId:row.sourceId,idempotencyKey:row.idempotencyKey},isExactNotification:false}));
    if(notifications.length)await plugin.cancel({notifications});
    const occurredAt=now().toISOString();
-   const cancelledRows=rows.map(row=>{
+   const cancelledRows=discardPendingCoreEvents?rows:rows.map(row=>{
     if(row.status==='cancelled'||row.status==='completed')return row;
     const lifecycleEvent=coreEventHandler?makeCoreLifecycleEvent(row,'cancelled',occurredAt):null;
     return {...row,status:'cancelled',scheduleState:'settled',scheduleUncertain:false,cancelledAt:occurredAt,coreOutbox:lifecycleEvent?[...(row.coreOutbox||[]),lifecycleEvent]:[...(row.coreOutbox||[])]};
@@ -242,8 +244,10 @@
     if(restoreError)throw new Error('Anularea alarmelor a fost rollback-uită parțial; metadatele nu au putut fi verificate: '+error.message+'; '+restoreError.message);
     throw new Error('Anularea alarmelor a fost rollback-uită; notificările au fost reprogramate: '+error.message);
    }
-   const sync=await syncCoreOutboxInternal();
-   if(sync.pending>0)throw new Error('Notificările au fost anulate, dar '+sync.pending+' eveniment(e) de anulare așteaptă sincronizarea Core. Metadatele au fost păstrate.');
+   if(!discardPendingCoreEvents){
+    const sync=await syncCoreOutboxInternal();
+    if(sync.pending>0)throw new Error('Notificările au fost anulate, dar '+sync.pending+' eveniment(e) de anulare așteaptă sincronizarea Core. Metadatele au fost păstrate.');
+   }
    if(typeof storage.removeRaw!=='function')throw new Error('Notificările au fost anulate și jurnalizate, dar stocarea nu poate elimina istoricul local.');
    let removed=false;
    try{removed=await storage.removeRaw(KEY)===true}catch(error){throw new Error('Notificările au fost anulate și jurnalizate, dar ștergerea istoricului local a eșuat: '+error.message)}
@@ -253,22 +257,22 @@
    if(remaining!==null&&remaining!==undefined)throw new Error('Notificările au fost anulate și jurnalizate, dar lista locală este încă prezentă.');
    return rows.length;
   }
-  function clearAll(){return serialized(clearAllInternal)}
+  function clearAll(options={}){return serialized(()=>clearAllInternal(options))}
   function setCoreEventHandler(handler){if(typeof handler!=='function')throw new TypeError('Core event handler invalid.');coreEventHandler=handler;return true}
   function syncCoreOutbox(){return serialized(syncCoreOutboxInternal)}
   function recoverPendingSchedules(){return serialized(recoverPendingSchedulesInternal)}
   return Object.freeze({list,create,cancel,snooze,complete,clearAll,setCoreEventHandler,syncCoreOutbox,recoverPendingSchedules});
  }
  let service=null,initialized=false,coreEventHandler=null;
- async function clearAll(){
-  if(service)return service.clearAll();
+ async function clearAll({discardPendingCoreEvents=false}={}){
+  if(service)return service.clearAll({discardPendingCoreEvents});
   const storage=root.CollectorStorage;
   if(!storage||typeof storage.readRaw!=='function')return 0;
   const raw=await storage.readRaw(KEY);
   if(raw===null){if(typeof storage.removeRaw==='function')await storage.removeRaw(KEY);return 0}
   const rows=JSON.parse(raw);
   if(!Array.isArray(rows)||rows.some(row=>!row||typeof row.id!=='string'||!Number.isInteger(row.notificationId)||typeof row.title!=='string'||typeof row.at!=='string'))throw new Error('Lista alarmelor este invalidă. Datele nu au fost șterse.');
-  if(rows.some(row=>Array.isArray(row.coreOutbox)&&row.coreOutbox.length))throw new Error('Există evenimente reminder nesincronizate cu jurnalul Core. Deschide Collector pe un dispozitiv cu notificările native și sincronizează înainte de ștergere.');
+  if(!discardPendingCoreEvents&&rows.some(row=>Array.isArray(row.coreOutbox)&&row.coreOutbox.length))throw new Error('Există evenimente reminder nesincronizate cu jurnalul Core. Deschide Collector pe un dispozitiv cu notificările native și sincronizează înainte de ștergere.');
   const native=typeof root.Capacitor?.isNativePlatform==='function'&&root.Capacitor.isNativePlatform();
   if(native&&rows.length)throw new Error('Serviciul de notificări nu este disponibil; alarmele nu au fost șterse ca să nu rămână notificări active.');
   if(typeof storage.removeRaw!=='function'||await storage.removeRaw(KEY)!==true||(await storage.readRaw(KEY))!==null)throw new Error('Stocarea nu a confirmat ștergerea istoricului reminderelor.');return rows.length;
