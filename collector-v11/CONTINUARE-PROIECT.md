@@ -1336,3 +1336,18 @@ Nu face merge în `main`, nu activa billing live și nu publica build-uri Store 
 - Comanda `task.edit` trece prin validare, Core preview și confirmare explicită; modificările sunt journaled și replayable (`entity.rename` + `attribute.set`).
 - Eliminarea deadline-ului scrie valori `null` pentru dată/oră și elimină timezone-ul; nu inventează valori implicite.
 - Teste unitare pentru validare și clearing au fost adăugate. CI pe commitul următor trebuie să confirme complet testele, Cloud API și build-urile mobile.
+
+
+## Task Manager batch — 27 nov. 2026
+
+Runtime commit: `2de01d2a4f3537d6befed3b8ad687ae58942004a`.
+
+Implementări în batch:
+
+1. **Istoric task dedicat:** butonul Istoric deschide evenimentele asociate task-ului din jurnalul Core; proiecția nu creează un istoric paralel.
+2. **Filtrare:** căutare în titlu/responsabil și filtre status + prioritate.
+3. **Sortare:** termen, prioritate, dată de creare sau nume.
+4. **Overdue:** task-urile cu termen calendaristic trecut sunt marcate Întârziat.
+5. **Assignment + recurrence metadata:** editare responsabil (text, 120 caractere) și recurrence enum none/daily/weekly/monthly. Recurrence este momentan metadata; nu creează automat task-uri sau notificări, evitând duplicate și promisiuni de scheduling neimplementat.
+
+Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu preview și confirmare. Testele au assertions pentru metadata și reject invalid values. CI pentru HEAD `2de01d2a` a pornit; Cloud API test/container PASS, quality/browser și build-uri mobile încă în execuție la checkpoint.
