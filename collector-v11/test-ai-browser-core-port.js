@@ -22,7 +22,7 @@ function setup({ failPersist = false, failReadback = false, corruptReadback = fa
   });
   return { port, get state(){ return state; }, get persisted(){ return persisted; }, get published(){ return published; }, get verificationFailure(){ return verificationFailure; }, failNextReadback(){ failNextReadback=true; } };
 }
-function cmd() { return { contractVersion:'collector.command.v1', intent:'entity.create', idempotencyKey:'browser-port-1', payload:{name:'Test plant'}, operations:[{operation:'entity.create',target:'plant-1',data:{name:'Test plant',type:'plant'}}] }; }
+function cmd(name='Test plant') { return { contractVersion:'collector.command.v1', intent:'entity.create', idempotencyKey:'browser-port-1', payload:{name}, operations:[{operation:'entity.create',target:'plant-1',data:{name,type:'plant'}}] }; }
 
 test('Browser Core Port preview nu persistă și nu publică', async () => {
   const x=setup(); const result=await x.port.preview(cmd());
@@ -113,4 +113,17 @@ test('Browser Core Port does not treat an in-memory duplicate as durable when re
   assert.equal(x.state.events.length,1);
   assert.equal(x.published,1);
   assert.match(x.verificationFailure,/readback unavailable/);
+});
+
+
+test('Browser Core Port rejects reuse of an idempotency key with changed operations', async () => {
+  const x=setup(); const first=await x.port.execute(cmd('Test plant'));
+  assert.equal(first.status,'committed');
+  const before=structuredClone(x.persisted);
+  const changed=await x.port.execute(cmd('Corrected plant name'));
+  assert.equal(changed.status,'conflict');
+  assert.match(changed.errors[0],/different set of Core operations/);
+  assert.deepEqual(x.persisted,before);
+  assert.equal(x.state.events.length,1);
+  assert.equal(x.published,1);
 });
