@@ -48,15 +48,20 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
   return [...matchedIds].some(id=>refs.has(id))||eventAttributeIds.has(event.id)||terms.some(term=>text.includes(term));
  }).slice(-boundedLimit);
  const attributeRows=matched.flatMap(entity=>Object.entries(entity.attributes||{}).filter(([name])=>name!=='aliases').map(([name,value])=>({entityId:entity.id,entityName:entity.name,name,value,history:entity.attributeHistory?.[name]||[]})));
- const taskRows=matched.filter(entity=>entity.type==='task'&&entity.attributes?.taskKind==='reminder').map(entity=>{
+ const taskRows=matched.filter(entity=>entity.type==='task'&&['reminder','user'].includes(entity.attributes?.taskKind)).map(entity=>{
   const a=entity.attributes||{};
-  return {id:entity.id,entityId:entity.id,reminderId:a.reminderId||null,title:entity.name,status:a.status||'open',dueAt:a.dueAt||null,sourceId:a.sourceId||null,scheduleState:a.scheduleState||null,successorReminderId:a.successorReminderId||null,successorTaskId:a.successorTaskId||null,successorDueAt:a.successorDueAt||null};
+  const dependencies=(relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===entity.id&&!relation.endedAt);
+  const blockedBy=dependencies.map(relation=>entities.find(item=>item.id===relation.targetId)).filter(dependency=>!dependency||dependency.attributes?.status!=='completed').map(dependency=>({taskId:dependency?.id||null,title:dependency?.name||'Task lipsă',status:dependency?.attributes?.status||'missing'}));
+  return {id:entity.id,entityId:entity.id,taskKind:a.taskKind,taskId:a.taskId||null,reminderId:a.reminderId||null,title:entity.name,status:a.status||'open',
+   dueAt:a.dueAt||null,dueDate:a.dueDate||null,dueTime:a.dueTime||null,timezone:a.timezone||null,priority:a.priority||'normal',
+   sourceId:a.sourceId||null,scheduleState:a.scheduleState||null,successorReminderId:a.successorReminderId||null,successorTaskId:a.successorTaskId||null,successorDueAt:a.successorDueAt||null,
+   dependencyIds:dependencies.map(relation=>relation.targetId),blockedBy};
  });
- const visibleEntities=matched.filter(entity=>!(entity.type==='task'&&entity.attributes?.taskKind==='reminder'));
+ const visibleEntities=matched.filter(entity=>!(entity.type==='task'&&['reminder','user'].includes(entity.attributes?.taskKind)));
  const matchedEventIds=new Set(filteredEvents.map(event=>event.id));
  const selectedEventAttributes=eventAttributes.filter(attribute=>matchedEventIds.has(attribute.eventId));
  const evidence=[
-  ...taskRows.slice(0,boundedLimit).map(task=>({kind:'task',id:task.id,sourceId:'task:'+task.id,reminderId:task.reminderId,title:task.title,status:task.status,dueAt:task.dueAt,sourceRef:task.sourceId,scheduleState:task.scheduleState,successorReminderId:task.successorReminderId,successorTaskId:task.successorTaskId,successorDueAt:task.successorDueAt})),
+  ...taskRows.slice(0,boundedLimit).map(task=>({kind:'task',id:task.id,sourceId:'task:'+task.id,taskKind:task.taskKind,taskId:task.taskId,reminderId:task.reminderId,title:task.title,status:task.status,dueAt:task.dueAt,dueDate:task.dueDate,dueTime:task.dueTime,timezone:task.timezone,priority:task.priority,sourceRef:task.sourceId,scheduleState:task.scheduleState,successorReminderId:task.successorReminderId,successorTaskId:task.successorTaskId,successorDueAt:task.successorDueAt,dependencyIds:task.dependencyIds,blockedBy:task.blockedBy})),
   ...visibleEntities.slice(0,boundedLimit).map(entity=>({kind:'entity',id:entity.id,sourceId:'entity:'+entity.id,label:entity.name,type:entity.type})),
   ...relationEvidence.slice(0,boundedLimit).map(relation=>({kind:'relation',id:relation.id,sourceId:'relation:'+relation.id,source:relation.sourceName,type:relation.type,target:relation.targetName,at:relation.startedAt||relation.createdAt||null})),
   ...filteredEvents.map(event=>({kind:'event',id:event.id,sourceId:'event:'+event.id,at:event.timestamp,summary:event.payload?.summary||event.payload?.description||event.operations?.find(operation=>operation.operation==='event.note')?.data?.description||event.type,certainty:event.certainty,status:event.status})),

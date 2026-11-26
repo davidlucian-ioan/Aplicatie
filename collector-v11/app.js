@@ -241,7 +241,6 @@ document.getElementById('taskBoard')?.addEventListener('click',async event=>{
  const task=db.entities.find(entity=>entity.attributes?.taskKind==='user'&&entity.attributes?.taskId===taskId);
  if(!task)return;
  const label=nextStatus==='completed'?'finalizezi':'anulezi';
- if(!confirm('Confirmi că '+label+' task-ul „'+task.name+'”?'))return;
  button.disabled=true;
  try{
   const api=window.CollectorTaskCommand;
@@ -250,6 +249,7 @@ document.getElementById('taskBoard')?.addEventListener('click',async event=>{
   const command=api.transitionTaskCommand({taskId,status:nextStatus,idempotencyKey:'collector-task-transition:'+taskId+':'+nextStatus+':'+occurredAt,occurredAt},db);
   const port=ensureAICorePort(),preview=await port.preview(command);
   if(!['preview_ok','duplicate'].includes(preview.status))throw new Error('Core a respins tranziția: '+preview.status);
+  if(!confirm('Confirmi că '+label+' task-ul „'+task.name+'”?')){button.disabled=false;return}
   const result=await serializeMutation(()=>port.execute(command,{confirmed:true}));
   if(!['committed','duplicate'].includes(result.status))throw new Error('Core nu a confirmat tranziția: '+result.status);
   renderTasks();
@@ -339,7 +339,7 @@ async function runStructuredRecall(query){
   status.textContent=total?total+' dovezi găsite în memoria structurată. Răspunsul este bazat exclusiv pe aceste înregistrări.':'Nu am găsit dovezi structurate pentru această întrebare. Nu voi completa prin presupuneri.';
   if(!total){box.innerHTML='<div class="empty">Nu există suficiente date salvate pentru a reconstrui acest context.</div>';return}
   const sections=[];
-  if(result.tasks?.length)sections.push('<section class="recall-section"><b>Task-uri / reminders</b>'+result.tasks.map(task=>{const status=task.status==='completed'?'Finalizat':task.status==='cancelled'?'Anulat':task.status==='snoozed'?'Amânat':'Deschis';const due=task.dueAt?new Date(task.dueAt).toLocaleString('ro-RO'):'Termen necunoscut';const scheduling=task.scheduleState==='uncertain'?' · Programare neconfirmată':task.scheduleState==='scheduled'?' · Notificare programată':'';const source=task.sourceId?' · Sursă '+esc(task.sourceId):'';const successor=task.successorReminderId?' · Reprogramat '+esc(task.successorDueAt||task.successorReminderId):'';return '<div class="row"><div><b>'+esc(task.title)+'</b><div class="muted">'+status+' · '+esc(due)+scheduling+source+successor+'</div></div></div>'}).join('')+'</section>');
+  if(result.tasks?.length)sections.push('<section class="recall-section"><b>Task-uri / reminders</b>'+result.tasks.map(task=>{const status=task.status==='completed'?'Finalizat':task.status==='cancelled'?'Anulat':task.status==='snoozed'?'Amânat':task.status==='in_progress'?'În lucru':'Deschis';const due=task.dueAt?new Date(task.dueAt).toLocaleString('ro-RO'):task.dueDate?(task.dueDate+(task.dueTime?' · '+task.dueTime+' '+(task.timezone||''):'')):'Fără termen';const scheduling=task.scheduleState==='uncertain'?' · Programare neconfirmată':task.scheduleState==='scheduled'?' · Notificare programată':'';const priority=task.taskKind==='user'?' · Prioritate '+esc(task.priority||'normal'):'';const blocked=task.blockedBy?.length?' · Blocat de '+task.blockedBy.map(item=>esc(item.title)).join(', '):'';const source=task.sourceId?' · Sursă '+esc(task.sourceId):'';const successor=task.successorReminderId?' · Reprogramat '+esc(task.successorDueAt||task.successorReminderId):'';return '<div class="row"><div><b>'+esc(task.title)+'</b><div class="muted">'+status+' · '+esc(due)+priority+blocked+scheduling+source+successor+'</div></div></div>'}).join('')+'</section>');
   if(result.entities.length)sections.push('<section class="recall-section"><b>Entități</b>'+result.entities.map(e=>'<div class="row"><div><b>'+esc(e.name)+'</b><span class="muted"> · '+esc(e.type)+'</span><div>'+esc(JSON.stringify(e.attributes||{}))+'</div></div></div>').join('')+'</section>');
   if(result.attributes.length)sections.push('<section class="recall-section"><b>Facts / atribute</b>'+result.attributes.map(a=>'<div class="row"><div><b>'+esc(a.entityName)+' · '+esc(a.name)+'</b><div>'+esc(typeof a.value==='string'?a.value:JSON.stringify(a.value))+'</div></div></div>').join('')+'</section>');
   if(result.relations.length)sections.push('<section class="recall-section"><b>Relații</b>'+result.relations.map(r=>'<div class="row"><div><b>'+esc(r.sourceName)+' → '+esc(r.type)+' → '+esc(r.targetName)+'</b><div class="muted">'+esc(r.startedAt||r.createdAt||'')+'</div></div></div>').join('')+'</section>');
