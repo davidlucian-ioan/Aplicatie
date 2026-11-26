@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const {createNativeStore}=require('./audio-store');
 
 function fixture({legacyRecords=[],failWrite=false,failIndexWrite=false}={}){
+ let failIndexWriteNow=failIndexWrite;
  const files=new Map(),values=new Map(),removed=[];
  const filesystem={
   async mkdir(){},
@@ -16,7 +17,7 @@ function fixture({legacyRecords=[],failWrite=false,failIndexWrite=false}={}){
  };
  const storage={
   async readRaw(key){return values.get(key)??null},
-  async writeRaw(key,value){if(failIndexWrite&&key==='collector_audio_index_v1')throw new Error('index unavailable');values.set(key,String(value))},
+  async writeRaw(key,value){if(failIndexWriteNow&&key==='collector_audio_index_v1')throw new Error('index unavailable');values.set(key,String(value))},
   async removeRaw(key){values.delete(key)}
  };
  let legacy=legacyRecords.slice();
@@ -25,7 +26,7 @@ function fixture({legacyRecords=[],failWrite=false,failIndexWrite=false}={}){
   async get(id){return legacy.find(row=>row.id===id)||null},
   async remove(id){removed.push(id);legacy=legacy.filter(row=>row.id!==id);return true}
  };
- return {store:createNativeStore({filesystem,storage,legacyStore}),files,values,removed,legacy:()=>legacy};
+ return {store:createNativeStore({filesystem,storage,legacyStore}),files,values,removed,legacy:()=>legacy,setFailIndexWrite(value){failIndexWriteNow=!!value}};
 }
 test('native audio adapter migrates IndexedDB blobs to app-private files before deleting legacy records',async()=>{
  const old={id:'audio-old',createdAt:'2026-11-24T10:00:00.000Z',durationMs:1200,mimeType:'audio/webm',size:4,blob:new Blob(['test'])};
@@ -212,4 +213,36 @@ test('native audio clearAll removes indexed files, orphaned files, legacy record
  assert.equal(x.files.size,0);
  assert.equal(x.values.has('collector_audio_index_v1'),false);
  assert.equal((await x.store.list()).length,0);
+});
+
+
+test('native audio removal has an independent absence readback',async()=>{
+ const x=fixture();await x.store.initialize();
+ const record={id:'audio-verify-removed',createdAt:'2026-11-25T10:00:00.000Z',durationMs:500,mimeType:'audio/aac',size:5,filePath:'collector-audio/audio-verify-removed.aac',uri:'file:///app/audio-verify-removed.aac'};
+ x.files.set(record.filePath,Buffer.from('audio'));await x.store.saveNative(record);
+ assert.equal(await x.store.verifyRemoved(record.id),false,'an existing indexed file must not be reported removed');
+ await x.store.remove(record.id);
+ assert.equal(await x.store.verifyRemoved(record.id),true);
+});
+
+test('native audio readback repairs stale index when file removal succeeded but index write response failed',async()=>{
+ const x=fixture();await x.store.initialize();
+ const record={id:'audio-stale-index',createdAt:'2026-11-25T10:00:00.000Z',durationMs:500,mimeType:'audio/aac',size:5,filePath:'collector-audio/audio-stale-index.aac',uri:'file:///app/audio-stale-index.aac'};
+ x.files.set(record.filePath,Buffer.from('audio'));await x.store.saveNative(record);
+ x.setFailIndexWrite(true);
+ await assert.rejects(x.store.remove(record.id),/index unavailable/);
+ assert.equal(x.files.has(record.filePath),false,'the file delete completed before metadata update failed');
+ await assert.rejects(x.store.verifyRemoved(record.id),/index unavailable/,'metadata reconciliation must not be claimed when it cannot be written');
+ x.setFailIndexWrite(false);
+ assert.equal(await x.store.verifyRemoved(record.id),true);
+ assert.equal(await x.store.get(record.id),null);
+ assert.equal((await x.store.list()).some(row=>row.id===record.id),false);
+});
+
+test('native audio deletion verification fails closed while the source file still exists',async()=>{
+ const x=fixture();await x.store.initialize();
+ const record={id:'audio-still-there',createdAt:'2026-11-25T10:00:00.000Z',durationMs:500,mimeType:'audio/aac',size:5,filePath:'collector-audio/audio-still-there.aac',uri:'file:///app/audio-still-there.aac'};
+ x.files.set(record.filePath,Buffer.from('audio'));await x.store.saveNative(record);
+ assert.equal(await x.store.verifyRemoved(record.id),false);
+ assert.equal(x.files.has(record.filePath),true);
 });
