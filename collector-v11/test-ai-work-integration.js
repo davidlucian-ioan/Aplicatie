@@ -27,7 +27,7 @@ test('AI reminder scheduling validates intent and date, requires confirmation, a
  assert.ok(app.includes("idempotencyKey:'collector-ai-reminder:'+turnId+':'+index"));
  assert.match(app,/CollectorReminders\?\.schedule/);
  assert.match(reminders,/async function schedule\(input\)/);
- assert.match(reminders,/existing\.idempotencyKey===key/);
+ assert.match(reminders,/row\.idempotencyKey===key/);
  assert.match(reminders,/sourceContext/);
 });
 
