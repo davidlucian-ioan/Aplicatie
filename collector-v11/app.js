@@ -411,6 +411,7 @@ async function runAICommand(){
  if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){box.textContent='Există deja o interpretare sau o salvare în curs. Confirmă ori anulează propunerea curentă înainte de a începe alta.';return}
  if(!text){box.textContent='Scrie sau dictează mai întâi ce dorești să înregistrezi.';return}
  aiInterpretationPending=true;
+ if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')}catch(checkpointError){setAudioUi('idle','Audio-ul rămâne păstrat; checkpoint-ul de recovery nu a putut fi actualizat: '+checkpointError.message)}
  const button=document.getElementById('parseWithAI');
  if(button){button.disabled=true;button.textContent='AI procesează…'}
  box.textContent='Trimit textul către OpenAI pentru interpretare. Nicio modificare nu este salvată în această etapă.';
@@ -439,9 +440,9 @@ async function runAICommand(){
    }
   }
   const extras=renderAIEnhancements(ai,text,sourceId,turnId);
-  if(ai.intent==='answer'){box.innerHTML='<p>'+esc(ai.answer||'Nu am un răspuns disponibil.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
-  if(ai.intent==='clarify'||(ai.intent==='propose'&&Array.isArray(ai.ambiguities)&&ai.ambiguities.length)){box.innerHTML='<p>'+esc(ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
-  if(ai.intent==='refuse'){box.innerHTML='<p>'+esc(ai.answer||'Nu pot procesa această solicitare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
+  if(ai.intent==='answer'){if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'captured')}catch(_){}box.innerHTML='<p>'+esc(ai.answer||'Nu am un răspuns disponibil.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
+  if(ai.intent==='clarify'||(ai.intent==='propose'&&Array.isArray(ai.ambiguities)&&ai.ambiguities.length)){if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'failed',{error:ai.question||ai.clarificationQuestion||'Este necesară o clarificare.'})}catch(_){}box.innerHTML='<p>'+esc(ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
+  if(ai.intent==='refuse'){if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'captured')}catch(_){}box.innerHTML='<p>'+esc(ai.answer||'Nu pot procesa această solicitare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
   if(ai.intent!=='propose'||!ai.command||!Array.isArray(ai.command.operations)||!ai.command.operations.length)throw Error('OpenAI nu a returnat o comandă validă pentru Collector.');
   const command={
    ...ai.command,
@@ -453,16 +454,18 @@ async function runAICommand(){
   pendingAIEnhancements={ai,sourceText:text,sourceId,turnId,audioRecordingId:sourceRecordingId};
   const preview=await ensureAICorePort().preview(command);
   if(preview.status!=='preview_ok'){
+   if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'failed',{error:'Core preview: '+preview.status})}catch(_){}
    box.innerHTML='<p>'+esc(preview.status==='duplicate'?'Această intenție a fost deja înregistrată.':'Core a respins preview-ul: '+preview.status)+'</p>'+extras;
    bindAIEnhancements(box,ai,text,sourceId,turnId);return;
   }
+  if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'validated',{captureId:turnId,previewEventId:preview.eventId})}catch(checkpointError){setAudioUi('idle','Propunerea este validată, dar checkpoint-ul de recovery nu a putut fi scris. Audio-ul original rămâne păstrat: '+checkpointError.message)}
   pendingCoreCommand=command;
   const opSummary=command.operations.map(op=>op.operation).join(', ');
   box.innerHTML=extras+'<section class="note"><b>Propunere AI · '+esc(response.model||'OpenAI')+'</b><p>'+esc(ai.answer||'Am interpretat cererea și am pregătit operația: '+opSummary+'.')+'</p><p>Încredere interpretare: '+Math.round(ai.confidence*100)+'%.</p><p>Impact estimat — entități: '+preview.projectionChanges.entities+', relații: '+preview.projectionChanges.relations+', stoc: '+preview.projectionChanges.stock+', financiar: '+preview.projectionChanges.finance+'.</p><p class="note">OpenAI doar propune. Core a validat preview-ul. Datele nu au fost modificate. Verifică propunerea și confirmă explicit pentru salvare.</p><button class="primary" id="confirmCoreCommand">Confirmă și salvează</button> <button class="secondary" id="cancelCoreCommand">Anulează</button></section>';
   bindAIEnhancements(box,ai,text,sourceId,turnId);
   document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
-  document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;pendingAIEnhancements=null;box.innerHTML='<p>Propunere anulată. Nu s-au modificat date.</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId)};
- }catch(error){box.textContent='Interpretarea AI nu a putut fi finalizată: '+error.message}
+  document.getElementById('cancelCoreCommand').onclick=async()=>{pendingCoreCommand=null;pendingAIEnhancements=null;if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'captured')}catch(_){}box.innerHTML='<p>Propunere anulată. Nu s-au modificat date; înregistrarea originală este păstrată.</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId)};
+ }catch(error){if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'failed',{error:error.message})}catch(_){}box.textContent='Interpretarea AI nu a putut fi finalizată: '+error.message}
  finally{aiInterpretationPending=false;if(button){button.disabled=false;button.textContent='Interpretează cu AI'}}
 }
 async function refreshSubscriptionStatus(){
