@@ -40,7 +40,7 @@ function normalizeName(v){return String(v||'').normalize('NFKC').toLocaleLowerCa
 function resolveEntities(extraction,state,{threshold=0.92}={}){
  const all=Array.isArray(state?.entities)?state.entities:[];
  return extraction.entities.map(candidate=>{
-  if(candidate.existingId){const exact=all.find(e=>e.id===candidate.existingId);if(!exact)throw new Error('Unknown existing entity ID');return {...candidate,resolvedId:exact.id,match:'explicit'};}
+  if(candidate.existingId){const exact=all.find(e=>e.id===candidate.existingId);if(!exact)throw new Error('Unknown existing entity ID');if(exact.type!==candidate.type)throw new Error('Existing entity type mismatch');return {...candidate,resolvedId:exact.id,match:'explicit'};}
   const names=[candidate.name,...candidate.aliases].map(normalizeName).filter(Boolean);
   const matches=all.filter(e=>e.type===candidate.type&&(names.includes(normalizeName(e.name))||(Array.isArray(e.attributes?.aliases)&&e.attributes.aliases.some(a=>names.includes(normalizeName(a))))));
   const unique=[...new Map(matches.map(e=>[e.id,e])).values()];
