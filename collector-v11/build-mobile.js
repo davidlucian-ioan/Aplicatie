@@ -39,7 +39,7 @@ async function buildMobile(outDir=path.join(ROOT,'www')){
  const bridges=[
   {source:path.join(ROOT,'node_modules','@capacitor-community','sqlite','dist','plugin.js'),file:'capacitor-sqlite.js',marker:'<script src="storage-adapter.js?v=0.2"></script>'},
   {source:path.join(ROOT,'node_modules','@capacitor','filesystem','dist','plugin.js'),file:'capacitor-filesystem.js',marker:'<script src="audio-store.js?v=0.1"></script>'},
-  {source:path.join(ROOT,'node_modules','@capacitor','local-notifications','dist','plugin.js'),file:'local-notifications.js',marker:'<script src="reminders.js?v=0.1"></script>'},
+  {source:path.join(ROOT,'node_modules','@capacitor','local-notifications','dist','plugin.js'),file:'local-notifications.js',marker:'<script src="reminders.js?v=0.2"></script>'},
   {source:path.join(ROOT,'node_modules','@capgo','capacitor-audio-recorder','dist','plugin.js'),file:'capacitor-audio-recorder.js',marker:'<script src="native-audio-recorder.js?v=0.1"></script>'}
  ];
  for(const bridge of bridges){
