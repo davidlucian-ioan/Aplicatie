@@ -38,6 +38,7 @@
   get(id){return transaction('readonly',store=>store.get(id)).then(restoreBlob)},
   list(){return transaction('readonly',store=>store.getAll()).then(records=>records.map(restoreBlob).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))))},
   remove(id){return transaction('readwrite',store=>store.delete(id))},
+  async verifyRemoved(id){const remaining=await webStore.get(id);return remaining===null||remaining===undefined},
   async rename(id,title){const name=String(title||'').trim();if(!name||name.length>100)throw new Error('Titlul trebuie să aibă 1–100 de caractere.');const record=await webStore.get(id);if(!record)throw new Error('Înregistrarea nu a fost găsită.');const {blob,...metadata}=record;const audioData=blob?await blob.arrayBuffer():metadata.audioData;return transaction('readwrite',store=>store.put({...metadata,title:name,audioData}))},
   async beginSession(session){
    if(!session?.id||!session.mimeType)throw new Error('Sesiunea audio nu are metadate valide.');
@@ -232,6 +233,22 @@
     if(!isSafeAudioFilePath(row.filePath))throw new Error('Calea înregistrării audio este invalidă; fișierul a fost păstrat.');
     try{await filesystem.deleteFile({path:row.filePath,directory:'DATA'})}catch(error){if(!/not.?found|does not exist|no such file/i.test(String(error?.message||error)))throw error}
     await writeIndex(rows.filter(item=>item.id!==id));return true;
+   },
+   async verifyRemoved(id){
+    await initialize();
+    const rows=await readIndex(),row=rows.find(item=>item.id===id);
+    if(row){
+     if(!isSafeAudioFilePath(row.filePath))throw new Error('Calea înregistrării audio este invalidă; verificarea ștergerii a fost blocată.');
+     if(typeof filesystem.stat!=='function')return false;
+     let fileMissing=false;
+     try{const stat=await filesystem.stat({path:row.filePath,directory:'DATA'});if(stat!==null&&stat!==undefined)return false}
+     catch(error){if(/not.?found|does not exist|no such file/i.test(String(error?.message||error)))fileMissing=true;else throw error}
+     if(!fileMissing)return false;
+     await writeIndex(rows.filter(item=>item.id!==id));
+     if((await readIndex()).some(item=>item.id===id))throw new Error('Metadata audio rămâne în index după reconciliere.');
+    }
+    const legacy=typeof legacyStore.get==='function'?await legacyStore.get(id):null;
+    return legacy===null||legacy===undefined;
    },
    async clearAll(){
     await initialize();
