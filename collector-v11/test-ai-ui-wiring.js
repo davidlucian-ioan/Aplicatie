@@ -225,7 +225,7 @@ test('audio checkpoint records manual stages without persisting transcript or au
  assert.ok(run.includes("writeAudioLifecycleCheckpoint(sourceRecordingId,'failed'"));
  const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
  assert.ok(confirm.includes("writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'source_retained'"));
- assert.ok(confirm.includes('deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId)'));
+ assert.ok(confirm.includes("deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId,{confirmBeforeDelete:false})"));
  const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
  assert.ok(deletion.includes("writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending'"));
  assert.ok(deletion.includes("writeAudioLifecycleCheckpoint(recordingId,'completed'"));
@@ -259,7 +259,7 @@ test('A Core preview duplicate from an audio recording is verified instead of di
 test('The explicit deletion prompt is inside the reusable recovery-safe deletion service',()=>{
  const app=fs.readFileSync('app.js','utf8');
  const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
- assert.ok(deletion.includes("if(!confirm('Evenimentul structurat a fost verificat independent în jurnal."));
+ assert.ok(deletion.includes("if(confirmBeforeDelete&&!confirm('Evenimentul structurat a fost verificat independent în jurnal."));
  assert.ok(deletion.includes('await CollectorAudioStore.remove(recordingId)'));
  assert.ok(deletion.includes('await verifyAudioCheckpointEvent(await store.get(recordingId))'));
 });
