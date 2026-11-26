@@ -76,7 +76,7 @@
   if(cp.persistenceVerified===true&&cp.persisted!==true)fail('Checkpoint claims verified persistence without persisted commit');
   if(cp.audioDeleted===true&&!['audio_deleted','completed'].includes(cp.state))fail('Checkpoint claims audio deletion in an invalid state');
   if(cp.sourceRetained===true&&cp.state!=='source_retained')fail('Checkpoint claims source retention in an invalid state');
-  if(cp.state==='source_retained'&&(cp.persisted!==true||cp.persistenceVerified!==true||cp.audioDeleted===true))fail('Source-retained checkpoint requires verified persistence and retained audio');
+  if(cp.state==='source_retained'&&(cp.persisted!==true||cp.persistenceVerified!==true||cp.sourceRetained!==true||cp.audioDeleted!==false))fail('Source-retained checkpoint requires verified persistence and retained audio');
   if(cp.state==='completed'&&cp.audioDeleted!==true)fail('Completed checkpoint missing audioDeleted confirmation');
   if(cp.state==='completed'&&cp.persistenceVerified!==true)fail('Completed checkpoint missing persistence verification');
   const version=Number(cp.schemaVersion)||1;if(!Number.isInteger(version)||version<1||version>2)fail('Audio lifecycle checkpoint schema version invalid');
