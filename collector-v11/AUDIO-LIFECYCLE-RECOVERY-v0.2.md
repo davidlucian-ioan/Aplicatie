@@ -38,3 +38,19 @@ Before enabling automatic processing:
 - add end-to-end crash tests for every checkpoint boundary;
 - add a user-visible recovery action with explicit retry and retention behavior;
 - keep deletion feature flag off until all native/web E2E paths pass and product/privacy review approves it.
+
+## Recovery hardening batch — 10+ checks
+
+Checkpoint storage now has additional crash-recovery safeguards:
+
+- Storage adapters can enumerate keys by prefix (Web Storage and SQLite).
+- Enumeration is serialized against pending storage writes.
+- Checkpoint listing unions the persisted index with discovered keys and recovers orphan records created if a crash occurred between checkpoint write and index update.
+- Index rebuild is verified by readback; duplicate/corrupt index entries fail closed.
+- Checkpoint writes are verified by readback before being acknowledged.
+- Index writes are independently verified.
+- Checkpoint deletion is verified before the index is updated.
+- Checkpoint payload size is bounded on both write and read.
+- Schema version, timestamps, error fields and state claims receive stricter validation.
+- Recovery diagnostics expose orphan and missing-index IDs; Work UI reports when orphan records were reindexed.
+- Recovery remains diagnostic/manual: no automatic retry, interpretation, Core mutation or audio deletion is enabled.
