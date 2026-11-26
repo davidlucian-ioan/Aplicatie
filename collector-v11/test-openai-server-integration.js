@@ -67,4 +67,19 @@ test('serverul local expune doar interfața și protejează endpoint-urile AI', 
   assert.equal(noKey.status, 503);
   const error = await noKey.json();
   assert.match(error.error, /OPENAI_API_KEY/);
+
+  const badAudioOrigin = await fetch(base + '/api/ai/transcribe', {
+    method: 'POST', headers: { 'Content-Type': 'audio/webm', Origin: 'https://attacker.example' }, body: new Blob(['audio'])
+  });
+  assert.equal(badAudioOrigin.status, 403);
+  const unsupportedAudio = await fetch(base + '/api/ai/transcribe', {
+    method: 'POST', headers: { 'Content-Type': 'text/plain', Origin: base }, body: 'not audio'
+  });
+  assert.equal(unsupportedAudio.status, 415);
+  const transcribeNoKey = await fetch(base + '/api/ai/transcribe', {
+    method: 'POST', headers: { 'Content-Type': 'audio/webm', Origin: base }, body: new Blob(['audio'])
+  });
+  assert.equal(transcribeNoKey.status, 503);
+  assert.match((await transcribeNoKey.json()).error, /OPENAI_API_KEY/);
+
 });
