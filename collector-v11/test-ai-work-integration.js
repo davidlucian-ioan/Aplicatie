@@ -38,3 +38,16 @@ test('reminder source context and completion status are visible in the local act
  assert.match(reminders,/completedAt/);
  assert.match(reminders,/status:'scheduled'/);
 });
+
+test('Recall AI synthesis receives only retrieved evidence and displays validated source citations',async()=>{
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ const provider=await fs.readFile(path.join(__dirname,'ai','provider-openai.js'),'utf8');
+ const sanitizer=await fs.readFile(path.join(__dirname,'ai','context-sanitizer.js'),'utf8');
+ assert.match(app,/CollectorOpenAIProvider\.interpret\(q,\{recallEvidence:result\.evidence\}\)/);
+ assert.match(app,/ai\?\.intent!=='answer'/);
+ assert.match(app,/sourceMap\.has\(id\)/);
+ assert.match(app,/data-recall-open-event/);
+ assert.match(provider,/answer_sources/);
+ assert.match(provider,/allowedRecallSources\.has\(value\)/);
+ assert.match(sanitizer,/function safeRecallEvidence/);
+});
