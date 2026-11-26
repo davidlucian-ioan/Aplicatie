@@ -64,15 +64,27 @@
   async function recover(){return (await recoverDetails()).map(cp=>cp.id)}
   return Object.freeze({process,recover,recoverDetails,states:STATES.slice()});
  }
+ function validateCheckpoint(cp,expectedId=null){
+  if(!cp||typeof cp!=='object'||Array.isArray(cp))fail('Audio lifecycle checkpoint invalid');
+  if(typeof cp.id!=='string'||!cp.id.trim()||(expectedId!==null&&cp.id!==expectedId))fail('Audio lifecycle checkpoint identity mismatch');
+  if(cp.idempotencyKey!=='audio:'+cp.id)fail('Audio lifecycle checkpoint idempotency mismatch');
+  if(!STATES.includes(cp.state)&&cp.state!=='failed')fail('Audio lifecycle checkpoint state invalid');
+  if(cp.attempts!==undefined&&(!Number.isInteger(cp.attempts)||cp.attempts<0))fail('Audio lifecycle checkpoint attempts invalid');
+  if(cp.persistenceVerified===true&&cp.persisted!==true)fail('Checkpoint claims verified persistence without persisted commit');
+  if(cp.audioDeleted===true&&!['audio_deleted','completed'].includes(cp.state))fail('Checkpoint claims audio deletion in an invalid state');
+  if(cp.state==='completed'&&cp.audioDeleted!==true)fail('Completed checkpoint missing audioDeleted confirmation');
+  if(cp.state==='completed'&&cp.persistenceVerified!==true)fail('Completed checkpoint missing persistence verification');
+  return {...cp,schemaVersion:Number(cp.schemaVersion)||1};
+ }
  function createStorageCheckpointStore(storage,{prefix='collector_audio_lifecycle_v1'}={}){
-  if(!storage||typeof storage.readRaw!=='function'||typeof storage.writeRaw!=='function')fail('Checkpoint storage must support readRaw/writeRaw');
+  if(!storage||typeof storage.readRaw!=='function'||typeof storage.writeRaw!=='function'||typeof storage.removeRaw!=='function')fail('Checkpoint storage must support readRaw/writeRaw/removeRaw');
   const indexKey=prefix+':index',keyFor=id=>prefix+':'+encodeURIComponent(String(id));
   let queue=Promise.resolve();
   function enqueue(fn){const task=queue.then(fn);queue=task.catch(()=>{});return task}
-  async function readIndex(){const raw=await storage.readRaw(indexKey);if(raw===null||raw===undefined)return [];let ids;try{ids=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint index is corrupt')}if(!Array.isArray(ids)||ids.some(id=>typeof id!=='string'))fail('Audio lifecycle checkpoint index is invalid');return [...new Set(ids)]}
+  async function readIndex(){const raw=await storage.readRaw(indexKey);if(raw===null||raw===undefined)return [];let ids;try{ids=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint index is corrupt')}if(!Array.isArray(ids)||ids.some(id=>typeof id!=='string'||!id.trim()))fail('Audio lifecycle checkpoint index is invalid');return [...new Set(ids)]}
   return Object.freeze({
-   async get(id){const raw=await storage.readRaw(keyFor(id));if(raw===null||raw===undefined)return null;let cp;try{cp=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint is corrupt: '+id)}if(!cp||cp.id!==id)fail('Audio lifecycle checkpoint identity mismatch: '+id);return cp},
-   put(cp){return enqueue(async()=>{if(!cp||typeof cp.id!=='string'||!cp.id)fail('Invalid lifecycle checkpoint');const ids=await readIndex();await storage.writeRaw(keyFor(cp.id),JSON.stringify(cp));if(!ids.includes(cp.id)){ids.push(cp.id);await storage.writeRaw(indexKey,JSON.stringify(ids))}return true})},
+   async get(id){if(typeof id!=='string'||!id.trim())fail('Checkpoint ID required');const raw=await storage.readRaw(keyFor(id));if(raw===null||raw===undefined)return null;let cp;try{cp=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint is corrupt: '+id)}return validateCheckpoint(cp,id)},
+   put(cp){return enqueue(async()=>{const normalized=validateCheckpoint(cp);const ids=await readIndex();await storage.writeRaw(keyFor(normalized.id),JSON.stringify(normalized));if(!ids.includes(normalized.id)){ids.push(normalized.id);await storage.writeRaw(indexKey,JSON.stringify(ids))}return true})},
    remove(id){return enqueue(async()=>{const ids=await readIndex();await storage.removeRaw(keyFor(id));await storage.writeRaw(indexKey,JSON.stringify(ids.filter(x=>x!==id)));return true})},
    list(){return enqueue(async()=>{const ids=await readIndex(),rows=[];for(const id of ids){const cp=await this.get(id);if(cp)rows.push(cp)}return rows})}
   });
