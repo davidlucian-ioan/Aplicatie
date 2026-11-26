@@ -46,3 +46,12 @@ PR remains unmerged. No production deployment, live billing activation or store 
 - Added `test-audio-ai-core-pipeline.js` to exercise the integrated contracts: source-bound transcript persistence, multi-entity/fact/relation preview, explicit confirmation, independent readback, idempotent retry, ambiguity rejection, note-only deletion denial, source-bound deletion verification and failure retention.
 - This batch does not turn on background AI processing. Audio and transcript are still temporary and are removed only after a confirmed structured Core commit and independent verification, unless the user selects retention. Any uncertainty preserves the original recording.
 - CI is running against the new branch head; this note is not a claim of final launch readiness or device validation.
+
+
+## Batch 2026-11-26 — deletion cancellation/recovery and CI deduplication
+
+- Fixed a destructive-action ordering issue: when the separate audio-delete action is cancelled, the temporary transcript checkpoint is no longer cleared before cancellation.
+- Recovery now clears a transcript checkpoint when audio is already absent (possible lost deletion response), after the Core event has been independently verified.
+- Added a regression in `test-audio-processing-lifecycle-integration.js` for confirmation-before-transcript-clear/deletion checkpoint ordering and absent-source recovery cleanup.
+- CI workflow triggers were adjusted to avoid duplicate feature-branch push and PR runs: feature PRs run on `pull_request`, main runs on `push`; Quality also supports `workflow_dispatch`. The latest HEAD must validate these workflow changes.
+- Last fully verified HEAD before this batch: `88c08475` — Cloud API, Quality Suite and Android/iOS simulator builds all passed. New code/workflow commits after it are pending validation; do not claim green until the latest HEAD completes.

@@ -1,6 +1,6 @@
 # Collector — punct unic de continuare
 
-Ultima actualizare: 2026-11-24
+Ultima actualizare: 2026-11-26
 Versiune de lucru: v0.8 — OpenAI Provider Integration (branch separat)
 
 ## Scopul acestui fișier
@@ -1112,3 +1112,27 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 ### Corectarea testelor din această rundă
 - CI a expus două defecte în testele noi, nu în codul lifecycle: fixture-ul returna Map-ul audio dar testul încerca să înlocuiască `audio.remove` (metoda reală aparține store-ului); iar testul pentru missing source cu checkpoint failed trebuia să folosească `retry:true` conform contractului.
 - Fixture-ul expune acum store adapter; testele interceptează metoda corectă și folosesc explicit retry. Aceste corecții sunt incluse în commitul următor și CI trebuie reevaluat.
+
+
+## Checkpoint 2026-11-26 — continuation after CI review
+
+### Verified repository state at handoff
+- Repository: `davidlucian-ioan/Aplicatie`; branch: `feature/openai-provider-integration`; PR #55 remains open, draft, not merged.
+- Before the latest hardening batch, HEAD `88c08475` had **all three workflows green**: Cloud API, Quality Suite and Mobile Build (Android debug APK + iOS simulator).
+- New hardening commits after that green HEAD: `21f25c1d` (audio deletion cancellation ordering), `883ef4a8` (regression test), `e59cf81c` (cleanup transcript after lost audio-delete response), `e48f88b6` (regression coverage), plus CI workflow trigger changes. Latest branch HEAD at checkpoint: `c9276158`; workflows were queued/in progress. Verify CI against the latest HEAD before marking these changes validated.
+
+### Implemented in this continuation
+1. Audio-delete cancellation no longer clears the temporary transcript before user confirmation.
+2. If audio is already absent during verified deletion recovery, the transcript checkpoint is cleared before completion; this covers the lost-response/crash boundary.
+3. Regression coverage asserts confirmation precedes transcript removal and the deletion-pending checkpoint, and checks absent-source transcript cleanup.
+4. CI duplicate runs were reduced: feature branches run PR workflows rather than duplicate push workflows; main still runs on push. Quality now also supports manual dispatch.
+
+### Next priorities
+1. Wait for and inspect the latest-head Quality, Cloud API and Mobile results; fix any failure rather than weaken assertions.
+2. Review the audio pipeline's remaining crash boundaries and verify the real app path versus lifecycle-engine tests; keep no-background-processing policy.
+3. Implement evidence-grounded natural-language Recall synthesis with citations/source IDs and uncertainty handling; no answer may invent beyond retrieved Core evidence.
+4. Finish task/reminder lifecycle (open/completed/snoozed/cancelled), offline retry UX, and native device acceptance.
+5. Complete subscription/trial/quota and sandbox validation, Supabase isolation, privacy/export/delete, encryption and store release checks.
+
+### Release boundary
+Do not merge PR #55, deploy production, enable billing or claim store readiness without explicit approval and external/device validation.
