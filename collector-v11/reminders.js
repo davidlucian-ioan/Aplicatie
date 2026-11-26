@@ -5,14 +5,14 @@
  function createService({storage,plugin,now=()=>new Date(),random=Math.random}={}){
   if(!storage||typeof storage.readRaw!=='function'||typeof storage.writeRaw!=='function')throw new TypeError('Stocarea pentru alarme nu este disponibilă.');
   if(!plugin||typeof plugin.schedule!=='function'||typeof plugin.cancel!=='function')throw new TypeError('Notificările native nu sunt disponibile pe acest dispozitiv.');
-  async function list(){
+  let mutationQueue=Promise.resolve();\n  function serialized(task){const next=mutationQueue.then(task,task);mutationQueue=next.catch(()=>{});return next}\n  async function list(){
    const raw=await storage.readRaw(KEY);
    if(raw===null)return [];
    const parsed=JSON.parse(raw);
    if(!Array.isArray(parsed)||parsed.some(row=>!row||typeof row.id!=='string'||!Number.isInteger(row.notificationId)||typeof row.title!=='string'||typeof row.at!=='string'))throw new Error('Lista alarmelor este invalidă. Datele nu au fost suprascrise.');
    return parsed;
   }
-  async function create({title,at,sourceId=null,context='',idempotencyKey=null}={}){
+  async function createInternal({title,at,sourceId=null,context='',idempotencyKey=null}={}){
    const name=String(title||'').trim();
    if(!name||name.length>160)throw new Error('Descrierea alarmei trebuie să aibă între 1 și 160 de caractere.');
    const date=new Date(at);
@@ -42,14 +42,14 @@
     throw error;
    }
   }
-  async function snooze(id,minutes){
+  function create(input){return serialized(()=>createInternal(input))}\n  async function snooze(id,minutes){
    if(![5,10,30,60].includes(minutes))throw new Error('Durata amânării nu este acceptată.');
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target||target.status==='cancelled'||target.status==='completed')throw new Error('Alarma nu mai există.');
    const replacement=await create({title:target.title,at:new Date(now().getTime()+minutes*60_000).toISOString(),sourceId:target.sourceId,context:target.sourceContext,idempotencyKey:'snooze:'+target.id+':'+minutes+':'+now().getTime()});
    try{await cancel(id);return replacement}catch(error){try{await cancel(replacement.id)}catch(rollbackError){throw new Error('Amânarea a eșuat, iar alarma nouă nu a putut fi anulată: '+error.message+'; '+rollbackError.message)}throw error}
   }
-  async function updateStatus(id,status){
+  async function updateStatusInternal(id,status){
    const rows=await list(),target=rows.find(row=>row.id===id);
    if(!target)return false;
    if(target.status==='completed'||target.status==='cancelled')return false;
@@ -63,9 +63,9 @@
    }
    return updated;
   }
-  async function cancel(id){return Boolean(await updateStatus(id,'cancelled'))}
+  function updateStatus(id,status){return serialized(()=>updateStatusInternal(id,status))}\n  async function cancel(id){return Boolean(await updateStatus(id,'cancelled'))}
   async function complete(id){return await updateStatus(id,'completed')}
-  async function clearAll(){
+  async function clearAllInternal(){
    const rows=await list();
    if(!rows.length){if(typeof storage.removeRaw==='function')await storage.removeRaw(KEY);return 0}
    const notifications=rows.filter(row=>row.status!=='cancelled'&&row.status!=='completed').map(row=>({id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id,sourceId:row.sourceId,idempotencyKey:row.idempotencyKey},isExactNotification:false}));
@@ -80,7 +80,7 @@
    }
    return rows.length;
   }
-  return Object.freeze({list,create,cancel,snooze,complete,clearAll});
+  function clearAll(){return serialized(clearAllInternal)}\n  return Object.freeze({list,create,cancel,snooze,complete,clearAll});
  }
  let service=null,initialized=false;
  async function clearAll(){
