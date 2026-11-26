@@ -382,8 +382,9 @@ test('audio deletion requires at least one structured Core operation beyond an e
  const app=fs.readFileSync('app.js','utf8');
  const verify=app.slice(app.indexOf('async function verifyAudioCheckpointEvent'),app.indexOf('async function deleteAudioFromVerifiedCheckpoint'));
  const recovery=fs.readFileSync('ai/audio-capture-recovery.js','utf8');
- assert.ok(verify.includes('hasStructuredOperations(event)'));
- assert.ok(recovery.includes("operation.operation!=='event.note'"));
+ assert.ok(verify.includes('Recovery.verifyCheckpointEvent(state,cp)'));
+ assert.ok(recovery.includes('STRUCTURED_OPERATIONS.has(operation.operation.trim())'));
+ assert.ok(recovery.includes("event.payload?.sourceId!==sourceId"));
  assert.ok(app.includes('fără entități, atribute, relații sau alte operații structurate'));
 });
 

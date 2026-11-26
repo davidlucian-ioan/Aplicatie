@@ -50,11 +50,11 @@ test('checkpoint verifier accepts only the committed structured event belonging 
  assert.equal(Recovery.verifyCheckpointEvent({events:[event]},cp),event);
 });
 test('checkpoint verifier rejects a valid Core event that belongs to another audio recording',()=>{
- assert.throws(()=>Recovery.verifyCheckpointEvent({events:[committedEvent('rec-2')]},checkpoint('rec-1')),/source does not match/);
+ assert.throws(()=>Recovery.verifyCheckpointEvent({events:[committedEvent('rec-2',Recovery.stableIntentKey('rec-1'))]},checkpoint('rec-1')),/source does not match/);
 });
 test('checkpoint verifier rejects forged checkpoint recording IDs and unrelated idempotency keys',()=>{
  const event=committedEvent();
- assert.throws(()=>Recovery.verifyCheckpointEvent({events:[event]},checkpoint('rec-2')),/idempotency key/);
+ assert.throws(()=>Recovery.verifyCheckpointEvent({events:[event]},checkpoint('rec-2')),/exactly one/);
  assert.throws(()=>Recovery.verifyCheckpointEvent({events:[event]},checkpoint('rec-1','event-1','other-intent')),/idempotency key/);
 });
 test('checkpoint verifier requires durable persistence flags and a committed event',()=>{
