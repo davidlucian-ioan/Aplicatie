@@ -245,8 +245,11 @@
    const sync=await syncCoreOutboxInternal();
    if(sync.pending>0)throw new Error('Notificările au fost anulate, dar '+sync.pending+' eveniment(e) de anulare așteaptă sincronizarea Core. Metadatele au fost păstrate.');
    if(typeof storage.removeRaw!=='function')throw new Error('Notificările au fost anulate și jurnalizate, dar stocarea nu poate elimina istoricul local.');
-   if(await storage.removeRaw(KEY)!==true)throw new Error('Notificările au fost anulate și jurnalizate, dar stocarea nu a confirmat ștergerea istoricului.');
-   const remaining=await storage.readRaw(KEY);
+   let removed=false;
+   try{removed=await storage.removeRaw(KEY)===true}catch(error){throw new Error('Notificările au fost anulate și jurnalizate, dar ștergerea istoricului local a eșuat: '+error.message)}
+   if(!removed)throw new Error('Notificările au fost anulate și jurnalizate, dar stocarea nu a confirmat ștergerea istoricului.');
+   let remaining;
+   try{remaining=await storage.readRaw(KEY)}catch(error){throw new Error('Notificările au fost anulate și jurnalizate, dar verificarea ștergerii locale a eșuat: '+error.message)}
    if(remaining!==null&&remaining!==undefined)throw new Error('Notificările au fost anulate și jurnalizate, dar lista locală este încă prezentă.');
    return rows.length;
   }
