@@ -22,7 +22,7 @@ test('retry uses stable idempotency key and does not repeat completed processing
 test('recovery lists incomplete failed sessions',async()=>{const x=fixture({failAt:'verify'});await assert.rejects(x.lifecycle.process('a1'));assert.deepEqual(await x.lifecycle.recover(),['a1'])});
 
 test('recovery discovers nonterminal checkpoints after process crash',async()=>{const x=fixture();x.cps.set('a1',{id:'a1',state:'processing',attempts:1,idempotencyKey:'audio:a1'});assert.deepEqual(await x.lifecycle.recover(),['a1'])});
-test('crash after audio deletion but before completion checkpoint recovers without source audio',async()=>{const x=fixture();x.audio.delete('a1');x.cps.set('a1',{id:'a1',state:'audio_deletion_pending',attempts:1,idempotencyKey:'audio:a1',persistenceVerified:true});const cp=await x.lifecycle.process('a1');assert.equal(cp.state,'completed');assert.equal(cp.audioDeleted,true);assert.equal(x.audio.has('a1'),false)});
+test('crash after audio deletion but before completion checkpoint recovers without source audio',async()=>{const x=fixture();x.audio.delete('a1');x.cps.set('a1',{id:'a1',state:'audio_deletion_pending',attempts:1,idempotencyKey:'audio:a1',persisted:true,persistenceVerified:true});const cp=await x.lifecycle.process('a1');assert.equal(cp.state,'completed');assert.equal(cp.audioDeleted,true);assert.equal(x.audio.has('a1'),false)});
 
 test('concurrent duplicate requests for one recording share a single processing run',async()=>{const x=fixture();const [a,b]=await Promise.all([x.lifecycle.process('a1'),x.lifecycle.process('a1')]);assert.equal(a.state,'completed');assert.equal(b.state,'completed');assert.equal(x.calls.filter(v=>v==='interpret').length,1);assert.equal(x.calls.filter(v=>v==='delete').length,1)});
 
@@ -102,4 +102,21 @@ test('persist response loss retries with same idempotency key while source is re
  verifyPersisted:async()=>true});
  await assert.rejects(lifecycle.process('a1'),/response lost/);assert.equal(x.audio.has('a1'),true);
  const done=await lifecycle.process('a1',{retry:true});assert.equal(done.state,'completed');assert.deepEqual(keys,['audio:a1','audio:a1']);assert.equal(x.audio.has('a1'),false);
+});
+
+test('checkpoint schema rejects invalid states, idempotency keys and impossible completion claims',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v))},async removeRaw(k){raw.delete(k)}};
+ const cp=createStorageCheckpointStore(storage);
+ await assert.rejects(cp.put({id:'bad',state:'invented',idempotencyKey:'audio:bad'}),/state invalid/);
+ await assert.rejects(cp.put({id:'bad',state:'captured',idempotencyKey:'wrong'}),/idempotency mismatch/);
+ await assert.rejects(cp.put({id:'bad',state:'completed',idempotencyKey:'audio:bad',persistenceVerified:true}),/persisted commit/);
+ await assert.rejects(cp.put({id:'bad',state:'completed',idempotencyKey:'audio:bad',persisted:true,persistenceVerified:true}),/audioDeleted confirmation/);
+ await assert.rejects(cp.put({id:'bad',state:'completed',idempotencyKey:'audio:bad',persisted:true,persistenceVerified:true,audioDeleted:true}),/audioDeleted confirmation/);
+});
+test('checkpoint adapter adds schemaVersion during legacy-compatible reads',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v))},async removeRaw(k){raw.delete(k)}};
+ const cp=createStorageCheckpointStore(storage);raw.set('collector_audio_lifecycle_v1:'+encodeURIComponent('legacy'),JSON.stringify({id:'legacy',state:'failed',idempotencyKey:'audio:legacy'}));
+ const got=await cp.get('legacy');assert.equal(got.schemaVersion,1);
 });
