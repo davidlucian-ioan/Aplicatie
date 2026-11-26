@@ -8,7 +8,7 @@ function apiResponse(parsed) {
   return { status:'completed', output_text:JSON.stringify(parsed), usage:{input_tokens:123,output_tokens:45} };
 }
 const base = {
-  intent:'propose', answer:'', semantic_summary:'Am notat pH 6.4.', memory_facts:[], reminder_suggestions:[], question:'', confidence:0.94,
+  intent:'propose', answer:'', semantic_summary:'Am notat pH 6.4.', memory_facts:[], reminder_suggestions:[], structured_memory:{summary:'',clarification:'',confidence:0.5,entities:[],facts:[],relations:[]}, question:'', confidence:0.94,
   ambiguities:[], clarificationQuestion:'', command_intent:'event.note',
   certainty:'certain', requires_confirmation:false, payload_json:'{}',
   operations:[{operation:'event.note',target:null,data_json:'{"description":"pH 6.4"}'}]
@@ -60,7 +60,7 @@ test('schema este strictă și nu permite operații arbitrare',()=>{
   assert.equal(INTERPRETATION_SCHEMA.properties.operations.items.additionalProperties,false);
   assert.ok(INTERPRETATION_SCHEMA.properties.operations.items.properties.operation.enum.includes('stock.change'));
   assert.equal(INTERPRETATION_SCHEMA.properties.reminder_suggestions.items.additionalProperties,false);
-  assert.ok(INTERPRETATION_SCHEMA.required.includes('semantic_summary'));
+  assert.ok(INTERPRETATION_SCHEMA.required.includes('semantic_summary'));\n  assert.ok(INTERPRETATION_SCHEMA.required.includes('structured_memory'));\n  assert.equal(INTERPRETATION_SCHEMA.properties.structured_memory.additionalProperties,false);
 });
 
 
