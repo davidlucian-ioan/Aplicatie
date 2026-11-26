@@ -385,7 +385,8 @@ test('audio deletion requires at least one structured Core operation beyond an e
  assert.ok(verify.includes('Recovery.verifyCheckpointEvent(state,cp)'));
  assert.ok(recovery.includes('STRUCTURED_OPERATIONS.has(operation.operation.trim())'));
  assert.ok(recovery.includes("event.payload?.sourceId!==sourceId"));
- assert.ok(app.includes('fără entități, atribute, relații sau alte operații structurate'));
+ assert.ok(app.includes('Audio-ul original a fost păstrat.'));
+ assert.ok(recovery.includes('Audio checkpoint event contains no supported structured Core operations'));
 });
 
 test('audio transcript text is excluded from follow-up memory notes and reminder context',()=>{

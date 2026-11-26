@@ -801,7 +801,13 @@ async function verifyAudioCheckpointEvent(cp){
  const Recovery=window.CollectorAudioCaptureRecovery;
  if(!Recovery?.verifyCheckpointEvent)throw Error('Verificarea legăturii checkpoint–înregistrare nu este disponibilă.');
  try{return Recovery.verifyCheckpointEvent(state,cp)}
- catch(error){throw Error('Verificarea checkpoint-ului audio a eșuat: '+String(error?.message||error))}
+ catch(error){
+  const detail=String(error?.message||error);
+  const reason=detail.includes('no supported structured Core operations')
+   ? 'Commit-ul nu conține operații structurate suficiente (entități, atribute sau relații).'
+   : 'Verificarea integrității checkpoint-ului audio a eșuat: '+detail+'.';
+  throw Error(reason+' Audio-ul original a fost păstrat.');
+ }
 }
 async function recoverCommittedAudioCapture(recordingId){
  try{
