@@ -9,7 +9,7 @@ const create=(taskId,extra={})=>createTaskCommand(input(taskId,extra),{entities:
 const taskFrom=command=>{const op=command.operations.find(x=>x.operation==='entity.create');return {id:op.target,name:op.data.name,type:'task',attributes:Object.fromEntries(command.operations.filter(x=>x.operation==='attribute.set').map(x=>[x.data.name,x.data.value]))}};
 test('task edit validates title, deadline and priority and journals changes',()=>{
  const base=taskFrom(create('edit-task',{dueDate:'2026-11-27',dueTime:'09:00',timezone:'Europe/Bucharest',priority:'high'})),state={entities:[base],relations:[]};
- const edited=editTaskCommand({taskId:'edit-task',title:'Titlu nou',dueDate:'2026-11-28',dueTime:'10:30',timezone:'Europe/Bucharest',priority:'urgent',idempotencyKey:'edit-1',occurredAt:'2026-11-26T18:10:00Z'},state);
+ const edited=editTaskCommand({taskId:'edit-task',title:'Titlu nou',dueDate:'2026-11-28',dueTime:'10:30',timezone:'Europe/Bucharest',priority:'urgent',assignedTo:'Mihai',recurrence:'weekly',idempotencyKey:'edit-1',occurredAt:'2026-11-26T18:10:00Z'},state);
  assert.equal(edited.intent,'task.edit');assert.equal(edited.requiresConfirmation,true);
  assert.ok(edited.operations.some(op=>op.operation==='entity.rename'&&op.data.name==='Titlu nou'));
  assert.ok(edited.operations.some(op=>op.operation==='attribute.set'&&op.data.name==='dueDate'&&op.data.value==='2026-11-28'));
@@ -17,7 +17,7 @@ test('task edit validates title, deadline and priority and journals changes',()=
  assert.throws(()=>editTaskCommand({taskId:'edit-task',title:'',idempotencyKey:'bad'},state),/title invalid/);
  assert.throws(()=>editTaskCommand({taskId:'edit-task',dueDate:null,dueTime:'11:00',idempotencyKey:'bad-time'},state),/requires dueDate/);
  assert.throws(()=>editTaskCommand({taskId:'edit-task',dueDate:'2026-11-28',dueTime:'11:00',timezone:null,idempotencyKey:'bad-zone'},state),/requires an IANA timezone/);
- assert.throws(()=>editTaskCommand({taskId:'edit-task',priority:'critical',idempotencyKey:'bad-priority'},state),/priority is not supported/);
+ assert.throws(()=>editTaskCommand({taskId:'edit-task',priority:'critical',idempotencyKey:'bad-priority'},state),/priority is not supported/);assert.throws(()=>editTaskCommand({taskId:'edit-task',recurrence:'yearly',idempotencyKey:'bad-recurrence'},state),/recurrence is not supported/);assert.throws(()=>editTaskCommand({taskId:'edit-task',assignedTo:'x'.repeat(121),idempotencyKey:'bad-assignee'},state),/assignedTo invalid/);
 });
 test('task edit clears optional deadline values',()=>{
  const base=taskFrom(create('clear-edit',{dueDate:'2026-11-27'})),state={entities:[base],relations:[]};

@@ -105,6 +105,9 @@
   if(dueDate&&dueTime&&!zone)throw new Error('A timed task requires an IANA timezone');
   const priority=input.priority===undefined?(a.priority||'normal'):text(input.priority,'priority',16);
   if(!PRIORITIES.has(priority))throw new Error('Task priority is not supported');
+  const assignedTo=input.assignedTo===undefined?(a.assignedTo||null):(input.assignedTo===null||input.assignedTo===''?null:text(input.assignedTo,'assignedTo',120));
+  const recurrence=input.recurrence===undefined?(a.recurrence||'none'):text(input.recurrence,'recurrence',16);
+  if(!['none','daily','weekly','monthly'].includes(recurrence))throw new Error('Task recurrence is not supported');
   const operations=[];
   if(title!==task.name)operations.push({operation:'entity.rename',target:task.id,data:{name:title}});
   const set=(name,value)=>operations.push({operation:'attribute.set',target:task.id,data:{name,value,forceHistory:true}});
@@ -112,8 +115,10 @@
   if(dueTime!==a.dueTime)set('dueTime',dueTime);
   if(zone!==a.timezone)set('timezone',zone);
   if(priority!==a.priority)set('priority',priority);
+  if(assignedTo!==a.assignedTo)set('assignedTo',assignedTo);
+  if(recurrence!==a.recurrence)set('recurrence',recurrence);
   set('updatedAt',occurredAt);
-  return command('task.edit',input.idempotencyKey,a.taskId,{domain:'task',taskKind:'user',taskId:a.taskId,entityId:task.id,title,dueDate,dueTime,timezone:zone,priority,occurredAt},operations);
+  return command('task.edit',input.idempotencyKey,a.taskId,{domain:'task',taskKind:'user',taskId:a.taskId,entityId:task.id,title,dueDate,dueTime,timezone:zone,priority,assignedTo,recurrence,occurredAt},operations);
  }
  function reachesDependency(state,startId,targetId){
   const relations=Array.isArray(state.relations)?state.relations:[];
