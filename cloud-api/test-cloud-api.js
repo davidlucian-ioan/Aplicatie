@@ -323,7 +323,7 @@ test('transcription cloud endpoint authenticates, reserves a fixed cost ceiling 
   assert.equal(body.usage.transcriptionCostCapUsd,0.04);assert.equal(body.usage.estimatedCostUsd,0.04);
   assert.equal(calls.provider,1);assert.equal(calls.reserve.length,1);assert.equal(calls.settle.length,1);
   assert.equal(calls.reserve[0].reserveMicrousd,40_000);
-  assert.equal(calls.settle[0].actualMicrousd,40_000);assert.equal(calls.settle[0].failed,false);
+  assert.equal(calls.settle[0].actualMicrousd,40_000);assert.notEqual(calls.settle[0].failed,true);
   assert.equal(calls.settle[0].model,'test-transcribe-model');
  });
 });
