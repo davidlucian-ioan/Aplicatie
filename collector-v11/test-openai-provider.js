@@ -60,7 +60,9 @@ test('schema este strictă și nu permite operații arbitrare',()=>{
   assert.equal(INTERPRETATION_SCHEMA.properties.operations.items.additionalProperties,false);
   assert.ok(INTERPRETATION_SCHEMA.properties.operations.items.properties.operation.enum.includes('stock.change'));
   assert.equal(INTERPRETATION_SCHEMA.properties.reminder_suggestions.items.additionalProperties,false);
-  assert.ok(INTERPRETATION_SCHEMA.required.includes('semantic_summary'));\n  assert.ok(INTERPRETATION_SCHEMA.required.includes('structured_memory'));\n  assert.equal(INTERPRETATION_SCHEMA.properties.structured_memory.additionalProperties,false);
+  assert.ok(INTERPRETATION_SCHEMA.required.includes('semantic_summary'));
+  assert.ok(INTERPRETATION_SCHEMA.required.includes('structured_memory'));
+  assert.equal(INTERPRETATION_SCHEMA.properties.structured_memory.additionalProperties,false);
 });
 
 
