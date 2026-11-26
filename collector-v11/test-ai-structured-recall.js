@@ -92,3 +92,12 @@ test('Recall returns canonical reminder tasks with lifecycle, due date and sourc
  const browser=globalThis.CollectorStructuredRecall.searchStructuredMemory(fixture,'reminder pompa');
  assert.deepEqual(browser,result);
 });
+
+test('reminder task Recall evidence is prioritized and not duplicated as a generic entity',()=>{
+ const task={id:'task:reminder:priority',name:'Prioritate pompă',type:'task',attributes:{taskKind:'reminder',reminderId:'priority',status:'open',dueAt:'2026-11-27T09:00:00Z'}};
+ const result=searchStructuredMemory({...state,entities:[...state.entities,task]},'prioritate pompa');
+ assert.equal(result.tasks.length,1);
+ assert.equal(result.entities.some(entity=>entity.id===task.id),false);
+ assert.equal(result.evidence[0].kind,'task');
+ assert.equal(result.evidence[0].sourceId,'task:task:reminder:priority');
+});
