@@ -1239,3 +1239,17 @@ Build-urile WebKit și Android nu sunt declarate PASS până când Actions nu co
 - Mai rămân TTS, abonamentele Small/Medium/Large, store sandbox, Supabase/producție, privacy/encryption review, device acceptance și signed store builds.
 
 Nu activa background processing, billing live sau deployment și nu scoate PR #55 din draft fără decizie explicită.
+
+
+## Checkpoint — canonical Reminder Task lifecycle (26 Nov 2026)
+
+- PR #55 remains open/draft/unmerged. Branch: `feature/openai-provider-integration`; no changes to `main`.
+- CI on preceding HEAD `a2295f4e` was fully green: Quality Suite including Chromium/Firefox/WebKit, Android debug APK, iOS Simulator and Cloud API. The new commits after that HEAD require fresh CI confirmation.
+- Implemented canonical Core entities for reminder tasks using replayable `task` entities and `attribute.set` journal events. Stable task identity is `task:reminder:<reminderId>`; attributes include task kind, reminder ID, due time, source ID, status, schedule state and transition timestamps.
+- Supported task statuses: `open`, `completed`, `snoozed`, `cancelled`. Scheduling uncertainty is represented separately as `scheduleState=uncertain`.
+- Snooze is distinguishable from cancellation and links the old task to the successor reminder/task and its due timestamp. Local reminder history now displays completed, snoozed and cancelled outcomes separately.
+- Recall returns typed task evidence including status, due date, source reference and successor identifiers. Raw transcript/source context is not copied into Core.
+- A terminal lifecycle received before the first successful schedule event can still create a terminal task, covering compensated schedule recovery.
+- Tests cover task creation, CorePort commit/replay, completion, terminal-state validation, invalid source, ID collision, successor metadata, local snooze outbox lifecycle and Node/browser Recall parity.
+- Remaining: run CI on the current HEAD; implement general non-reminder task creation/dependencies/assignment/priority/recurrence and dedicated UI; physical-device notification and audio acceptance; real-provider Recall acceptance.
+- Release boundary unchanged: no merge, production deployment, live billing or Store-readiness claim.

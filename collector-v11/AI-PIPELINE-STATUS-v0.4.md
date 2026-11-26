@@ -28,7 +28,7 @@
 
 - Add generative recall synthesis grounded only in retrieved evidence, with source IDs and uncertainty behavior.
 - Add natural-language voice playback/TTS and source navigation.
-- Finish a robust task lifecycle (open, completed, snoozed, cancelled) tied to reminders and source events.
+- Extend the canonical Core Task lifecycle beyond reminder-backed tasks to general user-created tasks, dependencies, assignment and richer source-event navigation.
 - Add controlled offline processing/retry and queue UX without silent or destructive background behavior.
 - Complete authoritative subscription tiers, trial, quota, usage metering, cost ceilings and store sandbox tests.
 - Validate auth/data isolation, export/deletion semantics, privacy disclosures, encryption and monitoring for production.
@@ -92,3 +92,15 @@ Cloud API PASS; Node/Core/property/Replay PASS; Chromium and Firefox E2E PASS; i
 - Canonical Core task/reminder projection and richer Activity/Memory linkage.
 - Full failure-injection coverage for uncertain native cancellation, real-device push/local notification behavior, and actual provider-driven E2E.
 - Offline user-facing queue refinements, TTS, pricing/tier entitlements, store sandbox, production service isolation, privacy/security review and signed release.
+
+
+## Canonical reminder Task lifecycle — 26 November 2026
+
+- Native reminders are projected into Core as first-class `task` entities in the existing event-sourced entity/attribute/relation model; Core has no separate non-replayable reminder cache.
+- Each task stores reminder ID, title, due timestamp, source reference, schedule state, status and transition timestamps. Attribute writes are journal events, so replay reconstructs the task projection and its history.
+- Supported reminder-task statuses are `open`, `completed`, `snoozed` and `cancelled`. Native scheduling uncertainty is tracked separately as `scheduleState: uncertain`.
+- Snooze is distinct from cancellation and records replacement reminder ID, replacement task ID and replacement due timestamp. The replacement reminder has its own canonical task entity.
+- Recall exposes typed reminder-task evidence including status, due date and source reference. Raw source context and transcripts are not copied into Core.
+- Recovery may first report a terminal lifecycle if native scheduling was compensated before its first Core sync; the canonical task is created in that terminal state rather than leaving an unresolvable outbox item.
+- The reminder history UI shows completed, snoozed and cancelled records separately. Snoozed rows display the replacement due time.
+- This is a reminder-backed Task MVP, not a complete general task manager. General task creation, dependencies, assignment, priorities, recurrence and dedicated Task UI remain.

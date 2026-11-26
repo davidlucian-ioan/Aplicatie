@@ -24,7 +24,8 @@ const WEB_FILES=[
  'ai/audio-capture-recovery.js',
  'ai/audio-transcript-checkpoints.js',
  'audio-processing-lifecycle.js',
- 'ai/reminder-intent.js'
+ 'ai/reminder-intent.js',
+ 'ai/reminder-task.js'
 ];
 
 async function buildMobile(outDir=path.join(ROOT,'www')){
