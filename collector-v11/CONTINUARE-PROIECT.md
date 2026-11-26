@@ -1055,3 +1055,11 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - The prior run at `9780847d` failed E2E with those two issues; subsequent fix commits triggered new runs. Check exact current HEAD and CI after the checkpoint.
 
 - Lifecycle recovery hardening: nonterminal checkpoints are now discoverable even if process crashed before marking recoveryRequired; the `audio_deletion_pending` checkpoint can safely finalize after a crash that happened after file removal but before `audio_deleted/completed` was persisted. Added tests for both crash windows. Corrected lifecycle test fixture retry behavior and deletion assertion.
+
+
+## Audio transcription milestone (2026-11-26)
+- Added server-side `POST /api/ai/transcribe`: accepts raw audio bytes (25 MB limit), validates supported MIME, enforces same local-origin allowlist/rate limiting, requires server API key, calls OpenAI transcription with `gpt-4o-mini-transcribe` by default (override `OPENAI_TRANSCRIPTION_MODEL`), returns text only. API key never reaches browser.
+- Browser provider exposes `transcribe(blob)`; validates empty/oversized audio, uses auth token for native cloud calls.
+- Work recordings now include **Transcrie + AI**: loads local blob/native URI, transcribes, places result into Work draft, and prompts the user to inspect then explicitly run AI interpretation/preview/commit. Original audio is intentionally retained (not deleted by this partial feature).
+- Tests cover browser provider payload/guards and server endpoint origin, MIME, and missing-key guards.
+- This is a manual, user-triggered transcription-to-draft step only. It does NOT yet automatically extract structured memory, execute Core, verify persistence, or delete audio. Next milestone: connect transcription + structured extraction + idempotent Core commit to lifecycle checkpoints and independently verify committed records before deletion; failures must retain source and recovery state.
