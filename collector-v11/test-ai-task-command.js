@@ -50,7 +50,7 @@ test('task transitions are validated and completion is blocked by unfinished pre
 test('dependencies cannot self-reference, duplicate or create a cycle',()=>{
  const a=taskFrom(create('a')),b=taskFrom(create('b')),c=taskFrom(create('c'));
  const state={entities:[a,b,c],relations:[{id:'a-b',sourceId:a.id,targetId:b.id,type:'depends_on',endedAt:null}]};
- assert.throws(()=>addDependencyCommand({taskId:'a',dependsOnTaskId:'a',idempotencyKey:'self'},state),/self/);
+ assert.throws(()=>addDependencyCommand({taskId:'a',dependsOnTaskId:'a',idempotencyKey:'self'},state),/însuși/);
  assert.throws(()=>addDependencyCommand({taskId:'a',dependsOnTaskId:'b',idempotencyKey:'duplicate'},state),/există deja/);
  assert.throws(()=>addDependencyCommand({taskId:'b',dependsOnTaskId:'a',idempotencyKey:'cycle'},state),/ciclu/);
  const cmd=addDependencyCommand({taskId:'a',dependsOnTaskId:'c',idempotencyKey:'a-c'},state);

@@ -16,10 +16,10 @@ function validateTaskDue(due,{timezone:defaultTimezone='UTC'}={}){
  const date=typeof due.date==='string'?due.date.trim():'',time=typeof due.time==='string'?due.time.trim():'';
  if(!date&&!time)return {dueDate:null,dueTime:null,timezone:validTimezone(defaultTimezone)?defaultTimezone:null};
  if(!date)return {action:'clarify',question:'Ai specificat o oră fără o dată. Pentru ce zi este task-ul?'} ;
- if(!/^d{4}-d{2}-d{2}$/.test(date))return {action:'clarify',question:'Nu am identificat o dată validă pentru task.'};
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return {action:'clarify',question:'Nu am identificat o dată validă pentru task.'};
  const [y,m,d]=date.split('-').map(Number),check=new Date(Date.UTC(y,m-1,d));
  if(check.getUTCFullYear()!==y||check.getUTCMonth()!==m-1||check.getUTCDate()!==d)return {action:'clarify',question:'Data task-ului nu este validă.'};
- if(time&&!/^([01]d|2[0-3]):[0-5]d$/.test(time))return {action:'clarify',question:'Ora task-ului nu este validă. Folosește formatul HH:mm.'};
+ if(time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))return {action:'clarify',question:'Ora task-ului nu este validă. Folosește formatul HH:mm.'};
  const zone=typeof defaultTimezone==='string'&&defaultTimezone.trim()?defaultTimezone.trim():'UTC';
  if(!validTimezone(zone))return {action:'clarify',question:'Fusul orar al task-ului nu este valid.'};
  return {dueDate:date,dueTime:time||null,timezone:zone};
@@ -51,7 +51,7 @@ function resolveDue(due,{now=new Date(),timezone='UTC',defaultHour=9,defaultMinu
  if(typeof timezone!=='string'||!timezone.trim())return {action:'clarify',question:'Care este fusul orar pentru reminder?'};
  if(!Number.isInteger(defaultHour)||defaultHour<0||defaultHour>23||!Number.isInteger(defaultMinute)||defaultMinute<0||defaultMinute>59)throw new RangeError('Ora implicită pentru reminders este invalidă.');
  const date=due.date;
- if(typeof date!=='string'||!/^d{4}-d{2}-d{2}$/.test(date))return {action:'clarify',question:'Nu am identificat o dată exactă. Pentru când să setez reminderul?'};
+ if(typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date))return {action:'clarify',question:'Nu am identificat o dată exactă. Pentru când să setez reminderul?'};
  const [y,m,d]=date.split('-').map(Number),utcCheck=new Date(Date.UTC(y,m-1,d));
  if(utcCheck.getUTCFullYear()!==y||utcCheck.getUTCMonth()!==m-1||utcCheck.getUTCDate()!==d)return {action:'clarify',question:'Data identificată nu este validă. Pentru când să setez reminderul?'};
  let hour=defaultHour,minute=defaultMinute;

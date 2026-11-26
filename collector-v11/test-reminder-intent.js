@@ -32,7 +32,7 @@ test('invalid date and invalid time rejected or clarified',()=>{
  assert.equal(resolveDue({date:'2026-11-27',time:'25:00'},{now,timezone:'UTC'}).action,'clarify');
 });
 test('invalid title is rejected',()=>{
- assert.throws(()=>validateReminderSuggestion({...base,title:' '.repeat(2)}),/Descrierea reminder/);
+ assert.throws(()=>validateReminderSuggestion({...base,title:' '.repeat(2)}),/Descrierea.*trebuie/);
 });
 test('timezone IANA invalid is clarified instead of crashing scheduling flow',()=>{
  const result=resolveDue({date:'2026-11-27',time:'09:00'},{now,timezone:'Romania/Invalid'});
