@@ -145,7 +145,7 @@ test('Audio Transcrie + AI continues into AI interpretation and retains source u
  assert.ok(flow.includes('activeAudioRecordingId=record.id'));
  assert.ok(flow.includes('await runAICommand()'));
  assert.doesNotMatch(flow,/CollectorAudioStore\.remove/);
- assert.ok(app.includes('stableAudioCaptureTurnId(sourceRecordingId,text)'));
+ assert.ok(app.includes('stableAudioCaptureTurnId(sourceRecordingId)'));
  assert.ok(app.includes("sourceId=sourceRecordingId?'audio:'+sourceRecordingId"));
  assert.ok(app.includes('audioRecordingId:sourceRecordingId'));
  const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
