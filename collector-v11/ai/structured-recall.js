@@ -16,7 +16,7 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  const relationEvidence=relevantRelations.map(r=>({...r,sourceName:entityById.get(r.sourceId)?.name||r.sourceId,targetName:entityById.get(r.targetId)?.name||r.targetId}));
  const filteredEvents=events.filter(e=>{
   const ts=Date.parse(e.timestamp||'');if(from&&(!Number.isFinite(ts)||ts<Date.parse(from)))return false;if(to&&(!Number.isFinite(ts)||ts>Date.parse(to)))return false;
-  const refs=new Set([e.payload?.entityId,...(e.operations||[]).flatMap(o=>[o.target,o.data?.entityId,o.data?.sourceId,o.data?.targetId,o.data?.populationId])].filter(Boolean));
+  const payloadIds=Object.values(e.payload?.entityIds||{});const refs=new Set([e.payload?.entityId,...payloadIds,...(Array.isArray(e.payload?.linkedEntityIds)?e.payload.linkedEntityIds:[]),...(e.operations||[]).flatMap(o=>[o.target,o.data?.entityId,o.data?.sourceId,o.data?.targetId,o.data?.populationId])].filter(Boolean));
   const text=normalizeName(JSON.stringify({payload:e.payload,operations:e.operations}));
   return [...matchedIds].some(id=>refs.has(id))||terms.some(t=>text.includes(t));
  }).slice(-Math.min(Math.max(Number(limit)||30,1),MAX_RESULTS));
