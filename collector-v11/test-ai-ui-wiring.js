@@ -393,3 +393,12 @@ test('audio transcript text is excluded from follow-up memory notes and reminder
  assert.ok(reminder.includes("String(ai.semanticSummary||suggestion.title||'Audio capture').slice(0,500)"));
  assert.ok(reminder.includes("[suggestion.context,sourceText]"));
 });
+
+test('audio commands cannot commit only unstructured event notes or raw transcript text',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
+ assert.ok(run.includes("sourceRecordingId?ai.command.operations.filter(operation=>operation?.operation!=='event.note'):ai.command.operations"));
+ assert.ok(run.includes('if(!commandOperations.length)throw Error'));
+ assert.ok(run.includes('nicio notă brută nu a fost salvată'));
+ assert.ok(run.includes('operations:commandOperations'));
+});
