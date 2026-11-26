@@ -598,6 +598,7 @@ async function recoverInterruptedAudio(){
   const remainingWeb=await CollectorAudioStore.listInterruptedSessions(),remainingNative=await window.CollectorNativeAudioRecorder?.getPending();
   if(button)button.hidden=!remainingNative&&!remainingWeb.length;
   await renderAudioRecordings();
+  await refreshAudioLifecycleRecovery();
  }catch(error){setAudioUi('idle','Recuperarea nu a reușit; datele parțiale au fost păstrate pentru o nouă încercare: '+error.message);if(button)button.hidden=false}
  finally{if(button)button.disabled=false}
 }
@@ -725,6 +726,7 @@ document.getElementById('audioRecordPause').addEventListener('click',pauseAudioR
 document.getElementById('audioRecordResume').addEventListener('click',resumeAudioRecording);
 document.getElementById('audioRecordStop').addEventListener('click',stopAudioRecording);
 document.getElementById('audioRecoverPending')?.addEventListener('click',recoverInterruptedAudio);
+document.getElementById('audioLifecycleRecoveryRefresh')?.addEventListener('click',()=>void refreshAudioLifecycleRecovery());
 document.getElementById('globalVoice').onclick=()=>{showPage('assistant');if(audioRecorder&&(audioRecorder.state==='recording'||audioRecorder.state==='paused'))stopAudioRecording();else startAudioRecording()};
 // Work draft: isolated autosave through the selected StorageAdapter. It never writes to the event journal.
 const WORK_DRAFT_KEY='collector_work_command_draft_v1';
@@ -811,11 +813,24 @@ document.getElementById('clearLocalData')?.addEventListener('click',clearAllLoca
 // Conversation context expires after 30 minutes; persistent entities and event history are unaffected.
 // Do not persist stale in-memory snapshots on focus; context expiry is evaluated when commands are handled.
 // Every committed change is persisted before publication; never write a stale in-memory snapshot on unload.
+async function refreshAudioLifecycleRecovery(){
+ const box=document.getElementById('audioLifecycleRecovery');if(!box)return;
+ const store=window.CollectorAudioLifecycleCheckpointStore;
+ if(!store){box.innerHTML='<p class="muted">Checkpoint-urile de procesare audio nu sunt inițializate.</p>';return}
+ try{
+  const rows=await store.list();
+  const pending=rows.filter(cp=>cp.state!=='completed');
+  if(!pending.length){box.innerHTML='<p class="muted">Nu există procesări AI audio întrerupte. Audio-ul original nu este șters de această componentă.</p>';return}
+  box.innerHTML='<p><b>'+pending.length+'</b> procesări audio în checkpoint (recovery manual, fără auto-retry/ștergere).</p>'+pending.map(cp=>'<div class="row"><div><b>'+esc(cp.id)+'</b><div class="muted">'+esc(cp.state)+' · încercări '+(Number(cp.attempts)||0)+(cp.error?' · '+esc(cp.error):'')+'</div></div></div>').join('');
+ }catch(error){box.textContent='Nu pot citi checkpoint-urile de recovery: '+String(error?.message||error)}
+}
 async function initializeCollectorApp(){
  const main=document.getElementById('mainContent');
  if(main)main.inert=true;
  try{
   await storageAdapter.initialize();
+  window.CollectorAudioLifecycleCheckpointStore=window.CollectorAudioProcessingLifecycle?.createStorageCheckpointStore(storageAdapter)||null;
+  window.CollectorAudioLifecycleRecovery={list:()=>window.CollectorAudioLifecycleCheckpointStore?.list()||Promise.resolve([]),refresh:refreshAudioLifecycleRecovery};
   db=await loadDb();
   if(!integrityBlocked&&typeof storageAdapter.completeEncryptionMigration==='function')storageAdapter.completeEncryptionMigration();
   try{
