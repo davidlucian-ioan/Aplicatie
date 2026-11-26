@@ -28,3 +28,12 @@ test('recovery refuses malformed Core state or recording identity',()=>{
  assert.throws(()=>Recovery.findCommittedEvent({},'rec-1'),/events/);
  assert.throws(()=>Recovery.findCommittedEvent({events:[]},''),/invalid/);
 });
+
+test('a note-only Core commit is not considered sufficient structured memory for deletion',()=>{
+ assert.equal(Recovery.hasStructuredOperations({operations:[{operation:'event.note',target:null,data:{description:'just a note'}}]}),false);
+});
+test('entity and attribute operations qualify as structured persistence',()=>{
+ assert.equal(Recovery.hasStructuredOperations({operations:[{operation:'entity.create',target:'e1',data:{name:'Plant',type:'plant'}}]}),true);
+ assert.equal(Recovery.hasStructuredOperations({operations:[{operation:'event.note',data:{}},{operation:'attribute.set',target:'e1',data:{name:'height',value:20}}]}),true);
+ assert.equal(Recovery.hasStructuredOperations({operations:[]}),false);
+});
