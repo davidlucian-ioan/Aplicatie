@@ -93,3 +93,13 @@ test('checkpoint adapter serializes concurrent writes and maintains a consistent
  await Promise.all(Array.from({length:12},(_,i)=>cp.put({id:'id'+i,state:'captured',idempotencyKey:'audio:id'+i})));
  const rows=await cp.list();assert.equal(rows.length,12);assert.equal(new Set(rows.map(x=>x.id)).size,12);
 });
+
+test('persist response loss retries with same idempotency key while source is retained',async()=>{
+ const x=fixture();let commits=0,keys=[];
+ const lifecycle=createAudioProcessingLifecycle({audioStore:x.store,checkpointStore:{get:async id=>x.cps.get(id)||null,put:async cp=>x.cps.set(cp.id,structuredClone(cp)),list:async()=>[...x.cps.values()]},
+ interpret:async()=>({text:'x'}),extract:async()=>({entities:[]}),validate:async v=>v,
+ persist:async(_v,{idempotencyKey})=>{keys.push(idempotencyKey);commits++;if(commits===1)throw Error('response lost after commit');return {commitId:'same'}},
+ verifyPersisted:async()=>true});
+ await assert.rejects(lifecycle.process('a1'),/response lost/);assert.equal(x.audio.has('a1'),true);
+ const done=await lifecycle.process('a1',{retry:true});assert.equal(done.state,'completed');assert.deepEqual(keys,['audio:a1','audio:a1']);assert.equal(x.audio.has('a1'),false);
+});
