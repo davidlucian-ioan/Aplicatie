@@ -95,3 +95,15 @@ test('RevenueCat billing RPC is executable only by service_role',()=>{
  assert.match(sql,/revoke all on function public\.collector_apply_revenuecat_event\([\s\S]{0,240}from public, anon, authenticated/i);
  assert.match(sql,/grant execute on function public\.collector_apply_revenuecat_event\([\s\S]{0,240}to service_role/i);
 });
+
+test('monthly AI budget reductions apply immediately while increases wait for next period',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const sql=fs.readFileSync(path.join(__dirname,'migrations','001_billing_and_ai_usage.sql'),'utf8');
+ assert.match(sql,/budget_microusd=least\(budget_microusd,p_budget_microusd\)/);
+ const select=sql.indexOf('select \* into v_budget from public.collector_ai_budgets');
+ const clamp=sql.indexOf('budget_microusd=least(budget_microusd,p_budget_microusd)');
+ const reselect=sql.indexOf('select \* into v_budget from public.collector_ai_budgets',clamp);
+ const usageCheck=sql.indexOf('v_budget.used_microusd + v_budget.reserved_microusd + p_reserve_microusd > v_budget.budget_microusd');
+ assert.ok(select<clamp&&clamp<reselect&&reselect<usageCheck,'budget must be clamped and re-read before the atomic allowance check');
+});
