@@ -222,8 +222,10 @@ test('audio checkpoint records manual stages without persisting transcript or au
  assert.ok(run.includes("writeAudioLifecycleCheckpoint(sourceRecordingId,'failed'"));
  const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
  assert.ok(confirm.includes("writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'source_retained'"));
- assert.ok(confirm.includes("writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'audio_deletion_pending'"));
- assert.ok(confirm.includes("writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'completed'"));
+ assert.ok(confirm.includes('deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId)'));
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(deletion.includes("writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending'"));
+ assert.ok(deletion.includes("writeAudioLifecycleCheckpoint(recordingId,'completed'"));
 });
 
 
