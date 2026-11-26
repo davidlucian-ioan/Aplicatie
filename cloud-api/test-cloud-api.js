@@ -434,9 +434,9 @@ test('Cloud Recall route passes canonical task evidence through bounded sanitize
   assert.equal(payload.interpretation.intent,'answer');
   assert.deepEqual(payload.interpretation.answerSources,[sourceId]);
   assert.deepEqual(received.context.recallEvidence,[{
-   kind:'task',sourceId,reminderId:'cloud-test',title:'Verifică pompa',status:'snoozed',
-   dueAt:'2026-11-27T08:00:00+02:00',sourceRef:'audio:capture-1',scheduleState:'settled',
-   successorReminderId:'cloud-next',successorTaskId:'task:reminder:cloud-next',successorDueAt:'2026-11-27T09:15:00+02:00'
+   kind:'task',sourceId,taskKind:'reminder',taskId:'',reminderId:'cloud-test',title:'Verifică pompa',status:'snoozed',
+   dueAt:'2026-11-27T08:00:00+02:00',dueDate:'',dueTime:'',timezone:'',priority:'normal',sourceRef:'audio:capture-1',scheduleState:'settled',
+   successorReminderId:'cloud-next',successorTaskId:'task:reminder:cloud-next',successorDueAt:'2026-11-27T09:15:00+02:00',dependencyIds:[],blockedBy:[]
   }]);
   assert.equal(Object.hasOwn(received.context.recallEvidence[0],'transcript'),false);
   assert.equal(Object.hasOwn(received.context.recallEvidence[0],'rawAudio'),false);

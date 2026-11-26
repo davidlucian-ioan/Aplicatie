@@ -87,9 +87,9 @@ test('Recall sanitizer allows bounded canonical task evidence and strips unknown
  }]};
  const result=safeContext(input).recallEvidence;
  assert.deepEqual(result,[{
-  kind:'task',sourceId:'task:task:reminder:r1',reminderId:'r1',title:'Verifică pompa',status:'snoozed',
-  dueAt:'2026-11-27T09:00:00Z',sourceRef:'audio:capture-1',scheduleState:'settled',
-  successorReminderId:'r2',successorTaskId:'task:reminder:r2',successorDueAt:'2026-11-27T10:00:00Z'
+  kind:'task',sourceId:'task:task:reminder:r1',taskKind:'reminder',taskId:'',reminderId:'r1',title:'Verifică pompa',status:'snoozed',
+  dueAt:'2026-11-27T09:00:00Z',dueDate:'',dueTime:'',timezone:'',priority:'normal',sourceRef:'audio:capture-1',scheduleState:'settled',
+  successorReminderId:'r2',successorTaskId:'task:reminder:r2',successorDueAt:'2026-11-27T10:00:00Z',dependencyIds:[],blockedBy:[]
  }]);
  assert.equal(Object.hasOwn(result[0],'transcript'),false);
  assert.equal(Object.hasOwn(result[0],'rawAudio'),false);
