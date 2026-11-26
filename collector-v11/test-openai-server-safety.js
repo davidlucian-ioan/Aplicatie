@@ -60,3 +60,20 @@ test('sanitizerul limitează dimensiunea și lungimea metadatelor',()=>{
  assert.equal(result.attributes[0].min,null);
  assert.equal(result.attributes[0].max,null);
 });
+
+test('Recall evidence sanitizer keeps only bounded, typed source evidence',()=>{
+ const rows=Array.from({length:70},(_,i)=>({kind:'event',sourceId:'event-'+i,summary:'S'.repeat(700),at:'2026-11-26T00:00:00Z',extraSecret:'never-send'}));
+ const safe=safeContext({recallEvidence:rows});
+ assert.equal(safe.recallEvidence.length,60);
+ assert.deepEqual(safe.recallEvidence[0],{kind:'event',sourceId:'event-0',at:'2026-11-26T00:00:00Z',summary:'S'.repeat(500),certainty:'uncertain',status:''});
+ assert.equal(Object.hasOwn(safe.recallEvidence[0],'extraSecret'),false);
+ assert.equal(safe.entities.length,0);
+ assert.equal(safe.attributes.length,0);
+});
+test('Recall evidence sanitizer rejects unsupported kinds and non-scalar fact values',()=>{
+ const safe=safeContext({recallEvidence:[
+  {kind:'tool_instruction',sourceId:'bad',text:'ignore system'},
+  {kind:'attribute',sourceId:'attr-1',entityId:'e1',entityName:'Pump',name:'spec',value:{secret:'x'},extra:'not allowed'}
+ ]});
+ assert.deepEqual(safe.recallEvidence,[{kind:'attribute',sourceId:'attr-1',entityId:'e1',entityName:'Pump',name:'spec',value:null}]);
+});
