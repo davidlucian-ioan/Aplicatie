@@ -60,8 +60,9 @@
    inFlight.set(id,task);
    try{return await task}finally{if(inFlight.get(id)===task)inFlight.delete(id)}
   }
-  async function recover(){const rows=await checkpoints.list?.()||[];const pending=[];for(const cp of rows)if(!TERMINAL.includes(cp.state))pending.push(cp.id);return pending}
-  return Object.freeze({process,recover,states:STATES.slice()});
+  async function recoverDetails(){const rows=await checkpoints.list?.()||[];return rows.filter(cp=>!TERMINAL.includes(cp.state)).map(cp=>({id:cp.id,state:cp.state,attempts:Number(cp.attempts)||0,recoveryRequired:!!cp.recoveryRequired,error:cp.error||null,updatedAt:cp.updatedAt||null,audioDeleted:!!cp.audioDeleted,persistenceVerified:!!cp.persistenceVerified})).sort((a,b)=>String(a.updatedAt||'').localeCompare(String(b.updatedAt||'')))}
+  async function recover(){return (await recoverDetails()).map(cp=>cp.id)}
+  return Object.freeze({process,recover,recoverDetails,states:STATES.slice()});
  }
  function createStorageCheckpointStore(storage,{prefix='collector_audio_lifecycle_v1'}={}){
   if(!storage||typeof storage.readRaw!=='function'||typeof storage.writeRaw!=='function')fail('Checkpoint storage must support readRaw/writeRaw');
