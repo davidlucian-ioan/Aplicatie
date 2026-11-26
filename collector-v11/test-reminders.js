@@ -2,14 +2,14 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createService}=require('./reminders');
-function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,failStorageRemove=false,random=Math.random}={}){
- let raw=null,writeCount=0;const calls=[];
+function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,failStorageRemove=false,cancelErrorCount=Infinity,random=Math.random}={}){
+ let raw=null,writeCount=0,cancelFailuresRemaining=cancelError?cancelErrorCount:0;const calls=[];
  const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');writeCount++;if(writeCount===failStorageWriteAt)throw new Error('storage write failed');raw=value;return true},async removeRaw(key){assert.equal(key,'collector_reminders_v1');if(failStorageRemove)throw new Error('storage remove failed');raw=null;return true}};
  const plugin={
   async checkPermissions(){return {display:permission}},
   async requestPermissions(){return {display:permission}},
   async schedule(value){calls.push({type:'schedule',value});if(scheduleError)throw new Error(scheduleError)},
-  async cancel(value){calls.push({type:'cancel',value});if(cancelError)throw new Error(cancelError)}
+  async cancel(value){calls.push({type:'cancel',value});if(cancelError&&cancelFailuresRemaining>0){cancelFailuresRemaining--;throw new Error(cancelError)}}
  };
  const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:00:00.000Z'),random});
  return {service,calls,raw:()=>raw};
@@ -199,7 +199,7 @@ test('uncertain native scheduling retains a recoverable reminder instead of eras
 });
 
 test('successful reminder cancellation clears the uncertain scheduling marker',async()=>{
- const x=fixture({scheduleError:'transient scheduler error',cancelError:'native cancel unavailable'});
+ const x=fixture({scheduleError:'transient scheduler error',cancelError:'native cancel unavailable',cancelErrorCount:1});
  await assert.rejects(x.service.create({title:'Reminder',at:'2026-11-24T12:00:00Z'}),/marcat pentru recovery/);
  const item=JSON.parse(x.raw())[0];
  assert.equal(item.scheduleUncertain,true);
