@@ -1,7 +1,7 @@
 name: Collector Cloud API
 on:
   push:
-    branches: [main, feature/openai-provider-integration]
+    branches: [main]
     paths:
       - 'cloud-api/**'
       - 'collector-v11/ai/**'
