@@ -292,3 +292,15 @@ test('audio source deletion uses the storage adapter independent absence verifie
  assert.ok(deletion.includes('CollectorAudioStore.verifyRemoved(recordingId)'));
  assert.ok(deletion.includes('AudioStore nu a confirmat independent eliminarea'));
 });
+
+
+test('The generic audio list delete action cannot bypass verified Core checkpoint deletion',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const remove=app.slice(app.indexOf('async function deleteAudioRecording'),app.indexOf('async function writeAudioLifecycleCheckpoint'));
+ assert.ok(remove.includes('CollectorAudioLifecycleCheckpointStore'));
+ assert.ok(remove.includes("!['source_retained','audio_deletion_pending'].includes(checkpoint.state)"));
+ assert.ok(remove.includes('deleteAudioFromVerifiedCheckpoint(recordId)'));
+ assert.doesNotMatch(remove,/CollectorAudioStore\.remove\(recordId\)/);
+ const ui=app.slice(app.indexOf('async function renderAudioRecordings'),app.indexOf('function initializeWorkDraft'));
+ assert.ok(ui.includes("remove.addEventListener('click',()=>deleteAudioRecording(record.id))"));
+});
