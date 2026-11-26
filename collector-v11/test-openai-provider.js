@@ -74,3 +74,10 @@ test('providerul normalizează reminder intent și memory facts în output bound
  assert.deepEqual(result.reminderSuggestions[0].due,{date:'2026-11-27',time:null});
  assert.equal(result.reminderSuggestions[0].timezone,'Europe/Bucharest');
 });
+
+test('providerul expune structured_memory normalizat pentru pipeline-ul de memorare',async()=>{
+ const structured_memory={summary:'Mihai aduce pompa',clarification:'',confidence:.93,entities:[{key:'person',name:'Mihai',type:'person',aliases:[],existingId:null}],facts:[],relations:[]};
+ const provider=new OpenAIProvider({apiKey:'x',fetchImpl:async()=>({ok:true,status:200,json:async()=>apiResponse({...base,structured_memory})})});
+ const result=await provider.interpret({text:'Mihai aduce pompa'});
+ assert.deepEqual(result.structuredMemory,structured_memory);
+});
