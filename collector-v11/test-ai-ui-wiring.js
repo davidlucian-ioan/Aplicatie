@@ -316,3 +316,13 @@ test('Audio processing stops when its durable start checkpoint cannot be written
  assert.ok(run.includes("writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')"));
  assert.ok(run.includes('Interpretarea a fost oprită'));
 });
+
+
+test('Browser transcription applies an upload timeout and parses structured cloud errors',()=>{
+ const provider=fs.readFileSync('ai/provider-openai-browser.js','utf8');
+ assert.ok(provider.includes("new AbortController(),timer=setTimeout(()=>controller.abort(),70_000)"));
+ assert.ok(provider.includes("Accept:'application/json'"));
+ assert.ok(provider.includes("apiUrl('/api/ai/transcribe')"));
+ assert.ok(provider.includes('finally{clearTimeout(timer)}'));
+ assert.ok(provider.includes('Înregistrarea originală este păstrată'));
+});
