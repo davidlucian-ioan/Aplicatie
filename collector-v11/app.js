@@ -245,7 +245,10 @@ function parseCommand(text){
 }
 async function runCommand(){
  const text=document.getElementById('commandInput').value,parsed=parseCommand(text),box=document.getElementById('commandResult');
+ if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){box.textContent='Există deja o interpretare sau o propunere în așteptare. Confirmă ori anulează propunerea curentă înainte de a începe alta.';return}
  if(parsed.error){box.textContent=parsed.error;return}
+ // A deterministic/local command must never inherit audio cleanup metadata from a prior AI turn.
+ pendingAIEnhancements=null;
  let operations=[],payload={},summary='';
  if(parsed.type==='note'){
   operations=[{operation:'event.note',data:{description:parsed.description}}];payload={description:parsed.description,summary:parsed.description};summary=`Observație: „${parsed.description}”`;
@@ -304,7 +307,13 @@ async function confirmCoreCommand(){
  const box=document.getElementById('commandResult');if(!pendingCoreCommand||coreCommitPending)return;
  coreCommitPending=true;
  const command=pendingCoreCommand;pendingCoreCommand=null;
- const extrasState=pendingAIEnhancements;pendingAIEnhancements=null;
+ const stagedExtras=pendingAIEnhancements;pendingAIEnhancements=null;
+ const stagedAudioId=stagedExtras?.audioRecordingId;
+ const expectedAudioSourceId=stagedAudioId?'audio:'+stagedAudioId:null;
+ const audioContextMatches=!!stagedAudioId&&stagedExtras.sourceId===expectedAudioSourceId&&
+  command.payload?.sourceId===expectedAudioSourceId&&command.idempotencyKey===stableAudioCaptureIntentKey(stagedAudioId);
+ const audioContextMismatch=!!stagedAudioId&&!audioContextMatches;
+ const extrasState=stagedAudioId?(audioContextMatches?stagedExtras:null):stagedExtras;
  try{
   const result=await serializeMutation(()=>ensureAICorePort().execute(command,{confirmed:true}));
   if(result.status==='committed'||result.status==='duplicate'){
@@ -318,7 +327,7 @@ async function confirmCoreCommand(){
    }
    const message='<b class="status-ok">'+(result.status==='committed'?'Salvat cu succes':'Comandă deja procesată')+'</b><p>Event ID: '+esc(result.eventId||'—')+'</p>';
    const extras=extrasState?renderAIEnhancements(extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId):'';
-   box.innerHTML=message+extras+(audioDraftError?'<p class="note">'+esc(audioDraftError)+' Înregistrarea audio originală a fost păstrată; ștergerea nu este disponibilă din această confirmare.</p>':'')+(audioCheckpointError?'<p class="note">Core a confirmat salvarea, dar checkpoint-ul audio nu a putut fi actualizat. Înregistrarea originală este păstrată și ștergerea nu este disponibilă: '+esc(audioCheckpointError.message)+'</p>':'');
+   box.innerHTML=message+(audioContextMismatch?'<p class="note">Contextul audio nu corespunde comenzii confirmate. Pentru siguranță, nu am eliminat transcriptul sau înregistrarea sursă.</p>':'')+extras+(audioDraftError?'<p class="note">'+esc(audioDraftError)+' Înregistrarea audio originală a fost păstrată; ștergerea nu este disponibilă din această confirmare.</p>':'')+(audioCheckpointError?'<p class="note">Core a confirmat salvarea, dar checkpoint-ul audio nu a putut fi actualizat. Înregistrarea originală este păstrată și ștergerea nu este disponibilă: '+esc(audioCheckpointError.message)+'</p>':'');
    if(extrasState)bindAIEnhancements(box,extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId);
    if(extrasState?.audioRecordingId&&audioCheckpointReady&&audioDraftCleared&&audioTranscriptCheckpointCleared&&(result.status==='committed'||result.status==='duplicate')){
     if(keepAudioAfterCommit){
@@ -411,6 +420,8 @@ async function runAICommand(){
  const box=document.getElementById('commandResult'),text=document.getElementById('commandInput').value.trim(),sourceRecordingId=activeAudioRecordingId;
  if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){box.textContent='Există deja o interpretare sau o salvare în curs. Confirmă ori anulează propunerea curentă înainte de a începe alta.';return}
  if(!text){box.textContent='Scrie sau dictează mai întâi ce dorești să înregistrezi.';return}
+ // A new turn starts with no inherited confirmation or source-retention context.
+ pendingAIEnhancements=null;
  aiInterpretationPending=true;
  const button=document.getElementById('parseWithAI');
  if(button){button.disabled=true;button.textContent='AI procesează…'}
@@ -474,6 +485,7 @@ async function runAICommand(){
     return;
    }
    ensureAICorePort().discardPreview?.(command);
+   pendingAIEnhancements=null;
    if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'failed',{error:'Core preview: '+preview.status})}catch(_){}
    box.innerHTML='<p>'+esc(preview.status==='duplicate'?'Această intenție a fost deja înregistrată.':'Core a respins preview-ul: '+preview.status)+'</p>'+extras;
    bindAIEnhancements(box,ai,text,sourceId,turnId);return;
@@ -485,7 +497,13 @@ async function runAICommand(){
   bindAIEnhancements(box,ai,text,sourceId,turnId);
   document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
   document.getElementById('cancelCoreCommand').onclick=async()=>{const cancelled=pendingCoreCommand;pendingCoreCommand=null;pendingAIEnhancements=null;ensureAICorePort().discardPreview?.(cancelled);if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'captured')}catch(_){}box.innerHTML='<p>Propunere anulată. Nu s-au modificat date; înregistrarea originală este păstrată.</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId)};
- }catch(error){if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'failed',{error:error.message})}catch(_){}box.textContent='Interpretarea AI nu a putut fi finalizată: '+error.message}
+ }catch(error){
+  const abandoned=pendingCoreCommand;
+  pendingCoreCommand=null;pendingAIEnhancements=null;
+  if(abandoned)ensureAICorePort().discardPreview?.(abandoned);
+  if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'failed',{error:error.message})}catch(_){}
+  box.textContent='Interpretarea AI nu a putut fi finalizată: '+error.message;
+ }
  finally{aiInterpretationPending=false;if(button){button.disabled=false;button.textContent='Interpretează cu AI'}}
 }
 async function refreshSubscriptionStatus(){
