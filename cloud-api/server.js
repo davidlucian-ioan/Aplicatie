@@ -156,7 +156,7 @@ function readJson(req){
     if(!billing.configured||typeof billing.reserve!=='function'||typeof billing.settle!=='function'){send(res,503,{error:'Verificarea abonamentului și bugetului pentru transcriere nu este configurată.'});return}
     const maxRequestUsd=Number(env.OPENAI_TRANSCRIPTION_MAX_REQUEST_USD);
     if(!Number.isFinite(maxRequestUsd)||maxRequestUsd<=0||maxRequestUsd*1_000_000>Number.MAX_SAFE_INTEGER){send(res,503,{error:'Plafonul de cost pentru o transcriere nu este configurat corect.'});return}
-    const maxConcurrent=Math.max(1,Math.min(32,Math.floor(positiveNumber(env.COLLECTOR_TRANSCRIPTION_MAX_CONCURRENCY,DEFAULT_MAX_CONCURRENT_TRANSCRIPTIONS))));
+    const maxConcurrent=Math.max(1,Math.min(8,Math.floor(positiveNumber(env.COLLECTOR_TRANSCRIPTION_MAX_CONCURRENCY,DEFAULT_MAX_CONCURRENT_TRANSCRIPTIONS))));
     if(activeTranscriptions>=maxConcurrent){send(res,429,{error:'Sunt prea multe transcrieri simultane. Încearcă din nou în câteva momente.'});return}
     activeTranscriptions++;
     try{
