@@ -41,3 +41,19 @@ test('invalid capture id cannot produce a command',()=>{
  const x=M.validateExtraction({summary:'ok',entities:[],facts:[],relations:[]});
  assert.throws(()=>M.createCommand(x,[],{}),/captureId/);
 });
+
+test('exact entity match merges aliases without discarding existing canonical aliases',()=>{
+ const state={entities:[{id:'p1',name:'Mihai',type:'person',attributes:{aliases:['Mike','M. Pop']}}]};
+ const extraction=M.validateExtraction({entities:[{key:'p',name:'Mihai',type:'person',aliases:['Michael',' mike ']}],facts:[],relations:[]});
+ const resolutions=M.resolveEntities(extraction,state);
+ assert.deepEqual(resolutions[0].aliases,['Mike','M. Pop','Michael']);
+ const command=M.createCommand(extraction,resolutions,{captureId:'alias-preserve'});
+ const aliasWrite=command.operations.find(op=>op.operation==='attribute.set'&&op.data.name==='aliases');
+ assert.deepEqual(aliasWrite.data.value,['Mike','M. Pop','Michael']);
+});
+test('explicit entity ID also preserves aliases and de-duplicates normalized spelling',()=>{
+ const state={entities:[{id:'p1',name:'Mihai',type:'person',attributes:{aliases:['Mike','M. Pop']}}]};
+ const extraction=M.validateExtraction({entities:[{key:'p',name:'Mihai',type:'person',existingId:'p1',aliases:['MIKE','Mihai P']}],facts:[],relations:[]});
+ const result=M.resolveEntities(extraction,state)[0];
+ assert.deepEqual(result.aliases,['Mike','M. Pop','Mihai P']);
+});
