@@ -7,14 +7,14 @@ const now=()=>new Date().toISOString();
 const validTimestamp=value=>{if(typeof value!=='string')return false;const match=value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/);if(!match||!Number.isFinite(Date.parse(value)))return false;const [,year,month,day,hour,minute,second,zone]=match;const y=Number(year),m=Number(month),d=Number(day),h=Number(hour),min=Number(minute),s=Number(second);const days=new Date(Date.UTC(y,m,0)).getUTCDate();if(m<1||m>12||d<1||d>days||h>23||min>59||s>59)return false;if(zone!=='Z'){const offset=zone.match(/^[+-](\d{2}):(\d{2})$/);if(!offset)return false;const hours=Number(offset[1]),minutes=Number(offset[2]);if(hours>14||minutes>59||(hours===14&&minutes!==0))return false;}return true;};
 const validFactTime=value=>{
  if(typeof value!=='string'||!value.trim())return false;
- const v=value.trim(),date=v.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/),timestamp=v.match(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})(?::(\\d{2})(?:\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})$/);
+ const v=value.trim(),date=v.match(/^(\d{4})-(\d{2})-(\d{2})$/),timestamp=v.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/);
  const parts=date||timestamp;if(!parts)return false;
  const year=Number(parts[1]),month=Number(parts[2]),day=Number(parts[3]);
  if(year<1||month<1||month>12||day<1||day>new Date(Date.UTC(year,month,0)).getUTCDate())return false;
  if(date)return true;
  const hour=Number(parts[4]),minute=Number(parts[5]),second=Number(parts[6]||0),zone=parts[7];
  if(hour>23||minute>59||second>59||!Number.isFinite(Date.parse(v)))return false;
- if(zone!=='Z'){const offset=zone.match(/^[+-](\\d{2}):(\\d{2})$/);if(!offset)return false;const h=Number(offset[1]),m=Number(offset[2]);if(h>14||m>59||(h===14&&m!==0))return false}
+ if(zone!=='Z'){const offset=zone.match(/^[+-](\d{2}):(\d{2})$/);if(!offset)return false;const h=Number(offset[1]),m=Number(offset[2]);if(h>14||m>59||(h===14&&m!==0))return false}
  return true;
 };
 const emptyState=()=>({entities:[],attributes:[],relations:[],events:[],stock:[],finance:[],eventAttributes:[],schemaVersion:7,meta:{lastActivityAt:now(),activeContext:null,processedIntentKeys:[],replayWarnings:[]}});

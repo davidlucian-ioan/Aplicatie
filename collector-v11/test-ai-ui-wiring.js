@@ -421,7 +421,7 @@ test('Work discards Core preview snapshots when commands are rejected, cancelled
  const app=fs.readFileSync('app.js','utf8');
  const command=app.slice(app.indexOf('async function runCommand'),app.indexOf('async function runStructuredRecall'));
  const voice=app.slice(app.indexOf('function startVoiceSession'),app.indexOf('async function refreshAudioLifecycleRecovery'));
- const clear=app.slice(app.indexOf('async function clearAllLocalData'),app.indexOf("document.getElementById('clearLocalData')"));
+ const clear=app.slice(app.indexOf('async function clearAllLocalData'),app.indexOf('// Conversation context expires'));
  assert.ok(command.includes('discardPreview?.(command)'));
  assert.ok(command.includes('discardPreview?.(cancelled)'));
  assert.ok(voice.includes('discardPreview?.(cancelled)'));
