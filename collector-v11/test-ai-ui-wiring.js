@@ -225,3 +225,27 @@ test('audio checkpoint records manual stages without persisting transcript or au
  assert.ok(confirm.includes("writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'audio_deletion_pending'"));
  assert.ok(confirm.includes("writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'completed'"));
 });
+
+
+test('Audio deletion requires its checkpoint event to be found in the independently validated persisted Core journal',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const verify=app.slice(app.indexOf('async function verifyAudioCheckpointEvent'),app.indexOf('async function renderAudioRecordings'));
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(verify.includes('storageAdapter.readRaw(KEY)'));
+ assert.ok(verify.includes('E.validateImport(JSON.parse(raw))'));
+ assert.ok(verify.includes('item.id===cp.persistResult.eventId&&item.intentKey===cp.persistResult.intentKey'));
+ assert.ok(deletion.includes("['source_retained','audio_deletion_pending'].includes(cp.state)"));
+ assert.ok(deletion.includes('await verifyAudioCheckpointEvent(cp)'));
+ assert.ok(deletion.includes("writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending'"));
+ assert.ok(deletion.includes('await CollectorAudioStore.remove(recordingId)'));
+ assert.ok(deletion.includes('await verifyAudioCheckpointEvent(await store.get(recordingId))'));
+ assert.ok(deletion.includes("writeAudioLifecycleCheckpoint(recordingId,'completed'"));
+});
+
+test('A Core preview duplicate from an audio recording is verified instead of discarded',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
+ assert.ok(run.includes("preview.status==='duplicate'&&sourceRecordingId"));
+ assert.ok(run.includes('pendingCoreCommand=command;'));
+ assert.ok(run.includes('await confirmCoreCommand()'));
+});
