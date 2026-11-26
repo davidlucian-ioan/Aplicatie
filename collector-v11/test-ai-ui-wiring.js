@@ -125,3 +125,13 @@ test('Core Port reads persisted storage independently and validates it before pu
  assert.ok(port.includes("status:'verification_failed'"));
  assert.ok(port.includes('item.intentKey === command.idempotencyKey'));
 });
+
+
+test('A failed independent readback locks further writes until journal revalidation',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const handler=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
+ assert.ok(handler.includes("result.status==='verification_failed'"));
+ assert.ok(handler.includes('integrityBlocked=true'));
+ assert.ok(handler.includes('Reîncarcă aplicația'));
+ assert.ok(handler.includes('setAppStatus('));
+});
