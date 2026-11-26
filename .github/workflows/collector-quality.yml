@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - 'feature/**'
     paths:
       - collector-v11/**
       - docs/**
@@ -21,6 +20,7 @@ on:
       - .github/workflows/collector-quality.yml
   schedule:
     - cron: '17 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
