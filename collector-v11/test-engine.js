@@ -58,3 +58,39 @@ const replay9=E.replay(v9.events,v9.attributes);
 assert.equal(E.activeLocation(replay9,memberA).id,locB,'propagation should survive replay');
 assert.equal(E.balances(replay9).find(x=>x.populationId===popA&&x.locationId===locB&&x.disposition==='active').quantity,12,'moved stock should survive replay');
 console.log('PASS: v9 population location propagates to members; moving a population moves active stock and survives replay');
+
+
+// v10: validAt is durable event metadata and is replayed into the attribute history.
+{
+ const temporalDb=E.emptyState(),entityId='valid-at-entity';
+ const create=E.commit(temporalDb,{id:'valid-at-create',type:'setup',timestamp:E.now(),operations:[{operation:'entity.create',target:entityId,data:{name:'Plant',type:'plant'}}]});
+ const dated=E.commit(create.db,{id:'valid-at-date',type:'observation',timestamp:E.now(),operations:[
+  {operation:'attribute.set',target:entityId,data:{name:'status',value:'active',validAt:'2026-11-26',certainty:'certain'}},
+  {operation:'attribute.set',target:entityId,data:{name:'height',value:42,validAt:'2026-11-26T14:30:00+02:00',certainty:'uncertain',forceHistory:true}}
+ ]});
+ const history=dated.db.entities.find(e=>e.id===entityId).attributeHistory;
+ assert.equal(history.status[0].validAt,'2026-11-26');
+ assert.equal(history.height[0].validAt,'2026-11-26T14:30:00+02:00');
+ const replayed=E.replay(dated.db.events,dated.db.attributes);
+ assert.equal(replayed.entities.find(e=>e.id===entityId).attributeHistory.height[0].validAt,'2026-11-26T14:30:00+02:00');
+ const roundTrip=E.validateImport(JSON.parse(JSON.stringify(dated.db)));
+ assert.equal(roundTrip.entities.find(e=>e.id===entityId).attributeHistory.status[0].validAt,'2026-11-26');
+ assert.equal(roundTrip.entities.find(e=>e.id===entityId).attributeHistory.height[0].validAt,'2026-11-26T14:30:00+02:00');
+ // Legacy v7 snapshots without the derived validAt property are backfilled solely from the event journal.
+ const legacy=JSON.parse(JSON.stringify(dated.db));
+ delete legacy.entities[0].attributeHistory.status[0].validAt;
+ delete legacy.entities[0].attributeHistory.height[0].validAt;
+ const migrated=E.validateImport(legacy);
+ assert.equal(migrated.entities.find(e=>e.id===entityId).attributeHistory.status[0].validAt,'2026-11-26');
+ assert.equal(migrated.entities.find(e=>e.id===entityId).attributeHistory.height[0].validAt,'2026-11-26T14:30:00+02:00');
+ // A present but tampered validAt value must not be silently backfilled or accepted.
+ const tampered=JSON.parse(JSON.stringify(dated.db));
+ tampered.entities[0].attributeHistory.status[0].validAt='2026-11-27';
+ assert.throws(()=>E.validateImport(tampered),/proiecția „entities” nu corespunde jurnalului/);
+ const invalid=E.commit(dated.db,{id:'valid-at-invalid',type:'bad-time',timestamp:E.now(),operations:[
+  {operation:'attribute.set',target:entityId,data:{name:'bad',value:'x',validAt:'2026-02-30'}}
+ ]});
+ assert.throws(()=>invalid,/Data validării faptului/);
+ assert.equal(dated.db.events.length,2,'failed transaction must not mutate the persisted base state');
+ console.log('PASS: v10 validAt is stored in attribute history, replayed, and legacy snapshots safely backfill only missing derived metadata');
+}
