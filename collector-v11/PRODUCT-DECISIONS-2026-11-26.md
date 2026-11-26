@@ -15,9 +15,8 @@ Collector este **memorie personală inteligentă cu captură vocală hands-free*
 
 ## 3. Interpretare și redare
 Pentru fiecare captură vocală/text, pipeline-ul țintă:
-**original → speech-to-text/transcript → semantic interpretation → extracted facts/tasks/events/reminders → source-linked memory → natural-language playback/recall**.
-Originalul și transcrierea rămân accesibile. AI generează rezumat în propoziții naturale (și TTS când disponibil), nu doar text brut/listă de câmpuri. Răspunsurile factual de recall trebuie legate de sursă (recording/transcript/event/item) și timestamp; când nu există dovezi suficiente, Collector spune că nu știe.
-
+**original → speech-to-text/transcript → semantic interpretation → extracted facts/tasks/events/reminders → source-linked structured memory → natural-language recall/playback**.
+Audio-ul și transcriptul sunt surse temporare, nu arhiva permanentă. După confirmarea utilizatorului, commit-ul Core și recitirea independentă a jurnalului, transcriptul temporar este eliminat și audio-ul original este șters implicit; utilizatorul poate activa explicit păstrarea audio din Work. La ambiguitate, eșec AI, eșec checkpoint sau incertitudine de persistență, sursa rămâne pentru recovery. Recall-ul și reconstrucția folosesc entități, atribute, relații și evenimente Core, fără dependență de fișierul audio. AI generează rezumat în propoziții naturale (și TTS când disponibil), nu doar text brut/listă de câmpuri. Răspunsurile factuale de recall trebuie legate de ID-ul capturii/evenimentului structurat și timestamp; când nu există dovezi suficiente, Collector spune că nu știe.
 ## 4. Memorie cumulativă
 Memoria trebuie să coreleze capturi între zile și contexte, să păstreze proveniență și să distingă: statement user, fapt confirmat, inferență AI, acțiune executată și sistem. Nu duplică Core state; folosește referințe la source IDs. Corecții/deletări trebuie să se propagă la indexurile derivate. Userul poate revizui și corecta.
 
