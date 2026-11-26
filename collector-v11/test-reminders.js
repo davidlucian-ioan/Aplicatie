@@ -340,3 +340,14 @@ test('recovery does not publish a false scheduled Core event when native resched
  assert.deepEqual(core.map(event=>event.lifecycle),['schedule_uncertain']);
  assert.equal(scheduled,1);assert.equal(cancelled,1);
 });
+
+
+test('explicit full local-data erase cancels notifications even when Core outbox cannot sync',async()=>{
+ const x=fixture({onCoreEvent:async()=>{throw new Error('Core offline')}});
+ const item=await x.service.create({title:'Reminder pentru ștergere completă',at:'2026-11-24T12:00:00Z'});
+ assert.equal(item.coreSyncPending,true);
+ assert.equal(await x.service.clearAll({discardPendingCoreEvents:true}),1);
+ assert.equal(x.raw(),null);
+ assert.equal(x.calls.filter(call=>call.type==='cancel').length,1);
+ assert.equal(x.calls.filter(call=>call.type==='schedule').length,1);
+});
