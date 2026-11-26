@@ -19,6 +19,11 @@ const WEB_FILES=[
  'app.js',
  'ai/core-port-browser.js',
  'ai/provider-openai-browser.js',
+ 'ai/structured-memory-browser.js',
+ 'ai/structured-recall-browser.js',
+ 'ai/audio-capture-recovery.js',
+ 'ai/audio-transcript-checkpoints.js',
+ 'audio-processing-lifecycle.js',
  'ai/reminder-intent.js'
 ];
 

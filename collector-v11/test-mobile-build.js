@@ -55,6 +55,11 @@ test('mobile bundle include doar activele runtime necesare',async()=>{
   const authBundle=await fs.readFile(path.join(out,'collector-auth-bundle.js'),'utf8');
   assert.ok(authBundle.includes('CollectorAuthBundle')||authBundle.length>1000);
   assert.ok(html.includes('ai/core-port-browser.js'));
+  for(const runtime of ['ai/structured-memory-browser.js','ai/structured-recall-browser.js','ai/audio-capture-recovery.js','ai/audio-transcript-checkpoints.js','audio-processing-lifecycle.js']){
+   assert.ok(WEB_FILES.includes(runtime),runtime+' must be copied to the mobile bundle');
+   await fs.access(path.join(out,runtime));
+   assert.ok(html.includes(runtime),runtime+' must be loaded by the mobile entrypoint');
+  }
   assert.ok(WEB_FILES.includes('ai/reminder-intent.js'));
   assert.ok(html.includes('ai/reminder-intent.js'));
   const capacitorConfig=JSON.parse(await fs.readFile(path.join(__dirname,'capacitor.config.json'),'utf8'));

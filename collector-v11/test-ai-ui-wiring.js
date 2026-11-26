@@ -446,3 +446,26 @@ test('structured-memory clarification blocks Core preview and partial memory sav
  assert.ok(run.includes("writeAudioLifecycleCheckpoint(sourceRecordingId,'failed'"));
  assert.ok(render.includes("ai.intent!=='clarify'"));
 });
+
+
+test('audio retry reuses a transcript checkpoint bound to its recording instead of retranscribing',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const retry=app.slice(app.indexOf('async function transcribeAndInterpretAudioRecording'),app.indexOf('async function renderAudioRecordings'));
+ const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
+ assert.ok(retry.includes('store.get(recordingId)'));
+ assert.ok(retry.includes('if(!transcript)'));
+ assert.ok(retry.indexOf('CollectorOpenAIProvider.transcribe(blob)')>retry.indexOf('if(!transcript)'));
+ assert.ok(retry.includes('await store.put(recordingId,result.text)'));
+ assert.ok(retry.includes('if(savedTranscript?.transcript!==result.text)'));
+ assert.ok(retry.includes('Am reutilizat transcriptul salvat'));
+ assert.ok(run.includes('await transcriptStore.put(sourceRecordingId,text)'));
+ assert.ok(app.includes('clearAudioTranscriptCheckpoint(recordingId)'));
+});
+test('transcript checkpoint is cleared before source deletion and after a verified Core commit',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const commit=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function transcribeAndInterpretAudioRecording'));
+ assert.ok(commit.includes('clearAudioTranscriptCheckpoint(extrasState.audioRecordingId)'));
+ assert.ok(commit.includes('audioTranscriptCheckpointCleared'));
+ assert.ok(deletion.indexOf('await clearAudioTranscriptCheckpoint(recordingId)')<deletion.indexOf('await CollectorAudioStore.remove(recordingId)'));
+});

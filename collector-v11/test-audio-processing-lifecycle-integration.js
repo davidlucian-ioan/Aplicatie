@@ -58,3 +58,16 @@ test('audio deletion verifies checkpoint identity, Core event, source recording 
  assert.ok(recovery.includes("event.status!=='committed'"));
  assert.ok(recovery.includes('STRUCTURED_OPERATIONS.has(operation.operation.trim())'));
 });
+
+
+test('all entrypoints load the source-bound transcript checkpoint store before app.js',()=>{
+ for(const file of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
+  const html=fs.readFileSync(path.join(root,file),'utf8');
+  const transcript=html.indexOf('ai/audio-transcript-checkpoints.js');
+  const app=html.indexOf('app.js');
+  assert.notEqual(transcript,-1,file+' missing transcript checkpoint module');
+  assert.ok(transcript<app,file+' transcript checkpoint module must load before app.js');
+ }
+ const build=fs.readFileSync(path.join(root,'build-mobile.js'),'utf8');
+ for(const pathName of ['ai/audio-transcript-checkpoints.js','ai/structured-memory-browser.js','ai/structured-recall-browser.js','ai/audio-capture-recovery.js','audio-processing-lifecycle.js'])assert.ok(build.includes("'"+pathName+"'"),pathName+' missing from mobile runtime allowlist');
+});

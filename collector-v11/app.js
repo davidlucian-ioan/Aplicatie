@@ -308,18 +308,19 @@ async function confirmCoreCommand(){
  try{
   const result=await serializeMutation(()=>ensureAICorePort().execute(command,{confirmed:true}));
   if(result.status==='committed'||result.status==='duplicate'){
-   let audioCheckpointReady=!extrasState?.audioRecordingId,audioCheckpointError=null,audioDraftCleared=true,audioDraftError=null;
+   let audioCheckpointReady=!extrasState?.audioRecordingId,audioCheckpointError=null,audioDraftCleared=true,audioTranscriptCheckpointCleared=!extrasState?.audioRecordingId,audioDraftError=null;
    if(extrasState?.audioRecordingId){
     activeAudioRecordingId=null;
     audioDraftCleared=await window.CollectorClearAudioDraft?.()===true;
     if(!audioDraftCleared)audioDraftError='Transcriptul temporar nu a putut fi eliminat și verificat din draftul local.';
+    try{audioTranscriptCheckpointCleared=await clearAudioTranscriptCheckpoint(extrasState.audioRecordingId)}catch(error){audioDraftError=(audioDraftError?audioDraftError+' ':'')+'Checkpoint-ul transcriptului nu a putut fi eliminat: '+error.message}
     try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'source_retained',{captureId:extrasState.turnId,eventId:result.eventId,intentKey:command.idempotencyKey});audioCheckpointReady=true}catch(error){audioCheckpointError=error}
    }
    const message='<b class="status-ok">'+(result.status==='committed'?'Salvat cu succes':'Comandă deja procesată')+'</b><p>Event ID: '+esc(result.eventId||'—')+'</p>';
    const extras=extrasState?renderAIEnhancements(extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId):'';
    box.innerHTML=message+extras+(audioDraftError?'<p class="note">'+esc(audioDraftError)+' Înregistrarea audio originală a fost păstrată; ștergerea nu este disponibilă din această confirmare.</p>':'')+(audioCheckpointError?'<p class="note">Core a confirmat salvarea, dar checkpoint-ul audio nu a putut fi actualizat. Înregistrarea originală este păstrată și ștergerea nu este disponibilă: '+esc(audioCheckpointError.message)+'</p>':'');
    if(extrasState)bindAIEnhancements(box,extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId);
-   if(extrasState?.audioRecordingId&&audioCheckpointReady&&audioDraftCleared&&(result.status==='committed'||result.status==='duplicate')){
+   if(extrasState?.audioRecordingId&&audioCheckpointReady&&audioDraftCleared&&audioTranscriptCheckpointCleared&&(result.status==='committed'||result.status==='duplicate')){
     if(keepAudioAfterCommit){
      box.insertAdjacentHTML('beforeend','<p class="muted">Audio-ul original a fost păstrat conform setării Work. Memoria structurată este salvată și verificată independent.</p>');
     }else{
@@ -415,7 +416,12 @@ async function runAICommand(){
  if(button){button.disabled=true;button.textContent='AI procesează…'}
  box.textContent='Trimit textul către OpenAI pentru interpretare. Nicio modificare nu este salvată în această etapă.';
  try{
-  if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')}catch(checkpointError){throw Error('Checkpoint-ul de recovery nu a putut fi salvat. Interpretarea a fost oprită, iar înregistrarea audio este păstrată: '+checkpointError.message)}
+  if(sourceRecordingId){
+   try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')}catch(checkpointError){throw Error('Checkpoint-ul de recovery nu a putut fi salvat. Interpretarea a fost oprită, iar înregistrarea audio este păstrată: '+checkpointError.message)}
+   const transcriptStore=window.CollectorAudioTranscriptCheckpointStore;
+   if(!transcriptStore)throw Error('Stocarea transcriptului audio nu este disponibilă. Audio-ul original a fost păstrat.');
+   await transcriptStore.put(sourceRecordingId,text);
+  }
   if(!window.CollectorOpenAIProvider)throw Error('Modulul OpenAI nu este încărcat. Pornește Collector prin serverul local.');
   const context={
    entities:db.entities.slice(0,150).map(e=>({id:e.id,name:e.name,type:e.type})),
@@ -768,6 +774,7 @@ async function deleteAudioRecording(recordId){
    return;
   }
   if(!confirm('Această înregistrare nu are niciun checkpoint de procesare. O ștergi definitiv fără transcriere sau salvare în Core?'))return;
+  await clearAudioTranscriptCheckpoint(recordId);
   try{await CollectorAudioStore.remove(recordId)}catch(removeError){const removed=typeof CollectorAudioStore.verifyRemoved==='function'?await CollectorAudioStore.verifyRemoved(recordId):!await CollectorAudioStore.get(recordId);if(!removed)throw removeError}
   const verified=typeof CollectorAudioStore.verifyRemoved==='function'?await CollectorAudioStore.verifyRemoved(recordId):!await CollectorAudioStore.get(recordId);
   if(!verified)throw Error('AudioStore nu a confirmat absența înregistrării eliminate.');
@@ -809,6 +816,13 @@ async function verifyAudioCheckpointEvent(cp){
   throw Error(reason+' Audio-ul original a fost păstrat.');
  }
 }
+async function clearAudioTranscriptCheckpoint(recordingId){
+ const store=window.CollectorAudioTranscriptCheckpointStore;
+ if(!store)throw Error('Stocarea transcriptelor temporare nu este disponibilă.');
+ const removed=await store.remove(recordingId);
+ if(removed!==true)throw Error('Transcriptul temporar nu a fost eliminat și verificat.');
+ return true;
+}
 async function recoverCommittedAudioCapture(recordingId){
  try{
   const Recovery=window.CollectorAudioCaptureRecovery;
@@ -822,7 +836,8 @@ async function recoverCommittedAudioCapture(recordingId){
   await writeAudioLifecycleCheckpoint(recordingId,'source_retained',{captureId:stableAudioCaptureTurnId(recordingId),eventId:event.id,intentKey:event.intentKey});
   const draftCleared=await window.CollectorClearAudioDraft?.()===true;
   if(!draftCleared)return {status:'recovered',message:'Am găsit commit-ul Core anterior și l-am verificat independent. Draftul temporar nu a putut fi eliminat; audio-ul a fost păstrat.'};
-  if(keepAudioAfterCommit)return {status:'recovered',message:'Am găsit commit-ul Core anterior și l-am verificat independent. Audio-ul a fost păstrat conform setării Work.'};
+  try{await clearAudioTranscriptCheckpoint(recordingId)}catch(error){return {status:'recovered',message:'Commit-ul Core este verificat, dar transcriptul temporar nu a putut fi eliminat. Audio-ul original a fost păstrat: '+error.message}}
+  if(keepAudioAfterCommit)return {status:'recovered',message:'Am găsit commit-ul Core anterior și l-am verificat independent. Transcriptul temporar a fost șters; audio-ul a fost păstrat conform setării Work.'};
   await deleteAudioFromVerifiedCheckpoint(recordingId,{confirmBeforeDelete:false});
   return {status:'recovered',message:'Am găsit și verificat commit-ul Core anterior. Nu am retranscris și nu am creat duplicate; audio-ul temporar a fost eliminat.'};
  }catch(error){
@@ -835,6 +850,7 @@ async function deleteAudioFromVerifiedCheckpoint(recordingId,{confirmBeforeDelet
  let cp=await store.get(recordingId);
  if(!cp||!['source_retained','audio_deletion_pending'].includes(cp.state))throw Error('Ștergerea este permisă doar după un commit verificat în Core.');
  await verifyAudioCheckpointEvent(cp);
+ await clearAudioTranscriptCheckpoint(recordingId);
  const source=await CollectorAudioStore.get(recordingId);
  const verifyAudioRemoval=async()=>{
   if(typeof CollectorAudioStore.verifyRemoved==='function')return await CollectorAudioStore.verifyRemoved(recordingId)===true;
@@ -850,6 +866,53 @@ async function deleteAudioFromVerifiedCheckpoint(recordingId,{confirmBeforeDelet
  await writeAudioLifecycleCheckpoint(recordingId,'completed',{eventId:cp.persistResult.eventId,intentKey:cp.persistResult.intentKey});
  return {status:'completed'};
 }
+async function transcribeAndInterpretAudioRecording(recordingId,button){
+ if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){setAudioUi('idle','Există deja o interpretare sau o salvare în curs. Confirmă ori anulează propunerea curentă înainte de a procesa altă înregistrare.');return}
+ const store=window.CollectorAudioTranscriptCheckpointStore;
+ if(!store){setAudioUi('idle','Stocarea transcriptelor nu este disponibilă. Audio-ul original a fost păstrat.');return}
+ button.disabled=true;
+ const previousLabel=button.textContent;
+ try{
+  const recovered=await recoverCommittedAudioCapture(recordingId);
+  if(recovered){setAudioUi('idle',recovered.message);await renderAudioRecordings();await refreshAudioLifecycleRecovery();return}
+  let savedTranscript=await store.get(recordingId),transcript=savedTranscript?.transcript||'';
+  if(!transcript){
+   button.textContent='Transcriere…';
+   setAudioUi('idle','Audio trimis pentru transcriere. Înregistrarea originală rămâne locală.');
+   try{await writeAudioLifecycleCheckpoint(recordingId,'processing',{incrementAttempt:true})}catch(checkpointError){throw Error('Checkpoint-ul de recovery nu a putut fi salvat. Procesarea a fost oprită, iar înregistrarea originală este păstrată: '+checkpointError.message)}
+   if(!window.CollectorOpenAIProvider?.transcribe)throw Error('Modulul de transcriere nu este încărcat.');
+   const source=await CollectorAudioStore.get(recordingId);let blob=source?.blob;
+   if(!(blob instanceof Blob)&&source?.uri){
+    const playable=window.CollectorNativeAudioRecorder?.toPlayableUrl(source.uri)||window.Capacitor?.convertFileSrc?.(source.uri)||source.uri;
+    const response=await fetch(playable);if(!response.ok)throw Error('Nu pot citi fișierul audio nativ.');blob=await response.blob();
+   }
+   if(!(blob instanceof Blob)||!blob.size)throw Error('Fișierul audio nu este disponibil pentru transcriere.');
+   const result=await window.CollectorOpenAIProvider.transcribe(blob);
+   if(typeof result?.text!=='string'||!result.text.trim())throw Error('Transcrierea nu a returnat text utilizabil.');
+   await store.put(recordingId,result.text);
+   savedTranscript=await store.get(recordingId);
+   if(savedTranscript?.transcript!==result.text)throw Error('Transcriptul nu a putut fi confirmat prin recitire independentă.');
+   transcript=result.text;
+  }else{
+   await writeAudioLifecycleCheckpoint(recordingId,'processing',{incrementAttempt:true});
+   button.textContent='Reia AI…';
+  }
+  activeAudioRecordingId=recordingId;
+  const input=document.getElementById('commandInput');
+  input.value=transcript;input.dispatchEvent(new Event('input',{bubbles:true}));
+  showPage('assistant');
+  setAudioUi('idle',savedTranscript?'Am reutilizat transcriptul salvat pentru această înregistrare; nu am retranscris audio-ul. AI va interpreta acum.':'Transcriere reușită și salvată local. AI interpretează acum; verifică propunerea și confirmă explicit înainte de salvare.');
+  await renderAudioRecordings();
+  document.getElementById('commandInput')?.focus();
+  await runAICommand();
+ }catch(error){
+  try{await writeAudioLifecycleCheckpoint(recordingId,'failed',{error:error.message})}catch(_){}
+  setAudioUi('idle','Procesarea nu a putut fi finalizată: '+error.message+' Audio-ul original este păstrat.');
+ }finally{
+  button.disabled=false;
+  button.textContent=previousLabel;
+ }
+}
 async function renderAudioRecordings(){
  const list=document.getElementById('audioRecordingList');if(!list||!window.CollectorAudioStore)return;
  try{
@@ -861,7 +924,9 @@ async function renderAudioRecordings(){
    name.textContent=record.title||new Date(record.createdAt).toLocaleString('ro-RO');meta.textContent=new Date(record.createdAt).toLocaleString('ro-RO')+' · '+formatAudioDuration(record.durationMs)+' · '+Math.round(record.size/1024)+' KB'+(record.warning?' · '+record.warning:'');info.append(name,meta);
    const actions=document.createElement('div');actions.className='row-actions';
    const play=document.createElement('button');play.className='secondary';play.type='button';play.textContent='Redă';play.setAttribute('aria-label','Redă înregistrarea din '+name.textContent);play.addEventListener('click',()=>playAudioRecording(record.id));
-   const transcribe=document.createElement('button');transcribe.className='secondary';transcribe.type='button';transcribe.dataset.audioTranscribeId=record.id;transcribe.textContent='Transcrie + AI';transcribe.setAttribute('aria-label','Transcrie și interpretează audio '+name.textContent);transcribe.addEventListener('click',async()=>{if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){setAudioUi('idle','Există deja o interpretare sau o salvare în curs. Confirmă ori anulează propunerea curentă înainte de a procesa altă înregistrare.');return}activeAudioRecordingId=null;transcribe.disabled=true;transcribe.textContent='Transcriere…';setAudioUi('idle','Audio trimis pentru transcriere. Înregistrarea originală rămâne locală.');try{const recovered=await recoverCommittedAudioCapture(record.id);if(recovered){setAudioUi('idle',recovered.message);await renderAudioRecordings();await refreshAudioLifecycleRecovery();return}try{await writeAudioLifecycleCheckpoint(record.id,'processing',{incrementAttempt:true})}catch(checkpointError){throw Error('Checkpoint-ul de recovery nu a putut fi salvat. Procesarea a fost oprită, iar înregistrarea originală este păstrată: '+checkpointError.message)}if(!window.CollectorOpenAIProvider?.transcribe)throw Error('Modulul de transcriere nu este încărcat.');let source=await CollectorAudioStore.get(record.id);let blob=source?.blob;if(!(blob instanceof Blob)&&source?.uri){const playable=window.CollectorNativeAudioRecorder?.toPlayableUrl(source.uri)||window.Capacitor?.convertFileSrc?.(source.uri)||source.uri;const response=await fetch(playable);if(!response.ok)throw Error('Nu pot citi fișierul audio nativ.');blob=await response.blob()}if(!(blob instanceof Blob)||!blob.size)throw Error('Fișierul audio nu este disponibil pentru transcriere.');const result=await CollectorOpenAIProvider.transcribe(blob);const input=document.getElementById('commandInput');activeAudioRecordingId=record.id;input.value=result.text;input.dispatchEvent(new Event('input',{bubbles:true}));showPage('assistant');setAudioUi('idle','Transcriere reușită. AI interpretează acum; verifică propunerea și confirmă explicit înainte de salvare. Audio original este păstrat.');await renderAudioRecordings();document.getElementById('commandInput')?.focus();await runAICommand()}catch(error){try{await writeAudioLifecycleCheckpoint(record.id,'failed',{error:error.message})}catch(_){}setAudioUi('idle','Transcriere eșuată: '+error.message)}finally{transcribe.disabled=false;transcribe.textContent='Transcrie + AI'}});
+   const transcribe=document.createElement('button');transcribe.className='secondary';transcribe.type='button';transcribe.dataset.audioTranscribeId=record.id;transcribe.textContent='Transcrie + AI';transcribe.setAttribute('aria-label','Transcrie și interpretează audio '+name.textContent);
+   try{const transcript=await window.CollectorAudioTranscriptCheckpointStore?.get(record.id);if(transcript)transcribe.textContent='Reia AI din transcript'}catch(_){transcribe.textContent='Verifică transcriptul'};
+   transcribe.addEventListener('click',()=>void transcribeAndInterpretAudioRecording(record.id,transcribe));
    const rename=document.createElement('button');rename.className='secondary';rename.type='button';rename.textContent='Redenumește';rename.setAttribute('aria-label','Redenumește înregistrarea '+name.textContent);rename.addEventListener('click',async()=>{const next=prompt('Titlu pentru această înregistrare:',record.title||name.textContent);if(next===null)return;try{await CollectorAudioStore.rename(record.id,next);await renderAudioRecordings()}catch(error){setAudioUi('idle','Nu am putut redenumi înregistrarea: '+error.message)}});const remove=document.createElement('button');remove.className='secondary';remove.type='button';remove.textContent='Șterge';remove.setAttribute('aria-label','Șterge înregistrarea din '+name.textContent);remove.addEventListener('click',()=>deleteAudioRecording(record.id));
    actions.append(play,transcribe,rename,remove);row.append(info,actions);list.append(row);
   }
@@ -1041,6 +1106,7 @@ async function initializeCollectorApp(){
  try{
   await storageAdapter.initialize();
   await initializeAudioRetentionPreference();
+  window.CollectorAudioTranscriptCheckpointStore=window.CollectorAudioTranscriptCheckpoints?.createStore(storageAdapter)||null;
   window.CollectorAudioLifecycleCheckpointStore=window.CollectorAudioProcessingLifecycle?.createStorageCheckpointStore(storageAdapter)||null;
   window.CollectorAudioLifecycleRecovery={list:()=>window.CollectorAudioLifecycleCheckpointStore?.list()||Promise.resolve([]),diagnostics:()=>window.CollectorAudioLifecycleCheckpointStore?.diagnostics()||Promise.resolve(null),refresh:refreshAudioLifecycleRecovery};
   db=await loadDb();
