@@ -78,3 +78,18 @@ test('checkpoint failure after persistence verification still retains source aud
  const lifecycle=createAudioProcessingLifecycle({audioStore:x.store,checkpointStore:cpStore,interpret:async()=>({}),extract:async()=>({}),validate:async v=>v,persist:async()=>({ok:true}),verifyPersisted:async()=>true});
  await assert.rejects(lifecycle.process('a1'),/checkpoint disk full/);assert.equal(x.audio.has('a1'),true);assert.ok(!x.calls.includes('delete'));
 });
+
+test('recovery diagnostics return actionable checkpoint details but omit completed jobs',async()=>{
+ const x=fixture();x.cps.set('stuck',{id:'stuck',state:'failed',attempts:3,idempotencyKey:'audio:stuck',recoveryRequired:true,error:'provider timeout',updatedAt:'2026-01-01'});
+ x.cps.set('done',{id:'done',state:'completed',attempts:1,idempotencyKey:'audio:done',updatedAt:'2026-01-02'});
+ const details=await x.lifecycle.recoverDetails();
+ assert.deepEqual(details,[{id:'stuck',state:'failed',attempts:3,recoveryRequired:true,error:'provider timeout',updatedAt:'2026-01-01',audioDeleted:false,persistenceVerified:false}]);
+ assert.deepEqual(await x.lifecycle.recover(),['stuck']);
+});
+test('checkpoint adapter serializes concurrent writes and maintains a consistent index',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){await new Promise(r=>setTimeout(r,1));raw.set(k,String(v))},async removeRaw(k){raw.delete(k)}};
+ const cp=createStorageCheckpointStore(storage);
+ await Promise.all(Array.from({length:12},(_,i)=>cp.put({id:'id'+i,state:'captured',idempotencyKey:'audio:id'+i})));
+ const rows=await cp.list();assert.equal(rows.length,12);assert.equal(new Set(rows.map(x=>x.id)).size,12);
+});
