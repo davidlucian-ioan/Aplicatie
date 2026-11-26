@@ -1,6 +1,6 @@
 (function(root){
  'use strict';
- const STATES=['captured','processing','interpreted','validated','persisted','persistence_verified','audio_deleted','completed'];
+ const STATES=['captured','processing','interpreted','validated','persisted','persistence_verified','audio_deletion_pending','audio_deleted','completed'];
  const TERMINAL=['completed'];
  function fail(msg){throw new Error(msg)}
  function createAudioProcessingLifecycle({audioStore,checkpointStore,interpret,extract,validate,persist,verifyPersisted}={}){
@@ -27,10 +27,11 @@
     if(verified!==true)fail('Persistence verification did not return true; audio retained');
     cp.persistenceVerified=true;cp.state='persistence_verified';await saveCheckpoint(cp);
     // Remove only after independently verifying the structured data commit.
+    cp.state='audio_deletion_pending';await saveCheckpoint(cp);
     const removed=await audioStore.remove(id);
-    if(removed!==true)fail('Audio deletion was not confirmed; source retained for recovery');
     const remaining=await audioStore.get(id);
     if(remaining!==null&&remaining!==undefined)fail('Audio deletion verification failed; source retained');
+    if(removed!==true&&remaining!==null&&remaining!==undefined)fail('Audio deletion was not confirmed; source retained for recovery');
     cp.audioDeleted=true;cp.state='audio_deleted';await saveCheckpoint(cp);
     cp.state='completed';cp.completedAt=new Date().toISOString();await saveCheckpoint(cp);
     return cp;
