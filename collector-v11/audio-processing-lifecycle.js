@@ -1,11 +1,12 @@
 (function(root){
  'use strict';
- const STATES=['captured','processing','interpreted','validated','persisted','persistence_verified','audio_deletion_pending','audio_deleted','completed'];
- const TERMINAL=['completed'];
+ const STATES=['captured','processing','interpreted','validated','persisted','persistence_verified','source_retained','audio_deletion_pending','audio_deleted','completed'];
+ const TERMINAL=['completed','source_retained'];
  function fail(msg){throw new Error(msg)}
- function createAudioProcessingLifecycle({audioStore,checkpointStore,interpret,extract,validate,persist,verifyPersisted}={}){
+ function createAudioProcessingLifecycle({audioStore,checkpointStore,interpret,extract,validate,persist,verifyPersisted,deleteAudioAfterVerified=false}={}){
   for(const [name,fn] of Object.entries({interpret,extract,validate,persist,verifyPersisted}))if(typeof fn!=='function')fail('Audio lifecycle dependency missing: '+name);
   if(!audioStore||typeof audioStore.get!=='function'||typeof audioStore.remove!=='function')fail('Audio store must support get/remove');
+  if(typeof deleteAudioAfterVerified!=='boolean')fail('deleteAudioAfterVerified must be an explicit boolean policy');
   const checkpoints=checkpointStore||{async get(){return null},async put(){},async remove(){}};
   async function saveCheckpoint(cp){cp.updatedAt=new Date().toISOString();await checkpoints.put(cp);return cp}
   async function processUnlocked(id,{retry=false}={}){
@@ -36,8 +37,10 @@
     const verified=await verifyPersisted(cp.persistResult,cp.validated,{id,idempotencyKey:cp.idempotencyKey});
     if(verified!==true)fail('Persistence verification did not return true; audio retained');
     cp.persistenceVerified=true;cp.state='persistence_verified';await saveCheckpoint(cp);
+    // Retention is the default. Deletion requires an explicit opt-in at construction.
+    if(!deleteAudioAfterVerified){cp.audioDeleted=false;cp.sourceRetained=true;cp.state='source_retained';cp.completedAt=new Date().toISOString();await saveCheckpoint(cp);return cp;}
     // Remove only after independently verifying the structured data commit.
-    cp.state='audio_deletion_pending';await saveCheckpoint(cp);
+    cp.sourceRetained=false;cp.state='audio_deletion_pending';await saveCheckpoint(cp);
     const removed=await audioStore.remove(id);
     const remaining=await audioStore.get(id);
     if(remaining!==null&&remaining!==undefined)fail('Audio deletion verification failed; source retained');
@@ -72,6 +75,8 @@
   if(cp.attempts!==undefined&&(!Number.isInteger(cp.attempts)||cp.attempts<0))fail('Audio lifecycle checkpoint attempts invalid');
   if(cp.persistenceVerified===true&&cp.persisted!==true)fail('Checkpoint claims verified persistence without persisted commit');
   if(cp.audioDeleted===true&&!['audio_deleted','completed'].includes(cp.state))fail('Checkpoint claims audio deletion in an invalid state');
+  if(cp.sourceRetained===true&&cp.state!=='source_retained')fail('Checkpoint claims source retention in an invalid state');
+  if(cp.state==='source_retained'&&(cp.persisted!==true||cp.persistenceVerified!==true||cp.audioDeleted===true))fail('Source-retained checkpoint requires verified persistence and retained audio');
   if(cp.state==='completed'&&cp.audioDeleted!==true)fail('Completed checkpoint missing audioDeleted confirmation');
   if(cp.state==='completed'&&cp.persistenceVerified!==true)fail('Completed checkpoint missing persistence verification');
   const version=Number(cp.schemaVersion)||1;if(!Number.isInteger(version)||version<1||version>2)fail('Audio lifecycle checkpoint schema version invalid');
