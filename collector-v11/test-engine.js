@@ -87,10 +87,9 @@ console.log('PASS: v9 population location propagates to members; moving a popula
  const tampered=JSON.parse(JSON.stringify(dated.db));
  tampered.entities[0].attributeHistory.status[0].validAt='2026-11-27';
  assert.throws(()=>E.validateImport(tampered),/proiecția „entities” nu corespunde jurnalului/);
- const invalid=E.commit(dated.db,{id:'valid-at-invalid',type:'bad-time',timestamp:E.now(),operations:[
+ assert.throws(()=>E.commit(dated.db,{id:'valid-at-invalid',type:'bad-time',timestamp:E.now(),operations:[
   {operation:'attribute.set',target:entityId,data:{name:'bad',value:'x',validAt:'2026-02-30'}}
- ]});
- assert.throws(()=>invalid,/Data validării faptului/);
+ ]}),/Data validării faptului/);
  assert.equal(dated.db.events.length,2,'failed transaction must not mutate the persisted base state');
  console.log('PASS: v10 validAt is stored in attribute history, replayed, and legacy snapshots safely backfill only missing derived metadata');
 }
