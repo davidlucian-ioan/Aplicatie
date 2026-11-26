@@ -1108,3 +1108,7 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Checkpoint identity guard reduce riscul de cross-recording processing și commit-key reuse.
 - Testul Recall are acum pași reali în UI și verifică resetarea filtrului, evitând false-negative din cauza locatorilor ascunși.
 - Lifecycle rămâne modul separat, netransformat încă în pipeline-ul Recorder→AI→Core. Auto-delete în produs nu este activat; următoarea integrare trebuie să fie staged și cu opt-in/guard până la testarea E2E.
+
+### Corectarea testelor din această rundă
+- CI a expus două defecte în testele noi, nu în codul lifecycle: fixture-ul returna Map-ul audio dar testul încerca să înlocuiască `audio.remove` (metoda reală aparține store-ului); iar testul pentru missing source cu checkpoint failed trebuia să folosească `retry:true` conform contractului.
+- Fixture-ul expune acum store adapter; testele interceptează metoda corectă și folosesc explicit retry. Aceste corecții sunt incluse în commitul următor și CI trebuie reevaluat.
