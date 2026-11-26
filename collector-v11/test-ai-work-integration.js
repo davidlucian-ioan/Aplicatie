@@ -65,7 +65,7 @@ test('native reminder lifecycle persists a canonical Task entity through the ver
  assert.match(app,/snoozed/);
  assert.match(helper,/operation:'entity\.create'/);
  assert.match(helper,/set\('taskKind','reminder'\)/);
- assert.match(helper,/set\('status','open'\)/);
+ assert.match(helper,/set\('status',initialTerminal\?lifecycle:'open'\)/);
  assert.match(helper,/successorReminderId/);
  assert.doesNotMatch(app.slice(app.indexOf('async function recordReminderLifecycleInCore'),app.indexOf('function ensureAICorePort')),/operation:'event\.note'/);
  assert.match(reminders,/coreOutbox/);
@@ -84,8 +84,8 @@ test('canonical reminder tasks store structured lifecycle metadata without trans
  assert.match(handler,/CollectorReminderTask\.buildCommand/);
  assert.doesNotMatch(handler,/sourceContext|transcript|rawTranscript/);
  assert.match(helper,/operation:'entity\.create'/);
- assert.match(helper,/name:'taskKind',value:'reminder'/);
- assert.match(helper,/name:'dueAt'/);
- assert.match(helper,/name:'sourceId'/);
+ assert.match(helper,/set\('taskKind','reminder'\)/);
+ assert.match(helper,/set\('dueAt',dueAt\)/);
+ assert.match(helper,/set\('sourceId',sourceId\)/);
  assert.doesNotMatch(helper,/sourceContext|transcript|rawTranscript/);
 });
