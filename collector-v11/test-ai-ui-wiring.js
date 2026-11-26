@@ -149,8 +149,9 @@ test('Audio Transcrie + AI continues into AI interpretation and retains source u
  assert.ok(app.includes("sourceId=sourceRecordingId?'audio:'+sourceRecordingId"));
  assert.ok(app.includes('audioRecordingId:sourceRecordingId'));
  const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
- assert.ok(confirm.includes('Șterge audio original'));
- assert.ok(confirm.includes('deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId)'));
+ assert.ok(confirm.includes('keepAudioAfterCommit'));
+ assert.ok(confirm.includes("deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId,{confirmBeforeDelete:false})"));
+ assert.ok(confirm.includes('audioCheckpointReady&&audioDraftCleared'));
  assert.ok(confirm.includes('data-audio-transcribe-id')===false);
 });
 
@@ -325,4 +326,39 @@ test('Browser transcription applies an upload timeout and parses structured clou
  assert.ok(provider.includes("apiUrl('/api/ai/transcribe')"));
  assert.ok(provider.includes('finally{clearTimeout(timer)}'));
  assert.ok(provider.includes('Înregistrarea originală este păstrată'));
+});
+
+test('A checkpoint write failure cannot strand the AI single-flight lock',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
+ const guardedTry=run.indexOf('try{');
+ const checkpoint=run.indexOf("writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')");
+ const cleanup=run.indexOf('finally{aiInterpretationPending=false');
+ assert.ok(guardedTry>=0&&checkpoint>guardedTry,'processing checkpoint must be inside the guarded try');
+ assert.ok(cleanup>checkpoint,'all checkpoint/provider errors must release the interpretation lock');
+});
+test('Audio retention is opt-out by default, configurable, and fails safe to retention',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ assert.match(app,/AUDIO_RETENTION_KEY='collector_audio_retention_policy_v1'/);
+ assert.match(app,/keepAudioAfterCommit=false/);
+ assert.match(app,/saved==='keep'/);
+ assert.match(app,/keepAudioAfterCommit=true/);
+ assert.match(app,/initializeAudioRetentionPreference\(\)/);
+ for(const html of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
+  const source=fs.readFileSync(html,'utf8');
+  assert.match(source,/id="retainAudioAfterCommit"/);
+  assert.match(source,/Implicit, audio-ul temporar este eliminat numai după commit Core și recitire independentă/);
+ }
+});
+test('Audio deletion is gated on verified Core event, cleared temporary transcript, and retention preference',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(confirm.indexOf('audioDraftCleared')<confirm.indexOf("deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId,{confirmBeforeDelete:false})"));
+ assert.ok(confirm.includes('audioCheckpointReady&&audioDraftCleared'));
+ assert.ok(confirm.includes('if(keepAudioAfterCommit)'));
+ assert.ok(deletion.includes('await verifyAudioCheckpointEvent(cp)'));
+ assert.ok(deletion.includes('await verifyAudioRemoval()'));
+ assert.ok(deletion.includes('await verifyAudioCheckpointEvent(await store.get(recordingId))'));
+ assert.ok(deletion.includes("writeAudioLifecycleCheckpoint(recordingId,'completed'"));
 });
