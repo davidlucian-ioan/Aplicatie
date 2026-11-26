@@ -154,12 +154,14 @@ test('Audio Transcrie + AI continues into AI interpretation and retains source u
  assert.ok(confirm.includes('data-audio-transcribe-id')===false);
 });
 
-test('Stable audio capture key changes with transcript and is deterministic for retries',()=>{
+test('Stable audio capture identity is deterministic across transcription retries',()=>{
  const app=fs.readFileSync('app.js','utf8');
- assert.match(app,/function stableAudioCaptureTurnId\(recordingId,transcript\)/);
- assert.ok(app.includes('primary=Math.imul(primary^code,16777619)'));
- assert.ok(app.includes('secondary=Math.imul(secondary^(code+index),2246822519)'));
- assert.ok(app.includes("return 'audio:'+String(recordingId)+':'+value.length+':'+fingerprint"));
+ const match=app.match(/function stableAudioCaptureTurnId\(recordingId\)\{[^}]+\}/);
+ assert.ok(match);
+ const keyFactory=Function('return ('+match[0]+')')();
+ assert.equal(keyFactory('audio-1'),'audio:audio-1');
+ assert.equal(keyFactory('audio-1'),keyFactory('audio-1'));
+ assert.notEqual(keyFactory('audio-1'),keyFactory('audio-2'));
 });
 
 
@@ -170,7 +172,7 @@ test('Concurrent audio AI runs are rejected and each interpretation keeps its or
  assert.ok(run.includes('if(aiInterpretationPending||pendingCoreCommand||coreCommitPending)'));
  assert.ok(run.includes('aiInterpretationPending=true'));
  assert.ok(run.includes('aiInterpretationPending=false'));
- assert.ok(run.includes('stableAudioCaptureTurnId(sourceRecordingId,text)'));
+ assert.ok(run.includes('stableAudioCaptureTurnId(sourceRecordingId)'));
  const audio=app.slice(app.indexOf("const transcribe=document.createElement('button')"),app.indexOf("const rename=document.createElement('button')"));
  assert.ok(audio.includes('if(aiInterpretationPending||pendingCoreCommand||coreCommitPending)'));
  assert.ok(audio.includes('activeAudioRecordingId=null'));
@@ -267,7 +269,7 @@ test('Audio capture idempotency is bound to recording ID, not variable transcrip
  assert.match(app,/function stableAudioCaptureTurnId\(recordingId\)\{if\(typeof recordingId!=='string'/);
  assert.ok(app.includes("return 'audio:'+recordingId}"));
  assert.ok(app.includes('stableAudioCaptureTurnId(sourceRecordingId)'));
- assert.ok(app.includes("idempotencyKey:'collector-memory-capture:'+captureId")===false || fs.readFileSync('ai/structured-memory-browser.js','utf8').includes("idempotencyKey:'collector-memory-capture:'+captureId"));
+ assert.ok(fs.readFileSync('ai/structured-memory-browser.js','utf8').includes("idempotencyKey:'collector-memory-capture:'+captureId"));
 });
 
 test('Verified audio commit clears the temporary Work transcript draft before offering source deletion',()=>{
