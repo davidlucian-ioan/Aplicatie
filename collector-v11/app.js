@@ -363,7 +363,22 @@ async function runAICommand(){
   const turnId=E.uid(),sourceId='work:'+turnId;
   const response=await CollectorOpenAIProvider.interpret(text,context);
   void refreshAIProviderStatus();
-  const ai=response.interpretation||{},extras=renderAIEnhancements(ai,text,sourceId,turnId);
+  const ai=response.interpretation||{};
+  if(ai.structuredMemory&&window.CollectorStructuredMemory){
+   const sm=CollectorStructuredMemory.validateExtraction(ai.structuredMemory);
+   if(sm.entities.length||sm.facts.length||sm.relations.length){
+    const resolutions=CollectorStructuredMemory.resolveEntities(sm,db);
+    const ambiguous=resolutions.filter(r=>r.match==='ambiguous');
+    if(ambiguous.length){
+     const names=ambiguous.map(r=>r.name+' ('+r.candidateIds.map(id=>db.entities.find(e=>e.id===id)?.name||id).join(', ')+')').join('; ');
+     ai.intent='clarify';ai.question='Am găsit identități ambigue și nu le voi uni automat: '+names+'. Confirmă entitatea corectă.';
+    }else{
+     ai.command=CollectorStructuredMemory.createCommand(sm,resolutions,{captureId:turnId,turnId});
+     ai.intent='propose';ai.semanticSummary=sm.summary;ai.memoryFacts=sm.facts.map(f=>{const entity=sm.entities.find(e=>e.key===f.subject);return (entity?.name||f.subject)+': '+f.name+' = '+String(f.value)});
+    }
+   }
+  }
+  const extras=renderAIEnhancements(ai,text,sourceId,turnId);
   if(ai.intent==='answer'){box.innerHTML='<p>'+esc(ai.answer||'Nu am un răspuns disponibil.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
   if(ai.intent==='clarify'||(ai.intent==='propose'&&Array.isArray(ai.ambiguities)&&ai.ambiguities.length)){box.innerHTML='<p>'+esc(ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
   if(ai.intent==='refuse'){box.innerHTML='<p>'+esc(ai.answer||'Nu pot procesa această solicitare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
