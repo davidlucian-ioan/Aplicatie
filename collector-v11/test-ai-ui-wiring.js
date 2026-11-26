@@ -381,3 +381,15 @@ test('audio deletion requires at least one structured Core operation beyond an e
  assert.ok(recovery.includes("operation.operation!=='event.note'"));
  assert.ok(app.includes('fără entități, atribute, relații sau alte operații structurate'));
 });
+
+test('audio transcript text is excluded from follow-up memory notes and reminder context',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const memory=app.slice(app.indexOf("const memoryButton=box.querySelector('[data-ai-memory-save]')"),app.indexOf("box.querySelectorAll('[data-ai-reminder-index]')"));
+ assert.ok(memory.includes("String(sourceId||'').startsWith('audio:')?'':String(sourceText||'').slice(0,1200)"));
+ assert.ok(memory.includes('sourceText:retainedSourceText||null'));
+ assert.ok(!memory.includes("'Text original: '+String(sourceText||'').slice(0,1200)"));
+ const reminder=app.slice(app.indexOf("box.querySelectorAll('[data-ai-reminder-index]')"),app.indexOf("async function runAICommand"));
+ assert.ok(reminder.includes("const isAudioSource=String(sourceId||'').startsWith('audio:')"));
+ assert.ok(reminder.includes("String(ai.semanticSummary||suggestion.title||'Audio capture').slice(0,500)"));
+ assert.ok(reminder.includes("[suggestion.context,sourceText]"));
+});
