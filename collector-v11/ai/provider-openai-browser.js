@@ -38,8 +38,11 @@
     if(!(blob instanceof Blob)||!blob.size)throw new Error('Înregistrarea audio este goală sau indisponibilă.');
     if(blob.size>25*1024*1024)throw new Error('Înregistrarea depășește limita de 25 MB pentru transcriere.');
     const auth=await authHeaders();if(!auth)throw new Error('Autentificarea cloud nu este configurată.');
-    const type=blob.type||'audio/webm';
-    const response=await fetch(apiUrl('/api/ai/transcribe'),{method:'POST',headers:{'Content-Type':type,...auth},body:blob});
+    const type=blob.type||'audio/webm',controller=new AbortController(),timer=setTimeout(()=>controller.abort(),70_000);
+    let response;
+    try{response=await fetch(apiUrl('/api/ai/transcribe'),{method:'POST',headers:{'Content-Type':type,Accept:'application/json',...auth},body:blob,signal:controller.signal})}
+    catch(error){if(error?.name==='AbortError')throw new Error('Transcrierea a depășit timpul de așteptare. Înregistrarea originală este păstrată; verifică starea înainte de a relua cererea.');throw error}
+    finally{clearTimeout(timer)}
     const body=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(body.error||'Transcrierea audio a eșuat.');
     if(typeof body.text!=='string'||!body.text.trim())throw new Error('Transcrierea nu a returnat text.');
