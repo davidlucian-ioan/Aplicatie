@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {createTaskCommand,transitionTaskCommand,addDependencyCommand,entityIdForTask}=require('./ai/task-command');
+const {createTaskCommand,editTaskCommand,transitionTaskCommand,addDependencyCommand,entityIdForTask}=require('./ai/task-command');
 const Engine=require('./engine');
 const {CorePort}=require('./ai/core-port');
 const input=(taskId,extra={})=>({taskId,idempotencyKey:'task-create:'+taskId,title:'Pregătește substratul',occurredAt:'2026-11-26T18:00:00Z',sourceId:'audio:capture-1',...extra});

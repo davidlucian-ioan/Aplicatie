@@ -229,7 +229,7 @@ function renderTasks(){
   const blockers=(db.relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===task.id&&!relation.endedAt).map(relation=>db.entities.find(entity=>entity.id===relation.targetId)).filter(dependency=>!dependency||dependency.attributes?.status!=='completed');
   const blockerText=blockers.length?'<div class="muted">Blocat de: '+blockers.map(dependency=>esc(dependency?.name||'dependență lipsă')).join(', ')+'</div>':'';
   const progressButton=a.status==='in_progress'?'<button class="secondary" type="button" data-task-action="open" data-task-id="'+esc(a.taskId||'')+'">Pune în așteptare</button>':'<button class="secondary" type="button" data-task-action="in_progress" data-task-id="'+esc(a.taskId||'')+'">Începe</button>';
-  return '<div class="row task-row"><div class="task-row-main"><b>'+esc(task.name)+'</b><div class="muted">'+status+' · '+esc(due)+' · Prioritate '+esc(priority)+'</div>'+blockerText+'</div><div class="task-row-actions"><button class="secondary" type="button" data-task-edit>Editează</button><button class="secondary" type="button" data-task-dependency="'+esc(a.taskId||'')+'">Dependență…</button>'+progressButton+'<button class="secondary" type="button" data-task-action="completed" data-task-id="'+esc(a.taskId||'')+'" '+(blockers.length?'disabled title="Finalizează mai întâi dependențele"':'')+'>Finalizează</button><button class="secondary" type="button" data-task-action="cancelled" data-task-id="'+esc(a.taskId||'')+'">Anulează</button></div></div>';
+  return '<div class="row task-row"><div class="task-row-main"><b>'+esc(task.name)+'</b><div class="muted">'+status+' · '+esc(due)+' · Prioritate '+esc(priority)+'</div>'+blockerText+'</div><div class="task-row-actions"><button class="secondary" type="button" data-task-dependency="'+esc(a.taskId||'')+'">Dependență…</button>'+progressButton+'<button class="secondary" type="button" data-task-action="completed" data-task-id="'+esc(a.taskId||'')+'" '+(blockers.length?'disabled title="Finalizează mai întâi dependențele"':'')+'>Finalizează</button><button class="secondary" type="button" data-task-action="cancelled" data-task-id="'+esc(a.taskId||'')+'">Anulează</button></div></div>';
  }).join('');
 }
 function addTaskDependency(taskId){
@@ -265,25 +265,6 @@ document.getElementById('quickEvent').onclick=()=>showPage('assistant');document
 document.getElementById('taskBoard')?.addEventListener('click',event=>{
  const dependencyButton=event.target.closest('[data-task-dependency]');
  if(dependencyButton){addTaskDependency(dependencyButton.dataset.taskDependency);return}
-});
-document.getElementById('taskBoard')?.addEventListener('click',async event=>{
- const editButton=event.target.closest('[data-task-edit]');if(!editButton)return;
- const taskId=editButton.closest('.task-row')?.querySelector('[data-task-dependency]')?.dataset.taskDependency;
- const task=db.entities.find(entity=>entity.type==='task'&&entity.attributes?.taskKind==='user'&&entity.attributes?.taskId===taskId);if(!task)return;
- const a=task.attributes||{};
- openModal('<h2>Editează task</h2><div class="form"><label for="taskEditTitle">Titlu</label><input id="taskEditTitle" maxlength="160" value="'+esc(task.name)+'"><label for="taskEditDate">Termen (dată)</label><input id="taskEditDate" type="date" value="'+esc(a.dueDate||'')+'"><label for="taskEditTime">Ora (opțional)</label><input id="taskEditTime" type="time" value="'+esc(a.dueTime||'')+'"><label for="taskEditTimezone">Fus orar IANA</label><input id="taskEditTimezone" value="'+esc(a.timezone||'Europe/Bucharest')+'" placeholder="Europe/Bucharest"><label for="taskEditPriority">Prioritate</label><select id="taskEditPriority"><option value="low">Scăzută</option><option value="normal">Normală</option><option value="high">Ridicată</option><option value="urgent">Urgentă</option></select><div class="form-actions"><button class="secondary" type="button" onclick="closeModal()">Anulează</button><button class="primary" type="button" id="saveTaskEdit">Previzualizează și salvează</button></div></div>');
- document.getElementById('taskEditPriority').value=a.priority||'normal';
- document.getElementById('saveTaskEdit')?.addEventListener('click',async ev=>{
-  const save=ev.currentTarget,title=document.getElementById('taskEditTitle').value.trim(),dueDate=document.getElementById('taskEditDate').value||null,dueTime=document.getElementById('taskEditTime').value||null,timezone=document.getElementById('taskEditTimezone').value.trim()||null,priority=document.getElementById('taskEditPriority').value;
-  if(!title){setAppStatus('Titlul task-ului este obligatoriu.');return}save.disabled=true;
-  try{const api=window.CollectorTaskCommand;if(!api?.editTaskCommand)throw Error('Editorul Task nu este încărcat.');
-   const occurredAt=E.now(),cmd=api.editTaskCommand({taskId,title,dueDate,dueTime,timezone,priority,idempotencyKey:'collector-task-edit:'+taskId+':'+occurredAt,occurredAt},db);
-   const port=ensureAICorePort(),preview=await port.preview(cmd);if(!['preview_ok','duplicate'].includes(preview.status))throw Error('Core a respins editarea: '+preview.status);
-   if(!confirm('Salvezi modificările pentru „'+task.name+'”?')){save.disabled=false;return}
-   const result=await serializeMutation(()=>port.execute(cmd,{confirmed:true}));if(!['committed','duplicate'].includes(result.status))throw Error('Core nu a confirmat editarea: '+result.status);
-   closeModal();renderTasks();setAppStatus('Task actualizat în jurnalul Core.');
-  }catch(error){setAppStatus('Task-ul nu a fost editat: '+error.message);save.disabled=false}
- });
 });
 document.getElementById('taskBoard')?.addEventListener('click',async event=>{
  const button=event.target.closest('[data-task-action]');if(!button||button.disabled)return;
