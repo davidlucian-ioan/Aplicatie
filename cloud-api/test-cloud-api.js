@@ -388,3 +388,29 @@ test('cloud transcription enforces the 25 MB upload cap before calling OpenAI',a
   assert.equal(response.status,413);assert.equal(called,false);
  });
 });
+
+
+test('cloud transcription rejects a non-Pro user before invoking the provider',async()=>{
+ let called=false;
+ const billingService={configured:true,reserve:async()=>({allowed:false,reason:'subscription_required'}),settle:async()=>({})};
+ await withServer({env:{...baseEnv,OPENAI_TRANSCRIPTION_MAX_REQUEST_USD:'0.05'},fetchImpl:authFetch(),billingService,
+  transcriptionProviderFactory:()=>({transcribe:async()=>{called=true;return {text:'x'}}})},async base=>{
+  const response=await fetch(base+'/api/ai/transcribe',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'audio/webm'},body:Buffer.from('audio')});
+  assert.equal(response.status,403);assert.equal((await response.json()).code,'subscription_required');assert.equal(called,false);
+ });
+});
+
+test('cloud transcription limits concurrent uploads before buffering additional audio',async()=>{
+ let enteredResolve,releaseResolve;
+ const entered=new Promise(resolve=>{enteredResolve=resolve}),release=new Promise(resolve=>{releaseResolve=resolve});
+ const billingService={configured:true,reserve:async()=>({allowed:true}),settle:async()=>({used_microusd:50_000})};
+ await withServer({env:{...baseEnv,OPENAI_TRANSCRIPTION_MAX_REQUEST_USD:'0.05',COLLECTOR_TRANSCRIPTION_MAX_CONCURRENCY:'1'},fetchImpl:authFetch(),billingService,
+  transcriptionProviderFactory:()=>({model:'test-model',transcribe:async()=>{enteredResolve();await release;return {text:'done'}}})},async base=>{
+  const headers={Authorization:'Bearer valid-token','Content-Type':'audio/webm'};
+  const first=fetch(base+'/api/ai/transcribe',{method:'POST',headers,body:Buffer.from('audio')});
+  await entered;
+  const second=await fetch(base+'/api/ai/transcribe',{method:'POST',headers,body:Buffer.from('audio')});
+  assert.equal(second.status,429);releaseResolve();
+  const response=await first;assert.equal(response.status,200);
+ });
+});
