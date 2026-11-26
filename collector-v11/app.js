@@ -841,7 +841,7 @@ async function refreshAudioLifecycleRecovery(){
  try{
   const diagnostics=await store.diagnostics?.();
   const rows=await store.list();
-  const pending=rows.filter(cp=>cp.state!=='completed');
+  const pending=rows.filter(cp=>!['completed','source_retained'].includes(cp.state));
   const repairNote=diagnostics?.orphanIds?.length?'<p class="note">Recovery a detectat și reindexat '+diagnostics.orphanIds.length+' checkpoint-uri orfane după o întrerupere.</p>':'';
   if(!pending.length){box.innerHTML=repairNote+'<p class="muted">Nu există procesări AI audio întrerupte. Audio-ul original nu este șters de această componentă.</p>';return}
   box.innerHTML=repairNote+'<p><b>'+pending.length+'</b> procesări audio în checkpoint (recovery manual, fără auto-retry/ștergere).</p>'+pending.map(cp=>'<div class="row"><div><b>'+esc(cp.id)+'</b><div class="muted">'+esc(cp.state)+' · încercări '+(Number(cp.attempts)||0)+(cp.error?' · '+esc(cp.error):'')+'</div></div></div>').join('');
