@@ -7,6 +7,7 @@ Backend Node.js separat pentru aplicația mobilă. API-ul nu trebuie expus publi
 - `GET /health` — health check public, fără date personale.
 - `GET /api/ai/status` — necesită token Supabase; returnează starea providerului, entitlement-ul Pro verificat server-side și disponibilitatea AI pentru utilizator.
 - `POST /api/ai/interpret` — necesită sesiune Supabase validă, entitlement Pro activ și buget lunar disponibil; rezervă bugetul înainte de OpenAI și regularizează consumul după răspuns.
+- `POST /api/ai/transcribe` — necesită sesiune Supabase validă, entitlement Pro și plafon de cost per înregistrare configurat; acceptă doar formatele audio permise, limitează fișierul la 25 MB și contabilizează conservator plafonul înainte de a apela OpenAI.
 - `POST /api/billing/revenuecat-webhook` — webhook RevenueCat autentificat cu secret; evenimentele sunt persistate idempotent.
 - `DELETE /api/account` — șterge utilizatorul Supabase autentificat; cere cheia administrativă server-side.
 
@@ -17,6 +18,7 @@ Obligatorii pentru AI și billing:
 - `SUPABASE_ANON_KEY` — cheia publică anon; folosită la validarea tokenului.
 - `SUPABASE_SERVICE_ROLE_KEY` — secret administrativ server-side, folosit pentru metering, entitlements, webhook și ștergerea contului. Nu se introduce în aplicație.
 - `OPENAI_API_KEY` — secret OpenAI server-side.
+- `OPENAI_TRANSCRIPTION_MAX_REQUEST_USD` — plafonul maxim contabilizat per fișier audio. Este obligatoriu pentru activarea transcrierii cloud; deoarece endpoint-ul de transcriere nu furnizează usage tokeni echivalenți interpretării, fiecare succes este contabilizat la întregul plafon configurat. Setează un plafon care acoperă costul maxim posibil al unei înregistrări de 25 MB pentru modelul de transcriere configurat. Nu există default automat.
 - `REVENUECAT_WEBHOOK_AUTHORIZATION` — valoarea exactă a headerului Authorization configurat în webhook-ul RevenueCat.
 - `REVENUECAT_PRO_PRODUCT_IDS` — lista separată prin virgulă a product ID-urilor care acordă Collector Pro. Nu acceptăm automat orice produs din RevenueCat.
 - `REVENUECAT_PRO_ENTITLEMENT_ID` — identificatorul entitlement-ului din RevenueCat; implicit `pro`.
@@ -26,6 +28,8 @@ Obligatorii pentru AI și billing:
 Alte variabile:
 - `PORT` — implicit 8080.
 - `OPENAI_MODEL` — implicit `gpt-6.2-sol`.
+- `OPENAI_TRANSCRIPTION_MODEL` — implicit `gpt-4o-mini-transcribe`.
+- `COLLECTOR_TRANSCRIPTION_MAX_CONCURRENCY` — numărul maxim de transcrieri concurente per proces Cloud API; implicit 4, plafon tehnic 8.
 - `COLLECTOR_ALLOWED_ORIGINS` — listă separată prin virgulă, de ex. `capacitor://localhost,https://localhost,https://app.example.com`.
 - `COLLECTOR_RATE_LIMIT_MAX_USERS` — capacitatea maximă a cache-ului rate-limit per utilizator; implicit 10.000. Intrările expirate sunt curățate, iar la atingerea plafonului este eliminată cea mai veche intrare.
 
@@ -56,6 +60,7 @@ Backend-ul tratează achiziția/reînnoirea, schimbarea produsului, reactivarea,
 - După răspuns, tokenii raportați de OpenAI și costul estimat sunt salvați. Dacă providerul nu returnează usage, se taxează conservator rezerva calculată.
 - La buget epuizat, API răspunde cu `429 monthly_budget_exceeded`; Work/Think și datele locale nu sunt afectate.
 - Rate limit-ul de 20 cereri/minut este suplimentar și în memorie; nu înlocuiește bugetul lunar persistent.
+- Transcrierea folosește un plafon fix, conservator, per înregistrare (`OPENAI_TRANSCRIPTION_MAX_REQUEST_USD`), rezervat înainte de apel și contabilizat integral după succes. Cererile eșuate eliberează rezervarea cunoscută; dacă settlement-ul eșuează după un răspuns billable, rezervarea rămâne blocată conservator.
 - Nu se trimit fișiere audio sau jurnalul complet la OpenAI. Contextul trece prin allowlist-ul `safeContext`.
 
 ## Limitări încă deschise
