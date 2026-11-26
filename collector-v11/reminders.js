@@ -336,10 +336,14 @@
    try{await service.cancel(button.dataset.reminderCancel);if(status)status.textContent='Alarma a fost anulată.';await render()}
    catch(error){button.disabled=false;if(status)status.textContent='Nu am putut anula alarma: '+error.message}
   });
-  const recovery=await service.recoverPendingSchedules();
-  const syncResult=await service.syncCoreOutbox();
-  if(status&&(recovery.recovered||recovery.failed||recovery.uncertain))status.textContent='Recovery reminders: '+recovery.recovered+' reprogramat(e), '+recovery.failed+' anulată/anulate, '+recovery.uncertain+' cu stare incertă.';
-  if(status&&syncResult.pending)status.textContent='Alarmele sunt active; '+syncResult.pending+' eveniment(e) așteaptă sincronizarea cu jurnalul Core.';
+  let recovery={recovered:0,failed:0,uncertain:0},recoveryError=null,syncResult={synced:0,pending:0,error:null};
+  try{recovery=await service.recoverPendingSchedules()}catch(error){recoveryError=error}
+  try{syncResult=await service.syncCoreOutbox()}catch(error){syncResult={synced:0,pending:1,error:String(error?.message||error)}}
+  const notices=[];
+  if(recoveryError)notices.push('Recovery-ul unei programări întrerupte a eșuat: '+recoveryError.message);
+  if(recovery.recovered||recovery.failed||recovery.uncertain)notices.push('Recovery reminders: '+recovery.recovered+' reprogramat(e), '+recovery.failed+' anulat(e), '+recovery.uncertain+' cu stare incertă.');
+  if(syncResult.pending)notices.push(syncResult.pending+' eveniment(e) așteaptă sincronizarea cu jurnalul Core.');
+  if(status&&notices.length)status.textContent=notices.join(' ');
   await render();
  }
  async function schedule(input){if(!service)await initialize();if(!service)throw new Error('Serviciul de notificări native nu este disponibil.');return service.create(input)}
