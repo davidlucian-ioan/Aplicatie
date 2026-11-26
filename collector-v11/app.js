@@ -316,21 +316,12 @@ async function confirmCoreCommand(){
    if(extrasState?.audioRecordingId&&audioCheckpointReady&&(result.status==='committed'||result.status==='duplicate')){
     const deleteSource=document.createElement('button');deleteSource.type='button';deleteSource.className='secondary';deleteSource.textContent='Șterge audio original';
     deleteSource.addEventListener('click',async()=>{
-     if(!confirm('Datele structurate sunt salvate și verificate în jurnal. Ștergi definitiv înregistrarea audio originală de pe acest dispozitiv?'))return;
      deleteSource.disabled=true;
      try{
-      await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'audio_deletion_pending',{eventId:result.eventId,intentKey:command.idempotencyKey});
-      await CollectorAudioStore.remove(extrasState.audioRecordingId);
-      const remaining=await CollectorAudioStore.get(extrasState.audioRecordingId);
-      if(remaining!==null&&remaining!==undefined)throw Error('Fișierul audio există încă după ștergere.');
-      await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'completed',{eventId:result.eventId,intentKey:command.idempotencyKey});
+      const deletion=await deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId);
+      if(deletion.status==='cancelled'){deleteSource.disabled=false;return}
       deleteSource.textContent='Audio original șters ✓';activeAudioRecordingId=null;await renderAudioRecordings();await refreshAudioLifecycleRecovery();
-     }
-     catch(error){
-      let sourcePresent=true;try{const remaining=await CollectorAudioStore.get(extrasState.audioRecordingId);sourcePresent=remaining!==null&&remaining!==undefined}catch(_){sourcePresent=true}
-      if(!sourcePresent){try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'completed',{eventId:result.eventId,intentKey:command.idempotencyKey});deleteSource.textContent='Audio original șters ✓';activeAudioRecordingId=null;await renderAudioRecordings();await refreshAudioLifecycleRecovery();return}catch(checkpointError){error=checkpointError}}
-      deleteSource.disabled=false;deleteSource.textContent='Reîncearcă ștergerea audio';box.insertAdjacentHTML('beforeend','<p class="note">'+(sourcePresent?'Audio-ul original a fost păstrat: ':'Audio-ul lipsește după ștergere, dar checkpoint-ul final nu a putut fi confirmat: ')+esc(error.message)+'</p>')
-     }
+     }catch(error){deleteSource.disabled=false;deleteSource.textContent='Reîncearcă ștergerea audio';box.insertAdjacentHTML('beforeend','<p class="note">Audio-ul original a fost păstrat sau nu a putut fi confirmată ștergerea: '+esc(error.message)+'</p>')}
     });
     box.append(deleteSource);
    }
