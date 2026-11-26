@@ -136,7 +136,7 @@ test('Work is the primary capture workspace on desktop and mobile', async ({ pag
   await page.goto('/index-server.html');
   await expect(page.locator('#assistant')).toHaveClass(/active/);
   const order = await page.locator('#assistant > .panel').evaluateAll(els => els.map(el => getComputedStyle(el).order));
-  expect(order).toEqual(['1','2','3']);
+  expect(order).toEqual(['1','2','3','4']);
   const columns = await page.locator('#assistant').evaluate(el => getComputedStyle(el).gridTemplateColumns);
   expect(columns.trim().split(/\s+/).length).toBe(1);
   await expect(page.locator('#audioRecordStart')).toBeVisible();
