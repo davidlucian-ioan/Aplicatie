@@ -14,7 +14,7 @@ function fixture({permission='granted',scheduleError=null,cancelError=null,failS
  const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:00:00.000Z'),random});
  return {service,calls,raw:()=>raw};
 }
-test('alarma se persistă și se programează prin notificare locală',async()=>{
+test('concurrent reminder creation with same idempotency key schedules only once',async()=>{\n const x=fixture({random:()=>0.4});\n const input={title:'Cumpără materiale',at:'2026-11-24T12:00:00.000Z',sourceId:'work:turn-1',context:'Proiect',idempotencyKey:'ai-reminder:turn-1:0'};\n const [first,second]=await Promise.all([x.service.create(input),x.service.create(input)]);\n assert.equal(first.id,second.id);assert.equal(second.alreadyScheduled,true);\n assert.equal(JSON.parse(x.raw()).length,1);assert.equal(x.calls.filter(call=>call.type==='schedule').length,1);\n});\ntest('alarma se persistă și se programează prin notificare locală',async()=>{
  const x=fixture({random:()=>0.25});
  const item=await x.service.create({title:'Verifică B3',at:'2026-11-24T12:00:00.000Z'});
  assert.equal(item.title,'Verifică B3');assert.equal(JSON.parse(x.raw()).length,1);
