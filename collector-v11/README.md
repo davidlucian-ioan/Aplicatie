@@ -53,13 +53,15 @@ Testele Playwright folosesc un server temporar pe portul 4173 și un profil de b
 
 CI rulează toate nivelurile la fiecare Pull Request și păstrează raportul de coverage și benchmark-ul Replay ca artifact GitHub Actions.
 
-Audio lifecycle checkpoints și recovery diagnostics (read-only, fără auto-retry sau ștergere) sunt documentate în [AUDIO-LIFECYCLE-RECOVERY-v0.2.md](AUDIO-LIFECYCLE-RECOVERY-v0.2.md). Procesarea automată Audio → structured memory încă nu este conectată.
+Audio lifecycle checkpoints, verificarea commit-ului, recovery înainte de retranscriere și politica de retenție sunt documentate în [AUDIO-LIFECYCLE-RECOVERY-v0.2.md](AUDIO-LIFECYCLE-RECOVERY-v0.2.md). Fluxul manual Audio → transcriere → OpenAI → structured memory → Core preview → confirmare → recitire independentă este conectat. Procesarea automată în fundal, retry-ul automat și playback-ul TTS nu sunt activate.
+
+Status implementare AI și gaps de lansare: [AI-PIPELINE-STATUS-v0.4.md](AI-PIPELINE-STATUS-v0.4.md).
 
 Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile reale în afara intervalului se pot înregistra cu avertisment. Providerul cloud OpenAI este integrat prin serverul local; cheia API rămâne exclusiv pe server. Vezi [OPENAI-INTEGRATION.md](OPENAI-INTEGRATION.md).
 
 ## Aplicație mobilă comercială
 
-Direcția de produs confirmată este distribuția prin Google Play și Apple App Store. Shell-ul Capacitor, bundle-ul mobile, StorageAdapter SQLite, Work/Think și reminders native sunt implementate în branch-ul de lucru. Backend-ul cloud, autentificarea, sincronizarea, billing-ul, audio nativ complet și build-urile semnate rămân de realizat. Vezi [MOBILE-APP-AND-COMMERCIAL-ROADMAP.md](MOBILE-APP-AND-COMMERCIAL-ROADMAP.md) și [LAUNCH-READINESS-CHECKLIST.md](LAUNCH-READINESS-CHECKLIST.md). Drafturile interne pentru confidențialitate și termeni sunt în PRIVACY-POLICY-DRAFT-RO.md și TERMENI-UTILIZARE-DRAFT-RO.md; nu sunt gata de publicare.
+Direcția de produs confirmată este distribuția prin Google Play și Apple App Store. Shell-ul Capacitor, bundle-ul mobile, StorageAdapter SQLite, Work/Think, reminders native, Cloud API, autentificarea Supabase, RevenueCat și metering AI au implementări în branch. Configurarea proiectelor reale, aplicarea migrărilor Supabase, deploy-ul backend, testele RevenueCat sandbox, sincronizarea multi-device, privacy review și build-urile semnate rămân nevalidate/nefinalizate. Audio-ul nativ are recorder și stocare implementate, dar mai necesită testare pe dispozitive reale. Vezi [MOBILE-APP-AND-COMMERCIAL-ROADMAP.md](MOBILE-APP-AND-COMMERCIAL-ROADMAP.md) și [LAUNCH-READINESS-CHECKLIST.md](LAUNCH-READINESS-CHECKLIST.md). Drafturile interne pentru confidențialitate și termeni sunt în PRIVACY-POLICY-DRAFT-RO.md și TERMENI-UTILIZARE-DRAFT-RO.md; nu sunt gata de publicare.
 
 ## Funcții mobile implementate în branch
 
