@@ -219,7 +219,13 @@ function renderTasks(){
  const box=document.getElementById('taskBoard'),count=document.getElementById('taskBoardCount');
  if(!box)return;
  const search=(document.getElementById('taskSearch')?.value||'').trim().toLocaleLowerCase('ro');const statusFilter=document.getElementById('taskStatusFilter')?.value||'';const priorityFilter=document.getElementById('taskPriorityFilter')?.value||'';const sortMode=document.getElementById('taskSort')?.value||'due';const tasks=db.entities.filter(entity=>entity.type==='task'&&entity.attributes?.taskKind==='user'&&!['completed','cancelled'].includes(entity.attributes?.status||'open')&&(!statusFilter||(entity.attributes?.status||'open')===statusFilter)&&(!priorityFilter||(entity.attributes?.priority||'normal')===priorityFilter)&&(!search||(entity.name+' '+(entity.attributes?.assignedTo||'')).toLocaleLowerCase('ro').includes(search)));
- tasks.sort((a,b)=>sortMode==='name'?a.name.localeCompare(b.name,'ro'):sortMode==='created'?String(b.attributes?.createdAt||b.createdAt||'').localeCompare(String(a.attributes?.createdAt||a.createdAt||'')):sortMode==='priority'?({urgent:0,high:1,normal:2,low:3}[a.attributes?.priority||'normal']-({urgent:0,high:1,normal:2,low:3}[b.attributes?.priority||'normal'])):String(a.attributes?.dueDate||'9999-99-99').localeCompare(String(b.attributes?.dueDate||'9999-99-99'))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+ tasks.sort((a,b)=>{
+  const aa=a.attributes||{},bb=b.attributes||{};
+  if(sortMode==='name')return a.name.localeCompare(b.name,'ro');
+  if(sortMode==='created')return String(bb.createdAt||b.createdAt||'').localeCompare(String(aa.createdAt||a.createdAt||''));
+  if(sortMode==='priority'){const rank={urgent:0,high:1,normal:2,low:3};return (rank[aa.priority||'normal']??2)-(rank[bb.priority||'normal']??2);}
+  return String(aa.dueDate||'9999-99-99').localeCompare(String(bb.dueDate||'9999-99-99'))||String(a.createdAt||'').localeCompare(String(b.createdAt||''));
+ });
  if(count)count.textContent=tasks.length+' active';
  if(!tasks.length){box.innerHTML='<div class="empty">Nu ai task-uri active. Spune în Work „Creează un task…” pentru a adăuga unul.</div>';return}
  box.innerHTML=tasks.slice(0,20).map(task=>{

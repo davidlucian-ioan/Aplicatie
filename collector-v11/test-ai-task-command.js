@@ -13,7 +13,7 @@ test('task edit validates title, deadline and priority and journals changes',()=
  assert.equal(edited.intent,'task.edit');assert.equal(edited.requiresConfirmation,true);
  assert.ok(edited.operations.some(op=>op.operation==='entity.rename'&&op.data.name==='Titlu nou'));
  assert.ok(edited.operations.some(op=>op.operation==='attribute.set'&&op.data.name==='dueDate'&&op.data.value==='2026-11-28'));
- assert.ok(edited.operations.some(op=>op.operation==='attribute.set'&&op.data.name==='priority'&&op.data.value==='urgent'));
+ assert.ok(edited.operations.some(op=>op.operation==='attribute.set'&&op.data.name==='priority'&&op.data.value==='urgent'));assert.ok(edited.operations.some(op=>op.operation==='attribute.set'&&op.data.name==='assignedTo'&&op.data.value==='Mihai'));assert.ok(edited.operations.some(op=>op.operation==='attribute.set'&&op.data.name==='recurrence'&&op.data.value==='weekly'));
  assert.throws(()=>editTaskCommand({taskId:'edit-task',title:'',idempotencyKey:'bad'},state),/title invalid/);
  assert.throws(()=>editTaskCommand({taskId:'edit-task',dueDate:null,dueTime:'11:00',idempotencyKey:'bad-time'},state),/requires dueDate/);
  assert.throws(()=>editTaskCommand({taskId:'edit-task',dueDate:'2026-11-28',dueTime:'11:00',timezone:null,idempotencyKey:'bad-zone'},state),/requires an IANA timezone/);
