@@ -39,7 +39,7 @@ test('eroarea notificării face rollback la lista locală',async()=>{
 });
 test('anularea notificării elimină alarma doar după confirmarea pluginului',async()=>{
  const x=fixture();const item=await x.service.create({title:'Verifică sera',at:'2026-11-24T12:00:00.000Z'});
- assert.equal(await x.service.cancel(item.id),true);assert.deepEqual(JSON.parse(x.raw()),[]);
+ assert.equal(await x.service.cancel(item.id),true);const rows=JSON.parse(x.raw());assert.equal(rows.length,1);assert.equal(rows[0].status,'cancelled');
  assert.equal(x.calls.at(-1).type,'cancel');assert.equal(x.calls.at(-1).value.notifications[0].id,item.notificationId);
 });
 
@@ -49,7 +49,7 @@ test('cancel failure keeps reminder persisted',async()=>{
 });
 
 test('snooze replaces the original alarm and schedules a new notification',async()=>{
- const x=fixture({random:(()=>{let n=0;return()=>0.25+n++/100})()});const item=await x.service.create({title:'Verifică sera',at:'2026-11-24T12:00:00.000Z'});const snoozed=await x.service.snooze(item.id,10);assert.notEqual(snoozed.id,item.id);assert.equal(snoozed.title,item.title);assert.equal(new Date(snoozed.at).getTime(),new Date('2026-11-24T10:10:00.000Z').getTime());assert.equal(JSON.parse(x.raw()).length,1);assert.equal(JSON.parse(x.raw())[0].id,snoozed.id);
+ const x=fixture({random:(()=>{let n=0;return()=>0.25+n++/100})()});const item=await x.service.create({title:'Verifică sera',at:'2026-11-24T12:00:00.000Z'});const snoozed=await x.service.snooze(item.id,10);assert.notEqual(snoozed.id,item.id);assert.equal(snoozed.title,item.title);assert.equal(new Date(snoozed.at).getTime(),new Date('2026-11-24T10:10:00.000Z').getTime());const rows=JSON.parse(x.raw());assert.equal(rows.length,2);assert.equal(rows.find(row=>row.id===item.id).status,'cancelled');assert.equal(rows.find(row=>row.id===snoozed.id).status,'scheduled');
 });
 
 test('snooze rejects unsupported delay and leaves original alarm unchanged',async()=>{
@@ -86,4 +86,22 @@ test('clearAll restores notifications when local metadata cannot be removed',asy
  assert.equal(JSON.parse(x.raw())[0].id,item.id);
  const last=x.calls.at(-1);assert.equal(last.type,'schedule');
  assert.equal(last.value.notifications[0].id,item.notificationId);
+});
+
+test('AI reminder idempotency stores source context and avoids duplicate native notification',async()=>{
+ const x=fixture({random:()=>0.25});
+ const payload={title:'Cumpără materialele',at:'2026-11-24T12:00:00.000Z',sourceId:'work-turn-1',context:'Vineri trebuie să cumpăr materialele.',idempotencyKey:'collector-ai-turn-1-0'};
+ const first=await x.service.create(payload),second=await x.service.create(payload);
+ assert.equal(first.id,second.id);assert.equal(second.alreadyScheduled,true);
+ assert.equal(first.sourceId,payload.sourceId);assert.equal(first.sourceContext,payload.context);assert.equal(first.idempotencyKey,payload.idempotencyKey);
+ assert.equal(x.calls.filter(call=>call.type==='schedule').length,1);
+});
+
+test('complete cancels native alarm and keeps completed lifecycle in local history',async()=>{
+ const x=fixture();const item=await x.service.create({title:'Task',at:'2026-11-24T12:00:00.000Z',sourceId:'work-1',context:'Task original'});
+ const completed=await x.service.complete(item.id);
+ assert.equal(completed.status,'completed');assert.ok(completed.completedAt);
+ const stored=JSON.parse(x.raw());assert.equal(stored.length,1);assert.equal(stored[0].sourceContext,'Task original');
+ assert.equal(x.calls.at(-1).type,'cancel');
+ assert.equal(await x.service.complete(item.id),false,'completed task must be idempotent');
 });
