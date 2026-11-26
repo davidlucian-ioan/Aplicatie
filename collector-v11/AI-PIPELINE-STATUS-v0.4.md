@@ -73,3 +73,22 @@ PR remains unmerged. No production deployment, live billing activation or store 
 - Offline retry queue and controlled recovery UX.
 - TTS/voice playback.
 - Tiered plans, store sandbox cases, external Supabase/RevenueCat setup, encryption/privacy and physical-device acceptance.
+
+
+## Batch 26 Nov 2026 — durable reminder Core lifecycle
+
+- Added durable `pending → scheduled` native notification scheduling lifecycle and startup recovery with stable notification IDs.
+- Added `uncertain` state when a native schedule/cancel outcome cannot be proven; no false scheduled state is emitted.
+- Added Core lifecycle outbox for `scheduled`, `completed`, `cancelled`, `schedule_uncertain`, synced using a stable idempotency key through BrowserCorePort preview/execute with durable readback.
+- Outbox is retained on Core/storage failures, shown in Work, and supports manual retry and retry at initialization.
+- Core receives only reminder identity/lifecycle/title/due/source ID/summary. The Work transcript or reminder sourceContext is not copied into the permanent journal.
+- Recall tests cover reminder lifecycle events as source-linked event evidence.
+- Ordinary reminder clear-all requires outbox sync. Explicit full local data erase cancels notifications and intentionally discards the local outbox because the corresponding local Core journal is also being erased.
+
+### CI snapshot at runtime HEAD `a09f47d9`
+Cloud API PASS; Node/Core/property/Replay PASS; Chromium and Firefox E2E PASS; iOS Simulator PASS. WebKit E2E and Android debug APK were still running at the last check; verify current Actions before final sign-off.
+
+### Remaining
+- Canonical Core task/reminder projection and richer Activity/Memory linkage.
+- Full failure-injection coverage for uncertain native cancellation, real-device push/local notification behavior, and actual provider-driven E2E.
+- Offline user-facing queue refinements, TTS, pricing/tier entitlements, store sandbox, production service isolation, privacy/security review and signed release.

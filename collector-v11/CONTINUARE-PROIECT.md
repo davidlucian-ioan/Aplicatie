@@ -1197,3 +1197,45 @@ The documentation-only commit below changes no runtime code; confirm the new HEA
 6. Complete pricing/tier/entitlement, external service, security, device and store acceptance.
 
 Release boundary unchanged: no merge, production deployment, live billing activation or store-readiness claim without explicit approval and external/device validation.
+
+
+## Batch 5 taskuri — integrare reminder lifecycle în Core (26 Nov 2026)
+
+Branch-ul curent: `feature/openai-provider-integration`.  
+PR #55: **open / draft / not merged**. Nu a fost făcut merge în `main`.
+
+### Implementat
+1. Reminderul este persistat inițial cu `scheduleState: pending`; nu este jurnalizat ca programat până când notificarea nativă nu confirmă succesul.
+2. La pornire, Collector recuperează programările rămase `pending` folosind același notification ID. Eșecurile cu rezultat incert sunt marcate `uncertain`, nu raportate drept succes.
+3. Lifecycle-ul `scheduled`, `completed`, `cancelled` și `schedule_uncertain` este transmis către Core prin Core Port, cu idempotency key stabil și confirmare de persistare/readback.
+4. Evenimentele care nu pot fi jurnalizate sunt păstrate în `coreOutbox`, cu retry la pornire și acțiune manuală în lista de reminders. Outbox-ul este eliminat numai după confirmarea Core și event ID.
+5. Recall poate găsi evenimentele reminderelor prin note Core și referințe de sursă. Contextul/transcriptul brut nu este copiat în jurnal; se păstrează doar referința sourceId, titlul, termenul, lifecycle-ul și descrierea evenimentului.
+6. Ștergerea obișnuită a reminderelor cere sincronizarea Core. Ștergerea integrală explicită a datelor locale are un contract separat: anulează notificările și poate elimina outbox-ul local odată cu restul jurnalului local, fără să depindă de disponibilitatea Core.
+
+### Teste adăugate/actualizate
+- Persistare `pending` înainte de efectul nativ și emiterea evenimentului Core doar după succes.
+- Recovery după crash în jurul programării, inclusiv outcome incert.
+- Retry idempotent al outbox-ului Core și păstrarea event refs.
+- Lifecycle distinct pentru create/snooze/complete/cancel.
+- Blocarea clear-all obișnuit cât timp există evenimente Core nesincronizate.
+- Ștergerea completă explicită fără dependență de Core.
+- Recall visibility, integrare Core Port și limite de confidențialitate.
+
+### CI pentru HEAD runtime `a09f47d9`
+- Cloud API: **PASS**.
+- Node/Core, invariants, phase-2 property sequences, coverage și Replay benchmark: **PASS**.
+- Chromium E2E: **PASS**.
+- Firefox E2E: **PASS**.
+- WebKit E2E: **RUNNING** la ultima verificare.
+- Android debug APK: **RUNNING** la ultima verificare.
+- iOS Simulator build: **PASS**.
+
+Build-urile WebKit și Android nu sunt declarate PASS până când Actions nu confirmă finalizarea. Commitul de checkpoint de mai jos este documentar; runtime code HEAD rămâne `a09f47d9`.
+
+### Limite cunoscute / următorul pas
+- Reminder events sunt în jurnalul Core ca evenimente `event.note` cu payload structurat; încă nu există o proiecție canonicală dedicată Task/Reminder în DB Core.
+- Offline outbox-ul este local și retry-on-start/manual; nu există job unattended/background.
+- Recall visibility este testată pe date structurate locale; apel OpenAI real și E2E UI de provider rămân deschise.
+- Mai rămân TTS, abonamentele Small/Medium/Large, store sandbox, Supabase/producție, privacy/encryption review, device acceptance și signed store builds.
+
+Nu activa background processing, billing live sau deployment și nu scoate PR #55 din draft fără decizie explicită.

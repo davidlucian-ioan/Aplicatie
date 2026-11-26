@@ -136,3 +136,16 @@ The following capabilities have received implementation in the current feature b
 - TTS/voice playback, tiered subscriptions, external sandbox tests, encryption/privacy review, physical-device acceptance and signed store builds remain outstanding.
 
 Latest code CI checkpoint before the documentation update: Cloud API PASS, Android debug APK PASS, iOS Simulator PASS; Node/Core, Chromium and Firefox PASS; WebKit E2E still running. Recheck the new HEAD's workflow runs before claiming the complete suite is green.
+
+
+## Release readiness update — reminder lifecycle batch (26 Nov 2026)
+
+Implementation now includes source-linked reminder lifecycle events in the append-only Core journal, stable idempotency, durable Core outbox, startup/manual retries and crash recovery around native scheduling. Recall can find these events without raw transcript persistence. Explicit full local erase cancels native reminders and clears the associated local outbox as part of the same privacy operation.
+
+Still unchecked:
+- [ ] Dedicated canonical Core task/reminder projection (current lifecycle uses structured `event.note` events).
+- [ ] Physical Android/iOS testing for notification scheduling, reboot recovery, permission changes and notification cancellation edge cases.
+- [ ] WebKit E2E and Android debug APK on final PR HEAD; current runtime HEAD `a09f47d9` had both in progress at the last verification.
+- [ ] Real OpenAI provider Recall E2E, TTS, subscriptions/store sandbox, production Supabase isolation, encryption/privacy review, signed release builds.
+
+Do not merge PR #55, deploy, enable live billing or claim store-ready while these gates remain open.
