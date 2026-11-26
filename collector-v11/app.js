@@ -5,7 +5,7 @@ const storageAdapter=window.CollectorStorageAdapter.createAutoStorageAdapter({ca
 window.CollectorStorage=storageAdapter;
 const titles={dashboard:['Think','Analize, grafice, configurare și administrarea datelor.'],entities:['Entități','Entități universale, atribute temporale și cronologie.'],relations:['Relații & locații','Relații de prim rang, localizare temporală și ierarhie.'],inventory:['Populații & solduri','Cantități anonime și solduri derivate din evenimente.'],finance:['Financiar','Tranzacții pe evenimente și indicatori derivați.'],attributes:['Atribute','Definiții configurabile cu tip, rol, natură, proprietar și reguli.'],events:['Evenimente','Jurnalul de evenimente append-only.'],history:['Istoric','Cronologie completă și filtrabilă.'],assistant:['Work','Înregistrare rapidă, alarme și introducere vocală, cu confirmare înainte de salvare.'],audit:['Audit & date','Replay, export, import și limitele implementării.']};
 let integrityBlocked=false, integrityBlockReason=null, integrityRawBackup=null, integrityCanRebuild=false;
-let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null, localDataErasing=false;
+let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null, pendingAIEnhancements=null, localDataErasing=false;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
@@ -275,11 +275,15 @@ async function runCommand(){
 async function confirmCoreCommand(){
  const box=document.getElementById('commandResult');if(!pendingCoreCommand)return;
  const command=pendingCoreCommand;pendingCoreCommand=null;
+ const extrasState=pendingAIEnhancements;pendingAIEnhancements=null;
  try{
   const result=await serializeMutation(()=>ensureAICorePort().execute(command,{confirmed:true}));
   if(result.status==='committed'||result.status==='duplicate'){
-   box.innerHTML=`<b class="status-ok">${result.status==='committed'?'Salvat cu succes':'Comandă deja procesată'}</b><p>Event ID: ${esc(result.eventId||'—')}</p>`;
-  } else box.textContent=`Execuție nefinalizată (${result.status}): ${(result.errors||[]).join(' ')}`;
+   const message='<b class="status-ok">'+(result.status==='committed'?'Salvat cu succes':'Comandă deja procesată')+'</b><p>Event ID: '+esc(result.eventId||'—')+'</p>';
+   const extras=extrasState?renderAIEnhancements(extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId):'';
+   box.innerHTML=message+extras;
+   if(extrasState)bindAIEnhancements(box,extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId);
+  } else box.textContent='Execuție nefinalizată ('+result.status+'): '+(result.errors||[]).join(' ');
  }catch(err){box.textContent='Execuția a eșuat: '+err.message}
 }
 function renderAIEnhancements(ai,sourceText,sourceId,turnId){
@@ -352,6 +356,7 @@ async function runAICommand(){
    idempotencyKey:commandIntentKey(),
    source:'ai-openai'
   };
+  pendingAIEnhancements={ai,sourceText:text,sourceId,turnId};
   const preview=await ensureAICorePort().preview(command);
   if(preview.status!=='preview_ok'){
    box.innerHTML='<p>'+esc(preview.status==='duplicate'?'Această intenție a fost deja înregistrată.':'Core a respins preview-ul: '+preview.status)+'</p>'+extras;
@@ -362,7 +367,7 @@ async function runAICommand(){
   box.innerHTML=extras+'<section class="note"><b>Propunere AI · '+esc(response.model||'OpenAI')+'</b><p>'+esc(ai.answer||'Am interpretat cererea și am pregătit operația: '+opSummary+'.')+'</p><p>Încredere interpretare: '+Math.round(ai.confidence*100)+'%.</p><p>Impact estimat — entități: '+preview.projectionChanges.entities+', relații: '+preview.projectionChanges.relations+', stoc: '+preview.projectionChanges.stock+', financiar: '+preview.projectionChanges.finance+'.</p><p class="note">OpenAI doar propune. Core a validat preview-ul. Datele nu au fost modificate. Verifică propunerea și confirmă explicit pentru salvare.</p><button class="primary" id="confirmCoreCommand">Confirmă și salvează</button> <button class="secondary" id="cancelCoreCommand">Anulează</button></section>';
   bindAIEnhancements(box,ai,text,sourceId,turnId);
   document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
-  document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;box.innerHTML='<p>Propunere anulată. Nu s-au modificat date.</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId)};
+  document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;pendingAIEnhancements=null;box.innerHTML='<p>Propunere anulată. Nu s-au modificat date.</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId)};
  }catch(error){box.textContent='Interpretarea AI nu a putut fi finalizată: '+error.message}
  finally{if(button){button.disabled=false;button.textContent='Interpretează cu AI'}}
 }
