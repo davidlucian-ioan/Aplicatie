@@ -21,12 +21,16 @@ test('app initializes durable checkpoint store only after StorageAdapter initial
  assert.match(app,/CollectorAudioLifecycleRecovery=\{list:/);
  assert.match(app,/refreshAudioLifecycleRecovery/);
 });
-test('recovery UI is diagnostics-only and does not trigger automatic processing or deletion',()=>{
+test('recovery UI offers user-triggered retries and verified deletion recovery, never background processing',()=>{
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  assert.match(html,/audioLifecycleRecoveryRefresh/);
  assert.match(html,/audioLifecycleRecovery/);
- assert.match(app,/recovery manual, fără auto-retry\/ștergere/);
+ assert.match(app,/Recuperarea este manuală; nimic nu este retranscris sau șters automat/);
+ assert.match(app,/data-audio-lifecycle-retry/);
+ assert.match(app,/data-audio-lifecycle-delete/);
+ assert.match(app,/target\.click\(\)/);
+ assert.match(app,/await deleteAudioFromVerifiedCheckpoint\(button\.dataset\.audioLifecycleDelete\)/);
 });
 
 test('recovery API exposes diagnostics and Work UI reports repaired orphan checkpoints',()=>{
