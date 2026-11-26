@@ -90,13 +90,18 @@ test('clearAll keeps reminder metadata when the notification plugin refuses canc
  await assert.rejects(x.service.clearAll(),/notification service unavailable/);
  assert.equal(JSON.parse(x.raw())[0].id,item.id);
 });
-test('clearAll restores notifications when local metadata cannot be removed',async()=>{
+test('clearAll keeps the cancelled state and Core journal if local metadata deletion fails',async()=>{
  const x=fixture({failStorageRemove:true});
  const item=await x.service.create({title:'Alarmă rollback',at:'2026-11-24T12:00:00.000Z'});
- await assert.rejects(x.service.clearAll(),/rollback-uită/);
- assert.equal(JSON.parse(x.raw())[0].id,item.id);
- const last=x.calls.at(-1);assert.equal(last.type,'schedule');
- assert.equal(last.value.notifications[0].id,item.notificationId);
+ await assert.rejects(x.service.clearAll(),/nu a confirmat ștergerea istoricului/);
+ const row=JSON.parse(x.raw())[0];
+ assert.equal(row.id,item.id);
+ assert.equal(row.status,'cancelled');
+ assert.equal(row.scheduleState,'settled');
+ assert.equal(row.coreOutbox.length,0);
+ assert.ok(x.coreCalls.some(event=>event.reminderId===item.id&&event.lifecycle==='cancelled'));
+ assert.equal(x.calls.filter(call=>call.type==='schedule').length,1,'a cancelled notification must not be restored when only metadata deletion fails');
+ assert.equal(x.calls.at(-1).type,'cancel');
 });
 
 test('AI reminder idempotency stores source context and avoids duplicate native notification',async()=>{
