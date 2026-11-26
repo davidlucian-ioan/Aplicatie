@@ -402,3 +402,16 @@ test('audio commands cannot commit only unstructured event notes or raw transcri
  assert.ok(run.includes('nicio notă brută nu a fost salvată'));
  assert.ok(run.includes('operations:commandOperations'));
 });
+
+
+test('AI command confirmation is bound to the exact Core preview snapshot',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const port=fs.readFileSync('ai/core-port-browser.js','utf8');
+ assert.ok(port.includes('this.previewSnapshots=new Map()'));
+ assert.ok(port.includes("return {status:'stale_preview'"));
+ assert.ok(port.includes('expected.state!==JSON.stringify(current)'));
+ assert.ok(port.includes('expected.command!==JSON.stringify(command)'));
+ assert.ok(port.includes('discardPreview(command)'));
+ assert.ok(app.includes('ensureAICorePort().discardPreview?.(cancelled)'));
+ assert.ok(app.includes('Datele Collector s-au modificat după preview'));
+});
