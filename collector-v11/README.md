@@ -49,6 +49,8 @@ Testele Playwright folosesc un server temporar pe portul 4173 și un profil de b
 
 CI rulează toate nivelurile la fiecare Pull Request și păstrează raportul de coverage și benchmark-ul Replay ca artifact GitHub Actions.
 
+Audio lifecycle checkpoints și recovery diagnostics (read-only, fără auto-retry sau ștergere) sunt documentate în [AUDIO-LIFECYCLE-RECOVERY-v0.2.md](AUDIO-LIFECYCLE-RECOVERY-v0.2.md). Procesarea automată Audio → structured memory încă nu este conectată.
+
 Limitele min/max ale atributelor sunt intervale recomandate: măsurătorile reale în afara intervalului se pot înregistra cu avertisment. Providerul cloud OpenAI este integrat prin serverul local; cheia API rămâne exclusiv pe server. Vezi [OPENAI-INTEGRATION.md](OPENAI-INTEGRATION.md).
 
 ## Aplicație mobilă comercială
