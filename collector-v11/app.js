@@ -241,30 +241,6 @@ function parseCommand(text){
  if((m=s.match(/^(?:am vândut|am vandut|vinde)\s+(\d+)\s+(.+?)(?:\s+din\s+(.+))?$/iu)))return {type:'sale',quantity:Number(m[1]),populationName:m[2].trim(),locationName:m[3]?.trim()||null};
  return {error:'Nu pot interpreta această comandă fără să ghicesc. Folosește „Observație: ...” sau „Înregistrează [atribut] pentru [entitate] = [valoare]”.'};
 }
-async function runStructuredRecall(query){
- const box=document.getElementById('memoryRecallResults'),status=document.getElementById('memoryRecallStatus');
- if(!box||!status)return;
- const q=String(query||'').trim();if(!q){box.innerHTML='<div class="empty">Scrie o întrebare pentru a căuta în memorie.</div>';status.textContent='';return}
- if(!window.CollectorStructuredRecall?.searchStructuredMemory){status.textContent='Modulul de recall nu este disponibil.';box.replaceChildren();return}
- try{
-  const result=window.CollectorStructuredRecall.searchStructuredMemory(db,q,{limit:30});
-  const total=result.evidence.length;
-  status.textContent=total?total+' dovezi găsite în memoria structurată. Răspunsul este bazat exclusiv pe aceste înregistrări.':'Nu am găsit dovezi structurate pentru această întrebare. Nu voi completa prin presupuneri.';
-  if(!total){box.innerHTML='<div class="empty">Nu există suficiente date salvate pentru a reconstrui acest context.</div>';return}
-  const sections=[];
-  if(result.entities.length)sections.push('<section class="recall-section"><b>Entități</b>'+result.entities.map(e=>'<div class="row"><div><b>'+esc(e.name)+'</b><span class="muted"> · '+esc(e.type)+'</span><div>'+esc(JSON.stringify(e.attributes||{}))+'</div></div></div>').join('')+'</section>');
-  if(result.attributes.length)sections.push('<section class="recall-section"><b>Facts / atribute</b>'+result.attributes.map(a=>'<div class="row"><div><b>'+esc(a.entityName)+' · '+esc(a.name)+'</b><div>'+esc(typeof a.value==='string'?a.value:JSON.stringify(a.value))+'</div></div></div>').join('')+'</section>');
-  if(result.relations.length)sections.push('<section class="recall-section"><b>Relații</b>'+result.relations.map(r=>'<div class="row"><div><b>'+esc(r.sourceName)+' → '+esc(r.type)+' → '+esc(r.targetName)+'</b><div class="muted">'+esc(r.startedAt||r.createdAt||'')+'</div></div></div>').join('')+'</section>');
-  if(result.events.length)sections.push('<section class="recall-section"><b>Evenimente / context temporal</b>'+result.events.map(e=>{const summary=e.payload?.summary||e.payload?.description||e.operations?.find(o=>o.operation==='event.note')?.data?.description||e.type;return '<div class="row" data-recall-source="'+esc(e.id)+'"><div><b>'+esc(summary)+'</b><div class="muted">'+esc(e.timestamp||'Dată necunoscută')+' · '+esc(e.certainty||'certainty necunoscută')+' · '+esc(e.id.slice(0,10))+'</div></div><button class="secondary" type="button" data-recall-open-event="'+esc(e.id)+'">Deschide sursa</button></div>'}).join('')+'</section>');
-  box.innerHTML=sections.join('')+'<p class="muted">Acesta este retrieval local, nu sinteză generativă. Pentru întrebări care necesită interpretare, AI va primi numai dovezile recuperate, nu audio.</p>';
- }catch(error){status.textContent='Recall a eșuat: '+error.message;box.textContent='Nu am putut interoga memoria structurată.'}
-}
-function openRecallEvent(eventId){
- showPage('events');
- const input=document.querySelector('[data-filter-target="eventList"]');
- if(input){input.value=eventId;input.dispatchEvent(new Event('input',{bubbles:true}))}
- setTimeout(()=>{const row=document.querySelector('[data-event-id="'+CSS.escape(eventId)+'"]');if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('recall-source-highlight')}},0);
-}
 async function runCommand(){
  const text=document.getElementById('commandInput').value,parsed=parseCommand(text),box=document.getElementById('commandResult');
  if(parsed.error){box.textContent=parsed.error;return}
@@ -295,6 +271,30 @@ async function runCommand(){
   document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
   document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;box.textContent='Comandă anulată. Nu s-au modificat date.'};
  }catch(err){box.textContent='Preview eșuat: '+err.message}
+}
+async function runStructuredRecall(query){
+ const box=document.getElementById('memoryRecallResults'),status=document.getElementById('memoryRecallStatus');
+ if(!box||!status)return;
+ const q=String(query||'').trim();if(!q){box.innerHTML='<div class="empty">Scrie o întrebare pentru a căuta în memorie.</div>';status.textContent='';return}
+ if(!window.CollectorStructuredRecall?.searchStructuredMemory){status.textContent='Modulul de recall nu este disponibil.';box.replaceChildren();return}
+ try{
+  const result=window.CollectorStructuredRecall.searchStructuredMemory(db,q,{limit:30});
+  const total=result.evidence.length;
+  status.textContent=total?total+' dovezi găsite în memoria structurată. Răspunsul este bazat exclusiv pe aceste înregistrări.':'Nu am găsit dovezi structurate pentru această întrebare. Nu voi completa prin presupuneri.';
+  if(!total){box.innerHTML='<div class="empty">Nu există suficiente date salvate pentru a reconstrui acest context.</div>';return}
+  const sections=[];
+  if(result.entities.length)sections.push('<section class="recall-section"><b>Entități</b>'+result.entities.map(e=>'<div class="row"><div><b>'+esc(e.name)+'</b><span class="muted"> · '+esc(e.type)+'</span><div>'+esc(JSON.stringify(e.attributes||{}))+'</div></div></div>').join('')+'</section>');
+  if(result.attributes.length)sections.push('<section class="recall-section"><b>Facts / atribute</b>'+result.attributes.map(a=>'<div class="row"><div><b>'+esc(a.entityName)+' · '+esc(a.name)+'</b><div>'+esc(typeof a.value==='string'?a.value:JSON.stringify(a.value))+'</div></div></div>').join('')+'</section>');
+  if(result.relations.length)sections.push('<section class="recall-section"><b>Relații</b>'+result.relations.map(r=>'<div class="row"><div><b>'+esc(r.sourceName)+' → '+esc(r.type)+' → '+esc(r.targetName)+'</b><div class="muted">'+esc(r.startedAt||r.createdAt||'')+'</div></div></div>').join('')+'</section>');
+  if(result.events.length)sections.push('<section class="recall-section"><b>Evenimente / context temporal</b>'+result.events.map(e=>{const summary=e.payload?.summary||e.payload?.description||e.operations?.find(o=>o.operation==='event.note')?.data?.description||e.type;return '<div class="row" data-recall-source="'+esc(e.id)+'"><div><b>'+esc(summary)+'</b><div class="muted">'+esc(e.timestamp||'Dată necunoscută')+' · '+esc(e.certainty||'certainty necunoscută')+' · '+esc(e.id.slice(0,10))+'</div></div><button class="secondary" type="button" data-recall-open-event="'+esc(e.id)+'">Deschide sursa</button></div>'}).join('')+'</section>');
+  box.innerHTML=sections.join('')+'<p class="muted">Acesta este retrieval local, nu sinteză generativă. Pentru întrebări care necesită interpretare, AI va primi numai dovezile recuperate, nu audio.</p>';
+ }catch(error){status.textContent='Recall a eșuat: '+error.message;box.textContent='Nu am putut interoga memoria structurată.'}
+}
+function openRecallEvent(eventId){
+ showPage('events');
+ const input=document.querySelector('[data-filter-target="eventList"]');
+ if(input){input.value=eventId;input.dispatchEvent(new Event('input',{bubbles:true}))}
+ setTimeout(()=>{const row=document.querySelector('[data-event-id="'+CSS.escape(eventId)+'"]');if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('recall-source-highlight')}},0);
 }
 async function confirmCoreCommand(){
  const box=document.getElementById('commandResult');if(!pendingCoreCommand)return;
