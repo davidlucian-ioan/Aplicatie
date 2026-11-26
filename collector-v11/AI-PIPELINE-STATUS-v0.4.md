@@ -103,7 +103,7 @@ Cloud API PASS; Node/Core/property/Replay PASS; Chromium and Firefox E2E PASS; i
 - Recall exposes typed reminder-task evidence including status, due date and source reference. Raw source context and transcripts are not copied into Core.
 - Recovery may first report a terminal lifecycle if native scheduling was compensated before its first Core sync; the canonical task is created in that terminal state rather than leaving an unresolvable outbox item.
 - The reminder history UI shows completed, snoozed and cancelled records separately. Snoozed rows display the replacement due time.
-- This is a reminder-backed Task MVP, not a complete general task manager. General task creation, dependencies, assignment, priorities, recurrence and dedicated Task UI remain.
+- General user-created tasks are now supported alongside reminder-backed tasks. The current Task Manager MVP includes Core creation/status/priority/optional deadlines, Work capture, Think lifecycle controls and user-task dependencies. Assignment, recurrence, richer editing and full task history views remain.
 
 
 ## Batch 26 Nov 2026 — canonical Reminder Task + Recall integration
@@ -123,3 +123,15 @@ Cloud API PASS; Node/Core/property/Replay PASS; Chromium and Firefox E2E PASS; i
 - Collector Cloud API run `45891930813`: **success** — API tests and deployable container build.
 - Collector Mobile run `45891930564`: **success** — Android debug APK and iOS Simulator package.
 - PR #55 remains open/draft/unmerged. No change to `main`, no production deployment, and no live billing activation.
+
+
+## General Task Manager MVP — 27 November 2026
+
+- General tasks use canonical Core entities `type=task`, `taskKind=user`, stable ID `task:user:<taskId>`, and journaled attributes. They remain distinct from `taskKind=reminder`; creating a task never schedules a native notification.
+- Supported task statuses are `open`, `in_progress`, `completed`, `cancelled`. A task can have priority `low/normal/high/urgent`, an optional date-only due date, or a timed deadline that requires both an explicit `HH:mm` time and valid IANA timezone. No default time is invented for general tasks.
+- Work routes explicit AI `intent=task` suggestions through validation, Core preview, explicit confirmation and serialized Core commit. `intent=reminder` remains the only path that schedules an OS notification.
+- Think shows active tasks, deadline, priority and blockers. It supports start, hold, completion and cancellation via Core Port preview and confirmation.
+- Think can add a dependency between two general user tasks. The Core command rejects self-dependencies, duplicate active edges, cycles, and dependencies pointing to reminder-only task records. Completion is blocked while any prerequisite is not completed.
+- Recall includes user and reminder tasks in a typed `tasks` collection and `kind=task` evidence. General task evidence contains bounded status, date/time/timezone, priority and dependency blocker metadata; user/reminder task entities are not duplicated in the generic entity list.
+- Server context sanitizer allowlists the known task fields, bounds dependency arrays and strips raw transcripts, audio payloads and arbitrary fields. The OpenAI Recall prompt distinguishes user tasks from reminder-backed tasks.
+- Tests include CorePort create/transition/dependency/replay, ID and date validation, cycle/duplicate/self-dependency rejection, task/reminder separation, Recall Node/browser parity, task evidence sanitizer and UI wiring.

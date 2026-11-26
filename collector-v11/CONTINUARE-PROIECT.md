@@ -1291,3 +1291,39 @@ Nu activa background processing, billing live sau deployment și nu scoate PR #5
 3. Task manager general (nu doar reminder-backed): creare, dependențe, priorități, assignment, recurrence și UI dedicat.
 4. TTS, sincronizare multi-device/offline și backend production isolation.
 5. Subscription tiers/entitlements, sandbox Apple/Google, privacy/encryption review, monitorizare și build-uri release semnate.
+
+
+## Checkpoint continuare — General Task Manager MVP + CI verde (27 nov 2026)
+
+### Repository și verificare
+- Repo: `davidlucian-ioan/Aplicatie`
+- Branch: `feature/openai-provider-integration`
+- Runtime code HEAD verificat: `d5f2daa90d193543539c0ef80345862d144ab52a`
+- PR #55: open/draft/unmerged. `main` nu a fost modificat; nu s-a făcut merge, deployment sau activare billing live.
+- CI pe runtime HEAD:
+  - Quality Suite run #45908220359 — PASS; Node/Core/AI tests, generated invariants, Core phase-2 sequences, Replay benchmark, Chromium, Firefox și WebKit E2E.
+  - Cloud API run #45908220402 — PASS; authenticated Cloud API tests și deployable container build.
+  - Mobile run #45908220494 — PASS; Android debug APK și iOS Simulator package.
+
+### General Task Manager implementat
+- Task-urile generale sunt entități Core canonic separate de reminders: `taskKind=user`, ID stabil `task:user:<taskId>`.
+- Work recunoaște intenția AI `task` și creează task prin validare, Core preview și confirmare explicită. Task-ul poate avea un termen opțional; ora nu este inventată. Numai `intent=reminder` programează o notificare nativă.
+- Think afișează task-urile active cu status, termen, prioritate și blockers; acțiuni: începe, pune în așteptare, finalizează, anulează.
+- Dependențele pot fi adăugate din Think, prin selectarea unui prerequisite general. Core respinge auto-dependența, edge duplicat, cicluri și dependențe către reminder-only entities. Finalizarea este blocată de prerequisite-urile nefinalizate.
+- Recall include task-uri generale și reminders într-o colecție tipizată. Task evidence expune status, due date/time, priority, source reference și blockedBy; datele sunt allowlisted/bounded înainte de transmiterea către AI.
+
+### Validare și protecția datelor
+- CI complet verde pe runtime HEAD, inclusiv browser E2E în Chromium/Firefox/WebKit și build-uri Android/iOS Simulator.
+- Testele live Recall există în `cloud-api/live-recall-acceptance.js`, rulate manual cu `npm run acceptance:recall:live`. Cer opt-in explicit, HTTPS, token Supabase, entitlement Pro, provider/billing configurate și buget minim disponibil înaintea unui singur apel Recall read-only.
+- **Testul cu provider OpenAI real nu a fost executat**: nu este configurat un proiect Supabase de producție/secretele/entitlement-ul necesare în acest mediu. CI verifică traseul cu provider mock; nu afirmăm live-provider acceptance.
+
+### Ce rămâne
+1. Test Recall live cu backend real, utilizator Pro și buget autorizat; testul smoke este deja pregătit și protejat.
+2. Teste pe telefoane fizice: audio, background/foreground, restart, notificări și snooze OS.
+3. Extindere Task Manager: editare task, assignment, recurrence, prioritizare mai bogată și istoric dedicat.
+4. TTS, sincronizare multi-device/offline și backend production isolation.
+5. Store sandbox Apple/Google, privacy/encryption review, cost ceilings, monitorizare și build-uri release semnate.
+6. Review final de produs/securitate înainte de a scoate PR-ul din Draft.
+
+### Limită de release
+Nu face merge în `main`, nu activa billing live și nu publica build-uri Store fără revizuire și aprobare explicită.
