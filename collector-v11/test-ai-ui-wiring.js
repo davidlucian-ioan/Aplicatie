@@ -142,8 +142,8 @@ test('Audio Transcrie + AI continues into AI interpretation and retains source u
  const start=app.indexOf('async function transcribeAndInterpretAudioRecording');
  const end=app.indexOf('async function renderAudioRecordings',start);
  const flow=app.slice(start,end);
- assert.ok(flow.includes('activeAudioRecordingId=recordingId'));
- assert.ok(flow.includes('await runAICommand()'));
+ assert.ok(flow.includes('runAICommand({audioRecordingId:recordingId})'));
+ assert.ok(flow.includes('await runAICommand({audioRecordingId:recordingId})'));
  assert.ok(flow.includes('store.get(recordingId)'));
  assert.doesNotMatch(flow,/CollectorAudioStore\.remove/);
  assert.ok(app.includes('stableAudioCaptureTurnId(sourceRecordingId)'));
@@ -170,14 +170,14 @@ test('Stable audio capture identity is deterministic across transcription retrie
 test('Concurrent audio AI runs are rejected and each interpretation keeps its original source snapshot',()=>{
  const app=fs.readFileSync('app.js','utf8');
  const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
- assert.ok(run.includes('sourceRecordingId=activeAudioRecordingId'));
+ assert.ok(run.includes("sourceRecordingId=typeof audioRecordingId==='string'"));
  assert.ok(run.includes('if(aiInterpretationPending||pendingCoreCommand||coreCommitPending)'));
  assert.ok(run.includes('aiInterpretationPending=true'));
  assert.ok(run.includes('aiInterpretationPending=false'));
  assert.ok(run.includes('stableAudioCaptureTurnId(sourceRecordingId)'));
  const audio=app.slice(app.indexOf('async function transcribeAndInterpretAudioRecording'),app.indexOf('async function renderAudioRecordings'));
  assert.ok(audio.includes('if(aiInterpretationPending||pendingCoreCommand||coreCommitPending)'));
- assert.ok(audio.includes('activeAudioRecordingId=null'));
+ assert.ok(audio.includes('runAICommand({audioRecordingId:recordingId})'));
 });
 
 
@@ -288,7 +288,7 @@ test('Verified audio commit clears the temporary Work transcript draft before of
  const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
  assert.ok(confirm.includes('window.CollectorClearAudioDraft?.()'));
  assert.ok(confirm.includes('audioDraftCleared'));
- assert.ok(confirm.includes('activeAudioRecordingId=null'));
+ assert.ok(confirm.includes('stagedExtras.sourceId===expectedAudioSourceId'));
  assert.ok(confirm.includes('audioCheckpointReady&&audioDraftCleared'));
 });
 
