@@ -1016,3 +1016,9 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Added local structured recall utility `ai/structured-recall.js`: entity/attribute search, linked relations/events, temporal filtering, bounded evidence list; no synthesis or unsupported claims in retrieval layer. Exports wired into AI index.
 - Added tests `test-ai-structured-memory.js` and `test-ai-structured-recall.js`, provider schema/return test and UI wiring regression.
 - Current implementation is groundwork/MVP; not yet complete: transcript/audio deletion lifecycle, persisted alias/temporal semantics improvements, recall UI and AI synthesis/source jumps, automatic user-consented capture mode, and end-to-end provider integration tests remain.
+
+
+## CI stabilization checkpoint — 2026-11-26 09:44
+- Implementation batch completed; stop pushing further commits to let Actions stabilize.
+- Latest code commit before this checkpoint: `0b8d8973a170f9549fa8d3f4eb0251a9f7ec07de` (alias operation duplicate removed from browser builder).
+- Quality workflow runs were cancelled by branch concurrency during rapid commits; the GitHub API does not permit rerunning cancelled runs. Latest mobile/cloud jobs are being observed. Do not claim quality tests passed until a non-cancelled run on the final commit completes.
