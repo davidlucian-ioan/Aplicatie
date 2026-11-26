@@ -65,11 +65,11 @@ Checkpoint storage now has additional crash-recovery safeguards:
 
 1. User taps **Transcrie + AI** for a specific local recording.
 2. Collector reads the selected recording and sends the audio to the configured transcription endpoint. The original local source remains untouched.
-3. The transcript is placed in Work and the AI interpretation starts for that same recording. The source recording ID is attached to the proposed capture and a deterministic capture key is derived from the recording ID and transcript.
+3. The transcript is placed temporarily in Work and the AI interpretation starts for that same recording. The source recording ID is attached to the proposed capture; the capture identity is stable per recording ID and does not change when a retry produces slightly different transcript text.
 4. Structured extraction is validated, existing entities are resolved, and ambiguous matches are surfaced for clarification rather than merged.
 5. Core preview is non-persistent. The user must explicitly confirm the proposed mutation.
 6. Core persists the event, independently reads the stored journal back, validates the rebuilt state and confirms the event ID, idempotency key and operations before publishing the new state.
-7. Only after a verified committed or idempotent duplicate result does Work offer **Șterge audio original**. The user must confirm again; AudioStore is read after removal to verify the result.
+7. After a verified committed or idempotent duplicate result, Collector clears the temporary transcript draft and verifies that the draft key is absent. Only then does Work offer **Șterge audio original**. The user must confirm again; Collector independently verifies the persistent Core event and the audio store's file/index absence after removal. The generic delete action in the recording list uses the same guard and cannot bypass this verification.
 
 If independent readback is unavailable or does not match the confirmed command, the UI is locked into read-only mode until reload and journal revalidation. This prevents a second write from masking an uncertain first commit.
 
@@ -77,3 +77,6 @@ If independent readback is unavailable or does not match the confirmed command, 
 ## Manual checkpoint/recovery integration
 
 The Work UI records metadata-only checkpoints for each selected recording: `processing`, `validated`, `failed`, `captured`, and after a verified Core commit `source_retained`. Checkpoints do not copy transcript text or audio bytes. A failed/interrupted item can be retried only by pressing the recovery action for that recording. A pending deletion can only be finalized after the helper revalidates the referenced event against the persisted Core journal and confirms that the audio source is absent. There is no background retry or deletion.
+
+
+The Core idempotency key is derived from the recording ID (`collector-memory-capture:audio:<recordingId>`), not from transcript wording. Reusing that key with changed Core operations is rejected as a conflict rather than silently treated as an identical duplicate. Audio deletion verifies both the committed journal event and the storage adapter's independent absence result (including native file and metadata-index reconciliation).
