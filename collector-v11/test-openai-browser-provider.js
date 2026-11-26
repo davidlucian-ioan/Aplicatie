@@ -53,3 +53,18 @@ test('browser local păstrează endpoint-urile relative pentru serverul de dezvo
  await root.CollectorOpenAIProvider.status();
  assert.equal(requested,'/api/ai/status');
 });
+test('transcription sends binary audio with MIME and authenticated endpoint',async()=>{
+ delete root.Capacitor;root.CollectorConfig={apiBaseUrl:''};
+ root.CollectorAuth={getAccessToken:async()=> 'token'};
+ const audio=new Blob(['audio bytes'],{type:'audio/webm'});let options,url;
+ globalThis.fetch=async(u,o)=>{url=u;options=o;return {ok:true,json:async()=>({text:'Am udat plantele.',model:'transcribe'})}};
+ const result=await root.CollectorOpenAIProvider.transcribe(audio);
+ assert.equal(url,'/api/ai/transcribe');assert.equal(options.method,'POST');assert.equal(options.headers['Content-Type'],'audio/webm');assert.equal(options.body,audio);assert.equal(result.text,'Am udat plantele.');
+});
+test('transcription rejects empty and oversized recordings before network request',async()=>{
+ delete root.Capacitor;root.CollectorConfig={apiBaseUrl:''};root.CollectorAuth={getAccessToken:async()=> 'token'};
+ let called=false;globalThis.fetch=async()=>{called=true;throw Error('unexpected fetch')};
+ await assert.rejects(root.CollectorOpenAIProvider.transcribe(new Blob()),/goală/);
+ await assert.rejects(root.CollectorOpenAIProvider.transcribe(new Blob([new Uint8Array(25*1024*1024+1)],{type:'audio/webm'})),/25 MB/);
+ assert.equal(called,false);
+});
