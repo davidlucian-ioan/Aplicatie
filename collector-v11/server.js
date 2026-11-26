@@ -112,6 +112,29 @@ const server = http.createServer(async (req, res) => {
         model: process.env.OPENAI_MODEL || 'gpt-6.2-sol'
       });
     }
+    if (req.method === 'POST' && url.pathname === '/api/ai/transcribe') {
+      if (!rateLimit(req.socket.remoteAddress || 'local')) return send(res, 429, { error: 'Prea multe cereri. Încearcă din nou peste un minut.' });
+      const origin = req.headers.origin;
+      if (origin && !/^https?:\\/\\/(localhost|127\\.0\\.0\\.1)(:\\d+)?$/.test(origin)) return send(res, 403, { error: 'Origine nepermisă.' });
+      if (!process.env.OPENAI_API_KEY) return send(res, 503, { error: 'Configurează OPENAI_API_KEY pentru transcriere.' });
+      const contentType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      const extensions = {'audio/webm':'webm','audio/mp4':'mp4','audio/mpeg':'mp3','audio/mp3':'mp3','audio/wav':'wav','audio/x-wav':'wav','audio/ogg':'ogg','audio/aac':'aac','audio/m4a':'m4a','audio/x-m4a':'m4a'};
+      if (!extensions[contentType]) return send(res, 415, { error: 'Format audio neacceptat.' });
+      try {
+        const chunks=[];let size=0;
+        for await (const chunk of req) { size+=chunk.length;if(size>25*1024*1024){req.destroy();return}chunks.push(chunk)}
+        if(!size)return send(res,400,{error:'Fișier audio gol.'});
+        const form=new FormData();form.append('file',new Blob(chunks,{type:contentType}),'recording.'+extensions[contentType]);
+        const model=process.env.OPENAI_TRANSCRIPTION_MODEL||'gpt-4o-mini-transcribe';
+        form.append('model',model);form.append('response_format','json');
+        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+        let upstream;try{upstream=await fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{Authorization:'Bearer '+process.env.OPENAI_API_KEY},body:form,signal:controller.signal})}finally{clearTimeout(timer)}
+        const data=await upstream.json().catch(()=>({}));
+        if(!upstream.ok)return send(res,upstream.status===429?429:502,{error:'Transcrierea OpenAI a eșuat. Verifică providerul și limitele API.'});
+        if(typeof data.text!=='string'||!data.text.trim())return send(res,502,{error:'Transcrierea nu a returnat text.'});
+        return send(res,200,{text:data.text.trim(),model});
+      }catch(error){return send(res,502,{error:'Transcrierea audio nu a putut fi finalizată.'})}
+    }
     if (req.method !== 'POST' || url.pathname !== '/api/ai/interpret') {
       return send(res, 404, { error: 'Endpoint inexistent.' });
     }
