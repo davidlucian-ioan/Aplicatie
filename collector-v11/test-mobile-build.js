@@ -241,11 +241,11 @@ test('all entrypoints expose guarded full local-data erasure without cloud accou
 
 test('reminder initialization remains retryable after transient service setup failure',async()=>{
  const reminders=await fs.readFile(path.join(__dirname,'reminders.js'),'utf8');
- const initialize=reminders.slice(reminders.indexOf('async function initialize(){'),reminders.indexOf('root.CollectorReminders='));
- assert.ok(initialize.includes('try{service=createService({storage,plugin})}'));
+ const initialize=reminders.slice(reminders.indexOf('async function initialize('),reminders.indexOf('root.CollectorReminders='));
+ assert.ok(initialize.includes('try{service=createService({storage,plugin,onCoreEvent:coreEventHandler})}'));
  assert.ok(initialize.includes('catch(error){if(status)status.textContent=error.message;return}'),'failed setup must return without marking initialized');
  const nativeSetup=initialize.slice(initialize.indexOf('const storage='));
- const setupTry=nativeSetup.indexOf('try{service=createService({storage,plugin})}');
+ const setupTry=nativeSetup.indexOf('try{service=createService({storage,plugin,onCoreEvent:coreEventHandler})}');
  const setupCatch=nativeSetup.indexOf('catch(error){if(status)status.textContent=error.message;return}',setupTry);
  const successfulInit=nativeSetup.indexOf('initialized=true;',setupCatch);
  assert.ok(setupTry>=0&&setupCatch>setupTry&&successfulInit>setupCatch,'native service initialization is marked complete only after successful setup');
