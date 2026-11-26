@@ -867,14 +867,15 @@ async function deleteAudioFromVerifiedCheckpoint(recordingId,{confirmBeforeDelet
  let cp=await store.get(recordingId);
  if(!cp||!['source_retained','audio_deletion_pending'].includes(cp.state))throw Error('Ștergerea este permisă doar după un commit verificat în Core.');
  await verifyAudioCheckpointEvent(cp);
- await clearAudioTranscriptCheckpoint(recordingId);
  const source=await CollectorAudioStore.get(recordingId);
  const verifyAudioRemoval=async()=>{
   if(typeof CollectorAudioStore.verifyRemoved==='function')return await CollectorAudioStore.verifyRemoved(recordingId)===true;
   const remaining=await CollectorAudioStore.get(recordingId);return remaining===null||remaining===undefined;
  };
  if(source!==null&&source!==undefined){
+  // Keep the temporary transcript until the user confirms the destructive action.
   if(confirmBeforeDelete&&!confirm('Evenimentul structurat a fost verificat independent în jurnal. Ștergi definitiv înregistrarea audio originală de pe acest dispozitiv?'))return {status:'cancelled'};
+  await clearAudioTranscriptCheckpoint(recordingId);
   await writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending',{eventId:cp.persistResult.eventId,intentKey:cp.persistResult.intentKey});
   try{await CollectorAudioStore.remove(recordingId)}catch(removeError){if(!(await verifyAudioRemoval()))throw removeError}
  }
