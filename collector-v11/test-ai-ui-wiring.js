@@ -186,3 +186,11 @@ test('AI and Core confirmation have a single-flight guard until the command reso
  assert.ok(confirm.includes('finally{coreCommitPending=false}'));
  assert.ok(run.includes('pendingCoreCommand||coreCommitPending'));
 });
+
+
+test('Work recovery diagnostics omit successfully retained audio checkpoints',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const refresh=app.slice(app.indexOf('async function refreshAudioLifecycleRecovery'),app.indexOf('async function initializeCollectorApp'));
+ assert.ok(refresh.includes("!['completed','source_retained'].includes(cp.state)"));
+ assert.ok(refresh.includes('Nu există procesări AI audio întrerupte'));
+});
