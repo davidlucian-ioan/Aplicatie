@@ -39,7 +39,23 @@
       const ev=this.buildEvent(command), risky=ev.operations.some(o=>HIGH_RISK.has(o.operation));
       if((risky||command.requiresConfirmation===true)&&confirmed!==true) return {status:'rejected',errors:['Este necesară confirmarea explicită a utilizatorului.']};
       const current=this.snapshot(), result=this.core.commit(current,ev);
-      if(result.duplicate) return {status:'duplicate',eventId:result.event?.id||null};
+      if(result.duplicate){
+        let verifiedState;
+        try {
+          const persistedState=await this.store.readPersistedState();
+          if(!persistedState||typeof persistedState!=='object'||!Array.isArray(persistedState.events))throw new Error('Starea recitită nu conține jurnalul de evenimente.');
+          verifiedState=typeof this.core.validateImport==='function'?this.core.validateImport(clone(persistedState)):this.core.normDb(clone(persistedState));
+          const prior=result.event;
+          const persistedEvent=verifiedState.events.find(item=>item.id===prior?.id&&item.intentKey===command.idempotencyKey);
+          if(!persistedEvent)throw new Error('Evenimentul deja procesat nu a fost găsit în jurnalul persistent.');
+          if(JSON.stringify(persistedEvent.operations)!==JSON.stringify(prior.operations))throw new Error('Operațiile evenimentului deja procesat diferă de jurnalul persistent.');
+          if(this.store.publishState)await this.store.publishState(clone(verifiedState));
+          return {status:'duplicate',eventId:persistedEvent.id,persistenceVerified:true};
+        } catch(error) {
+          try { if(typeof this.store.onVerificationFailure==='function')this.store.onVerificationFailure(error); } catch(_) {}
+          return {status:'verification_failed',eventId:result.event?.id||null,errors:[`Verificarea comenzii deja procesate a eșuat: ${error.message}`]};
+        }
+      }
       let persistConfirmed=false, persistError=null;
       try { persistConfirmed=await this.store.persistState(clone(result.db))===true; }
       catch(error) { persistError=error; }
