@@ -1045,3 +1045,11 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - `test-ai-structured-recall-browser.js` acoperă adapter browser. Unicode normalization regex a fost corectată.
 - Current HEAD before this checkpoint: `25b13d4f33d6e1fe939cd7b5ba596ee4f31d96a5`. CI triggered by rapid pushes may cancel earlier runs; let the current HEAD workflows finish before another code push. Do not claim Quality Suite pass until the exact HEAD is green.
 - Audio remains a launch-critical unfinished feature: raw recordings are still saved locally and no complete transcription → structured extraction → Core commit → persistence verification → audio deletion pipeline exists. Existing audio is not automatically deleted. The product principle requires temporary source audio to be deleted only after structured persistence is verified, with recovery on any failure. Implement and test this before release.
+
+
+## Audio lifecycle groundwork + E2E fixes (2026-11-26)
+- Added `audio-processing-lifecycle.js`: dependency-injected state machine with captured → processing → interpreted → validated → persisted → persistence_verified → audio_deletion_pending → audio_deleted → completed; stable idempotency key per recording; checkpoints after phases; retry/recovery; refuses deletion unless persistence verifier returns strict `true`; confirms deletion by reading audio back and requiring absence.
+- Added `test-audio-processing-lifecycle.js` covering success, persistence failure retention, verifier false, deletion not confirmed, retry with stable key, and recovery list.
+- This is groundwork only—not yet wired into app UI/server or transcription/extraction provider. Existing recording workflow remains manual/local and original audio retention is unchanged until integration is complete.
+- Diagnosed prior Quality Suite failures: recall source event selector was ambiguous because event IDs appear in Recall, Event list, History, and Audit; scoped it to `#eventList`. Work-layout test expected 3 panels, updated to 4 after adding Recall panel.
+- The prior run at `9780847d` failed E2E with those two issues; subsequent fix commits triggered new runs. Check exact current HEAD and CI after the checkpoint.
