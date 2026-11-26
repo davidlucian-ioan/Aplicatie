@@ -67,7 +67,7 @@ test('Basic offline păstrează Work, Core local și jurnal fără acces AI clou
  await page.locator('#commandInput').fill('Observație: test local fără abonament');
  await page.locator('#parseCommand').click();
  await expect(page.locator('#commandResult')).toContainText('Observație');
- await page.locator('#workDraftStatus').toContainText('salvat local');
+ await expect(page.locator('#workDraftStatus')).toContainText('salvat local');
  await page.reload();
  await page.locator('.nav[data-page="assistant"]').click();
  await expect(page.locator('#commandInput')).toHaveValue('Observație: test local fără abonament');
@@ -227,7 +227,7 @@ test('Collector Basic fără entitlement păstrează funcțiile locale și expor
   expect(before.names).toContain('Entitate Basic păstrată');
 
   await page.locator('.nav[data-page="audit"]').click();
-  await expect(page.locator('#audit')).toContainText('nu include fișierele audio');
+  await expect(page.locator('#audit')).toContainText('înregistrările audio');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Export JSON' }).click()
