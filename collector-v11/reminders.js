@@ -69,7 +69,7 @@
    const rows=await list();
    if(!rows.length){if(typeof storage.removeRaw==='function')await storage.removeRaw(KEY);return 0}
    const notifications=rows.filter(row=>row.status!=='cancelled'&&row.status!=='completed').map(row=>({id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id,sourceId:row.sourceId,idempotencyKey:row.idempotencyKey},isExactNotification:false}));
-   await plugin.cancel({notifications});
+   if(notifications.length)await plugin.cancel({notifications});
    try{
     if(typeof storage.removeRaw!=='function')throw new Error('Stocarea nu poate elimina metadatele alarmelor.');
     await storage.removeRaw(KEY);
