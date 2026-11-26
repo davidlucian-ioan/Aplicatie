@@ -219,13 +219,13 @@
   if(!Array.isArray(rows)||rows.some(row=>!row||typeof row.id!=='string'||!Number.isInteger(row.notificationId)||typeof row.title!=='string'||typeof row.at!=='string'))throw new Error('Lista alarmelor este invalidă. Datele nu au fost șterse.');
   const native=typeof root.Capacitor?.isNativePlatform==='function'&&root.Capacitor.isNativePlatform();
   if(native&&rows.length)throw new Error('Serviciul de notificări nu este disponibil; alarmele nu au fost șterse ca să nu rămână notificări active.');
-  await storage.removeRaw(KEY);return rows.length;
+  if(typeof storage.removeRaw!=='function'||await storage.removeRaw(KEY)!==true||(await storage.readRaw(KEY))!==null)throw new Error('Stocarea nu a confirmat ștergerea istoricului reminderelor.');return rows.length;
  }
  async function render(){
   const listElement=root.document?.getElementById('reminderList');
   if(!listElement||!service)return;
   try{
-   const all=await service.list(),pendingCount=pendingCoreCount(all),rows=all.filter(row=>(row.status||'scheduled')==='scheduled'&&new Date(row.at).getTime()>Date.now()).sort((a,b)=>a.at.localeCompare(b.at));
+   const all=await service.list(),pendingCount=all.reduce((sum,row)=>sum+(Array.isArray(row.coreOutbox)?row.coreOutbox.length:0),0),rows=all.filter(row=>(row.status||'scheduled')==='scheduled'&&new Date(row.at).getTime()>Date.now()).sort((a,b)=>a.at.localeCompare(b.at));
    const completed=all.filter(row=>row.status==='completed').sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||'')).slice(0,5);
    const activeHtml=rows.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">'+esc(new Date(row.at).toLocaleString('ro-RO'))+'</div>'+(row.scheduleUncertain?'<div class="note">Starea notificării este incertă. Verifică notificările acestui telefon înainte de a crea un duplicat.</div>':'')+(row.sourceContext?'<div class="muted">Sursă Work: '+esc(row.sourceContext.slice(0,140))+'</div>':'')+'</div><div class="row-actions"><button class="secondary" type="button" data-reminder-complete="'+esc(row.id)+'">✓ Gata</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="10">+10 min</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="60">+1 h</button><button class="secondary" type="button" data-reminder-cancel="'+esc(row.id)+'">Anulează</button></div></div>').join();
    const historyHtml=completed.length?'<h3>Finalizate recent</h3>'+completed.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">Finalizat · '+esc(new Date(row.completedAt||row.at).toLocaleString('ro-RO'))+'</div>'+(row.sourceContext?'<div class="muted">Sursă Work: '+esc(row.sourceContext.slice(0,140))+'</div>':'')+'</div></div>').join():'';
@@ -266,8 +266,10 @@
     await service.create({title,at});
     form.reset();
     if(dateInput){const min=new Date(Date.now()+60_000);dateInput.min=new Date(min.getTime()-min.getTimezoneOffset()*60_000).toISOString().slice(0,16)}
-    const created=await service.list();
-    if(status)status.textContent='Alarma a fost programată pe acest telefon.';
+    const created=await service.create({title,at});
+    form.reset();
+    if(dateInput){const min=new Date(Date.now()+60_000);dateInput.min=new Date(min.getTime()-min.getTimezoneOffset()*60_000).toISOString().slice(0,16)}
+    if(status)status.textContent=created.coreSyncPending?'Alarma este activă; istoricul așteaptă sincronizarea cu memoria Core.':'Alarma a fost programată și înregistrată în memoria Core.';
     await render();
    }catch(error){if(status)status.textContent='Nu am putut programa alarma: '+error.message}
    finally{if(submit)submit.disabled=false}
