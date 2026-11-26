@@ -63,7 +63,20 @@
   async function recover(){const rows=await checkpoints.list?.()||[];const pending=[];for(const cp of rows)if(!TERMINAL.includes(cp.state))pending.push(cp.id);return pending}
   return Object.freeze({process,recover,states:STATES.slice()});
  }
- const api={STATES,createAudioProcessingLifecycle};
+ function createStorageCheckpointStore(storage,{prefix='collector_audio_lifecycle_v1'}={}){
+  if(!storage||typeof storage.readRaw!=='function'||typeof storage.writeRaw!=='function')fail('Checkpoint storage must support readRaw/writeRaw');
+  const indexKey=prefix+':index',keyFor=id=>prefix+':'+encodeURIComponent(String(id));
+  let queue=Promise.resolve();
+  function enqueue(fn){const task=queue.then(fn);queue=task.catch(()=>{});return task}
+  async function readIndex(){const raw=await storage.readRaw(indexKey);if(raw===null||raw===undefined)return [];let ids;try{ids=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint index is corrupt')}if(!Array.isArray(ids)||ids.some(id=>typeof id!=='string'))fail('Audio lifecycle checkpoint index is invalid');return [...new Set(ids)]}
+  return Object.freeze({
+   async get(id){const raw=await storage.readRaw(keyFor(id));if(raw===null||raw===undefined)return null;let cp;try{cp=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint is corrupt: '+id)}if(!cp||cp.id!==id)fail('Audio lifecycle checkpoint identity mismatch: '+id);return cp},
+   put(cp){return enqueue(async()=>{if(!cp||typeof cp.id!=='string'||!cp.id)fail('Invalid lifecycle checkpoint');const ids=await readIndex();await storage.writeRaw(keyFor(cp.id),JSON.stringify(cp));if(!ids.includes(cp.id)){ids.push(cp.id);await storage.writeRaw(indexKey,JSON.stringify(ids))}return true})},
+   remove(id){return enqueue(async()=>{const ids=await readIndex();await storage.removeRaw(keyFor(id));await storage.writeRaw(indexKey,JSON.stringify(ids.filter(x=>x!==id)));return true})},
+   list(){return enqueue(async()=>{const ids=await readIndex(),rows=[];for(const id of ids){const cp=await this.get(id);if(cp)rows.push(cp)}return rows})}
+  });
+ }
+ const api={STATES,createAudioProcessingLifecycle,createStorageCheckpointStore};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.CollectorAudioProcessingLifecycle=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
