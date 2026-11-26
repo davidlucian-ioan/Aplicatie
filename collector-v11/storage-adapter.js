@@ -44,6 +44,15 @@
     queue=operation.catch(()=>false);
     return operation;
    },
+   async listRawKeys(prefix=''){
+    await this.initialize();
+    const matches=[];
+    for(let index=0;index<backing.length;index++){
+     const key=backing.key(index);
+     if(typeof key==='string'&&key.startsWith(String(prefix)))matches.push(key);
+    }
+    return matches.sort();
+   },
    async clearCollectorData(){
     await this.initialize();
     const operation=queue.then(()=>removeCollectorKeys(backing));
@@ -122,6 +131,23 @@
      if(legacy?.removeItem)legacy.removeItem(name);
      return true;
     });
+   },
+   async listRawKeys(prefix=''){
+    await initialize();
+    const result=await sqlite.query({database,statement:'SELECT key FROM '+TABLE+' WHERE key LIKE ? ORDER BY key',values:[String(prefix).replace(/[\\%_]/g,'\\   async removeRaw(key){
+    await initialize();
+    const name=String(key);
+    return enqueue(async()=>{
+     await sqlite.run({database,statement:'DELETE FROM '+TABLE+' WHERE key = ?',values:[name]});
+     if(legacy?.removeItem)legacy.removeItem(name);
+     return true;
+    });
+   },')+'%',readonly:false});
+    const keys=(result?.values||[]).map(row=>String(row.key)).filter(key=>key.startsWith(String(prefix)));
+    if(legacy?.length){
+     for(let index=0;index<legacy.length;index++){const key=legacy.key(index);if(typeof key==='string'&&key.startsWith(String(prefix))&&!keys.includes(key))keys.push(key)}
+    }
+    return keys.sort();
    },
    async clearCollectorData(){
     await initialize();
