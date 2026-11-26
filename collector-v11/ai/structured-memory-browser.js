@@ -3,15 +3,35 @@
 const MAX_ENTITIES=30,MAX_FACTS=80,MAX_RELATIONS=60,MAX_TEXT=500;
 function record(v){return v&&typeof v==='object'&&!Array.isArray(v)}
 function text(v,label,{required=true,max=MAX_TEXT}={}){if(typeof v!=='string'||(required&&!v.trim()))throw new TypeError(label+' invalid');if(v.length>max)throw new TypeError(label+' too long');return v.trim()}
+
+function certainty(value,label){if(value===undefined)return 'certain';if(value!=='certain'&&value!=='uncertain')throw new TypeError(label+' certainty invalid');return value}
+function validTemporal(value){
+ if(typeof value!=='string'||!value.trim())return false;
+ const v=value.trim(),date=v.match(/^(\d{4})-(\d{2})-(\d{2})$/),timestamp=v.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/);
+ const parts=date||timestamp;if(!parts)return false;
+ const year=Number(parts[1]),month=Number(parts[2]),day=Number(parts[3]),days=new Date(Date.UTC(year,month,0)).getUTCDate();
+ if(month<1||month>12||day<1||day>days)return false;
+ if(date)return true;
+ const hour=Number(parts[4]),minute=Number(parts[5]),second=Number(parts[6]||0),zone=parts[7];
+ if(hour>23||minute>59||second>59||!Number.isFinite(Date.parse(v)))return false;
+ if(zone!=='Z'){const offset=zone.match(/^[+-](\d{2}):(\d{2})$/);if(!offset)return false;const h=Number(offset[1]),m=Number(offset[2]);if(h>14||m>59||(h===14&&m!==0))return false}
+ return true;
+}
+function temporal(value,label){
+ if(value===undefined||value===null)return null;
+ if(typeof value!=='string'||!validTemporal(value))throw new TypeError(label+' must be an ISO date or timezone-aware timestamp');
+ return value.trim();
+}
 function validateExtraction(input){
  if(!record(input))throw new TypeError('Extraction must be an object');
  const entities=Array.isArray(input.entities)?input.entities:[],facts=Array.isArray(input.facts)?input.facts:[],relations=Array.isArray(input.relations)?input.relations:[];
  if(entities.length>MAX_ENTITIES||facts.length>MAX_FACTS||relations.length>MAX_RELATIONS)throw new RangeError('Extraction exceeds bounded limits');
  const keys=new Set();
  const normalizedEntities=entities.map((e,i)=>{if(!record(e))throw new TypeError('Entity '+i+' invalid');const key=text(e.key,'entity.key',{max:80});if(keys.has(key))throw new TypeError('Duplicate entity key');keys.add(key);const aliases=Array.isArray(e.aliases)?e.aliases.slice(0,10).map(x=>text(x,'alias',{max:100})):[];return {key,name:text(e.name,'entity.name',{max:160}),type:text(e.type||'generic','entity.type',{max:64}),aliases,existingId:typeof e.existingId==='string'?e.existingId:null}});
- const normalizedFacts=facts.map((f,i)=>{if(!record(f))throw new TypeError('Fact '+i+' invalid');if(!keys.has(f.subject))throw new TypeError('Fact subject must reference extracted entity');const value=f.value;if(value===undefined||value===null||!(typeof value==='string'||typeof value==='number'||typeof value==='boolean'))throw new TypeError('Fact value invalid');if(typeof value==='string'&&value.length>MAX_TEXT)throw new TypeError('Fact value too long');return {subject:f.subject,name:text(f.name,'fact.name',{max:120}),value,certainty:f.certainty==='uncertain'?'uncertain':'certain',validAt:typeof f.validAt==='string'?f.validAt:null}});
- const normalizedRelations=relations.map((r,i)=>{if(!record(r)||!keys.has(r.source)||!keys.has(r.target))throw new TypeError('Relation '+i+' references unknown keys');if(r.source===r.target)throw new TypeError('Self relation not allowed');return {source:r.source,target:r.target,type:text(r.type||'related_to','relation.type',{max:80}),certainty:r.certainty==='uncertain'?'uncertain':'certain'}});
- return {summary:text(input.summary||'Structured memory capture','summary',{max:1000}),entities:normalizedEntities,facts:normalizedFacts,relations:normalizedRelations,clarification:typeof input.clarification==='string'?input.clarification.slice(0,500):'',confidence:typeof input.confidence==='number'&&input.confidence>=0&&input.confidence<=1?input.confidence:0.5};
+ const normalizedFacts=facts.map((f,i)=>{if(!record(f))throw new TypeError('Fact '+i+' invalid');if(!keys.has(f.subject))throw new TypeError('Fact subject must reference extracted entity');const value=f.value;if(value===undefined||value===null||!(typeof value==='string'||typeof value==='number'||typeof value==='boolean'))throw new TypeError('Fact value invalid');if(typeof value==='string'&&value.length>MAX_TEXT)throw new TypeError('Fact value too long');return {subject:f.subject,name:text(f.name,'fact.name',{max:120}),value,certainty:certainty(f.certainty,'fact'),validAt:temporal(f.validAt,'fact.validAt')}});
+ const normalizedRelations=relations.map((r,i)=>{if(!record(r)||!keys.has(r.source)||!keys.has(r.target))throw new TypeError('Relation '+i+' references unknown keys');if(r.source===r.target)throw new TypeError('Self relation not allowed');return {source:r.source,target:r.target,type:text(r.type||'related_to','relation.type',{max:80}),certainty:certainty(r.certainty,'relation')}});
+ const confidence=input.confidence===undefined?0.5:input.confidence;if(typeof confidence!=='number'||!Number.isFinite(confidence)||confidence<0||confidence>1)throw new TypeError('Extraction confidence invalid');
+ return {summary:text(input.summary||'Structured memory capture','summary',{max:1000}),entities:normalizedEntities,facts:normalizedFacts,relations:normalizedRelations,clarification:typeof input.clarification==='string'?input.clarification.slice(0,500):'',confidence};
 }
 function normalizeName(v){return String(v||'').normalize('NFKC').toLocaleLowerCase().replace(/[’']/g,"'").replace(/[^\p{L}\p{N}]+/gu,' ').trim()}
 function mergeAliases(existing,candidate){const output=[],seen=new Set();for(const alias of [...(Array.isArray(existing)?existing:[]),...(Array.isArray(candidate)?candidate:[])]){if(typeof alias!=='string'||!alias.trim())continue;const key=normalizeName(alias);if(!key||seen.has(key))continue;seen.add(key);output.push(alias.trim())}return output}
