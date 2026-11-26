@@ -57,8 +57,8 @@ function buildOperations(extraction,resolutions,{idFactory=()=> 'mem-'+Math.rand
   map.set(r.key,id);
   if(!r.resolvedId)operations.push({operation:'entity.create',target:id,data:{name:r.name,type:r.type}});
  }
- for(const fact of extraction.facts){const target=map.get(fact.subject);operations.push({operation:'attribute.set',target,data:{name:fact.name,value:fact.value,certainty:fact.certainty}});}
- for(const relation of extraction.relations){operations.push({operation:'relation.create',target:null,data:{sourceId:map.get(relation.source),targetId:map.get(relation.target),type:relation.type}});}
+ for(const fact of extraction.facts){const target=map.get(fact.subject);operations.push({operation:'attribute.set',target,data:{name:fact.name,value:fact.value,certainty:fact.certainty,validAt:fact.validAt}});}
+ for(const relation of extraction.relations){operations.push({operation:'relation.create',target:null,data:{sourceId:map.get(relation.source),targetId:map.get(relation.target),type:relation.type,attributes:{certainty:relation.certainty}}});}
  operations.push({operation:'event.note',target:null,data:{description:extraction.summary}});
  return {operations,entityIds:Object.fromEntries(map),requiresConfirmation:extraction.relations.length>0||extraction.facts.some(f=>typeof f.value==='number')};
 }
