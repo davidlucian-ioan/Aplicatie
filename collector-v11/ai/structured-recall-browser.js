@@ -1,5 +1,5 @@
 (function(root){'use strict';
-function normalizeName(v){return String(v||'').normalize('NFKC').toLocaleLowerCase().replace(/[’']/g,"'").replace(/[^\\p{L}\\p{N}]+/gu,' ').trim()}
+function normalizeName(v){return String(v||'').normalize('NFKC').toLocaleLowerCase().replace(/[’']/g,"'").replace(/[^\p{L}\p{N}]+/gu,' ').trim()}
 function tokenize(q){return normalizeName(q).split(' ').filter(t=>t.length>=2)}
 function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  if(!state||typeof state!=='object')throw new TypeError('State required');
