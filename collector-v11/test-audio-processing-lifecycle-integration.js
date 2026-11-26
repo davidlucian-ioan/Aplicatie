@@ -28,3 +28,15 @@ test('recovery UI is diagnostics-only and does not trigger automatic processing 
  assert.match(html,/audioLifecycleRecovery/);
  assert.match(app,/recovery manual, fără auto-retry\/ștergere/);
 });
+
+test('recovery API exposes diagnostics and Work UI reports repaired orphan checkpoints',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ assert.match(app,/diagnostics:\(\)=>window\.CollectorAudioLifecycleCheckpointStore\?\.diagnostics/);
+ assert.match(app,/orphanIds/);
+ assert.match(app,/reindexat checkpoint-uri orfane/);
+});
+test('storage adapters provide key enumeration required for orphan checkpoint recovery',()=>{
+ const adapter=fs.readFileSync(path.join(root,'storage-adapter.js'),'utf8');
+ assert.match(adapter,/async listRawKeys\(prefix=''/);
+ assert.match(adapter,/SELECT key FROM collector_kv WHERE key LIKE/);
+});
