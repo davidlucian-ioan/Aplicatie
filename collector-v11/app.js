@@ -1084,7 +1084,7 @@ async function clearAllLocalData(){
   await window.CollectorNativeAudioRecorder?.discardPending?.();
   if(!window.CollectorAudioStore?.clearAll)throw new Error('Ștergerea stocării audio nu este disponibilă.');
   const audioResult=await window.CollectorAudioStore.clearAll();
-  const reminderCount=await window.CollectorReminders?.clearAll?.();
+  const reminderCount=await window.CollectorReminders?.clearAll?.({discardPendingCoreEvents:true});
   if(typeof storageAdapter.clearCollectorData!=='function')throw new Error('StorageAdapter nu oferă ștergerea datelor Collector.');
   await storageAdapter.clearCollectorData();
   if(audioObjectUrl){URL.revokeObjectURL(audioObjectUrl);audioObjectUrl=null}
