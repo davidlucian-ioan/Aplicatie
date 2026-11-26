@@ -118,3 +118,10 @@ test('classifierul encryption identifică DB nouă și state incomplete ca inspe
  assert.deepEqual(classify({databaseExists:true,encrypted:null,secretStored:false}),{action:'inspect-required',reason:'state-incomplete'});
  assert.deepEqual(classify({databaseExists:'yes',encrypted:false,secretStored:false}),{action:'inspect-required',reason:'state-incomplete'});
 });
+
+test('web storage adapter enumerates prefixed keys for crash recovery',async()=>{
+ const raw=new Map([['collector_audio_lifecycle_v1:index','[]'],['collector_audio_lifecycle_v1:orphan','cp'],['unrelated','x']]);
+ const backing={get length(){return raw.size},key(i){return [...raw.keys()][i]??null},getItem(k){return raw.get(k)??null},setItem(k,v){raw.set(k,String(v))},removeItem(k){raw.delete(k)}};
+ const adapter=createWebStorageAdapter(backing);
+ assert.deepEqual(await adapter.listRawKeys('collector_audio_lifecycle_v1:'),['collector_audio_lifecycle_v1:index','collector_audio_lifecycle_v1:orphan']);
+});
