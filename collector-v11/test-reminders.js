@@ -2,8 +2,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createService}=require('./reminders');
-function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,failStorageRemove=false,cancelErrorCount=Infinity,random=Math.random}={}){
- let raw=null,writeCount=0,cancelFailuresRemaining=cancelError?cancelErrorCount:0;const calls=[];
+function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,failStorageRemove=false,cancelErrorCount=Infinity,onCoreEvent=null,random=Math.random}={}){
+ let raw=null,writeCount=0,cancelFailuresRemaining=cancelError?cancelErrorCount:0;const calls=[],coreCalls=[];
  const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');writeCount++;if(writeCount===failStorageWriteAt)throw new Error('storage write failed');raw=value;return true},async removeRaw(key){assert.equal(key,'collector_reminders_v1');if(failStorageRemove)throw new Error('storage remove failed');raw=null;return true}};
  const plugin={
   async checkPermissions(){return {display:permission}},
@@ -11,8 +11,12 @@ function fixture({permission='granted',scheduleError=null,cancelError=null,failS
   async schedule(value){calls.push({type:'schedule',value});if(scheduleError)throw new Error(scheduleError)},
   async cancel(value){calls.push({type:'cancel',value});if(cancelError&&cancelFailuresRemaining>0){cancelFailuresRemaining--;throw new Error(cancelError)}}
  };
- const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:00:00.000Z'),random});
- return {service,calls,raw:()=>raw};
+ const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:00:00.000Z'),random,onCoreEvent:async event=>{
+  coreCalls.push({...event});
+  if(onCoreEvent)return onCoreEvent(event);
+  return {status:'committed',eventId:'core-event-'+coreCalls.length};
+ }});
+ return {service,calls,coreCalls,raw:()=>raw};
 }
 test('concurrent reminder creation with same idempotency key schedules only once',async()=>{
  const x=fixture({random:()=>0.4});
@@ -207,4 +211,71 @@ test('successful reminder cancellation clears the uncertain scheduling marker',a
  const updated=JSON.parse(x.raw())[0];
  assert.equal(updated.status,'cancelled');
  assert.equal(updated.scheduleUncertain,false);
+});
+
+
+test('create journals a source-linked reminder lifecycle event in Core after native scheduling',async()=>{
+ const x=fixture({random:()=>0.24});
+ const item=await x.service.create({title:'Verifică pompa',at:'2026-11-24T12:00:00Z',sourceId:'audio:capture-7',context:'contextul privat nu se copiază în jurnal',idempotencyKey:'work:turn-7'});
+ assert.equal(item.coreSyncPending,false);
+ assert.equal(x.coreCalls.length,1);
+ assert.equal(x.coreCalls[0].lifecycle,'scheduled');
+ assert.equal(x.coreCalls[0].reminderId,item.id);
+ assert.equal(x.coreCalls[0].sourceId,'audio:capture-7');
+ assert.equal(Object.hasOwn(x.coreCalls[0],'sourceContext'),false,'raw reminder context must not be copied into the Core event');
+ assert.equal(JSON.parse(x.raw())[0].coreOutbox.length,0,'outbox is removed only after Core confirms the event');
+});
+
+test('failed Core journaling keeps a durable outbox and retry drains it idempotently',async()=>{
+ let fail=true;
+ const x=fixture({onCoreEvent:async event=>{
+  if(fail)throw new Error('Core offline');
+  return {status:'committed',eventId:'core-retry-'+event.lifecycle};
+ }});
+ const created=await x.service.create({title:'Cumpără substrat',at:'2026-11-24T12:00:00Z',sourceId:'work:turn-8'});
+ assert.equal(created.coreSyncPending,true);
+ let rows=JSON.parse(x.raw());
+ assert.equal(rows[0].coreOutbox.length,1);
+ assert.equal(rows[0].coreOutbox[0].lifecycle,'scheduled');
+ const key=rows[0].coreOutbox[0].idempotencyKey;
+ fail=false;
+ const result=await x.service.syncCoreOutbox();
+ assert.equal(result.synced,1);assert.equal(result.pending,0);assert.equal(result.error,null);
+ rows=JSON.parse(x.raw());
+ assert.equal(rows[0].coreOutbox.length,0);
+ assert.equal(rows[0].coreEventRefs[0].idempotencyKey,key);
+ assert.equal(rows[0].coreEventRefs[0].eventId,'core-retry-scheduled');
+});
+
+test('schedule, snooze and completion are each appended to Core as distinct lifecycle events',async()=>{
+ const x=fixture({random:(()=>{let n=0;return()=>0.2+n++/100})()});
+ const first=await x.service.create({title:'Verifică filtrul',at:'2026-11-24T12:00:00Z',sourceId:'work:turn-9'});
+ const replacement=await x.service.snooze(first.id,10);
+ await x.service.complete(replacement.id);
+ assert.deepEqual(x.coreCalls.map(event=>event.lifecycle),['scheduled','scheduled','cancelled','completed']);
+ assert.ok(x.coreCalls.every(event=>typeof event.idempotencyKey==='string'&&event.idempotencyKey.startsWith('collector-reminder-lifecycle:')));
+ const completed=JSON.parse(x.raw()).find(row=>row.id===replacement.id);
+ assert.equal(completed.status,'completed');
+ assert.equal(completed.coreOutbox.length,0);
+});
+
+test('clearAll refuses to erase reminders while Core lifecycle events remain unsynchronized',async()=>{
+ const x=fixture({onCoreEvent:async()=>{throw new Error('Core unavailable')}});
+ const item=await x.service.create({title:'Păstrează istoricul',at:'2026-11-24T12:00:00Z'});
+ assert.equal(item.coreSyncPending,true);
+ await assert.rejects(x.service.clearAll(),/evenimente reminder nesincronizate/);
+ assert.equal(JSON.parse(x.raw()).length,1);
+ assert.equal(x.calls.filter(call=>call.type==='cancel').length,0);
+});
+
+test('uncertain native scheduling writes an uncertainty lifecycle event to the Core outbox',async()=>{
+ const x=fixture({scheduleError:'native schedule outcome unknown',cancelError:'native cancel unavailable'});
+ await assert.rejects(x.service.create({title:'Verifică sera',at:'2026-11-24T12:00:00Z'}),/starea incertă/);
+ const row=JSON.parse(x.raw())[0];
+ assert.equal(row.scheduleUncertain,true);
+ assert.equal(row.coreOutbox.length,1);
+ assert.equal(row.coreOutbox[0].lifecycle,'schedule_uncertain');
+ const sync=await x.service.syncCoreOutbox();
+ assert.equal(sync.pending,0);
+ assert.equal(x.coreCalls[0].lifecycle,'schedule_uncertain');
 });
