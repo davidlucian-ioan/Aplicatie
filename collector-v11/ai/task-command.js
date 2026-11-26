@@ -115,7 +115,7 @@
    {domain:'task',taskKind:'user',taskId:task.attributes.taskId,entityId:task.id,dependsOnTaskId:dependency.id,dependencyName:dependency.name,occurredAt},
    [{operation:'relation.create',target:null,data:{sourceId:task.id,targetId:dependency.id,type:'depends_on',attributes:{relationship:'task_dependency'}}}]);
  }
- const api={PRIORITIES:[...PRIORITIES],STATUSES:[...STATUSES],entityIdForTask,createTaskCommand,transitionTaskCommand,addDependencyCommand};
+ const api={PRIORITIES:[...PRIORITIES],STATUSES:[...STATUSES],entityIdForTask,createTaskCommand,editTaskCommand,transitionTaskCommand,addDependencyCommand};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.CollectorTaskCommand=api;
 })(typeof window!=='undefined'?window:globalThis);
