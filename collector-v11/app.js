@@ -309,6 +309,11 @@ async function confirmCoreCommand(){
    const extras=extrasState?renderAIEnhancements(extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId):'';
    box.innerHTML=message+extras;
    if(extrasState)bindAIEnhancements(box,extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId);
+  } else if(result.status==='verification_failed'){
+   integrityBlocked=true;
+   integrityBlockReason='Ultima salvare nu a putut fi verificată independent. Reîncarcă aplicația pentru revalidarea jurnalului înainte de alte modificări.';
+   box.textContent='Salvarea nu poate fi confirmată prin recitire independentă. Pentru a preveni suprascrierea sau dublarea datelor, Collector a intrat în mod numai citire. Reîncarcă aplicația; jurnalul persistent va fi revalidat la pornire. Detalii: '+(result.errors||[]).join(' ');
+   setAppStatus('Collector este în mod numai citire: ultima salvare necesită reverificare.');
   } else box.textContent='Execuție nefinalizată ('+result.status+'): '+(result.errors||[]).join(' ');
  }catch(err){box.textContent='Execuția a eșuat: '+err.message}
 }
