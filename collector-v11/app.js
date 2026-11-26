@@ -461,7 +461,8 @@ function bindAIEnhancements(box,ai,sourceText,sourceId,turnId){
     if(!scheduled)throw new Error('Serviciul de notificări native nu este disponibil pe acest dispozitiv.');
     button.textContent=scheduled.alreadyScheduled?'Deja programat':'Programat ✓';
     const note=checked.usedDefaultTime?' · am folosit ora implicită 09:00, locală':'';
-    document.getElementById('commandResult').insertAdjacentHTML('beforeend','<p class="status-ok">Reminder '+(scheduled.alreadyScheduled?'era deja programat':'programat cu succes')+': '+esc(scheduled.title)+' · '+esc(dueText)+esc(note)+'.</p>');
+    const coreNote=scheduled.coreSyncPending?' Notificarea este activă, dar istoricul Core este în așteptare; îl poți resincroniza din lista de alarme.':' Evenimentul reminderului este înregistrat în memoria Core.';
+    document.getElementById('commandResult').insertAdjacentHTML('beforeend','<p class="status-ok">Reminder '+(scheduled.alreadyScheduled?'era deja programat':'programat cu succes')+': '+esc(scheduled.title)+' · '+esc(dueText)+esc(note)+'.'+esc(coreNote)+'</p>');
     await window.CollectorReminders.render();
    }catch(error){button.disabled=false;button.textContent='Reîncearcă';document.getElementById('commandResult').insertAdjacentHTML('beforeend','<p class="note">Reminderul nu a fost programat: '+esc(error.message)+'</p>')}
   });
