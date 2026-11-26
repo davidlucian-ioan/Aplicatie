@@ -1327,3 +1327,12 @@ Nu activa background processing, billing live sau deployment și nu scoate PR #5
 
 ### Limită de release
 Nu face merge în `main`, nu activa billing live și nu publica build-uri Store fără revizuire și aprobare explicită.
+
+
+## Task Manager — editare task-uri generale (27 nov. 2026)
+
+- Think task board adaugă acțiunea **Editează** pentru task-urile generale.
+- Editarea permite titlu, termen dată, oră explicită, timezone IANA pentru deadline-uri cu oră și prioritate.
+- Comanda `task.edit` trece prin validare, Core preview și confirmare explicită; modificările sunt journaled și replayable (`entity.rename` + `attribute.set`).
+- Eliminarea deadline-ului scrie valori `null` pentru dată/oră și elimină timezone-ul; nu inventează valori implicite.
+- Teste unitare pentru validare și clearing au fost adăugate. CI pe commitul următor trebuie să confirme complet testele, Cloud API și build-urile mobile.
