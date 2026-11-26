@@ -197,3 +197,10 @@ test('source-retained checkpoint schema requires a durable verified commit and r
  await cp.put({id:'retained',state:'source_retained',idempotencyKey:'audio:retained',persisted:true,persistenceVerified:true,sourceRetained:true,audioDeleted:false});
  assert.equal((await cp.get('retained')).state,'source_retained');
 });
+
+
+test('untouched captured checkpoints are not reported as interrupted recovery work',async()=>{
+ const x=fixture();x.cps.set('untouched',{id:'untouched',state:'captured',attempts:0,idempotencyKey:'audio:untouched'});
+ x.cps.set('interrupted',{id:'interrupted',state:'processing',attempts:1,idempotencyKey:'audio:interrupted'});
+ assert.deepEqual(await x.lifecycle.recover(),['interrupted']);
+});
