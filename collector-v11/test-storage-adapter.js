@@ -36,7 +36,7 @@ function fakeSQLite(){
   async createConnection(options){calls.push(['createConnection',options]);open=true},
   async open(options){calls.push(['open',options]);open=true},
   async execute(options){calls.push(['execute',options]);return {changes:{changes:0}}},
-  async query(options){calls.push(['query',options]);const value=values.get(options.values[0]);return {values:value===undefined?[]:[{value}]}},
+  async query(options){calls.push(['query',options]);if(options.statement.startsWith('SELECT key'))return {values:[...values.keys()].filter(key=>key.startsWith(options.values[0].slice(0,-1))).map(key=>({key}))};const value=values.get(options.values[0]);return {values:value===undefined?[]:[{value}]}},
   async run(options){calls.push(['run',options]);if(options.statement==='DELETE FROM collector_kv'){values.clear();return {changes:{changes:1}}}const [key,value]=options.values||[];if(options.statement.startsWith('INSERT'))values.set(key,value);else values.delete(key);return {changes:{changes:1}}}
  };
  return {sqlite,values,calls};
@@ -124,4 +124,12 @@ test('web storage adapter enumerates prefixed keys for crash recovery',async()=>
  const backing={get length(){return raw.size},key(i){return [...raw.keys()][i]??null},getItem(k){return raw.get(k)??null},setItem(k,v){raw.set(k,String(v))},removeItem(k){raw.delete(k)}};
  const adapter=createWebStorageAdapter(backing);
  assert.deepEqual(await adapter.listRawKeys('collector_audio_lifecycle_v1:'),['collector_audio_lifecycle_v1:index','collector_audio_lifecycle_v1:orphan']);
+});
+
+test('SQLite storage enumerates prefixed keys and excludes unrelated records',async()=>{
+ const native=fakeSQLite(),adapter=createSQLiteStorageAdapter({sqlite:native.sqlite,legacyStorage:fakeStorage()});
+ await adapter.writeRaw('collector_audio_lifecycle_v1:index','[]');
+ await adapter.writeRaw('collector_audio_lifecycle_v1:record','{}');
+ await adapter.writeRaw('unrelated','x');
+ assert.deepEqual(await adapter.listRawKeys('collector_audio_lifecycle_v1:'),['collector_audio_lifecycle_v1:index','collector_audio_lifecycle_v1:record']);
 });
