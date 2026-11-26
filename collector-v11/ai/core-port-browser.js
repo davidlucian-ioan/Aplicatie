@@ -13,7 +13,7 @@
   class BrowserCorePort {
     constructor({ core, store }) {
       if (!core || typeof core.commit !== 'function' || typeof core.normDb !== 'function') throw new TypeError('Collector Core indisponibil.');
-      if (!store || typeof store.getState !== 'function' || typeof store.persistState !== 'function') throw new TypeError('Store local invalid.');
+      if (!store || typeof store.getState !== 'function' || typeof store.persistState !== 'function' || typeof store.readPersistedState !== 'function') throw new TypeError('Store local invalid: getState/persistState/readPersistedState sunt obligatorii.');
       this.core=core; this.store=store;
     }
     snapshot(){ const state=this.store.getState(); if(!state) throw new Error('Starea Collector nu este disponibilă.'); return this.core.normDb(clone(state)); }
@@ -42,8 +42,21 @@
       if(result.duplicate) return {status:'duplicate',eventId:result.event?.id||null};
       let ok=false; try { ok=await this.store.persistState(clone(result.db))===true; } catch(error) { return {status:'unavailable',errors:[`Persistența a eșuat: ${error.message}`]}; }
       if(!ok) return {status:'unavailable',errors:['Persistența a eșuat; starea activă nu a fost publicată.']};
-      if(this.store.publishState) await this.store.publishState(clone(result.db));
-      return {status:'committed',eventId:result.event.id,affectedEntities:[...new Set(ev.operations.flatMap(o=>[o.target,o.data?.entityId,o.data?.populationId,o.data?.sourceId,o.data?.targetId].filter(Boolean)))],projectionChanges:{entities:result.db.entities.length-current.entities.length,relations:result.db.relations.length-current.relations.length,stock:result.db.stock.length-current.stock.length,finance:result.db.finance.length-current.finance.length}};
+      let verifiedState;
+      try {
+        const persistedState = await this.store.readPersistedState();
+        if (!persistedState || typeof persistedState !== 'object' || !Array.isArray(persistedState.events)) throw new Error('Starea recitită nu conține jurnalul de evenimente.');
+        verifiedState = typeof this.core.validateImport === 'function'
+          ? this.core.validateImport(clone(persistedState))
+          : this.core.normDb(clone(persistedState));
+        const persistedEvent = verifiedState.events.find(item => item.id === ev.id && item.intentKey === command.idempotencyKey);
+        if (!persistedEvent) throw new Error('Evenimentul confirmat nu a fost găsit în jurnalul recitit.');
+        if (JSON.stringify(persistedEvent.operations) !== JSON.stringify(ev.operations)) throw new Error('Operațiile recitite diferă de operațiile confirmate.');
+      } catch (error) {
+        return {status:'verification_failed',eventId:ev.id,errors:[`Verificarea independentă a persistenței a eșuat: ${error.message}`]};
+      }
+      if(this.store.publishState) await this.store.publishState(clone(verifiedState));
+      return {status:'committed',eventId:ev.id,affectedEntities:[...new Set(ev.operations.flatMap(o=>[o.target,o.data?.entityId,o.data?.populationId,o.data?.sourceId,o.data?.targetId].filter(Boolean)))],projectionChanges:{entities:result.db.entities.length-current.entities.length,relations:result.db.relations.length-current.relations.length,stock:result.db.stock.length-current.stock.length,finance:result.db.finance.length-current.finance.length}};
     }
   }
   root.CollectorBrowserCorePort=BrowserCorePort;
