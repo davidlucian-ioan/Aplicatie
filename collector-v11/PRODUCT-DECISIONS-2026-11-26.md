@@ -34,16 +34,16 @@ AI detectează intenția explicită de reminder în vorbire naturală, extrage a
 ## 6. Work flow
 Work capture să nu oprească înregistrarea pentru fiecare clasificare. Pipeline poate procesa asincron; userul primește feedback discret, iar acțiunile care schimbă date sau programează notificări au preview/confirmare adecvată. Pentru reminder explicit și neambiguu se poate activa „confirmare după creare” numai după succesul scheduling-ului; în trial/premium AI este disponibil.
 
-## 7. Current code audit — known mismatches
-Audit pe HEAD 88343f122a28644714e92832f6df332949b7a564:
-- collector-v11/app.js: Work text parser este determinist și limitat la note/atribute/vânzare; AI provider flow interpretează Collector Core operations, preview și explicit confirm. Nu există contract sau flow pentru reminder suggestions, voice semantic summaries sau source-grounded memory recall.
-- collector-v11/ai/provider-openai.js: schema operations nu include reminder actions; provider prompt nu cere event/task/reminder extraction. Nu adăuga reminder ca operație Core generică fără contract separat.
-- collector-v11/reminders.js: native reminder service există (create/list/cancel/snooze/clear + rollback tests), dar este independent de AI; nu are task status/completion, source link, natural-language date parser sau auto-creation from AI.
-- collector-v11/app.js AI UI: propunerea AI este generic Core preview/confirm; niciun combined preview pentru Core changes + reminders.
-- collector-v11/subscriptions.js + cloud-api/server.js: curent există un entitlement pro și active-Pro gate; UI afișează Pro și offerings RevenueCat. Nu sunt implementate/validate trei tiers Small/Medium/Large, per-tier budgets, trial acquisition/onboarding/paywall copy. Trial poate fi entitlement Pro în perioada store intro dacă store/configurează; trebuie sandbox verification.
-- Audio: recording metadata/storage/recovery și backup au componente implementate, dar nu există pipeline complet audio→transcription→AI summary→memory→spoken playback și hands-free interruption/device validation rămâne blocker.
-- E2E Basic/offline tests are authored around no AI request; must be reframed as post-trial/local data-access regression, not evidence that the commercial product's core AI is optional forever.
-
+## 7. Current code audit — verified status after implementation work
+Ultima reverificare: branch `feature/openai-provider-integration`. Statusul de mai jos distinge ce există în cod de ce nu a fost încă validat pe dispozitive sau operațional în producție.
+- `collector-v11/app.js`: Work are captură vocală, acțiune manuală de transcriere, interpretare OpenAI, extragere structured-memory, rezolvare entități, Core preview, confirmare explicită și recitire independentă. Nu există procesare AI automată în fundal.
+- `collector-v11/ai/provider-openai.js` și `provider-openai-browser.js`: există provider OpenAI pe server și client pentru interpretare/transcriere. Nu există TTS/playback conversațional complet; sumarul semantic este afișat ca text.
+- `structured-memory.js` / `structured-memory-browser.js`: contract cu limite, validare, idempotency, rezolvare conservatoare și păstrarea aliasurilor existente. Recall-ul local caută entități, atribute, relații și evenimente cu referințe de sursă; sinteza generativă a răspunsului din dovezile recuperate și navigarea completă către fiecare sursă mai necesită implementare.
+- Reminder suggestions sunt extrase de provider și validate separat înainte de scheduling; programarea cere acțiune explicită, folosește idempotency și notificări native. Nu există încă un model de task cu status de completion integrat complet în event ledger.
+- Audio: fișierul rămâne local în timpul procesării; după confirmarea Core și verificarea independentă a evenimentului, draftul temporar este șters și audio-ul este eliminat implicit. Work permite păstrarea explicită. Recovery verifică un commit anterior înainte de retranscriere, pentru a evita duplicate și costuri AI. Eșecurile păstrează sursa.
+- `subscriptions.js` și cloud API încă au nevoie de mapare authoritative pentru trial + Small/Medium/Large, limite măsurate pe cost, usage metering și testarea sandbox a achizițiilor/restaurărilor. Prețurile și limitele nu sunt considerate validate doar pentru că sunt documentate.
+- E2E/browser și build-uri Android/iOS trebuie rulate pe HEAD-ul final; CI nu înlocuiește verificarea fizică a microfonului, notificărilor, lifecycle-ului aplicației și întreruperilor OS.
+- Înainte de lansare rămân: recall AI grounded cu surse, TTS, procesare/retry offline controlate, task completion, quota/cost controls authoritative, privacy/export/deletion review, auth/data isolation audit, monitoring și store/device validation.
 ## 8. Implementation order (do not lose this)
 P0 (next engineering work):
 1. Central product decision/capability model and RevenueCat tier mapping: trial/full AI, Small/Medium/Large, server authoritative limits. Preserve data/export post-expiry.
