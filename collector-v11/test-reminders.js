@@ -184,3 +184,27 @@ test('clearAll refuses success when storage claims deletion but the list remains
  assert.equal(raw,before);
  assert.equal(calls.at(-1).type,'schedule','rollback must restore the cancelled notification');
 });
+
+
+test('uncertain native scheduling retains a recoverable reminder instead of erasing a possibly active notification',async()=>{
+ const x=fixture({scheduleError:'response lost after native schedule',cancelError:'native cancel unavailable'});
+ await assert.rejects(x.service.create({title:'Verifică pompa',at:'2026-11-24T12:00:00Z',idempotencyKey:'capture:1'}),/marcat pentru recovery/);
+ const rows=JSON.parse(x.raw());
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].status,'scheduled');
+ assert.equal(rows[0].scheduleUncertain,true);
+ assert.equal(x.calls.filter(call=>call.type==='schedule').length,1);
+ assert.equal(x.calls.filter(call=>call.type==='cancel').length,1);
+ await assert.rejects(x.service.create({title:'Verifică pompa',at:'2026-11-24T12:00:00Z',idempotencyKey:'capture:1'}),/stare incertă/);
+});
+
+test('successful reminder cancellation clears the uncertain scheduling marker',async()=>{
+ const x=fixture({scheduleError:'transient scheduler error',cancelError:'native cancel unavailable'});
+ await assert.rejects(x.service.create({title:'Reminder',at:'2026-11-24T12:00:00Z'}),/marcat pentru recovery/);
+ const item=JSON.parse(x.raw())[0];
+ assert.equal(item.scheduleUncertain,true);
+ await x.service.cancel(item.id);
+ const updated=JSON.parse(x.raw())[0];
+ assert.equal(updated.status,'cancelled');
+ assert.equal(updated.scheduleUncertain,false);
+});
