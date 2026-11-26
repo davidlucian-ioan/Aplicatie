@@ -157,8 +157,9 @@ test('Audio Transcrie + AI continues into AI interpretation and retains source u
 test('Stable audio capture key changes with transcript and is deterministic for retries',()=>{
  const app=fs.readFileSync('app.js','utf8');
  assert.match(app,/function stableAudioCaptureTurnId\(recordingId,transcript\)/);
- assert.ok(app.includes('hash=Math.imul(hash,16777619)'));
- assert.ok(app.includes("return 'audio:'+String(recordingId)+':'+(hash>>>0).toString(16)"));
+ assert.ok(app.includes('primary=Math.imul(primary^code,16777619)'));
+ assert.ok(app.includes('secondary=Math.imul(secondary^(code+index),2246822519)'));
+ assert.ok(app.includes("return 'audio:'+String(recordingId)+':'+value.length+':'+fingerprint"));
 });
 
 
@@ -166,11 +167,22 @@ test('Concurrent audio AI runs are rejected and each interpretation keeps its or
  const app=fs.readFileSync('app.js','utf8');
  const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
  assert.ok(run.includes('sourceRecordingId=activeAudioRecordingId'));
- assert.ok(run.includes('if(aiInterpretationPending)'));
+ assert.ok(run.includes('if(aiInterpretationPending||pendingCoreCommand||coreCommitPending)'));
  assert.ok(run.includes('aiInterpretationPending=true'));
  assert.ok(run.includes('aiInterpretationPending=false'));
  assert.ok(run.includes('stableAudioCaptureTurnId(sourceRecordingId,text)'));
  const audio=app.slice(app.indexOf("const transcribe=document.createElement('button')"),app.indexOf("const rename=document.createElement('button')"));
- assert.ok(audio.includes('if(aiInterpretationPending)'));
+ assert.ok(audio.includes('if(aiInterpretationPending||pendingCoreCommand||coreCommitPending)'));
  assert.ok(audio.includes('activeAudioRecordingId=null'));
+});
+
+
+test('AI and Core confirmation have a single-flight guard until the command resolves',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
+ const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
+ assert.ok(confirm.includes('if(!pendingCoreCommand||coreCommitPending)return'));
+ assert.ok(confirm.includes('coreCommitPending=true'));
+ assert.ok(confirm.includes('finally{coreCommitPending=false}'));
+ assert.ok(run.includes('pendingCoreCommand||coreCommitPending'));
 });
