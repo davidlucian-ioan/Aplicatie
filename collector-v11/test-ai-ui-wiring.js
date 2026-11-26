@@ -150,8 +150,8 @@ test('Audio Transcrie + AI continues into AI interpretation and retains source u
  assert.ok(app.includes('audioRecordingId:sourceRecordingId'));
  const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
  assert.ok(confirm.includes('Șterge audio original'));
- assert.ok(confirm.includes("confirm('Datele structurate sunt salvate și verificate în jurnal."));
- assert.ok(confirm.includes('await CollectorAudioStore.remove(extrasState.audioRecordingId)'));
+ assert.ok(confirm.includes('deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId)'));
+ assert.ok(confirm.includes('data-audio-transcribe-id')===false);
 });
 
 test('Stable audio capture key changes with transcript and is deterministic for retries',()=>{
@@ -191,7 +191,7 @@ test('AI and Core confirmation have a single-flight guard until the command reso
 test('Work recovery diagnostics omit successfully retained audio checkpoints',()=>{
  const app=fs.readFileSync('app.js','utf8');
  const refresh=app.slice(app.indexOf('async function refreshAudioLifecycleRecovery'),app.indexOf('async function initializeCollectorApp'));
- assert.ok(refresh.includes("!['completed','source_retained'].includes(cp.state)"));
+ assert.ok(refresh.includes("!['completed','source_retained','captured'].includes(cp.state)"));
  assert.ok(refresh.includes('Nu există procesări AI audio întrerupte'));
 });
 
@@ -248,4 +248,13 @@ test('A Core preview duplicate from an audio recording is verified instead of di
  assert.ok(run.includes("preview.status==='duplicate'&&sourceRecordingId"));
  assert.ok(run.includes('pendingCoreCommand=command;'));
  assert.ok(run.includes('await confirmCoreCommand()'));
+});
+
+
+test('The explicit deletion prompt is inside the reusable recovery-safe deletion service',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(deletion.includes("if(!confirm('Evenimentul structurat a fost verificat independent în jurnal."));
+ assert.ok(deletion.includes('await CollectorAudioStore.remove(recordingId)'));
+ assert.ok(deletion.includes('await verifyAudioCheckpointEvent(await store.get(recordingId))'));
 });
