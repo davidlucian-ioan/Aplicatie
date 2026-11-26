@@ -23,3 +23,5 @@ test('recovery lists incomplete failed sessions',async()=>{const x=fixture({fail
 
 test('recovery discovers nonterminal checkpoints after process crash',async()=>{const x=fixture();x.cps.set('a1',{id:'a1',state:'processing',attempts:1,idempotencyKey:'audio:a1'});assert.deepEqual(await x.lifecycle.recover(),['a1'])});
 test('crash after audio deletion but before completion checkpoint recovers without source audio',async()=>{const x=fixture();x.audio.delete('a1');x.cps.set('a1',{id:'a1',state:'audio_deletion_pending',attempts:1,idempotencyKey:'audio:a1',persistenceVerified:true});const cp=await x.lifecycle.process('a1');assert.equal(cp.state,'completed');assert.equal(cp.audioDeleted,true);assert.equal(x.audio.has('a1'),false)});
+
+test('concurrent duplicate requests for one recording share a single processing run',async()=>{const x=fixture();const [a,b]=await Promise.all([x.lifecycle.process('a1'),x.lifecycle.process('a1')]);assert.equal(a.state,'completed');assert.equal(b.state,'completed');assert.equal(x.calls.filter(v=>v==='interpret').length,1);assert.equal(x.calls.filter(v=>v==='delete').length,1)});
