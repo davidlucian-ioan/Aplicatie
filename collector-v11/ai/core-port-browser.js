@@ -3,6 +3,7 @@
   const ALLOWED = new Set(['entity.create','entity.rename','attribute.set','attribute.define','relation.create','relation.close','relation.move','stock.change','stock.adjust','finance.record','event.note','event.attribute.set','relation.attribute.set']);
   const HIGH_RISK = new Set(['relation.close','relation.move','stock.change','stock.adjust','finance.record']);
   const clone = value => structuredClone(value);
+  const MAX_PENDING_PREVIEWS=10;
   function validate(command) {
     if (!command || command.contractVersion !== 'collector.command.v1') throw new TypeError('Contract invalid: collector.command.v1 este obligatoriu.');
     if (typeof command.intent !== 'string' || !command.intent.trim()) throw new TypeError('Comanda nu are intent.');
@@ -14,9 +15,16 @@
     constructor({ core, store }) {
       if (!core || typeof core.commit !== 'function' || typeof core.normDb !== 'function') throw new TypeError('Collector Core indisponibil.');
       if (!store || typeof store.getState !== 'function' || typeof store.persistState !== 'function' || typeof store.readPersistedState !== 'function') throw new TypeError('Store local invalid: getState/persistState/readPersistedState sunt obligatorii.');
-      this.core=core; this.store=store;
+      this.core=core; this.store=store; this.previewSnapshots=new Map();
     }
     snapshot(){ const state=this.store.getState(); if(!state) throw new Error('Starea Collector nu este disponibilă.'); return this.core.normDb(clone(state)); }
+    rememberPreview(command,state){
+      const key=command.idempotencyKey;
+      this.previewSnapshots.delete(key);
+      this.previewSnapshots.set(key,{state:JSON.stringify(state),command:JSON.stringify(command)});
+      while(this.previewSnapshots.size>MAX_PENDING_PREVIEWS) this.previewSnapshots.delete(this.previewSnapshots.keys().next().value);
+    }
+    discardPreview(command){ if(command?.idempotencyKey) this.previewSnapshots.delete(command.idempotencyKey); }
     buildEvent(command){
       validate(command);
       for(const op of command.operations) if(!ALLOWED.has(op.operation)) throw new Error(`Operația „${op.operation}” nu este permisă prin Core Port.`);
@@ -32,13 +40,21 @@
     }
     async preview(command){
       const ev=this.buildEvent(command), current=this.snapshot(), result=this.core.commit(current,ev);
+      this.rememberPreview(command,current);
       if(result.duplicate) return {status:'duplicate',eventId:result.event?.id||null};
       return {status:'preview_ok',eventId:result.event.id,affectedEntities:[...new Set(ev.operations.flatMap(o=>[o.target,o.data?.entityId,o.data?.populationId,o.data?.sourceId,o.data?.targetId].filter(Boolean)))],projectionChanges:{entities:result.db.entities.length-current.entities.length,relations:result.db.relations.length-current.relations.length,stock:result.db.stock.length-current.stock.length,finance:result.db.finance.length-current.finance.length}};
     }
     async execute(command,{confirmed=false}={}){
       const ev=this.buildEvent(command), risky=ev.operations.some(o=>HIGH_RISK.has(o.operation));
       if((risky||command.requiresConfirmation===true)&&confirmed!==true) return {status:'rejected',errors:['Este necesară confirmarea explicită a utilizatorului.']};
-      const current=this.snapshot(), result=this.core.commit(current,ev);
+      const current=this.snapshot();
+      const expected=this.previewSnapshots.get(command.idempotencyKey);
+      if(expected){
+        this.previewSnapshots.delete(command.idempotencyKey);
+        if(expected.state!==JSON.stringify(current)||expected.command!==JSON.stringify(command))
+          return {status:'stale_preview',errors:['Datele Collector sau comanda s-au schimbat după preview. Refaceți preview-ul înainte de salvare.']};
+      }
+      const result=this.core.commit(current,ev);
       if(result.duplicate){
         const priorCommand=result.event;
         if(JSON.stringify(priorCommand?.operations)!==JSON.stringify(ev.operations))return {status:'conflict',eventId:priorCommand?.id||null,errors:['Idempotency key already belongs to a different set of Core operations. No additional mutation was applied.']};
