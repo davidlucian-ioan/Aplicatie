@@ -1094,3 +1094,17 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Integrarea trebuie să utilizeze AudioStore real, checkpoint durable și Core port real; verificarea persistence trebuie să citească înapoi din DB/jurnal, nu doar să accepte rezultatul returnat de commit.
 - Înainte de auto-delete: failure injection pentru provider timeout, extraction invalid, commit rejected, duplicate commit, verificare absentă, delete failure și crash între persistence verification și delete.
 - Task următor prioritar: inspectarea API-urilor reale Core/AudioStore și proiectarea adaptorului lifecycle, apoi implementare în bulk cu teste de failure/recovery; nu activa ștergerea până la verificarea end-to-end.
+
+## Bulk continuare — următoarele 5 taskuri (2026-11-26)
+
+1. **Fix CI test orchestration pentru Recall**: testul nu mai încearcă să completeze un filtru de pe o pagină ascunsă. Navighează în Events, aplică filtrul, revine în Work și deschide evenimentul sursă; verifică resetarea filtrului și vizibilitatea exactă a evenimentului.
+2. **Recovery pentru delete-response lost**: dacă audioStore.remove șterge sursa dar aruncă o eroare (răspuns/checkpoint pierdut), retry cu audio absent și checkpoint persistenceVerified poate recupera doar după re-verificarea independentă a persistenței.
+3. **Fail-closed checkpoint identity**: procesarea refuză checkpoint-uri cu ID sau idempotencyKey care nu corespund recording ID-ului; previne asocierea accidentală a datelor/checkpoint-urilor între înregistrări.
+4. **Regresii lifecycle**: teste pentru delete-success-then-throw + recovery, checkpoint identity mismatch și audio missing fără verificare de persistență; toate verifică că nu se declară completed fără dovadă.
+5. **Documentare + rerun CI**: adaugă această rundă și implications în checkpoint. CI este rerulat pe HEAD bulk; nu se declară green până la final.
+
+### Implicații
+- Recovery poate confirma un delete care s-a întâmplat, dar numai cu re-verificarea structurii persistate; fără audio și fără dovadă, lifecycle rămâne fail-closed.
+- Checkpoint identity guard reduce riscul de cross-recording processing și commit-key reuse.
+- Testul Recall are acum pași reali în UI și verifică resetarea filtrului, evitând false-negative din cauza locatorilor ascunși.
+- Lifecycle rămâne modul separat, netransformat încă în pipeline-ul Recorder→AI→Core. Auto-delete în produs nu este activat; următoarea integrare trebuie să fie staged și cu opt-in/guard până la testarea E2E.
