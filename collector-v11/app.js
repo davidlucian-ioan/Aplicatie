@@ -776,14 +776,17 @@ async function deleteAudioFromVerifiedCheckpoint(recordingId){
  let cp=await store.get(recordingId);
  if(!cp||!['source_retained','audio_deletion_pending'].includes(cp.state))throw Error('Ștergerea este permisă doar după un commit verificat în Core.');
  await verifyAudioCheckpointEvent(cp);
- let source=await CollectorAudioStore.get(recordingId);
+ const source=await CollectorAudioStore.get(recordingId);
+ const verifyAudioRemoval=async()=>{
+  if(typeof CollectorAudioStore.verifyRemoved==='function')return await CollectorAudioStore.verifyRemoved(recordingId)===true;
+  const remaining=await CollectorAudioStore.get(recordingId);return remaining===null||remaining===undefined;
+ };
  if(source!==null&&source!==undefined){
   if(!confirm('Evenimentul structurat a fost verificat independent în jurnal. Ștergi definitiv înregistrarea audio originală de pe acest dispozitiv?'))return {status:'cancelled'};
   await writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending',{eventId:cp.persistResult.eventId,intentKey:cp.persistResult.intentKey});
-  try{await CollectorAudioStore.remove(recordingId)}catch(removeError){const afterFailure=await CollectorAudioStore.get(recordingId);if(afterFailure!==null&&afterFailure!==undefined)throw removeError}
+  try{await CollectorAudioStore.remove(recordingId)}catch(removeError){if(!(await verifyAudioRemoval()))throw removeError}
  }
- const remaining=await CollectorAudioStore.get(recordingId);
- if(remaining!==null&&remaining!==undefined)throw Error('Înregistrarea audio există încă după solicitarea de ștergere.');
+ if(!(await verifyAudioRemoval()))throw Error('AudioStore nu a confirmat independent eliminarea fișierului și a metadata înregistrării.');
  await verifyAudioCheckpointEvent(await store.get(recordingId));
  await writeAudioLifecycleCheckpoint(recordingId,'completed',{eventId:cp.persistResult.eventId,intentKey:cp.persistResult.intentKey});
  return {status:'completed'};
