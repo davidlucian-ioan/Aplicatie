@@ -25,3 +25,24 @@ test('recovery discovers nonterminal checkpoints after process crash',async()=>{
 test('crash after audio deletion but before completion checkpoint recovers without source audio',async()=>{const x=fixture();x.audio.delete('a1');x.cps.set('a1',{id:'a1',state:'audio_deletion_pending',attempts:1,idempotencyKey:'audio:a1',persistenceVerified:true});const cp=await x.lifecycle.process('a1');assert.equal(cp.state,'completed');assert.equal(cp.audioDeleted,true);assert.equal(x.audio.has('a1'),false)});
 
 test('concurrent duplicate requests for one recording share a single processing run',async()=>{const x=fixture();const [a,b]=await Promise.all([x.lifecycle.process('a1'),x.lifecycle.process('a1')]);assert.equal(a.state,'completed');assert.equal(b.state,'completed');assert.equal(x.calls.filter(v=>v==='interpret').length,1);assert.equal(x.calls.filter(v=>v==='delete').length,1)});
+
+test('recovery handles delete succeeding before a thrown response by re-verifying persistence',async()=>{
+ const x=fixture();const originalRemove=x.audio.get.bind(x.audio);let first=true;
+ x.audio.remove=async id=>{if(first){first=false;x.audio.delete(id);throw Error('lost delete response')}return originalRemove(id)};
+ await assert.rejects(x.lifecycle.process('a1'),/lost delete response/);
+ assert.equal(x.audio.has('a1'),false);
+ assert.equal(x.cps.get('a1').state,'failed');
+ const cp=await x.lifecycle.process('a1',{retry:true});
+ assert.equal(cp.state,'completed');assert.equal(cp.audioDeleted,true);
+ assert.equal(x.calls.filter(v=>v==='verify').length,2);
+});
+test('checkpoint identity mismatch fails closed without touching audio or provider',async()=>{
+ const x=fixture();x.cps.set('a1',{id:'different',state:'captured',idempotencyKey:'audio:different'});
+ await assert.rejects(x.lifecycle.process('a1'),/identity\/idempotency mismatch/);
+ assert.equal(x.audio.has('a1'),true);assert.equal(x.calls.length,0);
+});
+test('missing audio without independently verified persistence cannot be marked complete',async()=>{
+ const x=fixture();x.audio.delete('a1');x.cps.set('a1',{id:'a1',state:'failed',idempotencyKey:'audio:a1',persistenceVerified:false});
+ await assert.rejects(x.lifecycle.process('a1'),/cannot recover processing/);
+ assert.notEqual(x.cps.get('a1').state,'completed');
+});
