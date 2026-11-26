@@ -1063,3 +1063,34 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Work recordings now include **Transcrie + AI**: loads local blob/native URI, transcribes, places result into Work draft, and prompts the user to inspect then explicitly run AI interpretation/preview/commit. Original audio is intentionally retained (not deleted by this partial feature).
 - Tests cover browser provider payload/guards and server endpoint origin, MIME, and missing-key guards.
 - This is a manual, user-triggered transcription-to-draft step only. It does NOT yet automatically extract structured memory, execute Core, verify persistence, or delete audio. Next milestone: connect transcription + structured extraction + idempotent Core commit to lifecycle checkpoints and independently verify committed records before deletion; failures must retain source and recovery state.
+
+## Bulk continuare — 5 taskuri + impact (2026-11-26)
+
+### Task 1 — Recall source navigation (fix)
+- Diagnosticul CI: testul Recall căuta evenimentul după ID în filtrul generic de text; filtrul nu este lookup pe ID, astfel rândul sursă rămânea ascuns.
+- Fix: la deschiderea sursei se curăță filtrul activ și se caută rândul exact prin selector stabil `#eventList > [data-event-id]`.
+- UI oferă status fallback dacă evenimentul nu poate fi găsit în lista vizibilă.
+- Impact: Recall nu mai depinde de textul filtrului curent; navigarea poate reseta filtrul utilizatorului (comportament intenționat, documentat în regresie).
+
+### Task 2 — Lifecycle concurrency protection
+- Procesarea simultană a aceluiași ID audio share-uiește promisiunea in-flight; evită două interpretări, două commit-uri sau două ștergeri concurente.
+- Lock per ID, eliberat în `finally`; alte înregistrări pot procesa în paralel.
+- Impact: reduce duplicate AI calls/cost, race-uri în checkpoint și risc de delete concurent.
+
+### Task 3 — Regression test concurrency
+- Test nou: două apeluri `process('a1')` în `Promise.all` trebuie să termine complet și să execute interpretarea și ștergerea o singură dată.
+- Impact: contractul de idempotency/concurrency este acum testat, nu doar presupus.
+
+### Task 4 — Transcription timeout coverage
+- Timeout de 60 secunde rămâne activ până după citirea/parsing-ul corpului răspunsului upstream; anterior era curățat imediat după primirea headerelor.
+- Impact: limitează blocarea serverului și consumul resurselor în cazul unui răspuns OpenAI care livrează headers dar întârzie body.
+
+### Task 5 — CI failure triage
+- La HEAD `02f5356a`, Core, invariants, benchmark și Cloud API/mobile au trecut; Quality a eșuat numai în Chromium E2E: Recall source event hidden.
+- Fixul este aplicat și regresia adăugată. CI trebuie reevaluat pe commiturile bulk noi; nu declara green înainte de rerun.
+
+### Implicații / ce rămâne obligatoriu
+- Lifecycle audio există ca modul testat, dar încă NU este conectat end-to-end la recorder → transcription/interpretation → extraction → Core commit → independent persistence verification → delete. Audio nu se șterge automat în fluxul actual.
+- Integrarea trebuie să utilizeze AudioStore real, checkpoint durable și Core port real; verificarea persistence trebuie să citească înapoi din DB/jurnal, nu doar să accepte rezultatul returnat de commit.
+- Înainte de auto-delete: failure injection pentru provider timeout, extraction invalid, commit rejected, duplicate commit, verificare absentă, delete failure și crash între persistence verification și delete.
+- Task următor prioritar: inspectarea API-urilor reale Core/AudioStore și proiectarea adaptorului lifecycle, apoi implementare în bulk cu teste de failure/recovery; nu activa ștergerea până la verificarea end-to-end.
