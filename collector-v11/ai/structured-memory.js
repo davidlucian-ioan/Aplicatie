@@ -55,7 +55,7 @@ function buildOperations(extraction,resolutions,{idFactory=()=> 'mem-'+Math.rand
  for(const r of resolutions){
   const id=r.resolvedId||idFactory();
   map.set(r.key,id);
-  if(!r.resolvedId)operations.push({operation:'entity.create',target:id,data:{name:r.name,type:r.type}});
+  if(!r.resolvedId)operations.push({operation:'entity.create',target:id,data:{name:r.name,type:r.type}});if(r.aliases?.length)operations.push({operation:'attribute.set',target:id,data:{name:'aliases',value:r.aliases}});
  }
  for(const fact of extraction.facts){const target=map.get(fact.subject);operations.push({operation:'attribute.set',target,data:{name:fact.name,value:fact.value,certainty:fact.certainty,validAt:fact.validAt}});}
  for(const relation of extraction.relations){operations.push({operation:'relation.create',target:null,data:{sourceId:map.get(relation.source),targetId:map.get(relation.target),type:relation.type,attributes:{certainty:relation.certainty}}});}
