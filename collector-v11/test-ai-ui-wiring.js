@@ -369,6 +369,6 @@ test('audio commit recovery detects existing commits before retranscription and 
  assert.ok(flow.indexOf('recoverCommittedAudioCapture(record.id)')<flow.indexOf('CollectorOpenAIProvider.transcribe'));
  assert.ok(app.includes('stableAudioCaptureIntentKey(sourceRecordingId)'));
  assert.ok(app.includes('findCommittedEvent(persisted,recordingId)'));
- assert.ok(app.includes('collector-memory-capture:'));
+ assert.ok(fs.readFileSync('ai/audio-capture-recovery.js','utf8').includes('collector-memory-capture:'));
  assert.ok(app.includes('Nu am retranscris și nu am creat duplicate'));
 });
