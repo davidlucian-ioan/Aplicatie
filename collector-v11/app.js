@@ -1,11 +1,11 @@
 'use strict';
-const E=window.CollectorEngine, KEY='collector_mvp_v2', OLD_KEY='collector_mvp_v1';
+const E=window.CollectorEngine, KEY='collector_mvp_v2', OLD_KEY='collector_mvp_v1', AUDIO_RETENTION_KEY='collector_audio_retention_policy_v1';
 const encryptionEnabled=window.CollectorConfig?.sqliteEncryptionEnabled===true;
 const storageAdapter=window.CollectorStorageAdapter.createAutoStorageAdapter({capacitor:window.Capacitor,sqlite:window.Capacitor?.Plugins?.CapacitorSQLite,legacyStorage:window.localStorage,encryptionBootstrap:window.CollectorSQLiteEncryption,requireEncryption:encryptionEnabled});
 window.CollectorStorage=storageAdapter;
 const titles={dashboard:['Think','Analize, grafice, configurare și administrarea datelor.'],entities:['Entități','Entități universale, atribute temporale și cronologie.'],relations:['Relații & locații','Relații de prim rang, localizare temporală și ierarhie.'],inventory:['Populații & solduri','Cantități anonime și solduri derivate din evenimente.'],finance:['Financiar','Tranzacții pe evenimente și indicatori derivați.'],attributes:['Atribute','Definiții configurabile cu tip, rol, natură, proprietar și reguli.'],events:['Evenimente','Jurnalul de evenimente append-only.'],history:['Istoric','Cronologie completă și filtrabilă.'],assistant:['Work','Înregistrare rapidă, alarme și introducere vocală, cu confirmare înainte de salvare.'],audit:['Audit & date','Replay, export, import și limitele implementării.']};
 let integrityBlocked=false, integrityBlockReason=null, integrityRawBackup=null, integrityCanRebuild=false;
-let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null, pendingAIEnhancements=null, localDataErasing=false, activeAudioRecordingId=null, aiInterpretationPending=false, coreCommitPending=false;
+let db=E.emptyState(), currentEntityId=null, aiCorePort=null, pendingCoreCommand=null, pendingAIEnhancements=null, localDataErasing=false, activeAudioRecordingId=null, aiInterpretationPending=false, coreCommitPending=false, keepAudioAfterCommit=false;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function id(){return E.uid()}
 function commandIntentKey(){return `collector-intent:${E.uid()}`}
@@ -319,16 +319,17 @@ async function confirmCoreCommand(){
    box.innerHTML=message+extras+(audioDraftError?'<p class="note">'+esc(audioDraftError)+' Înregistrarea audio originală a fost păstrată; ștergerea nu este disponibilă din această confirmare.</p>':'')+(audioCheckpointError?'<p class="note">Core a confirmat salvarea, dar checkpoint-ul audio nu a putut fi actualizat. Înregistrarea originală este păstrată și ștergerea nu este disponibilă: '+esc(audioCheckpointError.message)+'</p>':'');
    if(extrasState)bindAIEnhancements(box,extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId);
    if(extrasState?.audioRecordingId&&audioCheckpointReady&&audioDraftCleared&&(result.status==='committed'||result.status==='duplicate')){
-    const deleteSource=document.createElement('button');deleteSource.type='button';deleteSource.className='secondary';deleteSource.textContent='Șterge audio original';
-    deleteSource.addEventListener('click',async()=>{
-     deleteSource.disabled=true;
+    if(keepAudioAfterCommit){
+     box.insertAdjacentHTML('beforeend','<p class="muted">Audio-ul original a fost păstrat conform setării Work. Memoria structurată este salvată și verificată independent.</p>');
+    }else{
      try{
-      const deletion=await deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId);
-      if(deletion.status==='cancelled'){deleteSource.disabled=false;return}
-      deleteSource.textContent='Audio original șters ✓';activeAudioRecordingId=null;await renderAudioRecordings();await refreshAudioLifecycleRecovery();
-     }catch(error){deleteSource.disabled=false;deleteSource.textContent='Reîncearcă ștergerea audio';box.insertAdjacentHTML('beforeend','<p class="note">Audio-ul original a fost păstrat sau nu a putut fi confirmată ștergerea: '+esc(error.message)+'</p>')}
-    });
-    box.append(deleteSource);
+      await deleteAudioFromVerifiedCheckpoint(extrasState.audioRecordingId,{confirmBeforeDelete:false});
+      box.insertAdjacentHTML('beforeend','<p class="status-ok">Audio-ul temporar a fost eliminat după salvarea și verificarea independentă a memoriei structurate.</p>');
+      activeAudioRecordingId=null;await renderAudioRecordings();await refreshAudioLifecycleRecovery();
+     }catch(error){
+      box.insertAdjacentHTML('beforeend','<p class="note">Datele structurate sunt salvate; audio-ul original a fost păstrat deoarece eliminarea nu a putut fi verificată. Poți reîncerca din lista de înregistrări. Detalii: '+esc(error.message)+'</p>');
+     }
+    }
    }
   } else if(result.status==='verification_failed'){
    if(extrasState?.audioRecordingId)try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'failed',{error:(result.errors||[]).join(' ')})}catch(_){}
@@ -407,11 +408,11 @@ async function runAICommand(){
  if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){box.textContent='Există deja o interpretare sau o salvare în curs. Confirmă ori anulează propunerea curentă înainte de a începe alta.';return}
  if(!text){box.textContent='Scrie sau dictează mai întâi ce dorești să înregistrezi.';return}
  aiInterpretationPending=true;
- if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')}catch(checkpointError){throw Error('Checkpoint-ul de recovery nu a putut fi salvat. Interpretarea a fost oprită, iar înregistrarea audio este păstrată: '+checkpointError.message)}
  const button=document.getElementById('parseWithAI');
  if(button){button.disabled=true;button.textContent='AI procesează…'}
  box.textContent='Trimit textul către OpenAI pentru interpretare. Nicio modificare nu este salvată în această etapă.';
  try{
+  if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')}catch(checkpointError){throw Error('Checkpoint-ul de recovery nu a putut fi salvat. Interpretarea a fost oprită, iar înregistrarea audio este păstrată: '+checkpointError.message)}
   if(!window.CollectorOpenAIProvider)throw Error('Modulul OpenAI nu este încărcat. Pornește Collector prin serverul local.');
   const context={
    entities:db.entities.slice(0,150).map(e=>({id:e.id,name:e.name,type:e.type})),
@@ -791,7 +792,7 @@ async function verifyAudioCheckpointEvent(cp){
  if(!event)throw Error('Evenimentul asociat înregistrării nu a fost găsit în jurnalul persistent.');
  return event;
 }
-async function deleteAudioFromVerifiedCheckpoint(recordingId){
+async function deleteAudioFromVerifiedCheckpoint(recordingId,{confirmBeforeDelete=true}={}){
  const store=window.CollectorAudioLifecycleCheckpointStore;
  if(!store)throw Error('Stocarea checkpoint-urilor audio nu este disponibilă.');
  let cp=await store.get(recordingId);
@@ -803,7 +804,7 @@ async function deleteAudioFromVerifiedCheckpoint(recordingId){
   const remaining=await CollectorAudioStore.get(recordingId);return remaining===null||remaining===undefined;
  };
  if(source!==null&&source!==undefined){
-  if(!confirm('Evenimentul structurat a fost verificat independent în jurnal. Ștergi definitiv înregistrarea audio originală de pe acest dispozitiv?'))return {status:'cancelled'};
+  if(confirmBeforeDelete&&!confirm('Evenimentul structurat a fost verificat independent în jurnal. Ștergi definitiv înregistrarea audio originală de pe acest dispozitiv?'))return {status:'cancelled'};
   await writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending',{eventId:cp.persistResult.eventId,intentKey:cp.persistResult.intentKey});
   try{await CollectorAudioStore.remove(recordingId)}catch(removeError){if(!(await verifyAudioRemoval()))throw removeError}
  }
@@ -969,11 +970,40 @@ async function refreshAudioLifecycleRecovery(){
   }));
  }catch(error){box.textContent='Nu pot citi checkpoint-urile de recovery: '+String(error?.message||error)}
 }
+async function initializeAudioRetentionPreference(){
+ const toggle=document.getElementById('retainAudioAfterCommit');
+ try{
+  const saved=await storageAdapter.readRaw(AUDIO_RETENTION_KEY);
+  keepAudioAfterCommit=saved==='keep';
+ }catch(error){
+  // Fail closed: if the preference cannot be read, retain source audio rather than risk deletion.
+  keepAudioAfterCommit=true;
+  setAppStatus('Setarea de retenție audio nu a putut fi citită. Pentru siguranță, înregistrările vor fi păstrate.');
+ }
+ if(!toggle)return;
+ toggle.checked=keepAudioAfterCommit;
+ toggle.addEventListener('change',async()=>{
+  const requested=toggle.checked,serialized=requested?'keep':'delete';
+  toggle.disabled=true;
+  try{
+   if(await storageAdapter.writeRaw(AUDIO_RETENTION_KEY,serialized)!==true)throw Error('Setarea nu a fost confirmată de stocare.');
+   if(await storageAdapter.readRaw(AUDIO_RETENTION_KEY)!==serialized)throw Error('Recitirea setării de retenție nu corespunde.');
+   keepAudioAfterCommit=requested;
+   setAppStatus(requested?'Audio original va fi păstrat după salvarea memoriei.':'Audio original va fi eliminat după commit-ul Core verificat.');
+  }catch(error){
+   // An uncertain preference must never enable destructive cleanup.
+   keepAudioAfterCommit=true;toggle.checked=true;
+   try{await storageAdapter.writeRaw(AUDIO_RETENTION_KEY,'keep')}catch(_){}
+   setAppStatus('Nu am putut confirma setarea. Audio-ul va fi păstrat pentru siguranță: '+error.message);
+  }finally{toggle.disabled=false}
+ });
+}
 async function initializeCollectorApp(){
  const main=document.getElementById('mainContent');
  if(main)main.inert=true;
  try{
   await storageAdapter.initialize();
+  await initializeAudioRetentionPreference();
   window.CollectorAudioLifecycleCheckpointStore=window.CollectorAudioProcessingLifecycle?.createStorageCheckpointStore(storageAdapter)||null;
   window.CollectorAudioLifecycleRecovery={list:()=>window.CollectorAudioLifecycleCheckpointStore?.list()||Promise.resolve([]),diagnostics:()=>window.CollectorAudioLifecycleCheckpointStore?.diagnostics()||Promise.resolve(null),refresh:refreshAudioLifecycleRecovery};
   db=await loadDb();
