@@ -192,6 +192,9 @@ test('all HTML entrypoints expose the same searchable Think and Work-first UI',a
   const reminders=html.indexOf('class="panel reminders-panel work-reminders"');
   assert.ok(recorder>=0&&command>recorder&&reminders>command,entrypoint+' must expose Work in recorder → command → reminders order');
   assert.ok(html.includes('id="audioRecoverPending"'),entrypoint+' missing interrupted-audio recovery action');
+  assert.ok(html.includes('ai/reminder-intent.js?v=1.0'),entrypoint+' missing AI reminder validator');
+  assert.ok(html.includes('reminders.js?v=0.2'),entrypoint+' missing current reminder service');
+  assert.ok(html.includes('app.js?v=0.8'),entrypoint+' missing current Work UI');
   assert.ok(html.includes('subscriptions.js?v=0.1'),entrypoint+' missing subscriptions client');
  }
  const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
