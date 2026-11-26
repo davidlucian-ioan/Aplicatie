@@ -48,6 +48,7 @@
    if(key){
     const existing=rows.find(row=>row.idempotencyKey===key);
     if(existing){
+     if((existing.status||'scheduled')==='scheduled'&&existing.scheduleUncertain===true)throw new Error('Programarea acestei notificări are o stare incertă. Verifică sau anulează reminderul existent înainte de a crea altul.');
      if((existing.status||'scheduled')==='scheduled')return {...existing,alreadyScheduled:true};
      throw new Error('Această intenție de reminder este deja în starea '+existing.status+'; creează o intenție nouă doar după o decizie explicită.');
     }
@@ -78,7 +79,11 @@
     }
     // If compensation cannot be confirmed, retain the metadata row so a possibly
     // scheduled native notification is still represented and can be managed.
-    if(cancelError)throw new Error('Starea notificării este incertă după eșecul programării. Am păstrat reminderul local pentru recovery; verifică-l înainte de a crea altul: '+error.message+'; '+cancelError.message);
+    if(cancelError){
+     try{await persistRows(next.map(row=>row.id===reminder.id?{...row,scheduleUncertain:true}:row))}
+     catch(readbackError){throw new Error('Starea notificării este incertă; reminderul inițial a fost păstrat, dar indicatorul de recovery nu a putut fi confirmat: '+error.message+'; '+cancelError.message+'; '+readbackError.message)}
+     throw new Error('Starea notificării este incertă după eșecul programării. Am păstrat reminderul și l-am marcat pentru recovery; verifică-l înainte de a crea altul: '+error.message+'; '+cancelError.message);
+    }
     try{await persistRows(rows)}catch(rollbackError){throw new Error('Alarma nu a putut fi programată, iar rollback-ul listei locale nu a putut fi verificat: '+error.message+'; '+rollbackError.message)}
     throw error;
    }
@@ -105,7 +110,7 @@
    if(!target)return false;
    if(target.status==='completed'||target.status==='cancelled')return false;
    await plugin.cancel({notifications:[{id:target.notificationId}]});
-   const updated={...target,status,[status==='completed'?'completedAt':'cancelledAt']:now().toISOString()};
+   const updated={...target,status,scheduleUncertain:false,[status==='completed'?'completedAt':'cancelledAt']:now().toISOString()};
    try{await persistRows(rows.map(row=>row.id===id?updated:row))}
    catch(error){
     let restoreError=null;
@@ -169,7 +174,7 @@
   try{
    const all=await service.list(),rows=all.filter(row=>(row.status||'scheduled')==='scheduled'&&new Date(row.at).getTime()>Date.now()).sort((a,b)=>a.at.localeCompare(b.at));
    const completed=all.filter(row=>row.status==='completed').sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||'')).slice(0,5);
-   const activeHtml=rows.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">'+esc(new Date(row.at).toLocaleString('ro-RO'))+'</div>'+(row.sourceContext?'<div class="muted">Sursă Work: '+esc(row.sourceContext.slice(0,140))+'</div>':'')+'</div><div class="row-actions"><button class="secondary" type="button" data-reminder-complete="'+esc(row.id)+'">✓ Gata</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="10">+10 min</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="60">+1 h</button><button class="secondary" type="button" data-reminder-cancel="'+esc(row.id)+'">Anulează</button></div></div>').join();
+   const activeHtml=rows.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">'+esc(new Date(row.at).toLocaleString('ro-RO'))+'</div>'+(row.scheduleUncertain?'<div class="note">Starea notificării este incertă. Verifică notificările acestui telefon înainte de a crea un duplicat.</div>':'')+(row.sourceContext?'<div class="muted">Sursă Work: '+esc(row.sourceContext.slice(0,140))+'</div>':'')+'</div><div class="row-actions"><button class="secondary" type="button" data-reminder-complete="'+esc(row.id)+'">✓ Gata</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="10">+10 min</button><button class="secondary" type="button" data-reminder-snooze="'+esc(row.id)+'" data-minutes="60">+1 h</button><button class="secondary" type="button" data-reminder-cancel="'+esc(row.id)+'">Anulează</button></div></div>').join();
    const historyHtml=completed.length?'<h3>Finalizate recent</h3>'+completed.map(row=>'<div class="row reminder-row"><div><b>'+esc(row.title)+'</b><div class="muted">Finalizat · '+esc(new Date(row.completedAt||row.at).toLocaleString('ro-RO'))+'</div>'+(row.sourceContext?'<div class="muted">Sursă Work: '+esc(row.sourceContext.slice(0,140))+'</div>':'')+'</div></div>').join():'';
    listElement.innerHTML=(activeHtml||'<p class="muted">Nu ai alarme programate.</p>')+historyHtml;
   }catch(error){listElement.textContent='Nu pot încărca alarmele: '+error.message}
