@@ -40,6 +40,15 @@ test('Work draft controls and quick templates exist in every UI entry point',()=
  assert.ok(invalidate>=0&&invalidate<emptyBranch,'clear invalidates pending draft restore before the empty-input branch');
  assert.ok(clearSection.includes("await enqueueDraftWrite('',version)"),'clear must serialize removal after pending autosaves');
 });
+test('sesiunea vocală continuă trimite transcriptul către AI, nu parserul local',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const start=app.indexOf('function startVoiceSession()');
+ const end=app.indexOf('function startVoiceCapture()',start);
+ const section=app.slice(start,end);
+ assert.ok(section.includes('runAICommand()'),'voice-session final transcript must go through AI interpretation');
+ assert.ok(section.includes('value=transcript'),'do not force transcript into a deterministic observation template');
+ assert.ok(!section.includes('runCommand()'),'avoid local parser fallback that bypasses AI semantics');
+});
 test('UI expune providerul OpenAI separat de interpretarea locală',()=>{
  const html=fs.readFileSync('index-server.html','utf8');
  const app=fs.readFileSync('app.js','utf8');
