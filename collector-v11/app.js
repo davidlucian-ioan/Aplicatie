@@ -292,7 +292,39 @@ async function runStructuredRecall(query){
   if(result.attributes.length)sections.push('<section class="recall-section"><b>Facts / atribute</b>'+result.attributes.map(a=>'<div class="row"><div><b>'+esc(a.entityName)+' · '+esc(a.name)+'</b><div>'+esc(typeof a.value==='string'?a.value:JSON.stringify(a.value))+'</div></div></div>').join('')+'</section>');
   if(result.relations.length)sections.push('<section class="recall-section"><b>Relații</b>'+result.relations.map(r=>'<div class="row"><div><b>'+esc(r.sourceName)+' → '+esc(r.type)+' → '+esc(r.targetName)+'</b><div class="muted">'+esc(r.startedAt||r.createdAt||'')+'</div></div></div>').join('')+'</section>');
   if(result.events.length)sections.push('<section class="recall-section"><b>Evenimente / context temporal</b>'+result.events.map(e=>{const summary=e.payload?.summary||e.payload?.description||e.operations?.find(o=>o.operation==='event.note')?.data?.description||e.type;return '<div class="row" data-recall-source="'+esc(e.id)+'"><div><b>'+esc(summary)+'</b><div class="muted">'+esc(e.timestamp||'Dată necunoscută')+' · '+esc(e.certainty||'certainty necunoscută')+' · '+esc(e.id.slice(0,10))+'</div></div><button class="secondary" type="button" data-recall-open-event="'+esc(e.id)+'">Deschide sursa</button></div>'}).join('')+'</section>');
-  box.innerHTML=sections.join('')+'<p class="muted">Acesta este retrieval local, nu sinteză generativă. Pentru întrebări care necesită interpretare, AI va primi numai dovezile recuperate, nu audio.</p>';
+  box.innerHTML=sections.join('')+'<div class="row"><button class="secondary" type="button" data-recall-synthesize>Formulează răspuns cu AI din dovezile găsite</button></div><div id="recallAiAnswer" aria-live="polite"></div><p class="muted">AI primește numai dovezile recuperate mai sus, nu jurnalul complet și nu înregistrările audio. Sursele afișate sunt validate față de rezultatul local.</p>';
+  const synthButton=box.querySelector('[data-recall-synthesize]');
+  synthButton?.addEventListener('click',async()=>{
+   if(!window.CollectorOpenAIProvider?.interpret){status.textContent='Sinteza AI nu este disponibilă în această versiune.';return}
+   const answerBox=box.querySelector('#recallAiAnswer');
+   synthButton.disabled=true;synthButton.textContent='AI verifică dovezile…';
+   answerBox.textContent='Formulez răspunsul numai din informațiile găsite în memoria structurată.';
+   try{
+    const response=await window.CollectorOpenAIProvider.interpret(q,{recallEvidence:result.evidence});
+    const ai=response?.interpretation;
+    const sourceMap=new Map(result.evidence.map(row=>[String(row.sourceId||row.id||''),row]).filter(([id])=>id));
+    const cited=Array.isArray(ai?.answerSources)?[...new Set(ai.answerSources.map(String).filter(id=>sourceMap.has(id)))].slice(0,10):[];
+    if(ai?.intent!=='answer'||typeof ai.answer!=='string'||!ai.answer.trim()||!cited.length)throw new Error('AI nu a returnat un răspuns legat de dovezi verificabile. Consultă înregistrările de mai sus.');
+    const sourceHtml=cited.map(id=>{
+     const row=sourceMap.get(id);let label=row.kind+' · '+id.slice(0,14);
+     if(row.kind==='entity')label=row.label+' · '+id.slice(0,10);
+     else if(row.kind==='relation')label=row.source+' → '+row.type+' → '+row.target;
+     else if(row.kind==='event')label=(row.summary||'Eveniment')+' · '+id.slice(0,10);
+     else if(row.kind==='attribute')label=row.entityName+' · '+row.name;
+     else if(row.kind==='event_attribute')label='Eveniment · '+row.name;
+     return row.kind==='event'?'<button class="secondary" type="button" data-recall-open-event="'+esc(row.id)+'">'+esc(label)+'</button>':'<span class="muted">'+esc(label)+'</span>';
+    }).join(' ');
+    answerBox.innerHTML='<section class="note"><b>Răspuns Collector</b><p>'+esc(ai.answer)+'</p><div class="row"><b>Surse verificate:</b> '+sourceHtml+'</div></section>';
+    answerBox.querySelectorAll('[data-recall-open-event]').forEach(button=>button.addEventListener('click',()=>openRecallEvent(button.dataset.recallOpenEvent)));
+    status.textContent='Răspuns generat din '+cited.length+' surse structurale validate.';
+    synthButton.textContent='Regenerează răspunsul';
+   }catch(error){
+    answerBox.textContent='Nu am putut formula un răspuns verificabil: '+error.message;
+    synthButton.disabled=false;synthButton.textContent='Reîncearcă sinteza AI';
+   }finally{
+    if(!synthButton.disabled&&synthButton.textContent!=='Reîncearcă sinteza AI')synthButton.disabled=false;
+   }
+  });
  }catch(error){status.textContent='Recall a eșuat: '+error.message;box.textContent='Nu am putut interoga memoria structurată.'}
 }
 function openRecallEvent(eventId){
