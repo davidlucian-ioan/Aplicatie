@@ -128,11 +128,13 @@ const server = http.createServer(async (req, res) => {
         const model=process.env.OPENAI_TRANSCRIPTION_MODEL||'gpt-4o-mini-transcribe';
         form.append('model',model);form.append('response_format','json');
         const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
-        let upstream;try{upstream=await fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{Authorization:'Bearer '+process.env.OPENAI_API_KEY},body:form,signal:controller.signal})}finally{clearTimeout(timer)}
-        const data=await upstream.json().catch(()=>({}));
-        if(!upstream.ok)return send(res,upstream.status===429?429:502,{error:'Transcrierea OpenAI a eșuat. Verifică providerul și limitele API.'});
-        if(typeof data.text!=='string'||!data.text.trim())return send(res,502,{error:'Transcrierea nu a returnat text.'});
-        return send(res,200,{text:data.text.trim(),model});
+        try{
+          const upstream=await fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{Authorization:'Bearer '+process.env.OPENAI_API_KEY},body:form,signal:controller.signal});
+          const data=await upstream.json().catch(()=>({}));
+          if(!upstream.ok)return send(res,upstream.status===429?429:502,{error:'Transcrierea OpenAI a eșuat. Verifică providerul și limitele API.'});
+          if(typeof data.text!=='string'||!data.text.trim())return send(res,502,{error:'Transcrierea nu a returnat text.'});
+          return send(res,200,{text:data.text.trim(),model});
+        }finally{clearTimeout(timer)}
       }catch(error){return send(res,502,{error:'Transcrierea audio nu a putut fi finalizată.'})}
     }
     if (req.method !== 'POST' || url.pathname !== '/api/ai/interpret') {
