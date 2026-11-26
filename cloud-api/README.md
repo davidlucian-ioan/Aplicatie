@@ -75,6 +75,28 @@ Status-ul AI expune bugetul lunar, suma consumată, suma rezervată și suma ră
 - Migrarea SQL trebuie aplicată într-un proiect Supabase real; fără aceasta, status-ul, webhook-ul și metering-ul nu vor funcționa. Setează variabilele build `COLLECTOR_REVENUECAT_APPLE_API_KEY` și `COLLECTOR_REVENUECAT_GOOGLE_API_KEY` (publice) și server `REVENUECAT_WEBHOOK_AUTHORIZATION`, `REVENUECAT_PRO_PRODUCT_IDS`.
 - AI status și endpoint-urile trebuie testate cu proiect Supabase, chei, webhook și achiziții sandbox reale înainte de activarea publică.
 
+## Acceptance Recall cu provider real (billable, opt-in)
+
+Cloud API și testele CI folosesc provider mock; acestea nu dovedesc că Supabase, entitlement-ul, cheia OpenAI și Responses API funcționează într-un deployment real. Repository-ul nu conține secrete și nu declară un proiect Supabase de producție conectat.
+
+După configurarea unui Cloud API real, a migrării Supabase, a unui utilizator cu Collector Pro activ și a unui buget AI suficient, smoke testul poate fi pornit manual:
+
+```bash
+COLLECTOR_RUN_BILLABLE_RECALL_TEST=true \
+COLLECTOR_API_BASE_URL=https://<api-host> \
+COLLECTOR_ACCESS_TOKEN=<supabase-access-token> \
+COLLECTOR_LIVE_RECALL_MIN_REMAINING_USD=0.10 \
+npm run acceptance:recall:live
+```
+
+- Testul face mai întâi `GET /api/ai/status`; nu trimite cererea AI dacă providerul, billing-ul, entitlement-ul Pro sau pragul minim de buget nu sunt confirmate.
+- După preflight trimite **un singur apel Recall read-only**, cu un task sintetic de test și un source ID unic; nu creează sau modifică date în Core.
+- Endpoint-ul AI rezervă bugetul înainte de apelul OpenAI. Cererea poate produce cost; serverul decide suma efectiv rezervată conform tarifelor și plafonului configurate.
+- Nu folosi tokenul unui utilizator real fără autorizare și nu pune tokenul sau cheia OpenAI în Git, loguri ori în aplicația client.
+- HTTP este permis doar pentru localhost; un host remote trebuie să folosească HTTPS.
+- Rezultatul trece numai dacă răspunsul este de tip `answer`, conține text și citează exact task evidence ID-ul furnizat. Nu acceptă surse inventate.
+- `npm test` testează preflight-ul și traseul cu fetch mock; nu execută niciodată un apel live sau billable.
+
 ## Local
 
 ```bash
