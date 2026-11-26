@@ -972,3 +972,13 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Cloud API CI was successful on prior failing-fix HEAD; latest HEAD CI is running. Quality Suite + Android/iOS verification must complete before claiming this batch green.
 - Do not merge/deploy, configure live billing, or release without explicit approval.
 - Next: validate CI. Then inspect Work memory facts/semantic summary behavior and implement source-grounded persistence/recall carefully; improve voice capture→transcription→AI→spoken response without sending audio unless user action/policy explicitly allows.
+
+
+## Checkpoint Work — AI-first voice session + reminder concurrency (2026-11-26)
+- Latest code checkpoint before this documentation commit: `5004557ed137f01987aff43659c6d8caa9617404`.
+- Continuous voice session now sends the final recognized transcript directly to `runAICommand()` instead of forcing it into `Observație:` and running the deterministic local parser. The AI proposal still goes through Core preview and explicit user confirmation; no auto-save/execution was introduced.
+- Added static regression test ensuring continuous voice session routes through AI and does not call the local parser.
+- Reminder create/status/clear mutations serialized through a promise queue; concurrent duplicate idempotency keys no longer race into duplicate native schedules. Added concurrency regression.
+- Corrected the audio-backup malformed fixture that had accidentally been valid (unsupported MIME now tests the intended metadata rejection).
+- CI was running on the previous checkpoint; verify latest HEAD workflows before calling this batch validated. Cloud API success had been observed on the preceding batch.
+- Remaining voice pipeline gap: native/browser audio recordings are retained locally, but they are not automatically transcribed/attached to an AI memory record; live dictation is browser SpeechRecognition and platform/browser availability varies. Next work should design a reliable, explicit audio-transcription path and durable source-grounded memory storage, without silently uploading recordings.
