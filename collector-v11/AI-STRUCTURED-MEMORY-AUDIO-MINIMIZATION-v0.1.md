@@ -80,3 +80,6 @@ F. Test ambiguous names, alias collisions, date/time parsing, duplicate capture/
 - After a confirmed Core commit and independent journal readback, the temporary transcript draft is cleared and source audio is deleted by default, with an explicit Work preference to retain recordings. Failed or uncertain processing always retains the source.
 - The browser flow now uses OpenAI transcription/interpretation, strict structured-memory validation, entity resolution, Core preview, explicit confirmation and independent persisted-journal readback. Structured entities, attributes, relations and events are the durable memory; original audio is not required for reconstruction.
 - Rich source-linked playback/recall, natural-language playback/TTS, automatic background queueing and physical-device validation remain follow-up work.
+
+
+Audio captures that yield only an unstructured event note are not committed and cannot trigger source deletion. For audio-originated follow-up notes/reminders, the original transcript is excluded from persistent payloads; only extracted summaries, facts, source IDs and reminder data remain.
