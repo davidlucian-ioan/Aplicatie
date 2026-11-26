@@ -289,7 +289,7 @@ async function confirmCoreCommand(){
 function renderAIEnhancements(ai,sourceText,sourceId,turnId){
  const parts=[];
  if(ai.semanticSummary)parts.push('<section class="note"><b>Sumar inteligent</b><p>'+esc(ai.semanticSummary)+'</p></section>');
- if(Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length)parts.push('<section class="note"><b>Fapte candidate · nu sunt salvate încă</b><ul>'+ai.memoryFacts.slice(0,10).map(fact=>'<li>'+esc(fact)+'</li>').join('')+'</ul></section>');
+ if((ai.semanticSummary||Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length)&&sourceText)parts.push('<section class="note"><b>Memorie candidată · nu este salvată încă</b>'+ (Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length?'<ul>'+ai.memoryFacts.slice(0,10).map(fact=>'<li>'+esc(fact)+'</li>').join('')+'</ul>':'')+'<button class="secondary" type="button" data-ai-memory-save="1">Salvează în memorie</button></section>');
  if(Array.isArray(ai.reminderSuggestions)&&ai.reminderSuggestions.length){
   parts.push('<section class="note"><b>Reminders sugerate</b>'+ai.reminderSuggestions.slice(0,5).map((suggestion,index)=>{
    const due=suggestion.due||{},when=due.date?(due.date+(due.time?' · '+due.time:'')):'Dată neclară';
@@ -301,6 +301,24 @@ function renderAIEnhancements(ai,sourceText,sourceId,turnId){
  return parts.join('');
 }
 function bindAIEnhancements(box,ai,sourceText,sourceId,turnId){
+ const memoryButton=box.querySelector('[data-ai-memory-save]');
+ if(memoryButton)memoryButton.addEventListener('click',async()=>{
+  memoryButton.disabled=true;
+  try{
+   const summary=String(ai.semanticSummary||'').trim(),facts=(Array.isArray(ai.memoryFacts)?ai.memoryFacts:[]).map(x=>String(x).trim()).filter(Boolean).slice(0,10);
+   if(!summary&&!facts.length)throw Error('Nu există conținut de memorie valid.');
+   const description=['Memorie Collector',summary?('Rezumat: '+summary):'',facts.length?('Fapte: '+facts.join('; ')):'','Sursă: '+String(sourceId||'Work'),'Text original: '+String(sourceText||'').slice(0,1200)].filter(Boolean).join(' · ');
+   const command={contractVersion:'collector.command.v1',intent:'ai.memory.save',source:'ai-memory',certainty:'certain',idempotencyKey:'collector-ai-memory:'+turnId,payload:{sourceId,semanticSummary:summary,memoryFacts:facts,sourceText:String(sourceText||'').slice(0,1200)},operations:[{operation:'event.note',target:null,data:{description}}],requiresConfirmation:true};
+   const preview=await ensureAICorePort().preview(command);
+   if(preview.status!=='preview_ok')throw Error('Core a respins salvarea memoriei: '+preview.status);
+   if(!confirm('Salvez această memorie în jurnalul Collector?\\n\\n'+description+'\\n\\nDatele nu sunt salvate încă.')){memoryButton.disabled=false;return}
+   const result=await serializeMutation(()=>ensureAICorePort().execute(command,{confirmed:true}));
+   if(result.status!=='committed')throw Error('Salvarea memoriei nu a fost confirmată: '+result.status);
+   memoryButton.textContent='Memorie salvată ✓';
+   box.insertAdjacentHTML('beforeend','<p class="status-ok">Memoria a fost salvată în jurnalul Collector.</p>');
+  }catch(error){memoryButton.disabled=false;memoryButton.textContent='Reîncearcă salvarea';box.insertAdjacentHTML('beforeend','<p class="note">Memoria nu a fost salvată: '+esc(error.message)+'</p>')}
+ });
+
  box.querySelectorAll('[data-ai-reminder-index]').forEach(button=>{
   const index=Number(button.dataset.aiReminderIndex),suggestion=ai.reminderSuggestions?.[index];
   button.addEventListener('click',async()=>{
