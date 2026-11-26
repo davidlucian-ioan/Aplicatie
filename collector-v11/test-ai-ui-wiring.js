@@ -480,3 +480,12 @@ test('Recall UI renders canonical reminder tasks from structured evidence',()=>{
  assert.ok(recall.includes('task.successorDueAt'));
  assert.ok(recall.includes("row.kind==='task'"));
 });
+
+test('Recall UI clearly distinguishes uncertain native reminder scheduling',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const recall=app.slice(app.indexOf('async function runStructuredRecall'),app.indexOf('function openRecallEvent'));
+ assert.ok(recall.includes("task.scheduleState==='uncertain'"));
+ assert.ok(recall.includes('Programare neconfirmată'));
+ assert.ok(recall.includes("task.scheduleState==='scheduled'"));
+ assert.ok(recall.includes('Notificare programată'));
+});
