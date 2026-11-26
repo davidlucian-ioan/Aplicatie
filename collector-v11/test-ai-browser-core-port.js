@@ -8,18 +8,19 @@ function setup({ failPersist = false, failReadback = false, corruptReadback = fa
   let state = Core.emptyState();
   let persisted = null;
   let published = 0;
+  let failNextReadback = false;
   let verificationFailure = null;
   const port = new BrowserCorePort({
     core: Core,
     store: {
       getState: () => state,
       persistState: async next => { if (failPersist) return false; persisted = structuredClone(next); if (persistThenThrow) throw new Error('commit response lost'); if (persistThenFalse) return false; return true; },
-      readPersistedState: async () => { if (failReadback) throw new Error('readback unavailable'); return corruptReadback ? Core.emptyState() : structuredClone(persisted || Core.emptyState()); },
+      readPersistedState: async () => { if (failReadback || failNextReadback) { failNextReadback = false; throw new Error('readback unavailable'); } return corruptReadback ? Core.emptyState() : structuredClone(persisted || Core.emptyState()); },
       onVerificationFailure: error => { verificationFailure = String(error?.message || error); },
       publishState: async next => { state = next; published++; }
     }
   });
-  return { port, get state(){ return state; }, get persisted(){ return persisted; }, get published(){ return published; }, get verificationFailure(){ return verificationFailure; } };
+  return { port, get state(){ return state; }, get persisted(){ return persisted; }, get published(){ return published; }, get verificationFailure(){ return verificationFailure; }, failNextReadback(){ failNextReadback=true; } };
 }
 function cmd() { return { contractVersion:'collector.command.v1', intent:'entity.create', idempotencyKey:'browser-port-1', payload:{name:'Test plant'}, operations:[{operation:'entity.create',target:'plant-1',data:{name:'Test plant',type:'plant'}}] }; }
 
@@ -91,5 +92,25 @@ test('Browser Core Port trusts verified readback over a false persistence respon
 test('Browser Core Port invokes the integrity lock when readback is ambiguous', async () => {
   const x=setup({failReadback:true}); const result=await x.port.execute(cmd());
   assert.equal(result.status,'verification_failed');
+  assert.match(x.verificationFailure,/readback unavailable/);
+});
+
+
+test('Browser Core Port independently verifies an existing idempotent commit before returning duplicate', async () => {
+  const x=setup(); const first=await x.port.execute(cmd());
+  assert.equal(first.status,'committed');
+  const duplicate=await x.port.execute(cmd());
+  assert.equal(duplicate.status,'duplicate');
+  assert.equal(duplicate.persistenceVerified,true);
+  assert.equal(duplicate.eventId,first.eventId);
+  assert.equal(x.state.events.length,1);
+});
+
+test('Browser Core Port does not treat an in-memory duplicate as durable when readback fails', async () => {
+  const x=setup(); await x.port.execute(cmd()); x.failNextReadback();
+  const duplicate=await x.port.execute(cmd());
+  assert.equal(duplicate.status,'verification_failed');
+  assert.equal(x.state.events.length,1);
+  assert.equal(x.published,1);
   assert.match(x.verificationFailure,/readback unavailable/);
 });
