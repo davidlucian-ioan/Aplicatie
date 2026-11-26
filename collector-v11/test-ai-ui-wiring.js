@@ -160,3 +160,17 @@ test('Stable audio capture key changes with transcript and is deterministic for 
  assert.ok(app.includes('hash=Math.imul(hash,16777619)'));
  assert.ok(app.includes("return 'audio:'+String(recordingId)+':'+(hash>>>0).toString(16)"));
 });
+
+
+test('Concurrent audio AI runs are rejected and each interpretation keeps its original source snapshot',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const run=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
+ assert.ok(run.includes('sourceRecordingId=activeAudioRecordingId'));
+ assert.ok(run.includes('if(aiInterpretationPending)'));
+ assert.ok(run.includes('aiInterpretationPending=true'));
+ assert.ok(run.includes('aiInterpretationPending=false'));
+ assert.ok(run.includes('stableAudioCaptureTurnId(sourceRecordingId,text)'));
+ const audio=app.slice(app.indexOf("const transcribe=document.createElement('button')"),app.indexOf("const rename=document.createElement('button')"));
+ assert.ok(audio.includes('if(aiInterpretationPending)'));
+ assert.ok(audio.includes('activeAudioRecordingId=null'));
+});
