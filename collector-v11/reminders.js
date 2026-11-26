@@ -149,6 +149,7 @@
   });
   await render();
  }
- root.CollectorReminders=Object.freeze({createService,initialize,render,clearAll});
+ async function schedule(input){if(!service)await initialize();if(!service)throw new Error('Serviciul de notificări native nu este disponibil.');return service.create(input)}
+ root.CollectorReminders=Object.freeze({createService,initialize,render,schedule,clearAll});
  if(typeof module!=='undefined'&&module.exports)module.exports={createService};
 })(typeof window!=='undefined'?window:globalThis);
