@@ -16,8 +16,13 @@
    if(cp&&!retry&&cp.state==='failed')fail('Processing previously failed; call retry explicitly');
    const record=await audioStore.get(id);
    if(!record){
-    if(cp&&cp.state==='audio_deletion_pending'&&cp.persistenceVerified===true){cp.audioDeleted=true;cp.state='audio_deleted';await saveCheckpoint(cp);cp.state='completed';cp.completedAt=new Date().toISOString();await saveCheckpoint(cp);return cp;}
-    fail('Audio source missing; cannot recover processing');
+    // The delete may have succeeded while its response/checkpoint was lost.
+    // Re-verify persisted structured memory before declaring recovery complete.
+    if(cp&&cp.persistenceVerified===true&&(cp.state==='audio_deletion_pending'||cp.state==='failed')){
+     const verified=await verifyPersisted(cp.persistResult,cp.validated,{id,idempotencyKey:cp.idempotencyKey});
+     if(verified===true){cp.audioDeleted=true;cp.state='audio_deleted';await saveCheckpoint(cp);cp.state='completed';cp.completedAt=new Date().toISOString();await saveCheckpoint(cp);return cp;}
+    }
+    fail('Audio source missing; cannot recover processing without verified persistence and deletion checkpoint');
    }
    cp=cp||{id,state:'captured',attempts:0,idempotencyKey:'audio:'+id,createdAt:new Date().toISOString()};
    cp.attempts=(cp.attempts||0)+1;cp.error=null;cp.recoveryRequired=false;
