@@ -3,6 +3,8 @@
 Ultima actualizare: 2026-11-26
 Versiune de lucru: v0.8 — OpenAI Provider Integration (branch separat)
 
+Checkpoint tehnic curent: codul este pe branch-ul `feature/openai-provider-integration`, runtime HEAD `563ac92649ed0d5441efd76b2fe101f570694d69`. Quality Suite, Cloud API, Android debug APK și iOS Simulator sunt verzi pe acest HEAD. PR #55 rămâne open/draft/unmerged; `main` nu a fost modificat.
+
 ## Scopul acestui fișier
 Acesta este punctul unic de reluare pentru sesiunile viitoare. Citește-l înainte de orice modificare. Nu relua audituri sau pași deja finalizați fără un motiv concret și fără să verifici starea actuală.
 
@@ -1253,3 +1255,39 @@ Nu activa background processing, billing live sau deployment și nu scoate PR #5
 - Tests cover task creation, CorePort commit/replay, completion, terminal-state validation, invalid source, ID collision, successor metadata, local snooze outbox lifecycle and Node/browser Recall parity.
 - Remaining: run CI on the current HEAD; implement general non-reminder task creation/dependencies/assignment/priority/recurrence and dedicated UI; physical-device notification and audio acceptance; real-provider Recall acceptance.
 - Release boundary unchanged: no merge, production deployment, live billing or Store-readiness claim.
+
+
+## Checkpoint continuare — Recall tasks + CI complet verde (26 nov 2026)
+
+### Starea exactă a codului
+- Repo: `davidlucian-ioan/Aplicatie`
+- Branch: `feature/openai-provider-integration`
+- Runtime code HEAD verificat: `563ac92649ed0d5441efd76b2fe101f570694d69`
+- PR #55: open, draft, unmerged. Nu modifica `main`, nu face deployment și nu activa billing live.
+- CI pe runtime HEAD:
+  - Quality Suite run #45891930716 — PASS, inclusiv E2E Chromium, Firefox și WebKit.
+  - Cloud API run #45891930813 — PASS.
+  - Mobile build run #45891930564 — PASS, Android debug APK și iOS Simulator package.
+
+### Ce s-a implementat în această continuare
+- Reminder lifecycle este reprezentat ca entitate Core canonică `task` cu identitate stabilă `task:reminder:<reminderId>`; starea este derivată din evenimente de jurnal și reconstruibilă prin replay.
+- Task status: `open`, `completed`, `snoozed`, `cancelled`. Starea native scheduling e separată: programată, incertă sau settled. O programare incertă nu este afișată drept notificare activă.
+- Snooze este un lifecycle distinct, nu o anulare: task-ul vechi reține successor reminder/task ID și noul termen.
+- Recall returnează task-uri tipizate, le prioritizează în evidence list și nu le dublează ca entități generice.
+- Server-side context sanitizer permite doar câmpuri bounded din task evidence; câmpurile arbitrare, transcriptul și payload-urile audio sunt eliminate.
+- Recall UI afișează status, termen, sursă, successor și marchează explicit `scheduleState=uncertain`.
+- Recall AI rămâne read-only; modelului îi sunt trimise doar dovezile recuperate, iar sursele răspunsului sunt validate contra ID-urilor exacte din rezultat.
+
+### Teste noi sau actualizate
+- Creare task canonică, status transitions, CorePort commit/replay și verificarea attribute history.
+- Refuz pentru ID collisions, surse incompatibile și tranziții terminale invalide.
+- Snooze lineage și recovery când programarea nativă a fost compensată înainte de primul sync.
+- Recall Node/browser parity, task prioritization, fără duplicare în lista de entități.
+- Sanitizer server-side pentru task evidence, stripping de câmpuri arbitrare și UI wiring pentru status/termen/schedule uncertainty.
+
+### Ce rămâne pentru lansare
+1. Test Recall cu provider OpenAI real și autentificare cloud; testele curente folosesc provider mock și sanitizer server-side.
+2. Acceptance pe telefoane fizice: microfon, background/foreground, restart, notificări și snooze în OS.
+3. Task manager general (nu doar reminder-backed): creare, dependențe, priorități, assignment, recurrence și UI dedicat.
+4. TTS, sincronizare multi-device/offline și backend production isolation.
+5. Subscription tiers/entitlements, sandbox Apple/Google, privacy/encryption review, monitorizare și build-uri release semnate.

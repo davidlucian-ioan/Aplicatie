@@ -13,7 +13,7 @@
 5. **Entity resolution:** exact names/aliases and explicit IDs only; ambiguous identities are not silently merged. Existing canonical aliases are merged rather than overwritten.
 6. **Core boundary:** allowlisted operations, preview, explicit confirmation, serialized mutation, idempotency, persistence before UI publication and independent persisted-journal readback.
 7. **Recovery and retention:** deterministic audio capture idempotency; before retranscription, recovery looks for an already committed Core event. After confirmed Core commit and independent readback, temporary transcript draft is cleared and original audio is deleted by default; Work exposes an explicit retain-original-audio preference. Any uncertain state, failed commit, failed draft clearing or failed deletion verification retains the original source. Audio-derived memory notes and reminders do not retain the raw transcript; they carry only summary/extracted facts, source ID and reminder data. Audio commands remove unstructured `event.note` operations before Core preview; a note-only extraction is rejected and keeps the original. A note-only Core event is insufficient to authorize source deletion.
-8. **Recall MVP:** local structured retrieval across entities, attributes, relations, event records and evidence identifiers. It does not yet synthesize a generative natural-language answer from those results.
+8. **Recall:** local structured retrieval across entities, attributes, relations, event records and canonical reminder tasks. Results are rendered in the Recall UI and can be synthesized by the OpenAI provider only from retrieved evidence; source IDs are validated before citations are shown. Task evidence is prioritized and passed through a server-side allowlist; raw transcripts and the full journal are excluded.
 
 ## Safety invariants
 
@@ -22,13 +22,13 @@
 - No audio deletion happens before the committed event and operations are independently read back from persisted Core state.
 - Failure or uncertainty preserves the audio source and leaves a recoverable checkpoint.
 - Retrying an already committed audio capture is checked before a new transcription request; stable capture identity is independent of transcript wording.
-- Durable recall is based on Core entities, attributes, relations and events, not on the raw recording.
+- Durable recall is based on replayable Core entities, attributes, relations, events and task projections, not on the raw recording. Reminder tasks expose bounded typed evidence; source IDs are retained without copying transcript/source context.
 
 ## Remaining acceptance work
 
-- Add generative recall synthesis grounded only in retrieved evidence, with source IDs and uncertainty behavior.
+- Run an authenticated, real-provider Recall acceptance test with task evidence and verified citations; current provider behavior is covered by mocked unit and server-sanitizer tests.
 - Add natural-language voice playback/TTS and source navigation.
-- Extend the canonical Core Task lifecycle beyond reminder-backed tasks to general user-created tasks, dependencies, assignment and richer source-event navigation.
+- Extend the canonical Core Task lifecycle beyond reminder-backed tasks to general user-created tasks, dependencies, assignment, priorities, recurrence and richer source-event navigation.
 - Add controlled offline processing/retry and queue UX without silent or destructive background behavior.
 - Complete authoritative subscription tiers, trial, quota, usage metering, cost ceilings and store sandbox tests.
 - Validate auth/data isolation, export/deletion semantics, privacy disclosures, encryption and monitoring for production.
@@ -104,3 +104,22 @@ Cloud API PASS; Node/Core/property/Replay PASS; Chromium and Firefox E2E PASS; i
 - Recovery may first report a terminal lifecycle if native scheduling was compensated before its first Core sync; the canonical task is created in that terminal state rather than leaving an unresolvable outbox item.
 - The reminder history UI shows completed, snoozed and cancelled records separately. Snoozed rows display the replacement due time.
 - This is a reminder-backed Task MVP, not a complete general task manager. General task creation, dependencies, assignment, priorities, recurrence and dedicated Task UI remain.
+
+
+## Batch 26 Nov 2026 — canonical Reminder Task + Recall integration
+
+- Reminder lifecycle is now a canonical Core `task` entity, not a note-only journal entry. Stable identity: `task:reminder:<reminderId>`. Attribute writes remain in the Core event journal and rebuild the task projection on replay.
+- Reminder task states: `open`, `completed`, `snoozed`, `cancelled`. Native scheduling outcome is a separate `scheduleState`: `scheduled`, `uncertain` or `settled`; uncertain notifications are not presented as confirmed.
+- Snooze has its own lifecycle event and records successor reminder/task identity and the replacement due time. The local reminder history distinguishes completed, snoozed and cancelled outcomes.
+- Recall returns a typed `tasks` collection and `kind: task` evidence. Reminder tasks are prioritized ahead of generic entities and are not duplicated in the general entity results.
+- The server context sanitizer now allowlists bounded task evidence fields and strips arbitrary fields, transcripts and audio payloads. The Recall UI displays title, status, due timestamp, source and successor; scheduling uncertainty is labelled explicitly.
+- Recall remains read-only: OpenAI gets only bounded retrieved evidence, cannot mutate Core, and its answer citations are filtered against exact source IDs from that evidence.
+- Regression coverage includes task creation and status transitions, CorePort commit/replay, invalid state transitions, source mismatch, stable ID collisions, snooze lineage, native schedule uncertainty, Node/browser Recall parity, Recall task prioritization, server task-evidence sanitization and UI wiring.
+- Explicitly not complete: general task creation/dependencies/assignment/priority/recurrence, TTS, authenticated real-provider Recall acceptance, physical Android/iOS acceptance, production backend/privacy review, subscription/store sandbox and signed release builds.
+
+### Exact CI verification — runtime code HEAD `563ac92649ed0d5441efd76b2fe101f570694d69`
+
+- Collector Quality Suite run `45891930716`: **success** — Core/AI tests, generated invariants, Replay benchmark, Chromium, Firefox and WebKit E2E.
+- Collector Cloud API run `45891930813`: **success** — API tests and deployable container build.
+- Collector Mobile run `45891930564`: **success** — Android debug APK and iOS Simulator package.
+- PR #55 remains open/draft/unmerged. No change to `main`, no production deployment, and no live billing activation.
