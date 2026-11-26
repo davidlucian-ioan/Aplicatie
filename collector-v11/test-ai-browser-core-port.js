@@ -127,3 +127,61 @@ test('Browser Core Port rejects reuse of an idempotency key with changed operati
   assert.equal(x.state.events.length,1);
   assert.equal(x.published,1);
 });
+
+
+test('Browser Core Port rejects confirmation when state changes after preview', async () => {
+  const x=setup();
+  const pending=cmd('Previewed plant');
+  const preview=await x.port.preview(pending);
+  assert.equal(preview.status,'preview_ok');
+  const later={...cmd('Concurrent plant'),idempotencyKey:'browser-port-later',operations:[{operation:'entity.create',target:'plant-2',data:{name:'Concurrent plant',type:'plant'}}]};
+  const concurrent=await x.port.execute(later);
+  assert.equal(concurrent.status,'committed');
+  const result=await x.port.execute(pending,{confirmed:true});
+  assert.equal(result.status,'stale_preview');
+  assert.deepEqual(x.state.entities.map(e=>e.id),['plant-2']);
+  assert.equal(x.state.events.length,1);
+  assert.equal(x.published,1);
+});
+
+test('Browser Core Port detects a changed snapshot even when event count is unchanged', async () => {
+  const x=setup();
+  const pending=cmd();
+  await x.port.preview(pending);
+  x.state.meta.previewProbe='changed-without-new-event';
+  const result=await x.port.execute(pending,{confirmed:true});
+  assert.equal(result.status,'stale_preview');
+  assert.equal(x.published,0);
+  assert.equal(x.state.entities.length,0);
+});
+
+test('Browser Core Port rejects a command mutated after its preview', async () => {
+  const x=setup();
+  const pending=cmd('Original');
+  await x.port.preview(pending);
+  pending.operations[0].data.name='Changed after preview';
+  const result=await x.port.execute(pending,{confirmed:true});
+  assert.equal(result.status,'stale_preview');
+  assert.equal(x.state.entities.length,0);
+  assert.equal(x.published,0);
+});
+
+test('Browser Core Port accepts unchanged preview and releases its snapshot after execution', async () => {
+  const x=setup();
+  const pending=cmd();
+  await x.port.preview(pending);
+  const result=await x.port.execute(pending);
+  assert.equal(result.status,'committed');
+  assert.equal(x.state.entities.length,1);
+  assert.equal(x.port.previewSnapshots.size,0);
+});
+
+test('Browser Core Port can discard a cancelled preview without retaining stale state', async () => {
+  const x=setup();
+  const pending=cmd();
+  await x.port.preview(pending);
+  x.port.discardPreview(pending);
+  assert.equal(x.port.previewSnapshots.size,0);
+  const result=await x.port.execute(pending);
+  assert.equal(result.status,'committed');
+});
