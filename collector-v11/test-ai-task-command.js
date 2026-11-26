@@ -74,3 +74,9 @@ test('CorePort persists, projects and replays a general task and its dependency 
  assert.equal(replay.relations.filter(r=>r.type==='depends_on').length,1);
  assert.equal(replay.meta.replayWarnings.length,0);
 });
+
+test('general tasks cannot depend on reminder-only task records',()=>{
+ const a=taskFrom(create('general-a'));
+ const reminder={id:'task:reminder:r1',name:'Trimite notificare',type:'task',attributes:{taskKind:'reminder',reminderId:'r1',status:'open'}};
+ assert.throws(()=>addDependencyCommand({taskId:'general-a',dependsOnTaskId:reminder.id,idempotencyKey:'bad-dep'}, {entities:[a,reminder],relations:[]}),/doar pentru task-uri generale/);
+});

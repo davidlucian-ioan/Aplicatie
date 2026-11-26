@@ -236,7 +236,7 @@ function addTaskDependency(taskId){
  const task=db.entities.find(entity=>entity.type==='task'&&entity.attributes?.taskKind==='user'&&entity.attributes?.taskId===taskId);
  if(!task)return;
  const existing=new Set((db.relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===task.id&&!relation.endedAt).map(relation=>relation.targetId));
- const available=db.entities.filter(entity=>entity.type==='task'&&['user','reminder'].includes(entity.attributes?.taskKind)&&entity.id!==task.id&&!existing.has(entity.id));
+ const available=db.entities.filter(entity=>entity.type==='task'&&entity.attributes?.taskKind==='user'&&entity.id!==task.id&&!existing.has(entity.id));
  if(!available.length){setAppStatus('Nu există alte task-uri disponibile pentru a crea o dependență.');return}
  const options=available.map(entity=>[entity.id,entity.name+' · '+String(entity.attributes?.status||'open')]);
  openModal('<h2>Dependență pentru '+esc(task.name)+'</h2><div class="form">'+selectField('Task prerequisite','taskDependencyTarget',options)+'<p class="muted">Task-ul curent nu va putea fi finalizat până când prerequisite-ul nu este marcat ca finalizat. Core respinge ciclurile și duplicatele.</p><div class="form-actions"><button class="secondary" type="button" onclick="closeModal()">Anulează</button><button class="primary" type="button" id="saveTaskDependency">Adaugă dependență</button></div></div>');

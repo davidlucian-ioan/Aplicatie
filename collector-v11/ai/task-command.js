@@ -104,7 +104,7 @@
  }
  function addDependencyCommand(input,state){
   if(!input||typeof input!=='object'||Array.isArray(input))throw new TypeError('Task dependency input invalid');
-  const task=findTask(state,input.taskId,{userOnly:true}),dependency=findTask(state,input.dependsOnTaskId);
+  const task=findTask(state,input.taskId,{userOnly:true}),dependency=findTask(state,input.dependsOnTaskId,{userOnly:true});
   if(task.id===dependency.id)throw new Error('Un task nu poate depinde de el însuși.');
   const existing=(state.relations||[]).find(relation=>relation.type==='depends_on'&&relation.sourceId===task.id&&relation.targetId===dependency.id&&!relation.endedAt);
   if(existing)throw new Error('Dependența există deja.');
