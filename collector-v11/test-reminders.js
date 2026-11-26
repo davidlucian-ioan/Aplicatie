@@ -60,7 +60,7 @@ test('cancel failure keeps reminder persisted',async()=>{
 });
 
 test('snooze replaces the original alarm and schedules a new notification',async()=>{
- const x=fixture({random:(()=>{let n=0;return()=>0.25+n++/100})()});const item=await x.service.create({title:'Verifică sera',at:'2026-11-24T12:00:00.000Z'});const snoozed=await x.service.snooze(item.id,10);assert.notEqual(snoozed.id,item.id);assert.equal(snoozed.title,item.title);assert.equal(new Date(snoozed.at).getTime(),new Date('2026-11-24T10:10:00.000Z').getTime());const rows=JSON.parse(x.raw());assert.equal(rows.length,2);assert.equal(rows.find(row=>row.id===item.id).status,'cancelled');assert.equal(rows.find(row=>row.id===snoozed.id).status,'scheduled');
+ const x=fixture({random:(()=>{let n=0;return()=>0.25+n++/100})()});const item=await x.service.create({title:'Verifică sera',at:'2026-11-24T12:00:00.000Z'});const snoozed=await x.service.snooze(item.id,10);assert.notEqual(snoozed.id,item.id);assert.equal(snoozed.title,item.title);assert.equal(new Date(snoozed.at).getTime(),new Date('2026-11-24T10:10:00.000Z').getTime());const rows=JSON.parse(x.raw());assert.equal(rows.length,2);assert.equal(rows.find(row=>row.id===item.id).status,'snoozed');assert.equal(rows.find(row=>row.id===snoozed.id).status,'scheduled');
 });
 
 test('snooze rejects unsupported delay and leaves original alarm unchanged',async()=>{
@@ -350,4 +350,15 @@ test('explicit full local-data erase cancels notifications even when Core outbox
  assert.equal(x.raw(),null);
  assert.equal(x.calls.filter(call=>call.type==='cancel').length,1);
  assert.equal(x.calls.filter(call=>call.type==='schedule').length,1);
+});
+
+test('snooze emits a distinct Core lifecycle event linked to its replacement',async()=>{
+ const x=fixture({random:(()=>{let n=0;return()=>0.31+n++/100})()});
+ const original=await x.service.create({title:'Verifică filtrul',at:'2026-11-24T12:00:00.000Z',sourceId:'audio:capture-9'});
+ const replacement=await x.service.snooze(original.id,10);
+ const event=x.coreCalls.find(row=>row.reminderId===original.id&&row.lifecycle==='snoozed');
+ assert.ok(event);
+ assert.equal(event.replacementReminderId,replacement.id);
+ assert.equal(event.replacementAt,replacement.at);
+ assert.equal(event.sourceId,'audio:capture-9');
 });

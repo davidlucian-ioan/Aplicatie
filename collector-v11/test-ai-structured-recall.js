@@ -36,7 +36,7 @@ test('Node recall includes alias and event-attribute evidence from structured ta
 });
 test('recall applies one consistent bounded limit to every returned collection',()=>{
  const large=searchStructuredMemory(state,'Mihai pump',{limit:999});
- for(const key of ['entities','relations','events','attributes','eventAttributes','evidence'])assert.ok(large[key].length<=100,key);
+ for(const key of ['entities','tasks','relations','events','attributes','eventAttributes','evidence'])assert.ok(large[key].length<=100,key);
  const small=searchStructuredMemory(state,'Mihai pump',{limit:-5});
  for(const key of ['entities','relations','events','attributes','eventAttributes','evidence'])assert.ok(small[key].length<=1,key);
  assert.throws(()=>searchStructuredMemory(state,'Mihai',{limit:Infinity}),/finite number/);
@@ -78,4 +78,17 @@ test('reminder lifecycle Core notes are searchable and returned as source-linked
  const evidence=result.evidence.find(row=>row.kind==='event'&&row.id==='reminder-core-1');
  assert.equal(evidence.sourceId,'event:reminder-core-1');
  assert.match(evidence.summary,/Reminder programat: Verifică pompa/);
+});
+
+test('Recall returns canonical reminder tasks with lifecycle, due date and source reference',()=>{
+ const task={id:'task:reminder:r1',name:'Verifică pompa',type:'task',attributes:{taskKind:'reminder',reminderId:'r1',status:'open',dueAt:'2026-11-27T09:00:00Z',sourceId:'audio:capture-1',scheduleState:'scheduled'}};
+ const fixture={...state,entities:[...state.entities,task]};
+ const result=searchStructuredMemory(fixture,'reminder pompa');
+ assert.equal(result.tasks.length,1);
+ assert.equal(result.tasks[0].status,'open');
+ assert.equal(result.tasks[0].sourceId,'audio:capture-1');
+ assert.ok(result.evidence.some(row=>row.kind==='task'&&row.sourceId==='task:task:reminder:r1'&&row.status==='open'));
+ require('./ai/structured-recall-browser.js');
+ const browser=globalThis.CollectorStructuredRecall.searchStructuredMemory(fixture,'reminder pompa');
+ assert.deepEqual(browser,result);
 });

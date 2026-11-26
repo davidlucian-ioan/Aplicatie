@@ -22,7 +22,7 @@ function eventEntityRefs(event){
 }
 function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  if(!state||typeof state!=='object')throw new TypeError('State required');
- const terms=tokenize(query);if(!terms.length)return {entities:[],relations:[],events:[],attributes:[],eventAttributes:[],evidence:[]};
+ const terms=tokenize(query);if(!terms.length)return {entities:[],tasks:[],relations:[],events:[],attributes:[],eventAttributes:[],evidence:[]};
  const boundedLimit=normalizeLimit(limit),fromTime=parseTimeBound(from,'from'),toTime=parseTimeBound(to,'to');
  if(fromTime!==null&&toTime!==null&&fromTime>toTime)throw new RangeError('from must be earlier than or equal to to');
  const entities=Array.isArray(state.entities)?state.entities:[],relations=Array.isArray(state.relations)?state.relations:[],events=Array.isArray(state.events)?state.events:[],eventAttributes=Array.isArray(state.eventAttributes)?state.eventAttributes:[];
@@ -48,15 +48,20 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
   return [...matchedIds].some(id=>refs.has(id))||eventAttributeIds.has(event.id)||terms.some(term=>text.includes(term));
  }).slice(-boundedLimit);
  const attributeRows=matched.flatMap(entity=>Object.entries(entity.attributes||{}).filter(([name])=>name!=='aliases').map(([name,value])=>({entityId:entity.id,entityName:entity.name,name,value,history:entity.attributeHistory?.[name]||[]})));
+ const taskRows=matched.filter(entity=>entity.type==='task'&&entity.attributes?.taskKind==='reminder').map(entity=>{
+  const a=entity.attributes||{};
+  return {id:entity.id,entityId:entity.id,reminderId:a.reminderId||null,title:entity.name,status:a.status||'open',dueAt:a.dueAt||null,sourceId:a.sourceId||null,scheduleState:a.scheduleState||null,successorReminderId:a.successorReminderId||null,successorTaskId:a.successorTaskId||null};
+ });
  const matchedEventIds=new Set(filteredEvents.map(event=>event.id));
  const selectedEventAttributes=eventAttributes.filter(attribute=>matchedEventIds.has(attribute.eventId));
  const evidence=[
   ...matched.slice(0,boundedLimit).map(entity=>({kind:'entity',id:entity.id,sourceId:'entity:'+entity.id,label:entity.name,type:entity.type})),
+  ...taskRows.slice(0,boundedLimit).map(task=>({kind:'task',id:task.id,sourceId:'task:'+task.id,reminderId:task.reminderId,title:task.title,status:task.status,dueAt:task.dueAt,sourceRef:task.sourceId,scheduleState:task.scheduleState})),
   ...relationEvidence.slice(0,boundedLimit).map(relation=>({kind:'relation',id:relation.id,sourceId:'relation:'+relation.id,source:relation.sourceName,type:relation.type,target:relation.targetName,at:relation.startedAt||relation.createdAt||null})),
   ...filteredEvents.map(event=>({kind:'event',id:event.id,sourceId:'event:'+event.id,at:event.timestamp,summary:event.payload?.summary||event.payload?.description||event.operations?.find(operation=>operation.operation==='event.note')?.data?.description||event.type,certainty:event.certainty,status:event.status})),
   ...attributeRows.slice(0,boundedLimit).map(attribute=>({kind:'attribute',sourceId:'attribute:'+attribute.entityId+':'+attribute.name,entityId:attribute.entityId,entityName:attribute.entityName,name:attribute.name,value:attribute.value})),
   ...selectedEventAttributes.slice(0,boundedLimit).map(attribute=>({kind:'event_attribute',sourceId:'event-attribute:'+attribute.eventId+':'+attribute.name,eventId:attribute.eventId,name:attribute.name,value:attribute.value}))
  ];
- return {entities:matched.slice(0,boundedLimit),relations:relationEvidence.slice(0,boundedLimit),events:filteredEvents,attributes:attributeRows.slice(0,boundedLimit),eventAttributes:selectedEventAttributes.slice(0,boundedLimit),evidence:evidence.slice(0,boundedLimit)};
+ return {entities:matched.slice(0,boundedLimit),tasks:taskRows.slice(0,boundedLimit),relations:relationEvidence.slice(0,boundedLimit),events:filteredEvents,attributes:attributeRows.slice(0,boundedLimit),eventAttributes:selectedEventAttributes.slice(0,boundedLimit),evidence:evidence.slice(0,boundedLimit)};
 }
 module.exports={searchStructuredMemory,tokenize,normalizeLimit,parseTimeBound,MAX_RESULTS};

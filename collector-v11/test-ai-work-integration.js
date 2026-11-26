@@ -53,16 +53,21 @@ test('Recall AI synthesis receives only retrieved evidence and displays validate
 });
 
 
-test('native reminder lifecycle uses the verified Core Port and a stable idempotent event journal',async()=>{
+test('native reminder lifecycle persists a canonical Task entity through the verified Core Port',async()=>{
  const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ const helper=await fs.readFile(path.join(__dirname,'ai','reminder-task.js'),'utf8');
  const reminders=await fs.readFile(path.join(__dirname,'reminders.js'),'utf8');
  assert.match(app,/function recordReminderLifecycleInCore/);
- assert.match(app,/intent:'reminder\.lifecycle'/);
- assert.match(app,/operation:'event\.note'/);
- assert.match(app,/idempotencyKey:entry\.idempotencyKey/);
+ assert.match(app,/CollectorReminderTask\.buildCommand\(entry,db\)/);
  assert.match(app,/port\.preview\(command\)/);
  assert.match(app,/port\.execute\(command,\{confirmed:true\}\)/);
  assert.match(app,/CollectorReminders\?\.initialize\(\{onCoreEvent:recordReminderLifecycleInCore\}\)/);
+ assert.match(app,/snoozed/);
+ assert.match(helper,/operation:'entity\.create'/);
+ assert.match(helper,/name:'taskKind',value:'reminder'/);
+ assert.match(helper,/name:'status',value:'open'/);
+ assert.match(helper,/successorReminderId/);
+ assert.doesNotMatch(app.slice(app.indexOf('async function recordReminderLifecycleInCore'),app.indexOf('function ensureAICorePort')),/operation:'event\.note'/);
  assert.match(reminders,/coreOutbox/);
  assert.match(reminders,/async function syncCoreOutboxInternal/);
  assert.match(reminders,/async function recoverPendingSchedulesInternal/);
@@ -72,10 +77,15 @@ test('native reminder lifecycle uses the verified Core Port and a stable idempot
  assert.match(reminders,/pendingCoreCount\(rows\)>0/);
 });
 
-test('reminder Core outbox does not copy source transcript context into permanent Core evidence',async()=>{
+test('canonical reminder tasks store structured lifecycle metadata without transcript context',async()=>{
  const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ const helper=await fs.readFile(path.join(__dirname,'ai','reminder-task.js'),'utf8');
  const handler=app.slice(app.indexOf('async function recordReminderLifecycleInCore'),app.indexOf('function ensureAICorePort'));
- assert.match(handler,/sourceId:entry\.sourceId\|\|null/);
- assert.doesNotMatch(handler,/sourceContext/);
- assert.match(handler,/Reminder '\+labels\[entry\.lifecycle\]/);
+ assert.match(handler,/CollectorReminderTask\.buildCommand/);
+ assert.doesNotMatch(handler,/sourceContext|transcript|rawTranscript/);
+ assert.match(helper,/operation:'entity\.create'/);
+ assert.match(helper,/name:'taskKind',value:'reminder'/);
+ assert.match(helper,/name:'dueAt'/);
+ assert.match(helper,/name:'sourceId'/);
+ assert.doesNotMatch(helper,/sourceContext|transcript|rawTranscript/);
 });
