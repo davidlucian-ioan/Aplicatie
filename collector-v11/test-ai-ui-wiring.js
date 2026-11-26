@@ -49,6 +49,14 @@ test('sesiunea vocală continuă trimite transcriptul către AI, nu parserul loc
  assert.ok(section.includes('value=transcript'),'do not force transcript into a deterministic observation template');
  assert.ok(!section.includes('runCommand()'),'avoid local parser fallback that bypasses AI semantics');
 });
+test('AI memory candidates are only persisted through explicit Core preview and confirmation',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ assert.ok(app.includes('data-ai-memory-save'),'AI summary/facts expose a save-to-memory action');
+ assert.ok(app.includes("operation:'event.note'"),'memory is persisted as an append-only Core note');
+ assert.ok(app.includes('ensureAICorePort().preview(command)'),'memory save must preview through Core');
+ assert.ok(app.includes('execute(command,{confirmed:true})'),'memory save must require explicit confirmation');
+ assert.ok(app.includes('collector-ai-memory:'+"turnId"),'memory idempotency is scoped to AI turn');
+});
 test('UI expune providerul OpenAI separat de interpretarea locală',()=>{
  const html=fs.readFileSync('index-server.html','utf8');
  const app=fs.readFileSync('app.js','utf8');
