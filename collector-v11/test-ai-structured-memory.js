@@ -69,3 +69,29 @@ test('validator accepts date-only and timezone-aware temporal facts without losi
  assert.equal(x.facts[0].validAt,'2026-11-26');
  assert.equal(x.facts[1].validAt,'2026-11-26T15:00:00+02:00');
 });
+
+
+test('near-duplicate entity names require clarification instead of silently creating a second entity',()=>{
+ const state={entities:[{id:'p1',name:'Monstera Deliciosa Variegata',type:'plant'}]};
+ const extraction=M.validateExtraction({entities:[{key:'plant',name:'Monstera Deliciosa Variegatta',type:'plant'}],facts:[],relations:[]});
+ const result=M.resolveEntities(extraction,state)[0];
+ assert.equal(result.match,'ambiguous');
+ assert.equal(result.resolvedId,null);
+ assert.deepEqual(result.candidateIds,['p1']);
+ assert.ok(result.candidateMatches[0].similarity>=.92);
+});
+
+test('similar but legitimate cultivar names remain new entities',()=>{
+ const state={entities:[{id:'p1',name:'Philodendron Micans',type:'plant'}]};
+ const extraction=M.validateExtraction({entities:[{key:'plant',name:'Philodendron Micans Pink Mint',type:'plant'}],facts:[],relations:[]});
+ assert.equal(M.resolveEntities(extraction,state)[0].match,'new');
+});
+
+test('fuzzy candidates are limited to the same entity type and threshold is configurable',()=>{
+ const state={entities:[{id:'p1',name:'Monstera Deliciosa Variegata',type:'plant'},{id:'person-1',name:'Monstera Deliciosa Variegata',type:'person'}]};
+ const extraction=M.validateExtraction({entities:[{key:'x',name:'Monstera Deliciosa Variegatta',type:'plant'}],facts:[],relations:[]});
+ const defaultMatch=M.resolveEntities(extraction,state)[0];
+ assert.deepEqual(defaultMatch.candidateIds,['p1']);
+ assert.equal(M.resolveEntities(extraction,state,{threshold:.999})[0].match,'new');
+ assert.throws(()=>M.resolveEntities(extraction,state,{threshold:1.5}),/threshold/);
+});
