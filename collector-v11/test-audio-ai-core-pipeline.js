@@ -5,7 +5,8 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const Core=require('./engine');
 const {BrowserCorePort}=require('./ai/core-port-browser');
-const Memory=require('./ai/structured-memory-browser');
+require('./ai/structured-memory-browser.js');
+const Memory=globalThis.CollectorStructuredMemory;
 const Recovery=require('./ai/audio-capture-recovery');
 const {createStore:createTranscriptStore}=require('./ai/audio-transcript-checkpoints');
 
@@ -110,7 +111,7 @@ test('audio deletion verifier requires the exact source, event, idempotency key 
  const event={id:'evt-1',intentKey:Recovery.stableIntentKey('rec-exact'),status:'committed',
   payload:{sourceId:'audio:rec-exact'},operations:[{operation:'entity.create',target:'e1',data:{name:'Pump',type:'object'}}]};
  assert.equal(Recovery.verifyCheckpointEvent({events:[event]},checkpoint('rec-exact',event)),event);
- assert.throws(()=>Recovery.verifyCheckpointEvent({events:[event]},checkpoint('rec-other',event)),/exactly one/);
+ assert.throws(()=>Recovery.verifyCheckpointEvent({events:[event]},{id:'rec-other',persisted:true,persistenceVerified:true,persistResult:{eventId:event.id,intentKey:Recovery.stableIntentKey('rec-other')}}),/exactly one/);
  assert.throws(()=>Recovery.verifyCheckpointEvent({events:[{...event,status:'pending'}]},checkpoint('rec-exact',event)),/not committed/);
  assert.throws(()=>Recovery.verifyCheckpointEvent({events:[{...event,payload:{sourceId:'audio:other'}}]},checkpoint('rec-exact',event)),/source does not match/);
 });
