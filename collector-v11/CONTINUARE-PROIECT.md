@@ -919,3 +919,46 @@ Implemented (not yet end-to-end integrated):
 - Latest HEAD: `057c2934edc80272d44484e88b31702f8a7a40c0`; CI lookup momentan returnează zero runs/status, deci **nevalidat**.
 - Limita: reminder suggestions sunt doar output structurat; încă nu sunt conectate la Work UI, persist/source ledger sau native notification scheduling. Nu se confirmă reminder utilizatorului până la integrare.
 - Next: integrare safe preview pentru semantic summary + reminder suggestions în Work, scheduling idempotent, source-link, lifecycle complete/snooze și testele de eșec/permisiuni.
+
+## Checkpoint 2026-11-26 — Work AI reminders + CI repair
+
+Branch feature/openai-provider-integration, PR #55 către main, rămâne draft și nu este merged.
+
+### CI blocker găsit și reparat
+- La HEAD-ul anterior 07ada1d14ce896fe5623e38ea00520e8bb8b9e12, Quality Suite și ambele build-uri mobile eșuau în npm test, cu două regresii:
+  1. regex-ul de validare MIME pentru importul backup audio din audio-store.js avea slash-escape dublat și producea SyntaxError la încărcarea testului;
+  2. test-mobile-build.js încă verifica vechea comandă CI fără mobile:verify-toolchain, deși workflow-ul a fost deja actualizat.
+- Fix-uri:
+  - 855368790a2ed68cda3e8f286bec8972a54bc63d — regex audio MIME corectat;
+  - 625f015f8c2c7f0536b77eda92a2dcad602eac03 — testele mobile aliniate cu verificarea toolchain-ului.
+- Aceste fix-uri au fost urmate de integrarea reminderelor și vor fi validate împreună la HEAD-ul final al batch-ului.
+
+### Work AI — implementare
+- OpenAI Structured Outputs include deja semantic_summary, memory_facts, reminder_suggestions.
+- Work UI afișează acum sumarul semantic și faptele candidate; faptele sunt marcate explicit ca nesalvate, nu se scriu automat în jurnal.
+- Sugestiile reminder sunt prezentate ca preview, nu ca acțiune executată.
+- La click, aplicația trece sugestia prin CollectorReminderIntent.validateReminderSuggestion, folosește timezone local dacă modelul nu furnizează unul, default 09:00 pentru date fără oră, respinge ambiguitățile/DST/past și cere confirmare înainte de side effect.
+- Scheduling este expus prin serviciul de notificări native, cu verificarea permisiunii, rollback la eșec și cheie de idempotency.
+- Reminders păstrează sourceId, contextul Work și idempotencyKey; UI arată contextul-sursă.
+- Reminder lifecycle: scheduled, completed, cancelled; „✓ Gata” anulează notificarea nativă și păstrează starea finalizată în istoricul local; snooze creează o notificare nouă și marchează originalul cancelled.
+- Validatorul este inclus în allowlist-ul mobile build și încărcat în index.html.
+
+### Teste noi/actualizate
+- test-reminders.js: idempotency/source context și completion lifecycle; actualizat pentru păstrarea statusurilor.
+- test-ai-work-integration.js: verifică wiring-ul UI pentru summary/memory/reminder preview, confirmare, idempotency și sursă.
+- test-mobile-build.js: verifică faptul că reminder-intent validator este livrat în bundle mobil.
+- test-reminder-intent.js: existent — explicit/negat/ambiguu, dată/oră, timezone, DST și past-date.
+
+### Limite încă reale
+- Audio original nu este încă transcris prin pipeline-ul cloud; AI primește în continuare textul din Work, inclusiv dictarea browserului, nu fișierul audio.
+- Reminder sourceId referă un Work turn și stochează contextul textual, dar nu există încă jump-to-source către o înregistrare audio/transcript persistată.
+- memory_facts sunt doar candidate în UI; persistence/recall indexat și răspunsuri cu citare/jump la sursă nu sunt implementate.
+- TTS nu este încă conectat pentru summary/recall.
+- Entitlements comerciale Trial/Small/Medium/Large nu sunt implementate. Backend-ul încă folosește gate-ul Pro și bugetul existent; nu configura produse sau limite live fără validare și aprobare.
+
+### Următoarea continuare
+1. Verifică workflow-urile Quality Suite, Cloud API și Mobile pe HEAD-ul actual; nu considera pending/cancelled ca pass.
+2. Dacă CI găsește regresii, repară și retestează înainte de a adăuga funcționalități.
+3. După CI, următorul bloc este audio → transcription → interpretation → memory/source record → TTS, apoi retrieval grounded.
+4. Entitlements Trial/Small/Medium/Large: definește capabilități și măsurători/usage budgets, dar fără inventarea limitelor și fără billing live.
+5. PR #55 rămâne draft; nu merge în main, nu deploy, nu release fără aprobare explicită.
