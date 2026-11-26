@@ -260,3 +260,25 @@ test('The explicit deletion prompt is inside the reusable recovery-safe deletion
  assert.ok(deletion.includes('await CollectorAudioStore.remove(recordingId)'));
  assert.ok(deletion.includes('await verifyAudioCheckpointEvent(await store.get(recordingId))'));
 });
+
+
+test('Audio capture idempotency is bound to recording ID, not variable transcript output',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ assert.match(app,/function stableAudioCaptureTurnId\(recordingId\)\{if\(typeof recordingId!=='string'/);
+ assert.ok(app.includes("return 'audio:'+recordingId}"));
+ assert.ok(app.includes('stableAudioCaptureTurnId(sourceRecordingId)'));
+ assert.ok(app.includes("idempotencyKey:'collector-memory-capture:'+captureId")===false || fs.readFileSync('ai/structured-memory-browser.js','utf8').includes("idempotencyKey:'collector-memory-capture:'+captureId"));
+});
+
+test('Verified audio commit clears the temporary Work transcript draft before offering source deletion',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const draft=app.slice(app.indexOf('function initializeWorkDraft'),app.indexOf('async function clearAllLocalData'));
+ assert.ok(draft.includes('window.CollectorClearAudioDraft=async()=>'));
+ assert.ok(draft.includes("storageAdapter.removeRaw(WORK_DRAFT_KEY)"));
+ assert.ok(draft.includes('const remaining=await storageAdapter.readRaw(WORK_DRAFT_KEY)'));
+ const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
+ assert.ok(confirm.includes('window.CollectorClearAudioDraft?.()'));
+ assert.ok(confirm.includes('audioDraftCleared'));
+ assert.ok(confirm.includes('activeAudioRecordingId=null'));
+ assert.ok(confirm.includes('audioCheckpointReady&&audioDraftCleared'));
+});
