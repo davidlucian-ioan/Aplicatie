@@ -739,9 +739,19 @@ async function playAudioRecording(recordId){
  }catch(error){setAudioUi('idle','Nu pot reda înregistrarea: '+error.message)}
 }
 async function deleteAudioRecording(recordId){
- if(!confirm('Ștergi definitiv această înregistrare audio locală?'))return;
- try{if(audioPlaybackRecordId===recordId)clearAudioPlayback();await CollectorAudioStore.remove(recordId);await renderAudioRecordings();setAudioUi('idle','Înregistrarea audio a fost ștearsă din stocarea locală.')}
- catch(error){setAudioUi('idle','Nu am putut șterge înregistrarea: '+error.message)}
+ try{
+  const checkpoints=window.CollectorAudioLifecycleCheckpointStore;
+  const checkpoint=await checkpoints?.get(recordId);
+  if(!checkpoint||!['source_retained','audio_deletion_pending'].includes(checkpoint.state)){
+   setAudioUi('idle','Înregistrarea este păstrată. Ștergerea este blocată până când există un commit structurat confirmat și verificat independent în Core.');
+   return;
+  }
+  const result=await deleteAudioFromVerifiedCheckpoint(recordId);
+  if(result.status==='cancelled')return;
+  if(audioPlaybackRecordId===recordId)clearAudioPlayback();
+  await renderAudioRecordings();await refreshAudioLifecycleRecovery();
+  setAudioUi('idle','Evenimentul Core a fost reverificat, iar absența înregistrării audio a fost confirmată independent.');
+ }catch(error){setAudioUi('idle','Nu am putut confirma ștergerea. Înregistrarea este păstrată sau necesită recovery: '+error.message)}
 }
 async function writeAudioLifecycleCheckpoint(recordingId,state,{error=null,incrementAttempt=false,captureId=null,previewEventId=null,eventId=null,intentKey=null}={}){
  const store=window.CollectorAudioLifecycleCheckpointStore;
