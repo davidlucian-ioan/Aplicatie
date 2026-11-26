@@ -22,3 +22,19 @@ test('browser validator rejects invalid certainty and invalid temporal data',()=
  assert.throws(()=>M.validateExtraction({entities:[{key:'p',name:'Mihai'}],facts:[{subject:'p',name:'x',value:1,certainty:'probably'}],relations:[]}),/certainty/);
  assert.throws(()=>M.validateExtraction({entities:[{key:'p',name:'Mihai'}],facts:[{subject:'p',name:'x',value:1,validAt:'2026-11-26T12:30:00'}],relations:[]}),/ISO date/);
 });
+
+
+test('browser resolver flags near-duplicate names without auto-linking them',()=>{
+ const state={entities:[{id:'p1',name:'Monstera Deliciosa Variegata',type:'plant'}]};
+ const extraction=M.validateExtraction({entities:[{key:'plant',name:'Monstera Deliciosa Variegatta',type:'plant'}],facts:[],relations:[]});
+ const result=M.resolveEntities(extraction,state)[0];
+ assert.equal(result.match,'ambiguous');
+ assert.equal(result.resolvedId,null);
+ assert.deepEqual(result.candidateIds,['p1']);
+});
+
+test('browser resolver does not confuse a distinct cultivar with a typo',()=>{
+ const state={entities:[{id:'p1',name:'Philodendron Micans',type:'plant'}]};
+ const extraction=M.validateExtraction({entities:[{key:'plant',name:'Philodendron Micans Pink Mint',type:'plant'}],facts:[],relations:[]});
+ assert.equal(M.resolveEntities(extraction,state)[0].match,'new');
+});
