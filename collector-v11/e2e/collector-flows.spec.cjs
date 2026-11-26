@@ -773,9 +773,12 @@ test('Work Recall caută memorie structurată și navighează la evenimentul sur
  await expect(page.locator('#memoryRecallResults')).toContainText('Pompa acvariu recall');
  const source=page.locator('[data-recall-open-event]').first();await expect(source).toBeVisible();
  const eventId=await source.getAttribute('data-recall-open-event');
- // Ensure recall navigation clears an unrelated active event-list filter.
+ // Put a filter on the Events page, then return to Work and open the source.
+ await page.locator('.nav[data-page="events"]').click();
  const eventFilter=page.locator('[data-filter-target="eventList"]');await eventFilter.fill('filter fara rezultat');
- await source.click();
+ await page.locator('.nav[data-page="assistant"]').click();
+ const recallSource=page.locator('[data-recall-open-event="'+eventId+'"]');await expect(recallSource).toBeVisible();
+ await recallSource.click();
  await expect(page.locator('#events')).toBeVisible();
  await expect(eventFilter).toHaveValue('');
  await expect(page.locator('#eventList > [data-event-id="'+eventId+'"]')).toBeVisible();
