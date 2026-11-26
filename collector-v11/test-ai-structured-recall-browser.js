@@ -14,3 +14,19 @@ test('browser recall respects temporal bounds and returns no evidence for empty 
  assert.equal(searchStructuredMemory(state,'Mihai',{from:'2026-11-27'}).events.length,0);
  assert.equal(searchStructuredMemory(state,'').evidence.length,0);
 });
+
+
+test('browser recall returns bounded collections and rejects invalid time ranges',()=>{
+ const large=searchStructuredMemory(state,'Mihai pompa',{limit:999});
+ for(const key of ['entities','relations','events','attributes','eventAttributes','evidence'])assert.ok(large[key].length<=100,key);
+ const small=searchStructuredMemory(state,'Mihai pompa',{limit:-1});
+ for(const key of ['entities','relations','events','attributes','eventAttributes','evidence'])assert.ok(small[key].length<=1,key);
+ assert.throws(()=>searchStructuredMemory(state,'Mihai',{from:'bad-date'}),/from must be a valid date/);
+ assert.throws(()=>searchStructuredMemory(state,'Mihai',{from:'2026-11-28',to:'2026-11-26'}),/earlier than or equal/);
+});
+test('browser recall includes event attributes only when their event is in the result set',()=>{
+ const r=searchStructuredMemory(state,'aquarium');
+ assert.equal(r.events[0].id,'ev1');
+ assert.deepEqual(r.eventAttributes,[{eventId:'ev1',name:'context',value:'aquarium'}]);
+ assert.equal(searchStructuredMemory(state,'unrelated').eventAttributes.length,0);
+});
