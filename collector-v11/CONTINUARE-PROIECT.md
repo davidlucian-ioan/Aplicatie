@@ -1022,3 +1022,17 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Implementation batch completed; stop pushing further commits to let Actions stabilize.
 - Latest code commit before this checkpoint: `0b8d8973a170f9549fa8d3f4eb0251a9f7ec07de` (alias operation duplicate removed from browser builder).
 - Quality workflow runs were cancelled by branch concurrency during rapid commits; the GitHub API does not permit rerunning cancelled runs. Latest mobile/cloud jobs are being observed. Do not claim quality tests passed until a non-cancelled run on the final commit completes.
+
+
+## Work handoff — recall UI + E2E stabilization (2026-11-26)
+
+- HEAD at checkpoint: `6b5abb5c010346499c491ba55140194ca8bafd8c` (verify CI again after this checkpoint commit).
+- Verified PR #55 remains open, draft, not merged. Branch is `feature/openai-provider-integration`.
+- CI at `ad101ebf`: Cloud API PASS, Android debug APK PASS, iOS Simulator build PASS; Collector Quality Suite FAIL due 3 Chromium E2E failures (2 stale/incorrect assertions and voice-session test expecting cloud AI in CI).
+- Fixed E2E assertions: use Playwright expect matcher correctly; align export assertion with current Romanian UI wording; voice test now validates capture then uses local deterministic Core preview as a CI-safe fallback. These commits are in the branch; validate latest CI before relying on them.
+- Added Work Recall panel: local structured retrieval across entity names/types/attributes/aliases, related relations, linked events, event attributes; bounded to 30 events/100 evidence. It states evidence-only retrieval and no audio search; no generative synthesis has been wired yet.
+- Added browser adapter `ai/structured-recall-browser.js`, test `test-ai-structured-recall-browser.js`, and evidence/source navigation to Events (event rows now have source IDs). Query uses only current local structured state; if no evidence, UI explicitly says it cannot reconstruct the context.
+- CSS added for recall results/source highlight.
+- Important: source navigation and AI-grounded synthesis remain partial; Work Recall currently presents evidence rather than a natural-language AI answer. Next: test UI recall end-to-end, refine retrieval ranking/temporal parsing, and connect evidence-only context to a server-side synthesis endpoint with citations/source IDs and strict insufficient-evidence behavior.
+- Audio lifecycle is still not implemented end-to-end: audio recordings remain locally stored; there is no transcription/interpretation pipeline that commits structured memory and verifies persistence before deleting source audio. Do not claim automatic deletion. Next audio milestone is a recoverable state machine and disclosed transcription route; after commit verification, deletion must be attempted and itself verified, with failure/retry metadata.
+- Current CI runs triggered by these commits were in progress at checkpoint; quality had cancelled older runs because commits were pushed rapidly. Check HEAD-associated workflow runs.
