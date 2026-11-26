@@ -74,19 +74,53 @@
   if(cp.audioDeleted===true&&!['audio_deleted','completed'].includes(cp.state))fail('Checkpoint claims audio deletion in an invalid state');
   if(cp.state==='completed'&&cp.audioDeleted!==true)fail('Completed checkpoint missing audioDeleted confirmation');
   if(cp.state==='completed'&&cp.persistenceVerified!==true)fail('Completed checkpoint missing persistence verification');
-  return {...cp,schemaVersion:Number(cp.schemaVersion)||1};
+  const version=Number(cp.schemaVersion)||1;if(!Number.isInteger(version)||version<1||version>2)fail('Audio lifecycle checkpoint schema version invalid');
+  if(cp.createdAt!==undefined&&typeof cp.createdAt!=='string')fail('Checkpoint createdAt invalid');
+  if(cp.updatedAt!==undefined&&typeof cp.updatedAt!=='string')fail('Checkpoint updatedAt invalid');
+  if(cp.error!==undefined&&typeof cp.error!=='string')fail('Checkpoint error invalid');
+  return {...cp,schemaVersion:version};
  }
- function createStorageCheckpointStore(storage,{prefix='collector_audio_lifecycle_v1'}={}){
+ function createStorageCheckpointStore(storage,{prefix='collector_audio_lifecycle_v1',maxCheckpointBytes=256*1024}={}){
   if(!storage||typeof storage.readRaw!=='function'||typeof storage.writeRaw!=='function'||typeof storage.removeRaw!=='function')fail('Checkpoint storage must support readRaw/writeRaw/removeRaw');
-  const indexKey=prefix+':index',keyFor=id=>prefix+':'+encodeURIComponent(String(id));
+  const indexKey=prefix+':index',keyFor=id=>prefix+':'+encodeURIComponent(String(id)),keyPrefix=prefix+':';
   let queue=Promise.resolve();
   function enqueue(fn){const task=queue.then(fn);queue=task.catch(()=>{});return task}
-  async function readIndex(){const raw=await storage.readRaw(indexKey);if(raw===null||raw===undefined)return [];let ids;try{ids=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint index is corrupt')}if(!Array.isArray(ids)||ids.some(id=>typeof id!=='string'||!id.trim()))fail('Audio lifecycle checkpoint index is invalid');return [...new Set(ids)]}
+  async function readIndex(){const raw=await storage.readRaw(indexKey);if(raw===null||raw===undefined)return [];let ids;try{ids=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint index is corrupt')}if(!Array.isArray(ids)||ids.some(id=>typeof id!=='string'||!id.trim())||new Set(ids).size!==ids.length)fail('Audio lifecycle checkpoint index is invalid');return ids}
+  async function readCheckpoint(id){if(typeof id!=='string'||!id.trim())fail('Checkpoint ID required');const raw=await storage.readRaw(keyFor(id));if(raw===null||raw===undefined)return null;let cp;try{cp=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint is corrupt: '+id)}return validateCheckpoint(cp,id)}
+  async function writeIndex(ids){const unique=[...new Set(ids)].sort();const serialized=JSON.stringify(unique);if(await storage.writeRaw(indexKey,serialized)!==true)fail('Checkpoint index write was not acknowledged');const readback=await storage.readRaw(indexKey);if(readback!==serialized)fail('Checkpoint index readback verification failed');return unique}
+  async function scanKeys(){
+   if(typeof storage.listRawKeys!=='function')return null;
+   const keys=await storage.listRawKeys(keyPrefix);if(!Array.isArray(keys))fail('Checkpoint key enumeration invalid');
+   return [...new Set(keys.filter(k=>typeof k==='string'&&k.startsWith(keyPrefix)&&k!==indexKey))].sort();
+  }
   return Object.freeze({
-   async get(id){if(typeof id!=='string'||!id.trim())fail('Checkpoint ID required');const raw=await storage.readRaw(keyFor(id));if(raw===null||raw===undefined)return null;let cp;try{cp=JSON.parse(raw)}catch{fail('Audio lifecycle checkpoint is corrupt: '+id)}return validateCheckpoint(cp,id)},
-   put(cp){return enqueue(async()=>{const normalized=validateCheckpoint(cp);const ids=await readIndex();await storage.writeRaw(keyFor(normalized.id),JSON.stringify(normalized));if(!ids.includes(normalized.id)){ids.push(normalized.id);await storage.writeRaw(indexKey,JSON.stringify(ids))}return true})},
-   remove(id){return enqueue(async()=>{const ids=await readIndex();await storage.removeRaw(keyFor(id));await storage.writeRaw(indexKey,JSON.stringify(ids.filter(x=>x!==id)));return true})},
-   list(){return enqueue(async()=>{const ids=await readIndex(),rows=[];for(const id of ids){const cp=await this.get(id);if(cp)rows.push(cp)}return rows})}
+   async get(id){return readCheckpoint(id)},
+   put(cp){return enqueue(async()=>{
+    const normalized=validateCheckpoint(cp),serialized=JSON.stringify(normalized);
+    if(serialized.length>maxCheckpointBytes)fail('Audio lifecycle checkpoint exceeds storage limit');
+    const ids=await readIndex();await storage.writeRaw(keyFor(normalized.id),serialized);
+    if(await storage.readRaw(keyFor(normalized.id))!==serialized)fail('Checkpoint write readback verification failed');
+    if(!ids.includes(normalized.id))await writeIndex([...ids,normalized.id]);
+    return true;
+   })},
+   remove(id){return enqueue(async()=>{
+    if(typeof id!=='string'||!id.trim())fail('Checkpoint ID required');
+    const ids=await readIndex();await storage.removeRaw(keyFor(id));
+    if(await storage.readRaw(keyFor(id))!==null)fail('Checkpoint removal readback verification failed');
+    await writeIndex(ids.filter(x=>x!==id));return true;
+   })},
+   list(){return enqueue(async()=>{
+    const indexed=await readIndex(),keys=await scanKeys(),keyIds=keys?keys.map(k=>{try{return decodeURIComponent(k.slice(keyPrefix.length))}catch{fail('Checkpoint key encoding invalid')}}):[];
+    const ids=[...new Set([...indexed,...keyIds])].sort(),rows=[];
+    for(const id of ids){const cp=await readCheckpoint(id);if(cp)rows.push(cp)}
+    if(keys&&ids.join('\u0000')!==indexed.slice().sort().join('\u0000'))await writeIndex(rows.map(cp=>cp.id));
+    return rows;
+   })},
+   diagnostics(){return enqueue(async()=>{
+    const indexed=await readIndex(),keys=await scanKeys();
+    const discovered=keys?keys.map(k=>{try{return decodeURIComponent(k.slice(keyPrefix.length))}catch{fail('Checkpoint key encoding invalid')}}):[];
+    return {indexCount:indexed.length,keyEnumerationAvailable:keys!==null,orphanIds:discovered.filter(id=>!indexed.includes(id)),missingIds:indexed.filter(id=>!discovered.includes(id)),indexCorrupt:false};
+   })}
   });
  }
  const api={STATES,createAudioProcessingLifecycle,createStorageCheckpointStore};
