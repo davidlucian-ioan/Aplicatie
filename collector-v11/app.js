@@ -363,8 +363,9 @@ function bindAIEnhancements(box,ai,sourceText,sourceId,turnId){
   try{
    const summary=String(ai.semanticSummary||'').trim(),facts=(Array.isArray(ai.memoryFacts)?ai.memoryFacts:[]).map(x=>String(x).trim()).filter(Boolean).slice(0,10);
    if(!summary&&!facts.length)throw Error('Nu există conținut de memorie valid.');
-   const description=['Memorie Collector',summary?('Rezumat: '+summary):'',facts.length?('Fapte: '+facts.join('; ')):'','Sursă: '+String(sourceId||'Work'),'Text original: '+String(sourceText||'').slice(0,1200)].filter(Boolean).join(' · ');
-   const command={contractVersion:'collector.command.v1',intent:'ai.memory.save',source:'ai-memory',certainty:'certain',idempotencyKey:'collector-ai-memory:'+turnId,payload:{sourceId,semanticSummary:summary,memoryFacts:facts,sourceText:String(sourceText||'').slice(0,1200)},operations:[{operation:'event.note',target:null,data:{description}}],requiresConfirmation:true};
+   const retainedSourceText=String(sourceId||'').startsWith('audio:')?'':String(sourceText||'').slice(0,1200);
+   const description=['Memorie Collector',summary?('Rezumat: '+summary):'',facts.length?('Fapte: '+facts.join('; ')):'','Sursă: '+String(sourceId||'Work'),retainedSourceText?('Text original: '+retainedSourceText):''].filter(Boolean).join(' · ');
+   const command={contractVersion:'collector.command.v1',intent:'ai.memory.save',source:'ai-memory',certainty:'certain',idempotencyKey:'collector-ai-memory:'+turnId,payload:{sourceId,semanticSummary:summary,memoryFacts:facts,sourceText:retainedSourceText||null},operations:[{operation:'event.note',target:null,data:{description}}],requiresConfirmation:true};
    const preview=await ensureAICorePort().preview(command);
    if(preview.status!=='preview_ok')throw Error('Core a respins salvarea memoriei: '+preview.status);
    if(!confirm('Salvez această memorie în jurnalul Collector?\\n\\n'+description+'\\n\\nDatele nu sunt salvate încă.')){memoryButton.disabled=false;return}
@@ -384,7 +385,8 @@ function bindAIEnhancements(box,ai,sourceText,sourceId,turnId){
     const validator=window.CollectorReminderIntent;
     if(!validator)throw new Error('Validatorul reminder AI nu este încărcat.');
     const timezone=suggestion.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
-    const context=[suggestion.context,sourceText].filter(Boolean).join(' · ').slice(0,500);
+    const isAudioSource=String(sourceId||'').startsWith('audio:');
+    const context=isAudioSource?String(ai.semanticSummary||suggestion.title||'Audio capture').slice(0,500):[suggestion.context,sourceText].filter(Boolean).join(' · ').slice(0,500);
     const checked=validator.validateReminderSuggestion({
      intent:suggestion.intent,certainty:suggestion.certainty,explicitIntent:suggestion.explicitIntent,negated:suggestion.negated,
      title:suggestion.title,due:suggestion.due,timezone,sourceId,context,idempotencyKey:'collector-ai-reminder:'+turnId+':'+index,
