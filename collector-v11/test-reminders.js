@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const {createService}=require('./reminders');
 function fixture({permission='granted',scheduleError=null,cancelError=null,failStorageWriteAt=0,failStorageRemove=false,random=Math.random}={}){
  let raw=null,writeCount=0;const calls=[];
- const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');writeCount++;if(writeCount===failStorageWriteAt)throw new Error('storage write failed');raw=value;return true},async removeRaw(key){assert.equal(key,'collector_reminders_v1');if(failStorageRemove)throw new Error('storage remove failed');raw=null}};
+ const storage={async readRaw(key){assert.equal(key,'collector_reminders_v1');return raw},async writeRaw(key,value){assert.equal(key,'collector_reminders_v1');writeCount++;if(writeCount===failStorageWriteAt)throw new Error('storage write failed');raw=value;return true},async removeRaw(key){assert.equal(key,'collector_reminders_v1');if(failStorageRemove)throw new Error('storage remove failed');raw=null;return true}};
  const plugin={
   async checkPermissions(){return {display:permission}},
   async requestPermissions(){return {display:permission}},
