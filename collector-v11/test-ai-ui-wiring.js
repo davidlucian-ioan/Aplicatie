@@ -475,8 +475,8 @@ test('transcript checkpoint is cleared before source deletion and after a verifi
 test('Recall UI renders canonical reminder tasks from structured evidence',()=>{
  const app=fs.readFileSync('app.js','utf8');
  const recall=app.slice(app.indexOf('async function runStructuredRecall'),app.indexOf('function openRecallEvent'));
- assert.match(recall,/result\\.tasks\\?\\.length/);
- assert.match(recall,/Task-uri \\/ reminders/);
- assert.match(recall,/task\\.successorDueAt/);
- assert.match(recall,/row\\.kind==='task'/);
+ assert.ok(recall.includes('result.tasks?.length'));
+ assert.ok(recall.includes('Task-uri / reminders'));
+ assert.ok(recall.includes('task.successorDueAt'));
+ assert.ok(recall.includes("row.kind==='task'"));
 });
