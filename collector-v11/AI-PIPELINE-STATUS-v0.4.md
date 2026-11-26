@@ -37,3 +37,12 @@
 ## Release boundary
 
 PR remains unmerged. No production deployment, live billing activation or store release is authorized by this checkpoint.
+
+## Batch 2026-11-26 — command-context isolation and end-to-end regression
+
+- A new local/deterministic command is blocked while another AI interpretation, Core preview or Core commit is pending. It cannot silently replace a reviewable AI proposal.
+- Starting a fresh local or AI turn clears any orphaned AI enhancement context. A rejected preview and an interrupted AI turn also discard their stale command metadata.
+- The Core confirmation handler now binds audio cleanup metadata to all three identifiers: the staged recording ID, the exact `audio:<recordingId>` source ID and the stable `collector-audio-capture:<recordingId>` idempotency key. A mismatch disables the audio cleanup path and is surfaced in Work.
+- Added `test-audio-ai-core-pipeline.js` to exercise the integrated contracts: source-bound transcript persistence, multi-entity/fact/relation preview, explicit confirmation, independent readback, idempotent retry, ambiguity rejection, note-only deletion denial, source-bound deletion verification and failure retention.
+- This batch does not turn on background AI processing. Audio and transcript are still temporary and are removed only after a confirmed structured Core commit and independent verification, unless the user selects retention. Any uncertainty preserves the original recording.
+- CI is running against the new branch head; this note is not a claim of final launch readiness or device validation.
