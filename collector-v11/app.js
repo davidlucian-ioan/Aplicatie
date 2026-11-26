@@ -282,6 +282,50 @@ async function confirmCoreCommand(){
   } else box.textContent=`Execuție nefinalizată (${result.status}): ${(result.errors||[]).join(' ')}`;
  }catch(err){box.textContent='Execuția a eșuat: '+err.message}
 }
+function renderAIEnhancements(ai,sourceText,sourceId,turnId){
+ const parts=[];
+ if(ai.semanticSummary)parts.push('<section class="note"><b>Sumar inteligent</b><p>'+esc(ai.semanticSummary)+'</p></section>');
+ if(Array.isArray(ai.memoryFacts)&&ai.memoryFacts.length)parts.push('<section class="note"><b>Fapte candidate · nu sunt salvate încă</b><ul>'+ai.memoryFacts.slice(0,10).map(fact=>'<li>'+esc(fact)+'</li>').join('')+'</ul></section>');
+ if(Array.isArray(ai.reminderSuggestions)&&ai.reminderSuggestions.length){
+  parts.push('<section class="note"><b>Reminders sugerate</b>'+ai.reminderSuggestions.slice(0,5).map((suggestion,index)=>{
+   const due=suggestion.due||{},when=due.date?(due.date+(due.time?' · '+due.time:'')):'Dată neclară';
+   const title=String(suggestion.title||'Acțiune').trim();
+   const detail=suggestion.clarificationQuestion||((suggestion.certainty==='certain'&&suggestion.explicitIntent&&!suggestion.negated)?'':'Necesită clarificare înainte de programare.');
+   return '<div class="row reminder-row"><div><b>'+esc(title)+'</b><div class="muted">'+esc(when)+'</div>'+(detail?'<div class="muted">'+esc(detail)+'</div>':'')+'</div><button class="secondary" type="button" data-ai-reminder-index="'+index+'">Programează…</button></div>';
+  }).join('')+'</section>');
+ }
+ return parts.join('');
+}
+function bindAIEnhancements(box,ai,sourceText,sourceId,turnId){
+ box.querySelectorAll('[data-ai-reminder-index]').forEach(button=>{
+  const index=Number(button.dataset.aiReminderIndex),suggestion=ai.reminderSuggestions?.[index];
+  button.addEventListener('click',async()=>{
+   if(!suggestion)return;
+   button.disabled=true;
+   try{
+    const validator=window.CollectorReminderIntent;
+    if(!validator)throw new Error('Validatorul reminder AI nu este încărcat.');
+    const timezone=suggestion.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
+    const context=[suggestion.context,sourceText].filter(Boolean).join(' · ').slice(0,500);
+    const checked=validator.validateReminderSuggestion({
+     intent:suggestion.intent,certainty:suggestion.certainty,explicitIntent:suggestion.explicitIntent,negated:suggestion.negated,
+     title:suggestion.title,due:suggestion.due,timezone,sourceId,context,idempotencyKey:'collector-ai-reminder:'+turnId+':'+index,
+     clarificationQuestion:suggestion.clarificationQuestion
+    },{timezone,defaultHour:9,defaultMinute:0});
+    if(checked.action==='skip'){button.textContent='Nu necesită reminder';return}
+    if(checked.action==='clarify'){button.disabled=false;button.textContent='Clarifică';document.getElementById('commandResult').insertAdjacentHTML('beforeend','<p class="note">'+esc(checked.question)+'</p>');return}
+    const dueText=new Date(checked.reminder.dueAt).toLocaleString('ro-RO');
+    if(!confirm('Programez reminderul?\n\n'+checked.reminder.title+'\n'+dueText+'\n\nSursa: Work (textul original este păstrat în contextul reminderului).')){button.disabled=false;return}
+    const scheduled=await window.CollectorReminders?.schedule?.({title:checked.reminder.title,at:checked.reminder.dueAt,sourceId:checked.reminder.sourceId,context:checked.reminder.context,idempotencyKey:checked.reminder.idempotencyKey});
+    if(!scheduled)throw new Error('Serviciul de notificări native nu este disponibil pe acest dispozitiv.');
+    button.textContent=scheduled.alreadyScheduled?'Deja programat':'Programat ✓';
+    const note=checked.usedDefaultTime?' · am folosit ora implicită 09:00, locală':'';
+    document.getElementById('commandResult').insertAdjacentHTML('beforeend','<p class="status-ok">Reminder '+(scheduled.alreadyScheduled?'era deja programat':'programat cu succes')+': '+esc(scheduled.title)+' · '+esc(dueText)+esc(note)+'.</p>');
+    await window.CollectorReminders.render();
+   }catch(error){button.disabled=false;button.textContent='Reîncearcă';document.getElementById('commandResult').insertAdjacentHTML('beforeend','<p class="note">Reminderul nu a fost programat: '+esc(error.message)+'</p>')}
+  });
+ });
+}
 async function runAICommand(){
  const box=document.getElementById('commandResult'),text=document.getElementById('commandInput').value.trim();
  if(!text){box.textContent='Scrie sau dictează mai întâi ce dorești să înregistrezi.';return}
@@ -294,29 +338,31 @@ async function runAICommand(){
    entities:db.entities.slice(0,150).map(e=>({id:e.id,name:e.name,type:e.type})),
    attributes:db.attributes.slice(0,100).map(a=>({id:a.id,name:a.name,type:a.type,required:Boolean(a.required),identifying:Boolean(a.identifying),temporal:Boolean(a.temporal),min:a.min??null,max:a.max??null}))
   };
+  const turnId=E.uid(),sourceId='work:'+turnId;
   const response=await CollectorOpenAIProvider.interpret(text,context);
   void refreshAIProviderStatus();
-  const ai=response.interpretation||{};
-  if(ai.intent==='answer'){box.textContent=ai.answer||'Nu am un răspuns disponibil.';return}
-  if(ai.intent==='clarify'||(ai.intent==='propose'&&Array.isArray(ai.ambiguities)&&ai.ambiguities.length)){box.textContent=ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.';return}
-  if(ai.intent==='refuse'){box.textContent=ai.answer||'Nu pot procesa această solicitare.';return}
+  const ai=response.interpretation||{},extras=renderAIEnhancements(ai,text,sourceId,turnId);
+  if(ai.intent==='answer'){box.innerHTML='<p>'+esc(ai.answer||'Nu am un răspuns disponibil.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
+  if(ai.intent==='clarify'||(ai.intent==='propose'&&Array.isArray(ai.ambiguities)&&ai.ambiguities.length)){box.innerHTML='<p>'+esc(ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
+  if(ai.intent==='refuse'){box.innerHTML='<p>'+esc(ai.answer||'Nu pot procesa această solicitare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
   if(ai.intent!=='propose'||!ai.command||!Array.isArray(ai.command.operations)||!ai.command.operations.length)throw Error('OpenAI nu a returnat o comandă validă pentru Collector.');
   const command={
    ...ai.command,
-   turnId:E.uid(),
+   turnId,
    idempotencyKey:commandIntentKey(),
    source:'ai-openai'
   };
   const preview=await ensureAICorePort().preview(command);
   if(preview.status!=='preview_ok'){
-   box.textContent=preview.status==='duplicate'?'Această intenție a fost deja înregistrată.':'Core a respins preview-ul: '+preview.status;
-   return;
+   box.innerHTML='<p>'+esc(preview.status==='duplicate'?'Această intenție a fost deja înregistrată.':'Core a respins preview-ul: '+preview.status)+'</p>'+extras;
+   bindAIEnhancements(box,ai,text,sourceId,turnId);return;
   }
   pendingCoreCommand=command;
   const opSummary=command.operations.map(op=>op.operation).join(', ');
-  box.innerHTML='<b>Propunere AI · '+esc(response.model||'OpenAI')+'</b><p>'+esc(ai.answer||'Am interpretat cererea și am pregătit operația: '+opSummary+'.')+'</p><p>Încredere interpretare: '+Math.round(ai.confidence*100)+'%.</p><p>Impact estimat — entități: '+preview.projectionChanges.entities+', relații: '+preview.projectionChanges.relations+', stoc: '+preview.projectionChanges.stock+', financiar: '+preview.projectionChanges.finance+'.</p><p class="note">OpenAI doar propune. Core a validat preview-ul. Datele nu au fost modificate. Verifică propunerea și confirmă explicit pentru salvare.</p><button class="primary" id="confirmCoreCommand">Confirmă și salvează</button> <button class="secondary" id="cancelCoreCommand">Anulează</button>';
+  box.innerHTML=extras+'<section class="note"><b>Propunere AI · '+esc(response.model||'OpenAI')+'</b><p>'+esc(ai.answer||'Am interpretat cererea și am pregătit operația: '+opSummary+'.')+'</p><p>Încredere interpretare: '+Math.round(ai.confidence*100)+'%.</p><p>Impact estimat — entități: '+preview.projectionChanges.entities+', relații: '+preview.projectionChanges.relations+', stoc: '+preview.projectionChanges.stock+', financiar: '+preview.projectionChanges.finance+'.</p><p class="note">OpenAI doar propune. Core a validat preview-ul. Datele nu au fost modificate. Verifică propunerea și confirmă explicit pentru salvare.</p><button class="primary" id="confirmCoreCommand">Confirmă și salvează</button> <button class="secondary" id="cancelCoreCommand">Anulează</button></section>';
+  bindAIEnhancements(box,ai,text,sourceId,turnId);
   document.getElementById('confirmCoreCommand').onclick=confirmCoreCommand;
-  document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;box.textContent='Propunere anulată. Nu s-au modificat date.'};
+  document.getElementById('cancelCoreCommand').onclick=()=>{pendingCoreCommand=null;box.innerHTML='<p>Propunere anulată. Nu s-au modificat date.</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId)};
  }catch(error){box.textContent='Interpretarea AI nu a putut fi finalizată: '+error.message}
  finally{if(button){button.disabled=false;button.textContent='Interpretează cu AI'}}
 }
