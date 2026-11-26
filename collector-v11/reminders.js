@@ -227,19 +227,27 @@
    }
    const notifications=rows.filter(row=>row.status!=='cancelled'&&row.status!=='completed').map(row=>({id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id,sourceId:row.sourceId,idempotencyKey:row.idempotencyKey},isExactNotification:false}));
    if(notifications.length)await plugin.cancel({notifications});
-   try{
-    if(typeof storage.removeRaw!=='function')throw new Error('Stocarea nu poate elimina metadatele alarmelor.');
-    if(await storage.removeRaw(KEY)!==true)throw new Error('Stocarea nu a confirmat eliminarea alarmelor.');
-    const remaining=await storage.readRaw(KEY);
-    if(remaining!==null&&remaining!==undefined)throw new Error('Lista alarmelor este încă prezentă după ștergere.');
-   }catch(error){
+   const occurredAt=now().toISOString();
+   const cancelledRows=rows.map(row=>{
+    if(row.status==='cancelled'||row.status==='completed')return row;
+    const lifecycleEvent=coreEventHandler?makeCoreLifecycleEvent(row,'cancelled',occurredAt):null;
+    return {...row,status:'cancelled',scheduleState:'settled',scheduleUncertain:false,cancelledAt:occurredAt,coreOutbox:lifecycleEvent?[...(row.coreOutbox||[]),lifecycleEvent]:[...(row.coreOutbox||[])]};
+   });
+   try{await persistRows(cancelledRows)}
+   catch(error){
     let restoreError=null;
     try{await persistRows(rows)}catch(failure){restoreError=failure}
     try{if(notifications.length)await plugin.schedule({notifications})}
     catch(rollbackError){throw new Error('Alarmele au fost anulate, dar restaurarea metadatelor/notificărilor a eșuat: '+error.message+'; '+(restoreError?.message||'')+'; '+rollbackError.message)}
-    if(restoreError)throw new Error('Ștergerea alarmelor a fost rollback-uită parțial; notificările au fost reprogramate, dar metadatele nu au putut fi verificate: '+error.message+'; '+restoreError.message);
-    throw new Error('Ștergerea alarmelor a fost rollback-uită; notificările au fost reprogramate: '+error.message);
+    if(restoreError)throw new Error('Anularea alarmelor a fost rollback-uită parțial; metadatele nu au putut fi verificate: '+error.message+'; '+restoreError.message);
+    throw new Error('Anularea alarmelor a fost rollback-uită; notificările au fost reprogramate: '+error.message);
    }
+   const sync=await syncCoreOutboxInternal();
+   if(sync.pending>0)throw new Error('Notificările au fost anulate, dar '+sync.pending+' eveniment(e) de anulare așteaptă sincronizarea Core. Metadatele au fost păstrate.');
+   if(typeof storage.removeRaw!=='function')throw new Error('Notificările au fost anulate și jurnalizate, dar stocarea nu poate elimina istoricul local.');
+   if(await storage.removeRaw(KEY)!==true)throw new Error('Notificările au fost anulate și jurnalizate, dar stocarea nu a confirmat ștergerea istoricului.');
+   const remaining=await storage.readRaw(KEY);
+   if(remaining!==null&&remaining!==undefined)throw new Error('Notificările au fost anulate și jurnalizate, dar lista locală este încă prezentă.');
    return rows.length;
   }
   function clearAll(){return serialized(clearAllInternal)}
