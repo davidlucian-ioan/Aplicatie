@@ -414,3 +414,32 @@ test('cloud transcription limits concurrent uploads before buffering additional 
   const response=await first;assert.equal(response.status,200);
  });
 });
+
+test('Cloud Recall route passes canonical task evidence through bounded sanitizer to provider',async()=>{
+ let received=null;
+ const sourceId='task:task:reminder:cloud-test';
+ const task={kind:'task',sourceId,reminderId:'cloud-test',title:'Verifică pompa',status:'snoozed',
+  dueAt:'2026-11-27T08:00:00+02:00',sourceRef:'audio:capture-1',scheduleState:'settled',
+  successorReminderId:'cloud-next',successorTaskId:'task:reminder:cloud-next',successorDueAt:'2026-11-27T09:15:00+02:00',
+  transcript:'do-not-forward',rawAudio:'do-not-forward',injected:'strip'};
+ const billingService={configured:true,reserve:async()=>({allowed:true}),settle:async()=>({settled:true,used_microusd:1000})};
+ await withServer({env:baseEnv,fetchImpl:authFetch(),billingService,providerFactory:()=>({model:'test-model',interpret:async value=>{
+  received=value;
+  return {intent:'answer',answer:'Verificarea este la 09:15.',answerSources:[sourceId],usage:{inputTokens:100,outputTokens:30}};
+ }})},async base=>{
+  const response=await fetch(base+'/api/ai/interpret',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'application/json'},
+   body:JSON.stringify({text:'La ce oră a fost amânată verificarea?',context:{recallEvidence:[task],privateField:'strip'}})});
+  assert.equal(response.status,200);
+  const payload=await response.json();
+  assert.equal(payload.interpretation.intent,'answer');
+  assert.deepEqual(payload.interpretation.answerSources,[sourceId]);
+  assert.deepEqual(received.context.recallEvidence,[{
+   kind:'task',sourceId,reminderId:'cloud-test',title:'Verifică pompa',status:'snoozed',
+   dueAt:'2026-11-27T08:00:00+02:00',sourceRef:'audio:capture-1',scheduleState:'settled',
+   successorReminderId:'cloud-next',successorTaskId:'task:reminder:cloud-next',successorDueAt:'2026-11-27T09:15:00+02:00'
+  }]);
+  assert.equal(Object.hasOwn(received.context.recallEvidence[0],'transcript'),false);
+  assert.equal(Object.hasOwn(received.context.recallEvidence[0],'rawAudio'),false);
+  assert.equal(Object.hasOwn(received.context,'privateField'),false);
+ });
+});

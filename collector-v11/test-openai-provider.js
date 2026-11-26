@@ -102,3 +102,19 @@ test('Recall respinge răspunsurile fără cel puțin o sursă verificată',asyn
  const provider=new OpenAIProvider({apiKey:'test-key',fetchImpl:async()=>({ok:true,status:200,json:async()=>apiResponse({...base,intent:'answer',answer:'Nu există dovadă.',answer_sources:['invented-source'],operations:[]})})});
  await assert.rejects(provider.interpret({text:'Ce s-a întâmplat?',context:{recallEvidence:[{kind:'event',sourceId:'event-1',summary:'Fapt'}]}}),/suficiente dovezi/);
 });
+
+test('Recall prompt descrie explicit semantica task lifecycle și prioritatea successorDueAt',async()=>{
+ let request;
+ const sourceId='task:task:reminder:r-live';
+ const task={kind:'task',sourceId,reminderId:'r-live',title:'Verifică pompa',status:'snoozed',dueAt:'2026-11-27T08:00:00+02:00',sourceRef:'audio:capture-live',scheduleState:'settled',successorReminderId:'r-live-next',successorDueAt:'2026-11-27T09:15:00+02:00'};
+ const provider=new OpenAIProvider({apiKey:'test-key',fetchImpl:async(url,options)=>{
+  request=JSON.parse(options.body);
+  return {ok:true,status:200,json:async()=>apiResponse({...base,intent:'answer',answer:'Verificarea pompei este amânată la 09:15.',answer_sources:[sourceId],operations:[]})};
+ }});
+ const result=await provider.interpret({text:'La ce oră trebuie verificată pompa după amânare?',context:{recallEvidence:[task]}});
+ assert.equal(result.intent,'answer');
+ assert.deepEqual(result.answerSources,[sourceId]);
+ assert.match(request.instructions,/successorDueAt este noul termen/);
+ assert.match(request.instructions,/scheduleState=uncertain/);
+ assert.match(request.instructions,/sourceRef identifică înregistrarea-sursă/);
+});
