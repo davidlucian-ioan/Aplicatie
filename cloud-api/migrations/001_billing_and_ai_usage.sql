@@ -62,6 +62,13 @@ begin
     on conflict(user_id,period_start) do nothing;
   select * into v_budget from public.collector_ai_budgets
     where user_id=p_user_id and period_start=p_period_start for update;
+  -- A lowered server-side plan/budget must take effect immediately for the current period.
+  -- Increases are held until the next period so a mid-cycle config change cannot silently
+  -- expand a customer's already-issued allowance.
+  update public.collector_ai_budgets set budget_microusd=least(budget_microusd,p_budget_microusd),
+    updated_at=now() where user_id=p_user_id and period_start=p_period_start;
+  select * into v_budget from public.collector_ai_budgets
+    where user_id=p_user_id and period_start=p_period_start;
 
   -- Release reservations abandoned by crashed/timed-out workers after a 10-minute safety window.
   select coalesce(sum(reserved_microusd),0) into v_stale_reserved
