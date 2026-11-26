@@ -60,15 +60,25 @@
    const next=[...rows,reminder];
    // Persist and read back before scheduling a native side effect.
    await persistRows(next);
+   let scheduleAttempted=false;
    try{
     if(typeof plugin.checkPermissions==='function'){
      let permission=await plugin.checkPermissions();
      if(permission?.display!=='granted'&&typeof plugin.requestPermissions==='function')permission=await plugin.requestPermissions();
      if(permission?.display!=='granted')throw new Error('Permisiunea pentru notificări nu a fost acordată.');
     }
+    scheduleAttempted=true;
     await plugin.schedule({notifications:[{id:notificationId,title:'Collector',body:name,schedule:{at:date},extra:{reminderId:reminder.id,sourceId:reminder.sourceId,idempotencyKey:reminder.idempotencyKey},isExactNotification:false}]});
     return reminder;
    }catch(error){
+    let cancelError=null;
+    if(scheduleAttempted){
+     try{await plugin.cancel({notifications:[{id:notificationId}]})}
+     catch(failure){cancelError=failure}
+    }
+    // If compensation cannot be confirmed, retain the metadata row so a possibly
+    // scheduled native notification is still represented and can be managed.
+    if(cancelError)throw new Error('Starea notificării este incertă după eșecul programării. Am păstrat reminderul local pentru recovery; verifică-l înainte de a crea altul: '+error.message+'; '+cancelError.message);
     try{await persistRows(rows)}catch(rollbackError){throw new Error('Alarma nu a putut fi programată, iar rollback-ul listei locale nu a putut fi verificat: '+error.message+'; '+rollbackError.message)}
     throw error;
    }
