@@ -92,6 +92,29 @@
   return command('task.transition',input.idempotencyKey,a.taskId,
    {domain:'task',taskKind:'user',taskId:a.taskId,entityId:id,previousStatus:previous,status:next,occurredAt},operations);
  }
+ function editTaskCommand(input,state){
+  if(!input||typeof input!=='object'||Array.isArray(input))throw new TypeError('Task edit input invalid');
+  const task=findTask(state,input.taskId,{userOnly:true}),a=task.attributes||{};
+  const occurredAt=input.occurredAt||new Date().toISOString();
+  if(typeof occurredAt!=='string'||!Number.isFinite(Date.parse(occurredAt))||!/(Z|[+-]\\d{2}:\\d{2})$/i.test(occurredAt))throw new TypeError('occurredAt must be timezone-aware ISO');
+  const title=input.title===undefined?task.name:text(input.title,'title',160);
+  const dueDate=input.dueDate===undefined?(a.dueDate||null):(input.dueDate===null||input.dueDate===''?null:isoDate(input.dueDate));
+  const dueTime=input.dueTime===undefined?(a.dueTime||null):(input.dueTime===null||input.dueTime===''?null:isoTime(input.dueTime));
+  if(dueTime&&!dueDate)throw new Error('dueTime requires dueDate');
+  const zone=dueDate&&dueTime?(input.timezone===undefined?(a.timezone||null):timezone(input.timezone)):null;
+  if(dueDate&&dueTime&&!zone)throw new Error('A timed task requires an IANA timezone');
+  const priority=input.priority===undefined?(a.priority||'normal'):text(input.priority,'priority',16);
+  if(!PRIORITIES.has(priority))throw new Error('Task priority is not supported');
+  const operations=[];
+  if(title!==task.name)operations.push({operation:'entity.rename',target:task.id,data:{name:title}});
+  const set=(name,value)=>operations.push({operation:'attribute.set',target:task.id,data:{name,value,forceHistory:true}});
+  if(dueDate!==a.dueDate)set('dueDate',dueDate);
+  if(dueTime!==a.dueTime)set('dueTime',dueTime);
+  if(zone!==a.timezone)set('timezone',zone);
+  if(priority!==a.priority)set('priority',priority);
+  set('updatedAt',occurredAt);
+  return command('task.edit',input.idempotencyKey,a.taskId,{domain:'task',taskKind:'user',taskId:a.taskId,entityId:task.id,title,dueDate,dueTime,timezone:zone,priority,occurredAt},operations);
+ }
  function reachesDependency(state,startId,targetId){
   const relations=Array.isArray(state.relations)?state.relations:[];
   const pending=[startId],visited=new Set();
