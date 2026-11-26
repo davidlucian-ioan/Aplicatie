@@ -176,6 +176,7 @@ class OpenAIProvider {
         answer: parsed.answer || '',
         semanticSummary: String(parsed.semantic_summary || '').slice(0, 1000),
         memoryFacts: Array.isArray(parsed.memory_facts) ? parsed.memory_facts.slice(0, 20).map(x=>String(x).slice(0,500)) : [],
+        structuredMemory: parsed.structured_memory && typeof parsed.structured_memory === 'object' ? parsed.structured_memory : null,
         reminderSuggestions: Array.isArray(parsed.reminder_suggestions) ? parsed.reminder_suggestions.slice(0, 5).map(s=>({
           intent:s.intent, certainty:s.certainty, explicitIntent:s.explicitIntent, negated:s.negated,
           title:String(s.title||'').slice(0,160), due:{date:s.due_date||null,time:s.due_time||null},
