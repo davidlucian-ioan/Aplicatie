@@ -18,7 +18,8 @@ const WEB_FILES=[
  'subscriptions.js',
  'app.js',
  'ai/core-port-browser.js',
- 'ai/provider-openai-browser.js'
+ 'ai/provider-openai-browser.js',
+ 'ai/reminder-intent.js'
 ];
 
 async function buildMobile(outDir=path.join(ROOT,'www')){
