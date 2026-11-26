@@ -46,3 +46,35 @@ test('missing audio without independently verified persistence cannot be marked 
  await assert.rejects(x.lifecycle.process('a1',{retry:true}),/cannot recover processing/);
  assert.notEqual(x.cps.get('a1').state,'completed');
 });
+
+test('storage checkpoint adapter persists across instances and enumerates recoverable states',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k);return true}};
+ const a=createStorageCheckpointStore(storage),b=createStorageCheckpointStore(storage);
+ await a.put({id:'r1',state:'processing',idempotencyKey:'audio:r1'});
+ await a.put({id:'r2',state:'failed',idempotencyKey:'audio:r2'});
+ assert.deepEqual((await b.list()).map(x=>x.id).sort(),['r1','r2']);
+ assert.equal((await b.get('r1')).state,'processing');
+ await b.remove('r1');assert.equal(await a.get('r1'),null);assert.deepEqual((await a.list()).map(x=>x.id),['r2']);
+});
+test('checkpoint adapter rejects malformed persisted checkpoint JSON',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const storage={async readRaw(k){return k.endsWith(encodeURIComponent('bad'))?'not-json':null},async writeRaw(){},async removeRaw(){}};
+ const cp=createStorageCheckpointStore(storage);await assert.rejects(cp.get('bad'),/checkpoint is corrupt/);
+});
+test('checkpoint adapter refuses identity corruption from storage',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v))},async removeRaw(k){raw.delete(k)}};
+ const cp=createStorageCheckpointStore(storage);raw.set('collector_audio_lifecycle_v1:'+encodeURIComponent('x'),JSON.stringify({id:'y',state:'failed'}));
+ await assert.rejects(cp.get('x'),/identity mismatch/);
+});
+test('validation failure keeps audio and never reaches persistence or deletion',async()=>{
+ const x=fixture({failAt:'validate'});await assert.rejects(x.lifecycle.process('a1'),/validate failure/);
+ assert.equal(x.audio.has('a1'),true);assert.ok(!x.calls.includes('persist'));assert.ok(!x.calls.includes('delete'));
+});
+test('checkpoint failure after persistence verification still retains source audio',async()=>{
+ const x=fixture();let count=0;const originalPut=x.cps.set.bind(x.cps);
+ const cpStore={async get(id){return x.cps.get(id)||null},async put(cp){count++;if(count===7)throw Error('checkpoint disk full');originalPut(cp)},async list(){return [...x.cps.values()]}};
+ const lifecycle=createAudioProcessingLifecycle({audioStore:x.store,checkpointStore:cpStore,interpret:async()=>({}),extract:async()=>({}),validate:async v=>v,persist:async()=>({ok:true}),verifyPersisted:async()=>true});
+ await assert.rejects(lifecycle.process('a1'),/checkpoint disk full/);assert.equal(x.audio.has('a1'),true);assert.ok(!x.calls.includes('delete'));
+});
