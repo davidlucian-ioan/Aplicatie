@@ -407,7 +407,7 @@ async function runAICommand(){
  if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){box.textContent='Există deja o interpretare sau o salvare în curs. Confirmă ori anulează propunerea curentă înainte de a începe alta.';return}
  if(!text){box.textContent='Scrie sau dictează mai întâi ce dorești să înregistrezi.';return}
  aiInterpretationPending=true;
- if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')}catch(checkpointError){setAudioUi('idle','Audio-ul rămâne păstrat; checkpoint-ul de recovery nu a putut fi actualizat: '+checkpointError.message)}
+ if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'processing')}catch(checkpointError){throw Error('Checkpoint-ul de recovery nu a putut fi salvat. Interpretarea a fost oprită, iar înregistrarea audio este păstrată: '+checkpointError.message)}
  const button=document.getElementById('parseWithAI');
  if(button){button.disabled=true;button.textContent='AI procesează…'}
  box.textContent='Trimit textul către OpenAI pentru interpretare. Nicio modificare nu este salvată în această etapă.';
@@ -741,16 +741,27 @@ async function playAudioRecording(recordId){
 async function deleteAudioRecording(recordId){
  try{
   const checkpoints=window.CollectorAudioLifecycleCheckpointStore;
-  const checkpoint=await checkpoints?.get(recordId);
-  if(!checkpoint||!['source_retained','audio_deletion_pending'].includes(checkpoint.state)){
-   setAudioUi('idle','Înregistrarea este păstrată. Ștergerea este blocată până când există un commit structurat confirmat și verificat independent în Core.');
+  if(!checkpoints||typeof checkpoints.get!=='function')throw Error('Starea de recovery nu este disponibilă; înregistrarea a fost păstrată.');
+  const checkpoint=await checkpoints.get(recordId);
+  if(checkpoint&&['source_retained','audio_deletion_pending'].includes(checkpoint.state)){
+   const result=await deleteAudioFromVerifiedCheckpoint(recordId);
+   if(result.status==='cancelled')return;
+   if(audioPlaybackRecordId===recordId)clearAudioPlayback();
+   await renderAudioRecordings();await refreshAudioLifecycleRecovery();
+   setAudioUi('idle','Evenimentul Core a fost reverificat, iar absența înregistrării audio a fost confirmată independent.');
    return;
   }
-  const result=await deleteAudioFromVerifiedCheckpoint(recordId);
-  if(result.status==='cancelled')return;
+  if(checkpoint){
+   setAudioUi('idle','Înregistrarea a intrat deja în procesare ('+checkpoint.state+'). Sursa este păstrată pentru recovery; ștergerea este blocată până la commit-ul verificat.');
+   return;
+  }
+  if(!confirm('Această înregistrare nu are niciun checkpoint de procesare. O ștergi definitiv fără transcriere sau salvare în Core?'))return;
+  try{await CollectorAudioStore.remove(recordId)}catch(removeError){const removed=typeof CollectorAudioStore.verifyRemoved==='function'?await CollectorAudioStore.verifyRemoved(recordId):!await CollectorAudioStore.get(recordId);if(!removed)throw removeError}
+  const verified=typeof CollectorAudioStore.verifyRemoved==='function'?await CollectorAudioStore.verifyRemoved(recordId):!await CollectorAudioStore.get(recordId);
+  if(!verified)throw Error('AudioStore nu a confirmat absența înregistrării eliminate.');
   if(audioPlaybackRecordId===recordId)clearAudioPlayback();
-  await renderAudioRecordings();await refreshAudioLifecycleRecovery();
-  setAudioUi('idle','Evenimentul Core a fost reverificat, iar absența înregistrării audio a fost confirmată independent.');
+  await renderAudioRecordings();
+  setAudioUi('idle','Înregistrarea neprocesată a fost ștearsă și absența ei a fost confirmată independent.');
  }catch(error){setAudioUi('idle','Nu am putut confirma ștergerea. Înregistrarea este păstrată sau necesită recovery: '+error.message)}
 }
 async function writeAudioLifecycleCheckpoint(recordingId,state,{error=null,incrementAttempt=false,captureId=null,previewEventId=null,eventId=null,intentKey=null}={}){
@@ -812,7 +823,7 @@ async function renderAudioRecordings(){
    name.textContent=record.title||new Date(record.createdAt).toLocaleString('ro-RO');meta.textContent=new Date(record.createdAt).toLocaleString('ro-RO')+' · '+formatAudioDuration(record.durationMs)+' · '+Math.round(record.size/1024)+' KB'+(record.warning?' · '+record.warning:'');info.append(name,meta);
    const actions=document.createElement('div');actions.className='row-actions';
    const play=document.createElement('button');play.className='secondary';play.type='button';play.textContent='Redă';play.setAttribute('aria-label','Redă înregistrarea din '+name.textContent);play.addEventListener('click',()=>playAudioRecording(record.id));
-   const transcribe=document.createElement('button');transcribe.className='secondary';transcribe.type='button';transcribe.dataset.audioTranscribeId=record.id;transcribe.textContent='Transcrie + AI';transcribe.setAttribute('aria-label','Transcrie și interpretează audio '+name.textContent);transcribe.addEventListener('click',async()=>{if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){setAudioUi('idle','Există deja o interpretare sau o salvare în curs. Confirmă ori anulează propunerea curentă înainte de a procesa altă înregistrare.');return}activeAudioRecordingId=null;transcribe.disabled=true;transcribe.textContent='Transcriere…';setAudioUi('idle','Audio trimis pentru transcriere. Înregistrarea originală rămâne locală.');try{try{await writeAudioLifecycleCheckpoint(record.id,'processing',{incrementAttempt:true})}catch(checkpointError){setAudioUi('idle','Înregistrarea este păstrată; checkpoint-ul de recovery nu a putut fi actualizat: '+checkpointError.message)}if(!window.CollectorOpenAIProvider?.transcribe)throw Error('Modulul de transcriere nu este încărcat.');let source=await CollectorAudioStore.get(record.id);let blob=source?.blob;if(!(blob instanceof Blob)&&source?.uri){const playable=window.CollectorNativeAudioRecorder?.toPlayableUrl(source.uri)||window.Capacitor?.convertFileSrc?.(source.uri)||source.uri;const response=await fetch(playable);if(!response.ok)throw Error('Nu pot citi fișierul audio nativ.');blob=await response.blob()}if(!(blob instanceof Blob)||!blob.size)throw Error('Fișierul audio nu este disponibil pentru transcriere.');const result=await CollectorOpenAIProvider.transcribe(blob);const input=document.getElementById('commandInput');activeAudioRecordingId=record.id;input.value=result.text;input.dispatchEvent(new Event('input',{bubbles:true}));showPage('assistant');setAudioUi('idle','Transcriere reușită. AI interpretează acum; verifică propunerea și confirmă explicit înainte de salvare. Audio original este păstrat.');await renderAudioRecordings();document.getElementById('commandInput')?.focus();await runAICommand()}catch(error){try{await writeAudioLifecycleCheckpoint(record.id,'failed',{error:error.message})}catch(_){}setAudioUi('idle','Transcriere eșuată: '+error.message)}finally{transcribe.disabled=false;transcribe.textContent='Transcrie + AI'}});
+   const transcribe=document.createElement('button');transcribe.className='secondary';transcribe.type='button';transcribe.dataset.audioTranscribeId=record.id;transcribe.textContent='Transcrie + AI';transcribe.setAttribute('aria-label','Transcrie și interpretează audio '+name.textContent);transcribe.addEventListener('click',async()=>{if(aiInterpretationPending||pendingCoreCommand||coreCommitPending){setAudioUi('idle','Există deja o interpretare sau o salvare în curs. Confirmă ori anulează propunerea curentă înainte de a procesa altă înregistrare.');return}activeAudioRecordingId=null;transcribe.disabled=true;transcribe.textContent='Transcriere…';setAudioUi('idle','Audio trimis pentru transcriere. Înregistrarea originală rămâne locală.');try{try{await writeAudioLifecycleCheckpoint(record.id,'processing',{incrementAttempt:true})}catch(checkpointError){throw Error('Checkpoint-ul de recovery nu a putut fi salvat. Procesarea a fost oprită, iar înregistrarea originală este păstrată: '+checkpointError.message)}if(!window.CollectorOpenAIProvider?.transcribe)throw Error('Modulul de transcriere nu este încărcat.');let source=await CollectorAudioStore.get(record.id);let blob=source?.blob;if(!(blob instanceof Blob)&&source?.uri){const playable=window.CollectorNativeAudioRecorder?.toPlayableUrl(source.uri)||window.Capacitor?.convertFileSrc?.(source.uri)||source.uri;const response=await fetch(playable);if(!response.ok)throw Error('Nu pot citi fișierul audio nativ.');blob=await response.blob()}if(!(blob instanceof Blob)||!blob.size)throw Error('Fișierul audio nu este disponibil pentru transcriere.');const result=await CollectorOpenAIProvider.transcribe(blob);const input=document.getElementById('commandInput');activeAudioRecordingId=record.id;input.value=result.text;input.dispatchEvent(new Event('input',{bubbles:true}));showPage('assistant');setAudioUi('idle','Transcriere reușită. AI interpretează acum; verifică propunerea și confirmă explicit înainte de salvare. Audio original este păstrat.');await renderAudioRecordings();document.getElementById('commandInput')?.focus();await runAICommand()}catch(error){try{await writeAudioLifecycleCheckpoint(record.id,'failed',{error:error.message})}catch(_){}setAudioUi('idle','Transcriere eșuată: '+error.message)}finally{transcribe.disabled=false;transcribe.textContent='Transcrie + AI'}});
    const rename=document.createElement('button');rename.className='secondary';rename.type='button';rename.textContent='Redenumește';rename.setAttribute('aria-label','Redenumește înregistrarea '+name.textContent);rename.addEventListener('click',async()=>{const next=prompt('Titlu pentru această înregistrare:',record.title||name.textContent);if(next===null)return;try{await CollectorAudioStore.rename(record.id,next);await renderAudioRecordings()}catch(error){setAudioUi('idle','Nu am putut redenumi înregistrarea: '+error.message)}});const remove=document.createElement('button');remove.className='secondary';remove.type='button';remove.textContent='Șterge';remove.setAttribute('aria-label','Șterge înregistrarea din '+name.textContent);remove.addEventListener('click',()=>deleteAudioRecording(record.id));
    actions.append(play,transcribe,rename,remove);row.append(info,actions);list.append(row);
   }
