@@ -302,3 +302,89 @@ test('expired Pro entitlement cannot reach the AI provider even if is_active rem
   assert.equal(response.status,403);assert.equal((await response.json()).code,'subscription_required');assert.equal(providerCalled,false);
  });
 });
+
+
+test('transcription cloud endpoint authenticates, reserves a fixed cost ceiling and settles after success',async()=>{
+ const calls={reserve:[],settle:[],provider:0};
+ const billingService={configured:true,
+  reserve:async value=>{calls.reserve.push(value);return {allowed:true}},
+  settle:async value=>{calls.settle.push(value);return {used_microusd:40_000}}
+ };
+ const env={...baseEnv,OPENAI_TRANSCRIPTION_MAX_REQUEST_USD:'0.04'};
+ await withServer({env,fetchImpl:authFetch(),billingService,
+  transcriptionProviderFactory:()=>({model:'test-transcribe-model',transcribe:async({audio,contentType})=>{
+   calls.provider++;assert.equal(audio.toString(),'audio-bytes');assert.equal(contentType,'audio/webm');return {text:'Am notat două plante.'};
+  }})},async base=>{
+  const unauthorized=await fetch(base+'/api/ai/transcribe',{method:'POST',headers:{'Content-Type':'audio/webm'},body:Buffer.from('audio-bytes')});
+  assert.equal(unauthorized.status,401);
+  const response=await fetch(base+'/api/ai/transcribe',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'audio/webm',Origin:'capacitor://localhost'},body:Buffer.from('audio-bytes')});
+  assert.equal(response.status,200);const body=await response.json();
+  assert.equal(body.text,'Am notat două plante.');assert.equal(body.model,'test-transcribe-model');
+  assert.equal(body.usage.transcriptionCostCapUsd,0.04);assert.equal(body.usage.estimatedCostUsd,0.04);
+  assert.equal(calls.provider,1);assert.equal(calls.reserve.length,1);assert.equal(calls.settle.length,1);
+  assert.equal(calls.reserve[0].reserveMicrousd,40_000);
+  assert.equal(calls.settle[0].actualMicrousd,40_000);assert.equal(calls.settle[0].failed,false);
+  assert.equal(calls.settle[0].model,'test-transcribe-model');
+ });
+});
+
+test('cloud transcription stays disabled without a configured per-recording cost ceiling',async()=>{
+ let providerCalls=0,reserveCalls=0;
+ const billingService={configured:true,reserve:async()=>{reserveCalls++;return {allowed:true}},settle:async()=>({})};
+ await withServer({env:baseEnv,fetchImpl:authFetch(),billingService,
+  transcriptionProviderFactory:()=>({transcribe:async()=>{providerCalls++;return {text:'x'}}})},async base=>{
+  const response=await fetch(base+'/api/ai/transcribe',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'audio/webm'},body:Buffer.from('audio')});
+  assert.equal(response.status,503);assert.match((await response.json()).error,/Plafonul de cost/);
+  assert.equal(providerCalls,0);assert.equal(reserveCalls,0);
+ });
+});
+
+test('cloud status exposes transcription availability only for Pro with configured cost ceiling',async()=>{
+ await withServer({env:{...baseEnv,OPENAI_TRANSCRIPTION_MAX_REQUEST_USD:'0.03'},fetchImpl:authFetch()},async base=>{
+  const response=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer valid-token'}});
+  const body=await response.json();assert.equal(body.transcriptionConfigured,true);assert.equal(body.transcriptionAvailable,true);assert.equal(body.transcriptionMaxRequestUsd,0.03);
+ });
+ await withServer({env:baseEnv,fetchImpl:authFetch()},async base=>{
+  const response=await fetch(base+'/api/ai/status',{headers:{Authorization:'Bearer valid-token'}});
+  const body=await response.json();assert.equal(body.transcriptionConfigured,false);assert.equal(body.transcriptionAvailable,false);assert.equal(body.transcriptionMaxRequestUsd,null);
+ });
+});
+
+test('cloud transcription rejects unsupported audio formats before upload or provider invocation',async()=>{
+ let called=false;
+ await withServer({env:{...baseEnv,OPENAI_TRANSCRIPTION_MAX_REQUEST_USD:'0.05'},fetchImpl:authFetch(),
+  transcriptionProviderFactory:()=>({transcribe:async()=>{called=true;return {text:'x'}}})},async base=>{
+  const response=await fetch(base+'/api/ai/transcribe',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'text/plain'},body:'not audio'});
+  assert.equal(response.status,415);assert.equal(called,false);
+ });
+});
+
+test('cloud transcription releases its reservation after a provider failure',async()=>{
+ let settled=null;
+ const billingService={configured:true,reserve:async()=>({allowed:true}),settle:async value=>{settled=value;return {}}};
+ await withServer({env:{...baseEnv,OPENAI_TRANSCRIPTION_MAX_REQUEST_USD:'0.05'},fetchImpl:authFetch(),billingService,
+  transcriptionProviderFactory:()=>({model:'test-transcribe-model',transcribe:async()=>{throw Error('provider offline')}})},async base=>{
+  const response=await fetch(base+'/api/ai/transcribe',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'audio/mp4'},body:Buffer.from('audio')});
+  assert.equal(response.status,502);assert.equal(settled.failed,true);assert.equal(settled.actualMicrousd,0);assert.equal(settled.model,'test-transcribe-model');
+ });
+});
+
+test('cloud transcription does not call the provider when the monthly AI budget is exhausted',async()=>{
+ let called=false;
+ const billingService={configured:true,reserve:async()=>({allowed:false,reason:'monthly_budget_exceeded'}),settle:async()=>({})};
+ await withServer({env:{...baseEnv,OPENAI_TRANSCRIPTION_MAX_REQUEST_USD:'0.05'},fetchImpl:authFetch(),billingService,
+  transcriptionProviderFactory:()=>({transcribe:async()=>{called=true;return {text:'x'}}})},async base=>{
+  const response=await fetch(base+'/api/ai/transcribe',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'audio/webm'},body:Buffer.from('audio')});
+  assert.equal(response.status,429);assert.equal((await response.json()).code,'monthly_budget_exceeded');assert.equal(called,false);
+ });
+});
+
+test('cloud transcription enforces the 25 MB upload cap before calling OpenAI',async()=>{
+ let called=false;
+ await withServer({env:{...baseEnv,OPENAI_TRANSCRIPTION_MAX_REQUEST_USD:'0.05'},fetchImpl:authFetch(),
+  transcriptionProviderFactory:()=>({transcribe:async()=>{called=true;return {text:'x'}}})},async base=>{
+  const payload=Buffer.alloc(25*1024*1024+1,1);
+  const response=await fetch(base+'/api/ai/transcribe',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'audio/webm'},body:payload});
+  assert.equal(response.status,413);assert.equal(called,false);
+ });
+});
