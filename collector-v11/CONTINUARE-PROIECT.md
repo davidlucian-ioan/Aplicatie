@@ -1053,3 +1053,5 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - This is groundwork only—not yet wired into app UI/server or transcription/extraction provider. Existing recording workflow remains manual/local and original audio retention is unchanged until integration is complete.
 - Diagnosed prior Quality Suite failures: recall source event selector was ambiguous because event IDs appear in Recall, Event list, History, and Audit; scoped it to `#eventList`. Work-layout test expected 3 panels, updated to 4 after adding Recall panel.
 - The prior run at `9780847d` failed E2E with those two issues; subsequent fix commits triggered new runs. Check exact current HEAD and CI after the checkpoint.
+
+- Lifecycle recovery hardening: nonterminal checkpoints are now discoverable even if process crashed before marking recoveryRequired; the `audio_deletion_pending` checkpoint can safely finalize after a crash that happened after file removal but before `audio_deleted/completed` was persisted. Added tests for both crash windows. Corrected lifecycle test fixture retry behavior and deletion assertion.
