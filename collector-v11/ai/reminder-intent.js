@@ -69,4 +69,6 @@ function localDateTimeToUtc(date,hour,minute,timezone){
   return matches.length===1?matches[0]:null;
 }
 
-module.exports={validateReminderSuggestion,resolveDue,localDateTimeToUtc};
+const api={validateReminderSuggestion,resolveDue,localDateTimeToUtc};
+if(typeof module!=='undefined'&&module.exports)module.exports=api;
+if(typeof window!=='undefined')window.CollectorReminderIntent=api;
