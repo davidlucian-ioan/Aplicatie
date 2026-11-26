@@ -85,7 +85,7 @@ test('ștergerea integrală locală este disponibilă în toate entry point-uril
  }
  const app=fs.readFileSync('app.js','utf8');
  assert.ok(app.includes('CollectorAudioStore.clearAll()'));
- assert.ok(app.includes('CollectorReminders?.clearAll?.()'));
+ assert.ok(app.includes('CollectorReminders?.clearAll?.({discardPendingCoreEvents:true})'));
  assert.ok(app.includes('storageAdapter.clearCollectorData()'));
  assert.ok(app.includes('CollectorNativeAudioRecorder?.discardPending?.()'));
  assert.match(app,/audioStartPending\|\|audioRecorder\|\|nativeAudioSession/);
