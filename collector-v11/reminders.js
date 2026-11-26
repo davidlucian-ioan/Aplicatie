@@ -230,10 +230,10 @@
    const notifications=rows.filter(row=>row.status!=='cancelled'&&row.status!=='completed').map(row=>({id:row.notificationId,title:'Collector',body:row.title,schedule:{at:new Date(row.at)},extra:{reminderId:row.id,sourceId:row.sourceId,idempotencyKey:row.idempotencyKey},isExactNotification:false}));
    if(notifications.length)await plugin.cancel({notifications});
    const occurredAt=now().toISOString();
-   const cancelledRows=discardPendingCoreEvents?rows:rows.map(row=>{
+   const cancelledRows=rows.map(row=>{
     if(row.status==='cancelled'||row.status==='completed')return row;
-    const lifecycleEvent=coreEventHandler?makeCoreLifecycleEvent(row,'cancelled',occurredAt):null;
-    return {...row,status:'cancelled',scheduleState:'settled',scheduleUncertain:false,cancelledAt:occurredAt,coreOutbox:lifecycleEvent?[...(row.coreOutbox||[]),lifecycleEvent]:[...(row.coreOutbox||[])]};
+    const lifecycleEvent=!discardPendingCoreEvents&&coreEventHandler?makeCoreLifecycleEvent(row,'cancelled',occurredAt):null;
+    return {...row,status:'cancelled',scheduleState:'settled',scheduleUncertain:false,cancelledAt:occurredAt,coreOutbox:discardPendingCoreEvents?[]:(lifecycleEvent?[...(row.coreOutbox||[]),lifecycleEvent]:[...(row.coreOutbox||[])])};
    });
    try{await persistRows(cancelledRows)}
    catch(error){
