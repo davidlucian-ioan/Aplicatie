@@ -250,6 +250,7 @@ test('reminder initialization remains retryable after transient service setup fa
  const successfulInit=nativeSetup.indexOf('initialized=true;',setupCatch);
  assert.ok(setupTry>=0&&setupCatch>setupTry&&successfulInit>setupCatch,'native service initialization is marked complete only after successful setup');
  assert.ok(initialize.includes('if(!form)return;'),'missing UI must not permanently consume initialization');
+ assert.ok(initialize.includes('service.recoverPendingSchedules()'),'interrupted native schedule intents must be reconciled before Core sync');
 });
 
 test('Work draft autosave operations are serialized so a stale write cannot overwrite a clear',async()=>{
