@@ -147,7 +147,7 @@ test('Audio Transcrie + AI continues into AI interpretation and retains source u
  assert.doesNotMatch(flow,/CollectorAudioStore\.remove/);
  assert.ok(app.includes('stableAudioCaptureTurnId(sourceRecordingId,text)'));
  assert.ok(app.includes("sourceId=sourceRecordingId?'audio:'+sourceRecordingId"));
- assert.ok(app.includes('audioRecordingId:activeAudioRecordingId'));
+ assert.ok(app.includes('audioRecordingId:sourceRecordingId'));
  const confirm=app.slice(app.indexOf('async function confirmCoreCommand'),app.indexOf('function renderAIEnhancements'));
  assert.ok(confirm.includes('Șterge audio original'));
  assert.ok(confirm.includes("confirm('Datele structurate sunt salvate și verificate în jurnal."));
