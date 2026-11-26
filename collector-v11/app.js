@@ -322,7 +322,7 @@ async function runStructuredRecall(query){
     answerBox.textContent='Nu am putut formula un răspuns verificabil: '+error.message;
     synthButton.disabled=false;synthButton.textContent='Reîncearcă sinteza AI';
    }finally{
-    if(!synthButton.disabled&&synthButton.textContent!=='Reîncearcă sinteza AI')synthButton.disabled=false;
+    synthButton.disabled=false;
    }
   });
  }catch(error){status.textContent='Recall a eșuat: '+error.message;box.textContent='Nu am putut interoga memoria structurată.'}
