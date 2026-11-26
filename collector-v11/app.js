@@ -463,6 +463,7 @@ async function runAICommand(){
     await confirmCoreCommand();
     return;
    }
+   ensureAICorePort().discardPreview?.(command);
    if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'failed',{error:'Core preview: '+preview.status})}catch(_){}
    box.innerHTML='<p>'+esc(preview.status==='duplicate'?'Această intenție a fost deja înregistrată.':'Core a respins preview-ul: '+preview.status)+'</p>'+extras;
    bindAIEnhancements(box,ai,text,sourceId,turnId);return;
