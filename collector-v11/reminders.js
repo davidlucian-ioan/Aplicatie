@@ -98,12 +98,14 @@
    const updated={...target,status,[status==='completed'?'completedAt':'cancelledAt']:now().toISOString()};
    try{await persistRows(rows.map(row=>row.id===id?updated:row))}
    catch(error){
+    let restoreError=null;
+    try{await persistRows(rows)}catch(failure){restoreError=failure}
     try{await plugin.schedule({notifications:[{id:target.notificationId,title:'Collector',body:target.title,schedule:{at:new Date(target.at)},extra:{reminderId:target.id,sourceId:target.sourceId,idempotencyKey:target.idempotencyKey},isExactNotification:false}]})}
     catch(rollbackError){
-     // The cancelled notification could not be restored; persist an explicit recovery warning instead of claiming a clean rollback.
-     throw new Error('Notificarea a fost anulată, iar starea locală și restaurarea notificării au eșuat: '+error.message+'; '+rollbackError.message);
+     throw new Error('Notificarea a fost anulată, iar restaurarea stocării/notificării a eșuat: '+error.message+'; '+(restoreError?.message||'')+'; '+rollbackError.message);
     }
-    throw new Error('Schimbarea stării a fost rollback-uită: notificarea a fost reprogramată, dar stocarea nu a putut fi verificată: '+error.message);
+    if(restoreError)throw new Error('Notificarea a fost reprogramată, dar restaurarea metadatelor nu a putut fi verificată: '+error.message+'; '+restoreError.message);
+    throw new Error('Schimbarea stării a fost rollback-uită: notificarea și metadatele au fost restaurate după verificare: '+error.message);
    }
    return updated;
   }
