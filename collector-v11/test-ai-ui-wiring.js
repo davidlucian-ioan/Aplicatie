@@ -113,3 +113,15 @@ test('structured memory pipeline loads before app in all entry points and routes
  assert.ok(app.includes('CollectorStructuredMemory.createCommand(sm,resolutions'));
  assert.ok(app.includes('Am găsit identități ambigue'));
 });
+
+
+test('Core Port reads persisted storage independently and validates it before publishing',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const port=fs.readFileSync('ai/core-port-browser.js','utf8');
+ assert.ok(app.includes('readPersistedState:async()=>'));
+ assert.ok(app.includes('storageAdapter.readRaw(KEY)'));
+ assert.ok(app.includes('return E.validateImport(JSON.parse(raw))'));
+ assert.ok(port.includes('this.store.readPersistedState()'));
+ assert.ok(port.includes("status:'verification_failed'"));
+ assert.ok(port.includes('item.intentKey === command.idempotencyKey'));
+});
