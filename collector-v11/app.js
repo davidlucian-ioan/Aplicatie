@@ -386,7 +386,8 @@ async function runAICommand(){
   const command={
    ...ai.command,
    turnId,
-   idempotencyKey:commandIntentKey(),
+   idempotencyKey:ai.command.idempotencyKey||commandIntentKey(),
+   payload:{...(ai.command.payload||{}),sourceId},
    source:'ai-openai'
   };
   pendingAIEnhancements={ai,sourceText:text,sourceId,turnId};
