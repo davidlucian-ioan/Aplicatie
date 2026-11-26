@@ -11,6 +11,7 @@
   async function processUnlocked(id,{retry=false}={}){
    if(!id)fail('Recording ID required');
    let cp=await checkpoints.get(id);
+   if(cp&&(cp.id!==id||cp.idempotencyKey!=='audio:'+id))fail('Checkpoint identity/idempotency mismatch; refusing to process');
    if(cp&&TERMINAL.includes(cp.state))return cp;
    if(cp&&cp.state==='audio_deleted'){cp.state='completed';cp.completedAt=cp.completedAt||new Date().toISOString();await saveCheckpoint(cp);return cp;}
    if(cp&&!retry&&cp.state==='failed')fail('Processing previously failed; call retry explicitly');
