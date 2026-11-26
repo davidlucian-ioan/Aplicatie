@@ -64,3 +64,18 @@ test('Recall evidence exposes stable source identifiers for every evidence kind'
  assert.ok(r.evidence.some(row=>row.kind==='attribute'&&row.sourceId==='attribute:o1:condition'));
  assert.ok(r.evidence.some(row=>row.kind==='event_attribute'&&row.sourceId==='event-attribute:ev1:context'));
 });
+
+
+test('reminder lifecycle Core notes are searchable and returned as source-linked Recall evidence',()=>{
+ const reminderEvent={
+  id:'reminder-core-1',type:'ai.command',timestamp:'2026-11-26T18:30:00Z',source:'reminder-service',actor:'local-user',certainty:'certain',status:'committed',
+  intentKey:'collector-reminder-lifecycle:reminder-1:scheduled:2026-11-26T18:30:00.000Z',
+  payload:{domain:'reminder',reminderId:'reminder-1',reminderLifecycle:'scheduled',reminderTitle:'Verifică pompa',dueAt:'2026-11-27T09:00:00Z',sourceId:'audio:capture-1',summary:'Reminder programat: Verifică pompa'},
+  operations:[{operation:'event.note',target:null,data:{description:'Reminder programat: Verifică pompa · termen: 2026-11-27T09:00:00Z · sursă: audio:capture-1'}}]
+ };
+ const result=searchStructuredMemory({...state,events:[...state.events,reminderEvent]},'reminder pompa');
+ assert.ok(result.events.some(event=>event.id==='reminder-core-1'));
+ const evidence=result.evidence.find(row=>row.kind==='event'&&row.id==='reminder-core-1');
+ assert.equal(evidence.sourceId,'event:reminder-core-1');
+ assert.match(evidence.summary,/Reminder programat: Verifică pompa/);
+});
