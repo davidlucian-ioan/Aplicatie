@@ -93,7 +93,7 @@ test('clearAll keeps reminder metadata when the notification plugin refuses canc
 test('clearAll keeps the cancelled state and Core journal if local metadata deletion fails',async()=>{
  const x=fixture({failStorageRemove:true});
  const item=await x.service.create({title:'Alarmă rollback',at:'2026-11-24T12:00:00.000Z'});
- await assert.rejects(x.service.clearAll(),/nu a confirmat ștergerea istoricului/);
+ await assert.rejects(x.service.clearAll(),/ștergerea istoricului local a eșuat/);
  const row=JSON.parse(x.raw())[0];
  assert.equal(row.id,item.id);
  assert.equal(row.status,'cancelled');
@@ -186,12 +186,15 @@ test('clearAll refuses success when storage claims deletion but the list remains
  const calls=[];
  const storage={async readRaw(){return raw},async writeRaw(_key,value){raw=value;return true},async removeRaw(){return true}};
  const plugin={async schedule(value){calls.push({type:'schedule',value})},async cancel(value){calls.push({type:'cancel',value})}};
- const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:00:00Z'),random:()=>0.3});
+ const service=createService({storage,plugin,now:()=>new Date('2026-11-24T10:00:00Z'),random:()=>0.3,onCoreEvent:async event=>({status:'committed',eventId:'core-'+event.lifecycle})});
  await service.create({title:'Alarmă păstrată',at:'2026-11-24T12:00:00Z'});
- const before=raw;
- await assert.rejects(service.clearAll(),/încă prezentă/);
- assert.equal(raw,before);
- assert.equal(calls.at(-1).type,'schedule','rollback must restore the cancelled notification');
+ await assert.rejects(service.clearAll(),/lista locală este încă prezentă/);
+ const row=JSON.parse(raw)[0];
+ assert.equal(row.status,'cancelled');
+ assert.equal(row.scheduleState,'settled');
+ assert.equal(row.coreOutbox.length,0);
+ assert.equal(calls.at(-1).type,'cancel','notification stays cancelled when metadata deletion did not happen');
+ assert.equal(calls.filter(call=>call.type==='schedule').length,1,'failed metadata deletion must not reactivate the notification');
 });
 
 
