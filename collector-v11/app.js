@@ -876,10 +876,21 @@ async function refreshAudioLifecycleRecovery(){
  try{
   const diagnostics=await store.diagnostics?.();
   const rows=await store.list();
-  const pending=rows.filter(cp=>!['completed','source_retained'].includes(cp.state));
+  const pending=rows.filter(cp=>!['completed','source_retained','captured'].includes(cp.state));
+  const audioRows=await window.CollectorAudioStore?.list?.()||[];
+  const availableIds=new Set(audioRows.map(record=>record.id));
   const repairNote=diagnostics?.orphanIds?.length?'<p class="note">Recovery a detectat și reindexat '+diagnostics.orphanIds.length+' checkpoint-uri orfane după o întrerupere.</p>':'';
-  if(!pending.length){box.innerHTML=repairNote+'<p class="muted">Nu există procesări AI audio întrerupte. Audio-ul original nu este șters de această componentă.</p>';return}
-  box.innerHTML=repairNote+'<p><b>'+pending.length+'</b> procesări audio în checkpoint (recovery manual, fără auto-retry/ștergere).</p>'+pending.map(cp=>'<div class="row"><div><b>'+esc(cp.id)+'</b><div class="muted">'+esc(cp.state)+' · încercări '+(Number(cp.attempts)||0)+(cp.error?' · '+esc(cp.error):'')+'</div></div></div>').join('');
+  if(!pending.length){box.innerHTML=repairNote+'<p class="muted">Nu există procesări AI audio întrerupte. Înregistrările păstrate rămân disponibile în Work.</p>';return}
+  box.innerHTML=repairNote+'<p><b>'+pending.length+'</b> procesări audio necesită verificare. Recuperarea este manuală; nimic nu este retranscris sau șters automat.</p>'+pending.map(cp=>'<div class="row"><div><b>'+esc(cp.id)+'</b><div class="muted">'+esc(cp.state)+' · încercări '+(Number(cp.attempts)||0)+(cp.error?' · '+esc(cp.error):'')+'</div></div>'+(availableIds.has(cp.id)?'<button class="secondary" type="button" data-audio-lifecycle-retry="'+esc(cp.id)+'">Reia transcriere + AI</button>':'<span class="muted">Sursa audio nu este disponibilă local.</span>')+'</div>').join('');
+  box.querySelectorAll('[data-audio-lifecycle-retry]').forEach(button=>button.addEventListener('click',async()=>{
+   button.disabled=true;
+   try{
+    await renderAudioRecordings();
+    const target=[...document.querySelectorAll('[data-audio-transcribe-id]')].find(item=>item.dataset.audioTranscribeId===button.dataset.audioLifecycleRetry);
+    if(!target)throw Error('Nu am găsit controlul pentru înregistrarea audio recuperată.');
+    showPage('assistant');target.click();
+   }catch(error){button.disabled=false;button.textContent='Reîncearcă recovery';box.insertAdjacentHTML('beforeend','<p class="note">'+esc(error.message)+'</p>')}
+  }));
  }catch(error){box.textContent='Nu pot citi checkpoint-urile de recovery: '+String(error?.message||error)}
 }
 async function initializeCollectorApp(){
