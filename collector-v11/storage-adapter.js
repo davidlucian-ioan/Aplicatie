@@ -45,7 +45,7 @@
     return operation;
    },
    async listRawKeys(prefix=''){
-    await this.initialize();
+    await this.initialize();await this.flush();
     const matches=[];
     for(let index=0;index<backing.length;index++){
      const key=backing.key(index);
