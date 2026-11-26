@@ -47,7 +47,7 @@ test('transcription provider maps upstream errors to a safe response without exp
   });
   await assert.rejects(
     ()=>provider.transcribe({audio:Buffer.from('audio'),contentType:'audio/mp4'}),
-    error=>error.status===422&&!error.message.includes('do-not-leak')&&!error.message.includes('secret provider details')
+    error=>error.status===429&&!error.message.includes('do-not-leak')&&!error.message.includes('secret provider details')
   );
 });
 
