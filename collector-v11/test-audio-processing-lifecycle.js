@@ -64,7 +64,7 @@ test('checkpoint adapter rejects malformed persisted checkpoint JSON',async()=>{
 });
 test('checkpoint adapter refuses identity corruption from storage',async()=>{
  const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
- const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v))},async removeRaw(k){raw.delete(k)}};
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k)}};
  const cp=createStorageCheckpointStore(storage);raw.set('collector_audio_lifecycle_v1:'+encodeURIComponent('x'),JSON.stringify({id:'y',state:'failed'}));
  await assert.rejects(cp.get('x'),/identity mismatch/);
 });
@@ -88,7 +88,7 @@ test('recovery diagnostics return actionable checkpoint details but omit complet
 });
 test('checkpoint adapter serializes concurrent writes and maintains a consistent index',async()=>{
  const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
- const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){await new Promise(r=>setTimeout(r,1));raw.set(k,String(v))},async removeRaw(k){raw.delete(k)}};
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){await new Promise(r=>setTimeout(r,1));raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k)}};
  const cp=createStorageCheckpointStore(storage);
  await Promise.all(Array.from({length:12},(_,i)=>cp.put({id:'id'+i,state:'captured',idempotencyKey:'audio:id'+i})));
  const rows=await cp.list();assert.equal(rows.length,12);assert.equal(new Set(rows.map(x=>x.id)).size,12);
@@ -106,7 +106,7 @@ test('persist response loss retries with same idempotency key while source is re
 
 test('checkpoint schema rejects invalid states, idempotency keys and impossible completion claims',async()=>{
  const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
- const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v))},async removeRaw(k){raw.delete(k)}};
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k)}};
  const cp=createStorageCheckpointStore(storage);
  await assert.rejects(cp.put({id:'bad',state:'invented',idempotencyKey:'audio:bad'}),/state invalid/);
  await assert.rejects(cp.put({id:'bad',state:'captured',idempotencyKey:'wrong'}),/idempotency mismatch/);
@@ -117,7 +117,57 @@ test('checkpoint schema rejects invalid states, idempotency keys and impossible 
 });
 test('checkpoint adapter adds schemaVersion during legacy-compatible reads',async()=>{
  const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
- const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v))},async removeRaw(k){raw.delete(k)}};
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k)}};
  const cp=createStorageCheckpointStore(storage);raw.set('collector_audio_lifecycle_v1:'+encodeURIComponent('legacy'),JSON.stringify({id:'legacy',state:'failed',idempotencyKey:'audio:legacy'}));
  const got=await cp.get('legacy');assert.equal(got.schemaVersion,1);
+});
+
+test('checkpoint index self-heals orphan checkpoints after crash between record and index writes',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k);return true},async listRawKeys(prefix){return [...raw.keys()].filter(k=>k.startsWith(prefix))}};
+ const cp=createStorageCheckpointStore(storage);const orphan={id:'orphan/1',state:'processing',attempts:2,idempotencyKey:'audio:orphan/1'};
+ raw.set('collector_audio_lifecycle_v1:'+encodeURIComponent(orphan.id),JSON.stringify(orphan));
+ const rows=await cp.list();assert.equal(rows.length,1);assert.equal(rows[0].id,orphan.id);
+ assert.deepEqual(JSON.parse(raw.get('collector_audio_lifecycle_v1:index')),[orphan.id]);
+ assert.deepEqual(await cp.diagnostics(),{indexCount:1,keyEnumerationAvailable:true,orphanIds:[],missingIds:[],indexCorrupt:false});
+});
+test('checkpoint index reports orphan and missing keys before reconciliation',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k);return true},async listRawKeys(prefix){return [...raw.keys()].filter(k=>k.startsWith(prefix))}};
+ const cp=createStorageCheckpointStore(storage);
+ raw.set('collector_audio_lifecycle_v1:index',JSON.stringify(['missing']));
+ raw.set('collector_audio_lifecycle_v1:'+encodeURIComponent('orphan'),JSON.stringify({id:'orphan',state:'failed',idempotencyKey:'audio:orphan'}));
+ const d=await cp.diagnostics();assert.deepEqual(d.orphanIds,['orphan']);assert.deepEqual(d.missingIds,['missing']);
+ const rows=await cp.list();assert.deepEqual(rows.map(x=>x.id),['orphan']);assert.deepEqual(JSON.parse(raw.get('collector_audio_lifecycle_v1:index')),['orphan']);
+});
+test('checkpoint write and index are independently readback verified',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){if(k.endsWith(':index'))return true;raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k);return true}};
+ const cp=createStorageCheckpointStore(storage);await assert.rejects(cp.put({id:'x',state:'captured',idempotencyKey:'audio:x'}),/index readback verification/);
+});
+test('checkpoint payload size is bounded to avoid storage exhaustion',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k);return true}};
+ const cp=createStorageCheckpointStore(storage,{maxCheckpointBytes:100});
+ await assert.rejects(cp.put({id:'large',state:'failed',idempotencyKey:'audio:large',error:'x'.repeat(200)}),/exceeds storage limit/);
+});
+test('checkpoint deletion requires key and index readback to confirm',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){return true}};
+ const cp=createStorageCheckpointStore(storage);await cp.put({id:'keep',state:'captured',idempotencyKey:'audio:keep'});
+ await assert.rejects(cp.remove('keep'),/removal readback verification/);
+ assert.equal((await cp.list()).length,1);
+});
+test('checkpoint schema rejects invalid timestamp and unsupported future version',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map(),storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k);return true}};
+ const cp=createStorageCheckpointStore(storage);
+ await assert.rejects(cp.put({id:'t',state:'captured',idempotencyKey:'audio:t',createdAt:3}),/createdAt invalid/);
+ await assert.rejects(cp.put({id:'v',state:'captured',idempotencyKey:'audio:v',schemaVersion:99}),/schema version invalid/);
+});
+test('checkpoint index rejects duplicate ids rather than silently masking corruption',async()=>{
+ const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
+ const raw=new Map([['collector_audio_lifecycle_v1:index',JSON.stringify(['dup','dup'])]]);
+ const storage={async readRaw(k){return raw.get(k)??null},async writeRaw(k,v){raw.set(k,String(v));return true},async removeRaw(k){raw.delete(k);return true}};
+ const cp=createStorageCheckpointStore(storage);await assert.rejects(cp.list(),/index is invalid/);
 });
