@@ -444,8 +444,11 @@ async function runAICommand(){
   if(ai.intent==='clarify'||(ai.intent==='propose'&&Array.isArray(ai.ambiguities)&&ai.ambiguities.length)){if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'failed',{error:ai.question||ai.clarificationQuestion||'Este necesară o clarificare.'})}catch(_){}box.innerHTML='<p>'+esc(ai.question||ai.clarificationQuestion||'Am nevoie de o clarificare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
   if(ai.intent==='refuse'){if(sourceRecordingId)try{await writeAudioLifecycleCheckpoint(sourceRecordingId,'captured')}catch(_){}box.innerHTML='<p>'+esc(ai.answer||'Nu pot procesa această solicitare.')+'</p>'+extras;bindAIEnhancements(box,ai,text,sourceId,turnId);return}
   if(ai.intent!=='propose'||!ai.command||!Array.isArray(ai.command.operations)||!ai.command.operations.length)throw Error('OpenAI nu a returnat o comandă validă pentru Collector.');
+  const commandOperations=sourceRecordingId?ai.command.operations.filter(operation=>operation?.operation!=='event.note'):ai.command.operations;
+  if(!commandOperations.length)throw Error('Audio-ul nu a produs entități, atribute, relații sau alte date structurate. Înregistrarea originală a fost păstrată; nicio notă brută nu a fost salvată.');
   const command={
    ...ai.command,
+   operations:commandOperations,
    turnId,
    idempotencyKey:sourceRecordingId?stableAudioCaptureIntentKey(sourceRecordingId):(ai.command.idempotencyKey||commandIntentKey()),
    payload:{...(ai.command.payload||{}),sourceId},
