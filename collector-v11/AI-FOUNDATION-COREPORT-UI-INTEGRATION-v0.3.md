@@ -1,6 +1,6 @@
 # Collector — Core Port UI Integration v0.3
 
-**Status:** integrare locală implementată; provider AI real neconectat.
+**Status:** document istoric pentru integrarea Core Port inițială; informațiile despre providerul AI sunt depășite. Consultați `AI-PIPELINE-STATUS-v0.4.md` pentru starea curentă.
 
 ## Ce este integrat
 
@@ -15,8 +15,8 @@
 
 ## Limitări explicite
 
-- Nu există încă furnizor LLM/AI conectat. Parserul curent recunoaște numai formele deterministe implementate în `parseCommand()`.
-- Nu există încă orchestrator conversațional în browser; modulele Node din `ai/` rămân separate pentru testare și integrare ulterioară.
+- La data acestui document, providerul LLM nu era încă conectat. Această limitare a fost depășită ulterior prin `provider-openai.js` și `provider-openai-browser.js`.
+- La data acestui document, modulele Node din `ai/` erau separate de UI; ulterior au fost adăugate module browser pentru interpretarea OpenAI, structured memory, recall și audio recovery.
 - Integrarea UI/Core Port acoperă comenzile rapide existente: observație, setare atribut definit și vânzare dintr-o populație.
 - Restul formularelor UI păstrează fluxul Core existent; nu au fost migrate în această etapă.
 
