@@ -818,10 +818,12 @@ async function refreshAudioLifecycleRecovery(){
  const store=window.CollectorAudioLifecycleCheckpointStore;
  if(!store){box.innerHTML='<p class="muted">Checkpoint-urile de procesare audio nu sunt inițializate.</p>';return}
  try{
+  const diagnostics=await store.diagnostics?.();
   const rows=await store.list();
   const pending=rows.filter(cp=>cp.state!=='completed');
-  if(!pending.length){box.innerHTML='<p class="muted">Nu există procesări AI audio întrerupte. Audio-ul original nu este șters de această componentă.</p>';return}
-  box.innerHTML='<p><b>'+pending.length+'</b> procesări audio în checkpoint (recovery manual, fără auto-retry/ștergere).</p>'+pending.map(cp=>'<div class="row"><div><b>'+esc(cp.id)+'</b><div class="muted">'+esc(cp.state)+' · încercări '+(Number(cp.attempts)||0)+(cp.error?' · '+esc(cp.error):'')+'</div></div></div>').join('');
+  const repairNote=diagnostics?.orphanIds?.length?'<p class="note">Recovery a detectat și reindexat '+diagnostics.orphanIds.length+' checkpoint-uri orfane după o întrerupere.</p>':'';
+  if(!pending.length){box.innerHTML=repairNote+'<p class="muted">Nu există procesări AI audio întrerupte. Audio-ul original nu este șters de această componentă.</p>';return}
+  box.innerHTML=repairNote+'<p><b>'+pending.length+'</b> procesări audio în checkpoint (recovery manual, fără auto-retry/ștergere).</p>'+pending.map(cp=>'<div class="row"><div><b>'+esc(cp.id)+'</b><div class="muted">'+esc(cp.state)+' · încercări '+(Number(cp.attempts)||0)+(cp.error?' · '+esc(cp.error):'')+'</div></div></div>').join('');
  }catch(error){box.textContent='Nu pot citi checkpoint-urile de recovery: '+String(error?.message||error)}
 }
 async function initializeCollectorApp(){
@@ -830,7 +832,7 @@ async function initializeCollectorApp(){
  try{
   await storageAdapter.initialize();
   window.CollectorAudioLifecycleCheckpointStore=window.CollectorAudioProcessingLifecycle?.createStorageCheckpointStore(storageAdapter)||null;
-  window.CollectorAudioLifecycleRecovery={list:()=>window.CollectorAudioLifecycleCheckpointStore?.list()||Promise.resolve([]),refresh:refreshAudioLifecycleRecovery};
+  window.CollectorAudioLifecycleRecovery={list:()=>window.CollectorAudioLifecycleCheckpointStore?.list()||Promise.resolve([]),diagnostics:()=>window.CollectorAudioLifecycleCheckpointStore?.diagnostics()||Promise.resolve(null),refresh:refreshAudioLifecycleRecovery};
   db=await loadDb();
   if(!integrityBlocked&&typeof storageAdapter.completeEncryptionMigration==='function')storageAdapter.completeEncryptionMigration();
   try{
