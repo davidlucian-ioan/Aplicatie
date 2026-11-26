@@ -307,27 +307,41 @@ async function confirmCoreCommand(){
  try{
   const result=await serializeMutation(()=>ensureAICorePort().execute(command,{confirmed:true}));
   if(result.status==='committed'||result.status==='duplicate'){
+   let audioCheckpointReady=!extrasState?.audioRecordingId,audioCheckpointError=null;
+   if(extrasState?.audioRecordingId){try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'source_retained',{captureId:extrasState.turnId,eventId:result.eventId,intentKey:command.idempotencyKey}) ;audioCheckpointReady=true}catch(error){audioCheckpointError=error}}
    const message='<b class="status-ok">'+(result.status==='committed'?'Salvat cu succes':'Comandă deja procesată')+'</b><p>Event ID: '+esc(result.eventId||'—')+'</p>';
    const extras=extrasState?renderAIEnhancements(extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId):'';
-   box.innerHTML=message+extras;
+   box.innerHTML=message+extras+(audioCheckpointError?'<p class="note">Core a confirmat salvarea, dar checkpoint-ul audio nu a putut fi actualizat. Înregistrarea este păstrată și ștergerea nu este disponibilă: '+esc(audioCheckpointError.message)+'</p>':'');
    if(extrasState)bindAIEnhancements(box,extrasState.ai,extrasState.sourceText,extrasState.sourceId,extrasState.turnId);
-   if(extrasState?.audioRecordingId&&(result.status==='committed'||result.status==='duplicate')){
+   if(extrasState?.audioRecordingId&&audioCheckpointReady&&(result.status==='committed'||result.status==='duplicate')){
     const deleteSource=document.createElement('button');deleteSource.type='button';deleteSource.className='secondary';deleteSource.textContent='Șterge audio original';
     deleteSource.addEventListener('click',async()=>{
      if(!confirm('Datele structurate sunt salvate și verificate în jurnal. Ștergi definitiv înregistrarea audio originală de pe acest dispozitiv?'))return;
      deleteSource.disabled=true;
-     try{await CollectorAudioStore.remove(extrasState.audioRecordingId);const remaining=await CollectorAudioStore.get(extrasState.audioRecordingId);if(remaining!==null&&remaining!==undefined)throw Error('Fișierul audio există încă după ștergere.');deleteSource.textContent='Audio original șters ✓';activeAudioRecordingId=null;await renderAudioRecordings()}
-     catch(error){deleteSource.disabled=false;deleteSource.textContent='Reîncearcă ștergerea audio';box.insertAdjacentHTML('beforeend','<p class="note">Audio-ul original a fost păstrat: '+esc(error.message)+'</p>')}
+     try{
+      await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'audio_deletion_pending',{eventId:result.eventId,intentKey:command.idempotencyKey});
+      await CollectorAudioStore.remove(extrasState.audioRecordingId);
+      const remaining=await CollectorAudioStore.get(extrasState.audioRecordingId);
+      if(remaining!==null&&remaining!==undefined)throw Error('Fișierul audio există încă după ștergere.');
+      await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'completed',{eventId:result.eventId,intentKey:command.idempotencyKey});
+      deleteSource.textContent='Audio original șters ✓';activeAudioRecordingId=null;await renderAudioRecordings();await refreshAudioLifecycleRecovery();
+     }
+     catch(error){
+      let sourcePresent=true;try{const remaining=await CollectorAudioStore.get(extrasState.audioRecordingId);sourcePresent=remaining!==null&&remaining!==undefined}catch(_){sourcePresent=true}
+      if(!sourcePresent){try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'completed',{eventId:result.eventId,intentKey:command.idempotencyKey});deleteSource.textContent='Audio original șters ✓';activeAudioRecordingId=null;await renderAudioRecordings();await refreshAudioLifecycleRecovery();return}catch(checkpointError){error=checkpointError}}
+      deleteSource.disabled=false;deleteSource.textContent='Reîncearcă ștergerea audio';box.insertAdjacentHTML('beforeend','<p class="note">'+(sourcePresent?'Audio-ul original a fost păstrat: ':'Audio-ul lipsește după ștergere, dar checkpoint-ul final nu a putut fi confirmat: ')+esc(error.message)+'</p>')
+     }
     });
     box.append(deleteSource);
    }
   } else if(result.status==='verification_failed'){
+   if(extrasState?.audioRecordingId)try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'failed',{error:(result.errors||[]).join(' ')})}catch(_){}
    integrityBlocked=true;
    integrityBlockReason='Ultima salvare nu a putut fi verificată independent. Reîncarcă aplicația pentru revalidarea jurnalului înainte de alte modificări.';
    box.textContent='Salvarea nu poate fi confirmată prin recitire independentă. Pentru a preveni suprascrierea sau dublarea datelor, Collector a intrat în mod numai citire. Reîncarcă aplicația; jurnalul persistent va fi revalidat la pornire. Detalii: '+(result.errors||[]).join(' ');
    setAppStatus('Collector este în mod numai citire: ultima salvare necesită reverificare.');
-  } else box.textContent='Execuție nefinalizată ('+result.status+'): '+(result.errors||[]).join(' ');
- }catch(err){box.textContent='Execuția a eșuat: '+err.message}
+  } else {if(extrasState?.audioRecordingId)try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'failed',{error:(result.errors||[]).join(' ')||result.status})}catch(_){}box.textContent='Execuție nefinalizată ('+result.status+'): '+(result.errors||[]).join(' ')}
+ }catch(err){if(extrasState?.audioRecordingId)try{await writeAudioLifecycleCheckpoint(extrasState.audioRecordingId,'failed',{error:err.message})}catch(_){}box.textContent='Execuția a eșuat: '+err.message}
  finally{coreCommitPending=false}
 }
 function renderAIEnhancements(ai,sourceText,sourceId,turnId){
@@ -726,7 +740,8 @@ async function deleteAudioRecording(recordId){
 }
 async function writeAudioLifecycleCheckpoint(recordingId,state,{error=null,incrementAttempt=false,captureId=null,previewEventId=null,eventId=null,intentKey=null}={}){
  const store=window.CollectorAudioLifecycleCheckpointStore;
- if(!store||!recordingId)return null;
+ if(!recordingId)return null;
+ if(!store)throw Error('Stocarea checkpoint-urilor audio nu este disponibilă.');
  const previous=await store.get(recordingId),now=new Date().toISOString();
  const persisted=['persisted','persistence_verified','source_retained','audio_deletion_pending','audio_deleted','completed'].includes(state);
  const verified=['persistence_verified','source_retained','audio_deletion_pending','audio_deleted','completed'].includes(state);
