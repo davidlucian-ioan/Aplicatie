@@ -112,7 +112,8 @@ test('checkpoint schema rejects invalid states, idempotency keys and impossible 
  await assert.rejects(cp.put({id:'bad',state:'captured',idempotencyKey:'wrong'}),/idempotency mismatch/);
  await assert.rejects(cp.put({id:'bad',state:'completed',idempotencyKey:'audio:bad',persistenceVerified:true}),/persisted commit/);
  await assert.rejects(cp.put({id:'bad',state:'completed',idempotencyKey:'audio:bad',persisted:true,persistenceVerified:true}),/audioDeleted confirmation/);
- await assert.rejects(cp.put({id:'bad',state:'completed',idempotencyKey:'audio:bad',persisted:true,persistenceVerified:true,audioDeleted:true}),/audioDeleted confirmation/);
+ await cp.put({id:'bad',state:'completed',idempotencyKey:'audio:bad',persisted:true,persistenceVerified:true,audioDeleted:true});
+ await assert.rejects(cp.put({id:'bad2',state:'persisted',idempotencyKey:'audio:bad2',persisted:true,persistenceVerified:true,audioDeleted:true}),/invalid state/);
 });
 test('checkpoint adapter adds schemaVersion during legacy-compatible reads',async()=>{
  const {createStorageCheckpointStore}=require('./audio-processing-lifecycle');
