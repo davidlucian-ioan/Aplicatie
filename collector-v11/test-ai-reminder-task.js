@@ -54,3 +54,10 @@ test('Core Port commits and replays reminder task status without the reminder si
  assert.equal(task.attributeHistory.status.length,2);
  assert.equal(replayed.meta.replayWarnings.length,0);
 });
+
+test('a terminal Core lifecycle can create a task when native schedule recovery was compensated before first sync',()=>{
+ const command=buildCommand(entry('cancelled'),{entities:[]}),task=taskFrom(command);
+ assert.equal(task.attributes.status,'cancelled');
+ assert.equal(task.attributes.scheduleState,'settled');
+ assert.equal(task.attributes.cancelledAt,'2026-11-26T18:00:00Z');
+});

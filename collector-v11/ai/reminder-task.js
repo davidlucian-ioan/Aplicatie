@@ -33,11 +33,18 @@
   const set=(name,value)=>operations.push({operation:'attribute.set',target:entityId,data:{name,value,forceHistory:true}});
   let scheduleState=lifecycle==='schedule_uncertain'?'uncertain':'scheduled';
   if(!task){
-   if(!['scheduled','schedule_uncertain'].includes(lifecycle))throw new Error('Cannot transition a reminder before its canonical task is created');
    operations.push({operation:'entity.create',target:entityId,data:{name:title,type:'task'}});
-   set('taskKind','reminder');set('reminderId',reminderId);set('status','open');set('dueAt',dueAt);
+   set('taskKind','reminder');set('reminderId',reminderId);set('dueAt',dueAt);
    if(sourceId)set('sourceId',sourceId);
-   set('scheduleState',scheduleState);set('createdAt',occurredAt);
+   const initialTerminal=['completed','cancelled','snoozed'].includes(lifecycle);
+   set('status',initialTerminal?lifecycle:'open');
+   set('scheduleState',initialTerminal?'settled':scheduleState);set('createdAt',occurredAt);
+   if(lifecycle==='completed')set('completedAt',occurredAt);
+   if(lifecycle==='cancelled')set('cancelledAt',occurredAt);
+   if(lifecycle==='snoozed'){
+    set('snoozedAt',occurredAt);set('successorReminderId',successorReminderId);
+    set('successorTaskId',taskEntityId(successorReminderId));set('successorDueAt',replacementAt);
+   }
   }else{
    if(task.name!==title)throw new Error('Reminder title does not match the canonical task');
    const attributes=task.attributes||{},currentStatus=attributes.status||'open';
