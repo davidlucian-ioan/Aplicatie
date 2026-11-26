@@ -37,14 +37,15 @@ function validateExtraction(input){
 }
 
 function normalizeName(v){return String(v||'').normalize('NFKC').toLocaleLowerCase().replace(/[’']/g,"'").replace(/[^\p{L}\p{N}]+/gu,' ').trim()}
+function mergeAliases(existing,candidate){const output=[],seen=new Set();for(const alias of [...(Array.isArray(existing)?existing:[]),...(Array.isArray(candidate)?candidate:[])]){if(typeof alias!=='string'||!alias.trim())continue;const key=normalizeName(alias);if(!key||seen.has(key))continue;seen.add(key);output.push(alias.trim())}return output}
 function resolveEntities(extraction,state,{threshold=0.92}={}){
  const all=Array.isArray(state?.entities)?state.entities:[];
  return extraction.entities.map(candidate=>{
-  if(candidate.existingId){const exact=all.find(e=>e.id===candidate.existingId);if(!exact)throw new Error('Unknown existing entity ID');if(exact.type!==candidate.type)throw new Error('Existing entity type mismatch');return {...candidate,resolvedId:exact.id,match:'explicit'};}
+  if(candidate.existingId){const exact=all.find(e=>e.id===candidate.existingId);if(!exact)throw new Error('Unknown existing entity ID');if(exact.type!==candidate.type)throw new Error('Existing entity type mismatch');return {...candidate,aliases:mergeAliases(exact.attributes?.aliases,candidate.aliases),resolvedId:exact.id,match:'explicit'};}
   const names=[candidate.name,...candidate.aliases].map(normalizeName).filter(Boolean);
   const matches=all.filter(e=>e.type===candidate.type&&(names.includes(normalizeName(e.name))||(Array.isArray(e.attributes?.aliases)&&e.attributes.aliases.some(a=>names.includes(normalizeName(a))))));
   const unique=[...new Map(matches.map(e=>[e.id,e])).values()];
-  if(unique.length===1)return {...candidate,resolvedId:unique[0].id,match:'exact'};
+  if(unique.length===1)return {...candidate,aliases:mergeAliases(unique[0].attributes?.aliases,candidate.aliases),resolvedId:unique[0].id,match:'exact'};
   if(unique.length>1)return {...candidate,resolvedId:null,match:'ambiguous',candidateIds:unique.map(e=>e.id)};
   return {...candidate,resolvedId:null,match:'new'};
  });
