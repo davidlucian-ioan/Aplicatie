@@ -100,3 +100,16 @@ test('UI disclose explicit datele trimise cloud înainte de folosirea AI',()=>{
   assert.ok(source.includes('salvarea cere confirmarea ta'),html+' trebuie să păstreze confirmarea explicită');
  }
 });
+
+test('structured memory pipeline loads before app in all entry points and routes extraction through Core preview',()=>{
+ for(const html of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
+  const source=fs.readFileSync(html,'utf8');
+  assert.ok(source.includes('ai/structured-memory-browser.js'));
+  assert.ok(source.indexOf('ai/structured-memory-browser.js')<source.indexOf('app.js'));
+ }
+ const app=fs.readFileSync('app.js','utf8');
+ assert.ok(app.includes('CollectorStructuredMemory.validateExtraction'));
+ assert.ok(app.includes('CollectorStructuredMemory.resolveEntities(sm,db)'));
+ assert.ok(app.includes('CollectorStructuredMemory.createCommand(sm,resolutions'));
+ assert.ok(app.includes('Am găsit identități ambigue'));
+});
