@@ -38,6 +38,23 @@ const INTERPRETATION_SCHEMA = {
         required: ['intent','certainty','explicitIntent','negated','title','due_date','due_time','timezone','source_context','clarificationQuestion']
       }
     },
+    structured_memory: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        summary: { type: 'string' },
+        clarification: { type: 'string' },
+        confidence: { type: 'number' },
+        entities: { type: 'array', items: { type: 'object', additionalProperties: false, properties: {
+          key: { type: 'string' }, name: { type: 'string' }, type: { type: 'string' }, aliases: { type: 'array', items: { type: 'string' } }, existingId: { type: ['string','null'] }
+        }, required: ['key','name','type','aliases','existingId'] } },
+        facts: { type: 'array', items: { type: 'object', additionalProperties: false, properties: {
+          subject: { type: 'string' }, name: { type: 'string' }, value: { type: ['string','number','boolean'] }, certainty: { type: 'string', enum: ['certain','uncertain'] }, validAt: { type: ['string','null'] }
+        }, required: ['subject','name','value','certainty','validAt'] } },
+        relations: { type: 'array', items: { type: 'object', additionalProperties: false, properties: {
+          source: { type: 'string' }, target: { type: 'string' }, type: { type: 'string' }, certainty: { type: 'string', enum: ['certain','uncertain'] }
+        }, required: ['source','target','type','certainty'] } }
+      }, required: ['summary','clarification','confidence','entities','facts','relations']
+    },
     question: { type: 'string' },
     confidence: { type: 'number' },
     ambiguities: { type: 'array', items: { type: 'string' } },
@@ -61,7 +78,7 @@ const INTERPRETATION_SCHEMA = {
     }
   },
   required: [
-    'intent','answer','semantic_summary','memory_facts','reminder_suggestions','question','confidence','ambiguities',
+    'intent','answer','semantic_summary','memory_facts','reminder_suggestions','structured_memory','question','confidence','ambiguities',
     'clarificationQuestion','command_intent','certainty',
     'requires_confirmation','payload_json','operations'
   ]
@@ -107,7 +124,7 @@ class OpenAIProvider {
           max_output_tokens: 1800,
           instructions: [
             'Ești modulul de interpretare pentru Collector, o aplicație local-first de evidență universală.',
-            'Transformă cererea utilizatorului într-o propunere structurată sau într-un răspuns/clarificare. Include semantic_summary ca propoziție naturală, memory_facts doar pentru informații utile și susținute explicit, și reminder_suggestions numai când există intenție de task/reminder. Nu deduce date/ore; due_date în YYYY-MM-DD sau null, due_time HH:mm sau null, timezone IANA sau null. explicitIntent true doar pentru formulare clară; negările și formulările tentative trebuie marcate.',
+            'Transformă cererea utilizatorului într-o propunere structurată sau într-un răspuns/clarificare. Pentru capturi conversaționale, completează structured_memory cu entități, fapte tipizate și relații explicite; folosește chei locale pentru entitățile noi, existingId numai pentru potriviri certe din context, și cere clarificare la identități ambigue. Nu inventa relații sau fapte. Include semantic_summary ca propoziție naturală, memory_facts doar pentru informații utile și susținute explicit, și reminder_suggestions numai când există intenție de task/reminder. Nu deduce date/ore; due_date în YYYY-MM-DD sau null, due_time HH:mm sau null, timezone IANA sau null. explicitIntent true doar pentru formulare clară; negările și formulările tentative trebuie marcate.',
             'Nu executa operații, nu pretinde că ai salvat date și nu inventa entități, ID-uri, valori sau relații.',
             'Folosește numai ID-urile și definițiile din context. Dacă identificarea este ambiguă, cere o singură clarificare.',
             'Nu modifica schema și nu inventa atribute. Nu converti valori incerte în valori certe.',
