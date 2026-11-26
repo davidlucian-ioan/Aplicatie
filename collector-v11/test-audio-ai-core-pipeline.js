@@ -120,7 +120,7 @@ test('the app checkpoints before provider calls and retains audio on processing 
  const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
  const process=app.slice(app.indexOf('async function transcribeAndInterpretAudioRecording'),app.indexOf('async function renderAudioRecordings'));
  assert.ok(process.indexOf("writeAudioLifecycleCheckpoint(recordingId,'processing'")<process.indexOf('CollectorOpenAIProvider.transcribe'));
- assert.ok(process.indexOf('store.put(recordingId,result.text)')<process.indexOf('await runAICommand()'));
+ assert.ok(process.indexOf('store.put(recordingId,result.text)')<process.indexOf('await runAICommand({audioRecordingId:recordingId})'));
  assert.match(process,/Audio-ul original este păstrat/);
  const ai=app.slice(app.indexOf('async function runAICommand'),app.indexOf('async function refreshSubscriptionStatus'));
  assert.match(ai,/writeAudioLifecycleCheckpoint\(sourceRecordingId,'failed'/);
