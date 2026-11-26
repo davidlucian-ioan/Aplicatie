@@ -57,3 +57,15 @@ test('explicit entity ID also preserves aliases and de-duplicates normalized spe
  const result=M.resolveEntities(extraction,state)[0];
  assert.deepEqual(result.aliases,['Mike','M. Pop','Mihai P']);
 });
+
+test('validator rejects malformed certainty, confidence and temporal facts instead of promoting them',()=>{
+ assert.throws(()=>M.validateExtraction({entities:[{key:'p',name:'Mihai'}],facts:[{subject:'p',name:'status',value:'x',certainty:'maybe'}],relations:[]}),/certainty/);
+ assert.throws(()=>M.validateExtraction({entities:[],facts:[],relations:[],confidence:1.2}),/confidence/);
+ assert.throws(()=>M.validateExtraction({entities:[{key:'p',name:'Mihai'}],facts:[{subject:'p',name:'status',value:'x',validAt:'2026-02-30'}],relations:[]}),/ISO date/);
+ assert.throws(()=>M.validateExtraction({entities:[{key:'p',name:'Mihai'}],facts:[{subject:'p',name:'status',value:'x',validAt:'2026-11-26T15:00:00'}],relations:[]}),/ISO date/);
+});
+test('validator accepts date-only and timezone-aware temporal facts without losing the value',()=>{
+ const x=M.validateExtraction({entities:[{key:'p',name:'Mihai'}],facts:[{subject:'p',name:'status',value:'active',validAt:'2026-11-26'},{subject:'p',name:'checked_at',value:'15:00',validAt:'2026-11-26T15:00:00+02:00'}],relations:[]});
+ assert.equal(x.facts[0].validAt,'2026-11-26');
+ assert.equal(x.facts[1].validAt,'2026-11-26T15:00:00+02:00');
+});
