@@ -1007,3 +1007,12 @@ Branch feature/openai-provider-integration, PR #55 către main, rămâne draft �
 - Nu se face merge automat la identități ambigue; AI propune, Core validează și aplică, iar acțiunile cu impact necesită confirmare.
 - Specificația completă: `AI-STRUCTURED-MEMORY-AUDIO-MINIMIZATION-v0.1.md`.
 - Următorul workstream: contract extraction + validator, entity resolution, Core command builder, retrieval și lifecycle audio cu testare idempotency/failure.
+
+
+## Structured Memory implementation checkpoint — 2026-11-26
+- Added versioned bounded extraction validator `ai/structured-memory.js` and browser module `ai/structured-memory-browser.js`: validates entity keys, facts, relations, field limits and references; exact name/alias resolution only; ambiguity is surfaced, not merged; explicit existing IDs must exist and match type.
+- Added command builder for Core operations: entity.create, alias attribute.set, fact attribute.set, relation.create and event.note. Commands use capture-scoped idempotency and stable entity IDs; all operations remain behind Core preview and explicit UI confirmation.
+- OpenAI strict Structured Outputs schema now includes `structured_memory` (summary, entities, typed facts, relations, confidence, clarification); server provider maps it to camelCase interpretation. Work UI validates/resolves it and uses the structured-memory command instead of raw model operations when non-empty.
+- Added local structured recall utility `ai/structured-recall.js`: entity/attribute search, linked relations/events, temporal filtering, bounded evidence list; no synthesis or unsupported claims in retrieval layer. Exports wired into AI index.
+- Added tests `test-ai-structured-memory.js` and `test-ai-structured-recall.js`, provider schema/return test and UI wiring regression.
+- Current implementation is groundwork/MVP; not yet complete: transcript/audio deletion lifecycle, persisted alias/temporal semantics improvements, recall UI and AI synthesis/source jumps, automatic user-consented capture mode, and end-to-end provider integration tests remain.
