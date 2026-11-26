@@ -51,3 +51,28 @@ test('Recall AI synthesis receives only retrieved evidence and displays validate
  assert.match(provider,/allowedRecallSources\.has\(value\)/);
  assert.match(sanitizer,/function safeRecallEvidence/);
 });
+
+
+test('native reminder lifecycle uses the verified Core Port and a stable idempotent event journal',async()=>{
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ const reminders=await fs.readFile(path.join(__dirname,'reminders.js'),'utf8');
+ assert.match(app,/function recordReminderLifecycleInCore/);
+ assert.match(app,/intent:'reminder\.lifecycle'/);
+ assert.match(app,/operation:'event\.note'/);
+ assert.match(app,/idempotencyKey:entry\.idempotencyKey/);
+ assert.match(app,/port\.preview\(command\)/);
+ assert.match(app,/port\.execute\(command,\{confirmed:true\}\)/);
+ assert.match(app,/CollectorReminders\?\.initialize\(\{onCoreEvent:recordReminderLifecycleInCore\}\)/);
+ assert.match(reminders,/coreOutbox/);
+ assert.match(reminders,/async function syncCoreOutboxInternal/);
+ assert.match(reminders,/data-reminder-core-sync/);
+ assert.match(reminders,/pendingCoreCount\(rows\)>0/);
+});
+
+test('reminder Core outbox does not copy source transcript context into permanent Core evidence',async()=>{
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ const handler=app.slice(app.indexOf('async function recordReminderLifecycleInCore'),app.indexOf('function ensureAICorePort'));
+ assert.match(handler,/sourceId:entry\.sourceId\|\|null/);
+ assert.doesNotMatch(handler,/sourceContext/);
+ assert.match(handler,/Reminder '\+labels\[entry\.lifecycle\]/);
+});
