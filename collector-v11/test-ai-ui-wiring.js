@@ -362,3 +362,13 @@ test('Audio deletion is gated on verified Core event, cleared temporary transcri
  assert.ok(deletion.includes('await verifyAudioCheckpointEvent(await store.get(recordingId))'));
  assert.ok(deletion.includes("writeAudioLifecycleCheckpoint(recordingId,'completed'"));
 });
+
+test('audio commit recovery detects existing commits before retranscription and prevents duplicate AI charges',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ const flow=app.slice(app.indexOf("const transcribe=document.createElement('button')"),app.indexOf("const rename=document.createElement('button')"));
+ assert.ok(flow.indexOf('recoverCommittedAudioCapture(record.id)')<flow.indexOf('CollectorOpenAIProvider.transcribe'));
+ assert.ok(app.includes('stableAudioCaptureIntentKey(sourceRecordingId)'));
+ assert.ok(app.includes('findCommittedEvent(persisted,recordingId)'));
+ assert.ok(app.includes('collector-memory-capture:'));
+ assert.ok(app.includes('Nu am retranscris și nu am creat duplicate'));
+});
