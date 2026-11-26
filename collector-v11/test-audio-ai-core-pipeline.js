@@ -145,3 +145,11 @@ test('Core confirmation binds audio cleanup to the command source and stable cap
  assert.match(confirm,/command\.idempotencyKey===stableAudioCaptureIntentKey\(stagedAudioId\)/);
  assert.match(confirm,/audioContextMismatch/);
 });
+
+test('audio source identity is passed to exactly one AI invocation and is never kept as global state',async()=>{
+ const app=await fs.readFile(path.join(__dirname,'app.js'),'utf8');
+ assert.doesNotMatch(app,/activeAudioRecordingId/);
+ assert.match(app,/async function runAICommand\(\{audioRecordingId=null\}=\{\}\)/);
+ assert.match(app,/runAICommand\(\{audioRecordingId:recordingId\}\)/);
+ assert.match(app,/sourceRecordingId=typeof audioRecordingId==='string'/);
+});
