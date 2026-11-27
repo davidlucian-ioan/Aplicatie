@@ -121,3 +121,14 @@ test('Recall exposes general user tasks with deadlines, priorities and incomplet
  const browser=globalThis.CollectorStructuredRecall.searchStructuredMemory(fixture,'pregătește substratul');
  assert.deepEqual(browser,result);
 });
+
+test('recall expands one-hop relationship context and includes historical attribute evidence for AI reconstruction',()=>{
+ const graph={entities:[{id:'p1',name:'Mihai',type:'person',attributes:{role:'supplier'}},{id:'o1',name:'Pompa',type:'object',attributes:{condition:'broken'},attributeHistory:{condition:[{at:'2026-11-25T10:00:00Z',validAt:'2026-11-25',value:'broken',previous:'working',certainty:'certain',eventId:'ev-h1'}]}},{id:'l1',name:'Atelier',type:'location',attributes:{address:'Sibiu'}}],relations:[{id:'r1',sourceId:'p1',targetId:'o1',type:'brings'},{id:'r2',sourceId:'o1',targetId:'l1',type:'located_at'}],events:[{id:'ev1',timestamp:'2026-11-26T12:00:00Z',payload:{summary:'Mihai brings pump',entityIds:{person:'p1',object:'o1'}},operations:[]}],eventAttributes:[]};
+ const result=searchStructuredMemory(graph,'Mihai');
+ assert.deepEqual(result.entities.map(e=>e.id),['p1','o1','l1']);
+ assert.equal(result.relations.length,2);
+ assert.ok(result.attributes.some(row=>row.entityId==='o1'&&row.name==='condition'));
+ assert.ok(result.historicalAttributes.some(row=>row.eventId==='ev-h1'&&row.validAt==='2026-11-25'));
+ assert.ok(result.evidence.some(row=>row.kind==='linked_entity'&&row.id==='l1'));
+ assert.ok(result.evidence.some(row=>row.kind==='historical_attribute'&&row.sourceId==='attribute-history:o1:condition:ev-h1'));
+});

@@ -1367,3 +1367,13 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 
 - Finalizarea șterge markerul de anulare, anularea șterge markerul de finalizare, iar redeschiderea curăță ambele timestamp-uri terminale și păstrează `reopenedAt`. Proiecția Core nu mai poate afișa simultan două rezultate terminale stale.
 - Test regresie pentru completion/cancellation/reopen metadata.
+
+
+## Recall graph-context + temporal evidence — 27 nov. 2026
+
+- Recall extinde potrivirile directe cu un singur hop relațional: include entitățile conectate și relațiile care le leagă, pentru ca AI să poată reconstrui contextul fără să primească jurnalul complet.
+- Entitățile rezultate sunt marcate ca potrivire directă sau context conectat, iar sursele de evidence includ relation IDs.
+- Istoricul atributelor este expus separat, cu valoare, dată de înregistrare, validAt, certainty, eventId și corecție; AI poate reconstrui evoluția, nu doar valoarea curentă.
+- Sinteza AI poate cita evidence pentru entități conectate și istoricul atributelor; UI afișează explicit aceste contexte.
+- Teste de regresie Node + Browser pentru expandarea grafului și dovezi temporale.
+- CI la HEAD anterior: Quality Suite, Cloud API, Android Debug APK și iOS Simulator au toate PASS. Acest batch necesită un nou CI.
