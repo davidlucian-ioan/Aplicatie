@@ -10,7 +10,25 @@ function entityRelevance(entity,terms,query){
  const normalizedQuery=normalizeName(query);if(normalizedQuery&&name===normalizedQuery)score+=40;else if(normalizedQuery&&name.includes(normalizedQuery))score+=20;
  return score;
 }
-function evidenceRank(row){switch(row.kind){case'task':return 1000;case'entity':return 900+(Number(row.relevance)||0);case'relation':return 700+(Number(row.relevance)||0);case'event':return 600+(Number(row.relevance)||0);case'attribute':return 500+(Number(row.relevance)||0);case'historical_attribute':case'historical_relation_attribute':return 400+(Number(row.relevance)||0);case'event_attribute':return 300+(Number(row.relevance)||0);case'linked_entity':return 200+(Number(row.relevance)||0);default:return 0;}}
+function detectTemporalAttributeDiagnostics(entities){
+ const diagnostics=[];
+ for(const entity of entities){
+  const history=entity.attributeHistory&&typeof entity.attributeHistory==='object'?entity.attributeHistory:{};
+  for(const [name,rows] of Object.entries(history)){
+   if(!Array.isArray(rows))continue;
+   const active=rows.filter(row=>row&&typeof row==='object'&&!row.correctedByEventId);
+   const distinct=new Map();
+   for(const row of active){const key=JSON.stringify(row.value);if(!distinct.has(key))distinct.set(key,row);}
+   if(distinct.size<2)continue;
+   const values=[...distinct.values()];
+   const dates=values.map(row=>String(row.validAt||'').slice(0,10));
+   const temporalSeparated=dates.every(Boolean)&&new Set(dates).size===dates.length;
+   diagnostics.push({kind:'temporal_attribute_diagnostic',sourceId:'attribute-diagnostic:'+entity.id+':'+name,entityId:entity.id,entityName:entity.name,name,classification:temporalSeparated?'temporal_change':'potential_conflict',currentValue:entity.attributes?.[name]??null,values:values.slice(0,10).map(row=>({value:row.value,validAt:row.validAt||null,at:row.at||null,certainty:row.certainty||'unknown',eventId:row.eventId||null})),correctedRecordsExcluded:rows.filter(row=>row?.correctedByEventId).length});
+  }
+ }
+ return diagnostics;
+}
+function evidenceRank(row){switch(row.kind){case'temporal_attribute_diagnostic':return 550;case'task':return 1000;case'entity':return 900+(Number(row.relevance)||0);case'relation':return 700+(Number(row.relevance)||0);case'event':return 600+(Number(row.relevance)||0);case'attribute':return 500+(Number(row.relevance)||0);case'historical_attribute':case'historical_relation_attribute':return 400+(Number(row.relevance)||0);case'event_attribute':return 300+(Number(row.relevance)||0);case'linked_entity':return 200+(Number(row.relevance)||0);default:return 0;}}
 function normalizeLimit(value){
  const requested=value===undefined||value===null?30:Number(value);
  if(!Number.isFinite(requested))throw new TypeError('Recall limit must be a finite number');
@@ -91,6 +109,7 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  }).slice(-boundedLimit);
  const attributeRows=expandedEntities.flatMap(entity=>Object.entries(entity.attributes||{}).filter(([name])=>name!=='aliases').map(([name,value])=>{const history=entity.attributeHistory?.[name]||[],latest=Array.isArray(history)?history[history.length-1]:null;return {entityId:entity.id,entityName:entity.name,name,value,history,certainty:latest?.certainty||'unknown',validAt:latest?.validAt||null,eventId:latest?.eventId||null,matched:directIds.has(entity.id)}}));
  const historicalAttributeRows=expandedEntities.flatMap(entity=>Object.entries(entity.attributeHistory||{}).flatMap(([name,rows])=>(Array.isArray(rows)?rows:[]).map(row=>({entityId:entity.id,entityName:entity.name,name,value:row.value,at:row.at||null,validAt:row.validAt||null,certainty:row.certainty||'unknown',eventId:row.eventId||null,correctedByEventId:row.correctedByEventId||null,matched:directIds.has(entity.id)}))));
+ const temporalAttributeDiagnostics=detectTemporalAttributeDiagnostics(expandedEntities);
  const taskRows=matched.filter(entity=>entity.type==='task'&&['reminder','user'].includes(entity.attributes?.taskKind)).map(entity=>{
   const a=entity.attributes||{};
   const dependencies=(relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===entity.id&&!relation.endedAt);
@@ -109,10 +128,11 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
   ...relationEvidence.slice(0,boundedLimit).map(relation=>({kind:'relation',id:relation.id,sourceId:'relation:'+relation.id,source:relation.sourceName,type:relation.type,target:relation.targetName,at:relation.startedAt||relation.createdAt||null,startedAt:relation.startedAt||null,endedAt:relation.endedAt||null,graphDepth:relation.graphDepth,graphPath:relation.graphPath,certainty:relation.certainty,temporalStatus:relation.temporalStatus,attributes:relation.attributes||{},history:relation.history||{}})),
   ...filteredEvents.map(event=>({kind:'event',id:event.id,sourceId:'event:'+event.id,at:event.timestamp,summary:event.payload?.summary||event.payload?.description||event.operations?.find(operation=>operation.operation==='event.note')?.data?.description||event.type,certainty:event.certainty,status:event.status})),
   ...attributeRows.slice(0,boundedLimit).map(attribute=>({kind:'attribute',sourceId:'attribute:'+attribute.entityId+':'+attribute.name,entityId:attribute.entityId,entityName:attribute.entityName,name:attribute.name,value:attribute.value,certainty:attribute.certainty,validAt:attribute.validAt,eventId:attribute.eventId,matched:attribute.matched})),
+  ...temporalAttributeDiagnostics.slice(0,boundedLimit).map(diagnostic=>({...diagnostic})),
   ...historicalAttributeRows.slice(0,boundedLimit).map(attribute=>({kind:'historical_attribute',sourceId:'attribute-history:'+attribute.entityId+':'+attribute.name+':'+(attribute.eventId||attribute.at||'unknown'),entityId:attribute.entityId,entityName:attribute.entityName,name:attribute.name,value:attribute.value,at:attribute.at,validAt:attribute.validAt,certainty:attribute.certainty,eventId:attribute.eventId,correctedByEventId:attribute.correctedByEventId,matched:attribute.matched})),
   ...selectedEventAttributes.slice(0,boundedLimit).map(attribute=>({kind:'event_attribute',sourceId:'event-attribute:'+attribute.eventId+':'+attribute.name,eventId:attribute.eventId,name:attribute.name,value:attribute.value}))
  ];
  evidence.sort((a,b)=>evidenceRank(b)-evidenceRank(a)||String(a.sourceId||'').localeCompare(String(b.sourceId||'')));
- return {entities:visibleEntities.slice(0,boundedLimit),tasks:taskRows.slice(0,boundedLimit),relations:relationEvidence.slice(0,boundedLimit),events:filteredEvents,attributes:attributeRows.slice(0,boundedLimit),historicalAttributes:historicalAttributeRows.slice(0,boundedLimit),eventAttributes:selectedEventAttributes.slice(0,boundedLimit),evidence:evidence.slice(0,boundedLimit)};
+ return {entities:visibleEntities.slice(0,boundedLimit),tasks:taskRows.slice(0,boundedLimit),relations:relationEvidence.slice(0,boundedLimit),events:filteredEvents,attributes:attributeRows.slice(0,boundedLimit),historicalAttributes:historicalAttributeRows.slice(0,boundedLimit),temporalAttributeDiagnostics:temporalAttributeDiagnostics.slice(0,boundedLimit),eventAttributes:selectedEventAttributes.slice(0,boundedLimit),evidence:evidence.slice(0,boundedLimit)};
 }
 module.exports={searchStructuredMemory,tokenize,normalizeLimit,parseTimeBound,MAX_RESULTS};

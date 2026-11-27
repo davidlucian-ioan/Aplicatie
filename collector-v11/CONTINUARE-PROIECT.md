@@ -1437,3 +1437,12 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 ## Multi-hop CI syntax correction (27 nov. 2026)
 
 - Test fixtures for Node/browser had one extra closing brace after relation-cycle replacement; corrected syntax and explicit assertion that depth-3 entity `d` is excluded.
+
+
+## Batch: Temporal fact diagnostics (27 nov. 2026)
+
+- Recall detectează pentru fiecare entitate/atribut istorii cu valori distincte și generează diagnostic conservator: `temporal_change` când fiecare valoare are validAt distinct, respectiv `potential_conflict` când datele lipsesc/nu disting perioadele.
+- Intrările marcate correctedByEventId sunt excluse din dovezile active; numărul lor rămâne diagnostic informativ.
+- Diagnostic include currentValue, valori, validAt, at, certainty și eventId; nu mută, nu rescrie și nu decide automat valoarea corectă.
+- Node/browser parity, test pentru separare temporală și conflict fără dată, precum și sanitizer cloud allowlist. UI Recall afișează diagnostic separat. Prompt AI cere să nu aleagă automat winner și să propună clarificare doar la cerere.
+- HEAD bază: 8f1ddd7b1e1fe45f8582b5abd1b715e22be71f62 (CI complet PASS). Batch nou necesită CI.
