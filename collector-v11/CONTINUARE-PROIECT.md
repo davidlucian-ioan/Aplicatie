@@ -1391,3 +1391,11 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Recall păstrează task list-ul pentru potrivirile directe; task-urile de dependență rămân în contextul relațional și în `blockedBy`, evitând dublarea/umflarea listelor de task-uri.
 
 - Recall sanitizer/API audit: `linked_entity` și `historical_attribute` sunt acum allowlisted și trimise către OpenAI cu provenance și temporal fields; raw audio/transcript și alte câmpuri arbitrare sunt strip-uite. Promptul AI explică diferența `validAt` vs `at` și tratarea valorilor corectate.
+
+
+## Recall relation provenance hardening — 27 nov. 2026
+
+- Relațiile furnizează intervalul `startedAt/endedAt`, status temporal, certainty, atribute și istoricul atributelor.
+- Fact-urile curente expun certainty, validAt și eventId, iar sanitizer-ul cloud transmite numai câmpurile allowlisted.
+- Promptul de recall cere să distingă relațiile active/închise și istoricul de valoarea curentă.
+- Test Cloud API pentru provenance și câmpuri temporale; transcript/audio brut nu trece prin sanitizer.

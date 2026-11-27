@@ -458,3 +458,17 @@ test('recall sanitizer forwards linked entities and historical attribute evidenc
   assert.deepEqual(received.context.recallEvidence[1],{kind:'historical_attribute',sourceId:sourceHistory,entityId:'pump',entityName:'Pompa',name:'condition',value:'repaired',at:'2026-11-26T10:00:00Z',validAt:'2026-11-26',certainty:'certain',eventId:'evt-1',correctedByEventId:''});
  });
 });
+
+
+test('recall sanitizer forwards relation certainty, temporal lifecycle, and attribute provenance',async()=>{
+ let received;const relationSource='relation:r-1',attributeSource='attribute:pump:condition';
+ await withServer({env:baseEnv,fetchImpl:authFetch(),providerFactory:()=>({model:'test-model',interpret:async value=>{received=value;return {intent:'answer',answer:'Pompa.',answerSources:[relationSource,attributeSource]}}})},async base=>{
+  const response=await fetch(base+'/api/ai/interpret',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'application/json'},body:JSON.stringify({text:'Când și cât de sigur?',context:{recallEvidence:[
+   {kind:'relation',sourceId:relationSource,source:'Mihai',type:'brings',target:'Pompa',startedAt:'2026-11-25',endedAt:null,certainty:'uncertain',temporalStatus:'active',attributes:{certainty:'uncertain',method:'verbal'},history:{method:[{at:'2026-11-26',value:'verbal',previous:'written',certainty:'certain',eventId:'evt-r'}]},transcript:'strip'},
+   {kind:'attribute',sourceId:attributeSource,entityId:'pump',entityName:'Pompa',name:'condition',value:'repaired',certainty:'certain',validAt:'2026-11-26',eventId:'evt-2',rawAudio:'strip'}]}})});
+  assert.equal(response.status,200);assert.equal(received.context.recallEvidence.length,2);
+  assert.equal(received.context.recallEvidence[0].certainty,'uncertain');assert.equal(received.context.recallEvidence[0].startedAt,'2026-11-25');assert.equal(received.context.recallEvidence[0].history.method[0].eventId,'evt-r');
+  assert.equal(received.context.recallEvidence[1].validAt,'2026-11-26');assert.equal(received.context.recallEvidence[1].eventId,'evt-2');
+  assert.equal(Object.hasOwn(received.context.recallEvidence[0],'transcript'),false);assert.equal(Object.hasOwn(received.context.recallEvidence[1],'rawAudio'),false);
+ });
+});
