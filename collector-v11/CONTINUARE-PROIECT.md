@@ -1351,3 +1351,12 @@ Implementări în batch:
 5. **Assignment + recurrence metadata:** editare responsabil (text, 120 caractere) și recurrence enum none/daily/weekly/monthly. Recurrence este momentan metadata; nu creează automat task-uri sau notificări, evitând duplicate și promisiuni de scheduling neimplementat.
 
 Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu preview și confirmare. Testele au assertions pentru metadata și reject invalid values. CI pentru HEAD `2de01d2a` a pornit; Cloud API test/container PASS, quality/browser și build-uri mobile încă în execuție la checkpoint.
+
+
+## Task Manager batch — istoric real și task-uri terminale vizibile (27 nov. 2026)
+
+- Butonul Istoric din board-ul de task-uri este acum funcțional: deschide cronologia Core filtrată pe entitatea task, fără sursă paralelă de istoric.
+- Filtrul board-ului poate include task-uri finalizate sau anulate; implicit afișează doar task-uri active. Căutarea și prioritizarea rămân aplicate în toate filtrele.
+- Rândurile au identificator stabil pentru navigarea sigură către istoricul task-ului.
+- Count/empty-state reflectă filtrul selectat, inclusiv terminal statuses.
+- Test regresie verifică wiring-ul UI și sursa Core a istoricului.
