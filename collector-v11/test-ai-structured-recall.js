@@ -162,3 +162,11 @@ test('Recall flags possible attribute conflicts but separates dated changes and 
  const conflictGraph={...graph,entities:[{...graph.entities[0],attributeHistory:{condition:[{value:'broken',eventId:'a'},{value:'repaired',eventId:'b'}]}}]};assert.equal(searchStructuredMemory(conflictGraph,'Pompa').temporalAttributeDiagnostics[0].classification,'potential_conflict');
  const {safeRecallEvidence}=require('./ai/context-sanitizer');const safe=safeRecallEvidence([diagnostic,{...diagnostic,rawTranscript:'secret',values:[{value:'broken',validAt:'2026-11-24',eventId:'e1',rawAudio:'secret'}]}]);assert.equal(safe.length,2);assert.ok(!JSON.stringify(safe).includes('secret'));
 });
+
+test('Recall ranks event evidence by semantic match and entity anchoring instead of selecting only the newest tail',()=>{
+ const events=[{id:'old-exact',timestamp:'2026-11-01T00:00:00Z',payload:{summary:'Pump filter was replaced',entityIds:{pump:'p'}},operations:[]},{id:'new-linked',timestamp:'2026-11-27T00:00:00Z',payload:{summary:'General workshop update',entityIds:{pump:'p'}},operations:[]},{id:'new-exact',timestamp:'2026-11-26T00:00:00Z',payload:{summary:'Pump filter replaced after cleaning',entityIds:{pump:'p'}},operations:[]}];
+ const fixture={entities:[{id:'p',name:'Pump',type:'object',attributes:{}}],relations:[],events,eventAttributes:[]};
+ const result=searchStructuredMemory(fixture,'pump filter replaced',{limit:2});
+ assert.deepEqual(result.events.map(event=>event.id),['old-exact','new-exact']);
+ assert.ok(result.evidence.find(row=>row.id==='old-exact').relevance>result.evidence.find(row=>row.id==='new-linked').relevance);
+});
