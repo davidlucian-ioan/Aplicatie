@@ -79,7 +79,7 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
   frontier=nextFrontier;
  }
  const relationIdsByEntity=new Map();for(const relation of relevantRelations){for(const endpoint of [relation.sourceId,relation.targetId]){if(!relationIdsByEntity.has(endpoint))relationIdsByEntity.set(endpoint,[]);relationIdsByEntity.get(endpoint).push(relation.id)}}
- const expandedEntities=entities.filter(entity=>expandedIds.has(entity.id)).sort((a,b)=>(depthByEntity.get(a.id)||0)-(depthByEntity.get(b.id)||0)||String(a.id).localeCompare(String(b.id)));
+ const expandedEntities=entities.filter(entity=>expandedIds.has(entity.id));
  const relationEvidence=relevantRelations.map(relation=>({...relation,sourceName:entityById.get(relation.sourceId)?.name||relation.sourceId,targetName:entityById.get(relation.targetId)?.name||relation.targetId,sourceMatched:directIds.has(relation.sourceId),targetMatched:directIds.has(relation.targetId),graphDepth:relationDepth.get(relation.id)||1,graphPath:relationPath.get(relation.id)||[relation.id],certainty:relation.attributes?.certainty||relation.certainty||'unknown',history:relation.attributeHistory||{},temporalStatus:relation.endedAt?'ended':'active'}));
  const filteredEvents=events.filter(event=>{
   const timestamp=Date.parse(event.timestamp||'');

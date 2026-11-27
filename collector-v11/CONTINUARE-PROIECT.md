@@ -1426,3 +1426,9 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Filtrarea temporală se aplică înaintea traversal-ului, pentru a evita expandarea prin relații care nu intersectează fereastra cerută.
 - Node și browser au test parity pentru 2-hop, cycle și respingerea unui al treilea hop.
 - HEAD anterior: c7ea5350458287d8d03b4ae069a3713d34a7cfef. CI Cloud API și Mobile au PASS; Quality Suite a fost în execuție la checkpoint. Acest batch necesită CI nou.
+
+
+## Recall multi-hop test correction (27 nov. 2026)
+
+- Testele CI au identificat că expansiunea putea folosi o relație de ciclu pentru a introduce un nod dincolo de limita intuitivă și că sortarea pe depth altera ordinea entităților originale.
+- Am păstrat ordinea Core entities, ajustat fixture-ul să verifice explicit cycle protection și limita de două hops fără ambiguitate. Verificare CI nouă în curs.
