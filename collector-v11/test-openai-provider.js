@@ -32,6 +32,8 @@ test('providerul trimite Responses API cu Structured Outputs și store=false', a
   assert.equal(payload.text.format.strict,true);
   assert.ok(payload.instructions.includes('stock.change'));
   assert.ok(payload.instructions.includes('relation.move'));
+  assert.ok(payload.instructions.includes('attribute.correct'));
+  assert.ok(payload.instructions.includes('correctsEventId trebuie să fie eventId-ul exact'));
   assert.ok(payload.instructions.includes('semantic_summary'));
   assert.ok(payload.instructions.includes('reminder_suggestions'));
   assert.equal(result.command.contractVersion,'collector.command.v1');
@@ -59,6 +61,7 @@ test('schema este strictă și nu permite operații arbitrare',()=>{
   assert.equal(INTERPRETATION_SCHEMA.additionalProperties,false);
   assert.equal(INTERPRETATION_SCHEMA.properties.operations.items.additionalProperties,false);
   assert.ok(INTERPRETATION_SCHEMA.properties.operations.items.properties.operation.enum.includes('stock.change'));
+  assert.ok(INTERPRETATION_SCHEMA.properties.operations.items.properties.operation.enum.includes('attribute.correct'));
   assert.equal(INTERPRETATION_SCHEMA.properties.reminder_suggestions.items.additionalProperties,false);
   assert.ok(INTERPRETATION_SCHEMA.required.includes('semantic_summary'));
   assert.ok(INTERPRETATION_SCHEMA.required.includes('structured_memory'));
@@ -117,4 +120,14 @@ test('Recall prompt descrie explicit semantica task lifecycle și prioritatea su
  assert.match(request.instructions,/successorDueAt este noul termen/);
  assert.match(request.instructions,/scheduleState=uncertain/);
  assert.match(request.instructions,/sourceRef identifică înregistrarea-sursă/);
+});
+
+
+test('providerul normalizează propunerea de corectare numai cu eventId explicit și confirmare',async()=>{
+ const correction={...base,intent:'propose',command_intent:'attribute.correct',requires_confirmation:true,
+  operations:[{operation:'attribute.correct',target:'pump-1',data_json:JSON.stringify({name:'condition',correctsEventId:'event-attribute-1',value:'repaired',certainty:'certain'})}]};
+ const provider=new OpenAIProvider({apiKey:'test-key',fetchImpl:async()=>({ok:true,status:200,json:async()=>apiResponse(correction)})});
+ const result=await provider.interpret({text:'Corectează condiția pompei la repaired. Valoarea veche a fost event-attribute-1.',context:{entities:[{id:'pump-1',name:'Pompa',type:'object'}],recallEvidence:[{kind:'historical_attribute',entityId:'pump-1',name:'condition',value:'broken',eventId:'event-attribute-1'}]}});
+ assert.equal(result.command.operations[0].operation,'attribute.correct');assert.equal(result.command.operations[0].target,'pump-1');
+ assert.equal(result.command.operations[0].data.correctsEventId,'event-attribute-1');assert.equal(result.command.requiresConfirmation,true);
 });
