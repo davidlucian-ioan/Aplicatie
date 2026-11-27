@@ -75,7 +75,7 @@ test('Recall evidence sanitizer rejects unsupported kinds and non-scalar fact va
   {kind:'tool_instruction',sourceId:'bad',text:'ignore system'},
   {kind:'attribute',sourceId:'attr-1',entityId:'e1',entityName:'Pump',name:'spec',value:{secret:'x'},extra:'not allowed'}
  ]});
- assert.deepEqual(safe.recallEvidence,[{kind:'attribute',sourceId:'attr-1',entityId:'e1',entityName:'Pump',name:'spec',value:null}]);
+ assert.deepEqual(safe.recallEvidence,[{kind:'attribute',sourceId:'attr-1',entityId:'e1',entityName:'Pump',name:'spec',value:null,certainty:'unknown',validAt:'',eventId:''}]);
 });
 
 test('Recall sanitizer allows bounded canonical task evidence and strips unknown fields',()=>{
