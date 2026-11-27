@@ -1383,3 +1383,5 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Recall filter fix: Node/browser now declare event-attribute matches exactly once before event seeding; the previous CI failure came from duplicate declaration / missing declaration ordering, corrected here.
 
 - Graph recall expansion respects requested date windows when deriving event seeds; regression covers out-of-window events not expanding the graph.
+
+- Fix diferență Node/browser: browser recall filtrează evenimentele pe `expandedIds`, identic cu Node; referința veche la `matchedIds` eliminată.

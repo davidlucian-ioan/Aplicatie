@@ -55,7 +55,7 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
   if(fromTime!==null&&(!Number.isFinite(timestamp)||timestamp<fromTime))return false;
   if(toTime!==null&&(!Number.isFinite(timestamp)||timestamp>toTime))return false;
   const refs=eventEntityRefs(event),content=normalizeName(JSON.stringify({payload:event.payload,operations:event.operations}));
-  return [...matchedIds].some(id=>refs.has(id))||eventAttributeIds.has(event.id)||terms.some(term=>content.includes(term));
+  return [...expandedIds].some(id=>refs.has(id))||eventAttributeIds.has(event.id)||terms.some(term=>content.includes(term));
  }).slice(-boundedLimit);
  const attributeRows=expandedEntities.flatMap(entity=>Object.entries(entity.attributes||{}).filter(([name])=>name!=='aliases').map(([name,value])=>({entityId:entity.id,entityName:entity.name,name,value,history:entity.attributeHistory?.[name]||[],matched:directIds.has(entity.id)})));
  const historicalAttributeRows=expandedEntities.flatMap(entity=>Object.entries(entity.attributeHistory||{}).flatMap(([name,rows])=>(Array.isArray(rows)?rows:[]).map(row=>({entityId:entity.id,entityName:entity.name,name,value:row.value,at:row.at||null,validAt:row.validAt||null,certainty:row.certainty||'unknown',eventId:row.eventId||null,correctedByEventId:row.correctedByEventId||null,matched:directIds.has(entity.id)}))));
