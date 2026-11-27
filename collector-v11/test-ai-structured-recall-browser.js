@@ -46,3 +46,9 @@ test('recall graph expansion obeys requested temporal window',()=>{
  assert.ok(!result.entities.some(entity=>entity.id==='x1'));
  assert.ok(!result.relations.some(relation=>relation.id==='r-old'));
 });
+
+test('recall exposes relation lifecycle, certainty and current attribute provenance',()=>{
+ const graph={entities:[{id:'p1',name:'Mihai',type:'person',attributes:{}},{id:'o1',name:'Pump',type:'object',attributes:{condition:'repaired'},attributeHistory:{condition:[{at:'2026-11-26T10:00:00Z',validAt:'2026-11-26',value:'repaired',certainty:'certain',eventId:'evt-2'}]}}],relations:[{id:'r1',sourceId:'p1',targetId:'o1',type:'brings',startedAt:'2026-11-25',attributes:{certainty:'uncertain',method:'verbal'},attributeHistory:{method:[{at:'2026-11-26',value:'verbal',previous:'written',certainty:'certain',eventId:'evt-r'}]}}],events:[],eventAttributes:[]};
+ const result=searchStructuredMemory(graph,'Mihai');const rel=result.evidence.find(row=>row.kind==='relation');const attr=result.evidence.find(row=>row.kind==='attribute'&&row.name==='condition');
+ assert.equal(rel.certainty,'uncertain');assert.equal(rel.startedAt,'2026-11-25');assert.equal(rel.attributes.method,'verbal');assert.equal(rel.history.method[0].eventId,'evt-r');assert.equal(attr.certainty,'certain');assert.equal(attr.validAt,'2026-11-26');assert.equal(attr.eventId,'evt-2');
+});
