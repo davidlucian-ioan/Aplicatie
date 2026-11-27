@@ -110,3 +110,10 @@ test('Recall sanitizer allowlists general-task metadata and strips transcript an
   dependencyIds:['task:user:t2'],blockedBy:[{taskId:'task:user:t2',title:'Verifică stocul',status:'open'}]
  }]);
 });
+
+
+test('sanitizerul include correctionEvidence allowlisted și elimină transcript/câmpuri arbitrare',()=>{
+ const safe=safeContext({correctionEvidence:[{kind:'historical_attribute',sourceId:'history-source',entityId:'pump-1',entityName:'Pompa',name:'condition',value:'broken',eventId:'event-1',correctedByEventId:null,rawTranscript:'secret',audio:'secret'}]});
+ assert.deepEqual(safe.correctionEvidence,[{kind:'historical_attribute',sourceId:'history-source',entityId:'pump-1',entityName:'Pompa',name:'condition',value:'broken',at:'',validAt:'',certainty:'unknown',eventId:'event-1',correctedByEventId:''}]);
+ assert.ok(!JSON.stringify(safe).includes('secret'));
+});
