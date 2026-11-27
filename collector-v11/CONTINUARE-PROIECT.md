@@ -1379,3 +1379,5 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - CI la HEAD anterior: Quality Suite, Cloud API, Android Debug APK și iOS Simulator au toate PASS. Acest batch necesită un nou CI.
 
 - Verificare statică de regresie: am eliminat declarațiile duplicate ale setului de event-attributes din recall Node/browser înainte de rularea CI.
+
+- Recall filter fix: Node/browser now declare event-attribute matches exactly once before event seeding; the previous CI failure came from duplicate declaration / missing declaration ordering, corrected here.

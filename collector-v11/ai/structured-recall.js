@@ -33,6 +33,8 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
   return terms.some(term=>hay.includes(term));
  });
  const directIds=new Set(matched.map(entity=>entity.id));
+ const eventAttributeMatches=eventAttributes.filter(attribute=>terms.some(term=>normalizeName([attribute.name,attribute.value].join(' ')).includes(term)));
+ const eventAttributeIds=new Set(eventAttributeMatches.map(attribute=>attribute.eventId));
 
  const matchingEvents=events.filter(event=>eventAttributeIds.has(event.id)||terms.some(term=>normalizeName(JSON.stringify({payload:event.payload,operations:event.operations})).includes(term)));
  const eventSeedIds=new Set(matchingEvents.flatMap(event=>[...eventEntityRefs(event)]));
