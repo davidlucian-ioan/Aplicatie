@@ -1387,3 +1387,5 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Fix diferență Node/browser: browser recall filtrează evenimentele pe `expandedIds`, identic cu Node; referința veche la `matchedIds` eliminată.
 
 - Filtrarea temporală a relațiilor respectă intervalul: exclude relațiile începute după `to` și relațiile încheiate înainte de `from`; testul temporal a fost corectat să folosească o relație istorică cu timestamp-uri explicite.
+
+- Recall păstrează task list-ul pentru potrivirile directe; task-urile de dependență rămân în contextul relațional și în `blockedBy`, evitând dublarea/umflarea listelor de task-uri.

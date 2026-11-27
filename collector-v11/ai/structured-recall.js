@@ -66,7 +66,7 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  }).slice(-boundedLimit);
  const attributeRows=expandedEntities.flatMap(entity=>Object.entries(entity.attributes||{}).filter(([name])=>name!=='aliases').map(([name,value])=>({entityId:entity.id,entityName:entity.name,name,value,history:entity.attributeHistory?.[name]||[],matched:directIds.has(entity.id)})));
  const historicalAttributeRows=expandedEntities.flatMap(entity=>Object.entries(entity.attributeHistory||{}).flatMap(([name,rows])=>(Array.isArray(rows)?rows:[]).map(row=>({entityId:entity.id,entityName:entity.name,name,value:row.value,at:row.at||null,validAt:row.validAt||null,certainty:row.certainty||'unknown',eventId:row.eventId||null,correctedByEventId:row.correctedByEventId||null,matched:directIds.has(entity.id)}))));
- const taskRows=expandedEntities.filter(entity=>entity.type==='task'&&['reminder','user'].includes(entity.attributes?.taskKind)).map(entity=>{
+ const taskRows=matched.filter(entity=>entity.type==='task'&&['reminder','user'].includes(entity.attributes?.taskKind)).map(entity=>{
   const a=entity.attributes||{};
   const dependencies=(relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===entity.id&&!relation.endedAt);
   const blockedBy=dependencies.map(relation=>entities.find(item=>item.id===relation.targetId)).filter(dependency=>!dependency||dependency.attributes?.status!=='completed').map(dependency=>({taskId:dependency?.id||null,title:dependency?.name||'Task lipsă',status:dependency?.attributes?.status||'missing'}));
