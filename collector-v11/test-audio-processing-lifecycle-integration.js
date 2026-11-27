@@ -1,0 +1,83 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=__dirname;
+test('both app shells load lifecycle module before app entrypoint',()=>{
+ for(const file of ['index.html','index-server.html']){
+  const html=fs.readFileSync(path.join(root,file),'utf8');
+  const lifecycle=html.indexOf('audio-processing-lifecycle.js');
+  const app=html.indexOf('app.js');
+  assert.notEqual(lifecycle,-1,file+' missing lifecycle module');
+  assert.ok(lifecycle<app,file+' lifecycle module must load before app.js');
+ }
+});
+test('app initializes durable checkpoint store only after StorageAdapter initialization',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ const storageInit=app.indexOf('await storageAdapter.initialize();');
+ const checkpointInit=app.indexOf('CollectorAudioLifecycleCheckpointStore=window.CollectorAudioProcessingLifecycle?.createStorageCheckpointStore(storageAdapter)');
+ assert.notEqual(storageInit,-1);assert.notEqual(checkpointInit,-1);assert.ok(storageInit<checkpointInit);
+ assert.match(app,/CollectorAudioLifecycleRecovery=\{list:/);
+ assert.match(app,/refreshAudioLifecycleRecovery/);
+});
+test('recovery UI offers user-triggered retries and verified deletion recovery, never background processing',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+ assert.match(html,/audioLifecycleRecoveryRefresh/);
+ assert.match(html,/audioLifecycleRecovery/);
+ assert.match(app,/Recuperarea este manuală; nimic nu este retranscris sau șters automat/);
+ assert.match(app,/data-audio-lifecycle-retry/);
+ assert.match(app,/data-audio-lifecycle-delete/);
+ assert.match(app,/target\.click\(\)/);
+ assert.match(app,/await deleteAudioFromVerifiedCheckpoint\(button\.dataset\.audioLifecycleDelete\)/);
+});
+
+test('recovery API exposes diagnostics and Work UI reports repaired orphan checkpoints',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ assert.match(app,/diagnostics:\(\)=>window\.CollectorAudioLifecycleCheckpointStore\?\.diagnostics/);
+ assert.match(app,/orphanIds/);
+ assert.match(app,/reindexat/);
+});
+test('storage adapters provide key enumeration required for orphan checkpoint recovery',()=>{
+ const adapter=fs.readFileSync(path.join(root,'storage-adapter.js'),'utf8');
+ assert.match(adapter,/async listRawKeys\(prefix=''/);
+ assert.match(adapter,/SELECT key FROM \'\+TABLE\+\' WHERE key LIKE/);
+});
+
+
+test('audio deletion verifies checkpoint identity, Core event, source recording ID and structured operation',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ const recovery=fs.readFileSync(path.join(root,'ai','audio-capture-recovery.js'),'utf8');
+ const verify=app.slice(app.indexOf('async function verifyAudioCheckpointEvent'),app.indexOf('async function recoverCommittedAudioCapture'));
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function renderAudioRecordings'));
+ assert.ok(verify.includes('Recovery.verifyCheckpointEvent(state,cp)'));
+ assert.ok(deletion.includes('await verifyAudioCheckpointEvent(cp)'));
+ assert.ok(deletion.includes('await verifyAudioCheckpointEvent(await store.get(recordingId))'));
+ assert.ok(recovery.includes("event.payload?.sourceId!==sourceId"));
+ assert.ok(recovery.includes("event.status!=='committed'"));
+ assert.ok(recovery.includes('STRUCTURED_OPERATIONS.has(operation.operation.trim())'));
+});
+
+
+test('all entrypoints load the source-bound transcript checkpoint store before app.js',()=>{
+ for(const file of ['index.html','index-server.html','Deschide-prin-dublu-click.html']){
+  const html=fs.readFileSync(path.join(root,file),'utf8');
+  const transcript=html.indexOf('ai/audio-transcript-checkpoints.js');
+  const app=html.indexOf('app.js');
+  assert.notEqual(transcript,-1,file+' missing transcript checkpoint module');
+  assert.ok(transcript<app,file+' transcript checkpoint module must load before app.js');
+ }
+ const build=fs.readFileSync(path.join(root,'build-mobile.js'),'utf8');
+ for(const pathName of ['ai/audio-transcript-checkpoints.js','ai/structured-memory-browser.js','ai/structured-recall-browser.js','ai/audio-capture-recovery.js','audio-processing-lifecycle.js'])assert.ok(build.includes("'"+pathName+"'"),pathName+' missing from mobile runtime allowlist');
+});
+test('cancelling audio deletion preserves the transcript and does not checkpoint deletion pending',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ const deletion=app.slice(app.indexOf('async function deleteAudioFromVerifiedCheckpoint'),app.indexOf('async function transcribeAndInterpretAudioRecording'));
+ const confirmAt=deletion.indexOf('if(confirmBeforeDelete&&!confirm(');
+ const clearAt=deletion.indexOf('await clearAudioTranscriptCheckpoint(recordingId)');
+ const pendingAt=deletion.indexOf("writeAudioLifecycleCheckpoint(recordingId,'audio_deletion_pending'");
+ assert.ok(confirmAt>=0&&clearAt>confirmAt&&pendingAt>clearAt,'confirmation must precede transcript clearing and deletion checkpoint');
+ assert.match(deletion,/return \{status:'cancelled'\}/);
+ assert.match(deletion,/else\{\s*\/\/ A prior removal may have succeeded before its response\/checkpoint was lost\.\s*await clearAudioTranscriptCheckpoint\(recordingId\)/);
+});

@@ -13,7 +13,7 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
   await session.send('Profiler.startPreciseCoverage', { callCount: true, detailed: true });
 
   await page.goto('/index-server.html');
-  await expect(page.locator('#dashboard')).toBeVisible();
+  await expect(page.locator('#assistant')).toBeVisible();
 
   for (const pageName of ['entities', 'relations', 'inventory', 'finance', 'attributes', 'events', 'history', 'assistant', 'audit', 'dashboard']) {
     await page.locator('.nav[data-page="' + pageName + '"]').click();
@@ -43,7 +43,7 @@ test('măsoară coverage-ul browser pentru app.js', async ({ page, browserName }
 
   await page.locator('.nav[data-page="entities"]').click();
   await page.getByRole('button', { name: 'Deschide' }).first().click();
-  await page.locator('.entity-detail .row-actions button').first().click();
+  await page.getByRole('button', { name: '+ Atribut', exact: true }).click();
   await page.locator('#attrName').fill('pH');
   await page.locator('#attrMin').fill('5.5');
   await page.locator('#attrMax').fill('6.5');

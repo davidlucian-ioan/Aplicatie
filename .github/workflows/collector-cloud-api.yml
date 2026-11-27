@@ -1,0 +1,35 @@
+name: Collector Cloud API
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cloud-api/**'
+      - 'collector-v11/ai/**'
+      - '.github/workflows/collector-cloud-api.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cloud-api/**'
+      - 'collector-v11/ai/**'
+      - '.github/workflows/collector-cloud-api.yml'
+permissions:
+  contents: read
+
+concurrency:
+  group: collector-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test authenticated cloud API
+        working-directory: cloud-api
+        run: npm test
+      - name: Build deployable container
+        run: docker build -f cloud-api/Dockerfile -t collector-cloud-api:test .

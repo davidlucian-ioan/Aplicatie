@@ -1,0 +1,176 @@
+'use strict';
+
+const { test, expect } = require('@playwright/test');
+
+test('Think pages expose consistent titles and searchable list controls', async ({ page }) => {
+  await page.goto('/index-server.html');
+  for (const [pageName, heading] of [
+    ['entities', 'Entități'],
+    ['relations', 'Relații și locații'],
+    ['inventory', 'Populații și solduri'],
+    ['finance', 'Financiar'],
+    ['attributes', 'Atribute'],
+    ['events', 'Evenimente'],
+    ['history', 'Istoric'],
+    ['audit', 'Audit și integritate']
+  ]) {
+    await page.locator('.nav[data-page="' + pageName + '"]').click();
+    await expect(page.locator('#' + pageName + ' .page-intro h2')).toHaveText(heading);
+  }
+  for (const [pageName, targets] of [
+    ['relations', ['relationList', 'locationList']],
+    ['inventory', ['stockList']],
+    ['finance', ['financeList']],
+    ['attributes', ['attributeList']],
+    ['events', ['eventList']],
+    ['audit', ['auditList']]
+  ]) {
+    await page.locator('.nav[data-page="' + pageName + '"]').click();
+    for (const target of targets) {
+      await expect(page.locator('[data-filter-target="' + target + '"]')).toBeVisible();
+    }
+  }
+});
+
+test('generic list filters are case-insensitive and restore rows when cleared', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="events"]').click();
+  const list = page.locator('#eventList');
+  await list.evaluate(el => { el.innerHTML = '<div class="row">Greenhouse PH check</div><div class="row">Plant moved to shelf</div>'; });
+  const filter = page.locator('[data-filter-target="eventList"]');
+  await filter.fill('GREENHOUSE');
+  await expect(list.locator('.row:visible')).toHaveCount(1);
+  await expect(list).toContainText('Greenhouse PH check');
+  await filter.fill('no-match');
+  await expect(list.locator('.filter-empty')).toContainText('Nu exista rezultate pentru: no-match');
+  await expect(list.locator('.filter-empty')).toBeVisible();
+  await filter.clear();
+  await expect(list.locator('.row:visible')).toHaveCount(2);
+});
+
+test('Work layout is single-column on mobile and touch controls remain usable', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/index-server.html');
+  // Work is the default page; the mobile sidebar is intentionally hidden until opened.
+  const columns = await page.locator('#assistant').evaluate(el => getComputedStyle(el).gridTemplateColumns);
+  expect(columns.trim().split(/\s+/).length).toBe(1);
+  await expect(page.locator('#audioRecordStart')).toBeVisible();
+  await expect(page.locator('#reminderTitle')).toBeVisible();
+  await expect(page.locator('#commandInput')).toBeVisible();
+});
+
+test('Think list filters remain usable without horizontal overflow on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/index-server.html');
+  for (const [pageName, filterId] of [
+    ['relations', 'relationList'],
+    ['inventory', 'stockList'],
+    ['finance', 'financeList'],
+    ['attributes', 'attributeList'],
+    ['events', 'eventList'],
+    ['audit', 'auditList']
+  ]) {
+    await page.locator('#menuToggle').click();
+    await page.locator('.nav[data-page="' + pageName + '"]').click();
+    const filter = page.locator('[data-filter-target="' + filterId + '"]');
+    await expect(filter).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+    expect(overflow, pageName + ' should not overflow horizontally').toBe(false);
+  }
+});
+
+test('Work prioritizes the recorder before reminders on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/index-server.html');
+  // Work is already active after initial navigation.
+  const recorderTop = await page.locator('.work-recorder').evaluate(el => el.getBoundingClientRect().top);
+  const remindersTop = await page.locator('.work-reminders').evaluate(el => el.getBoundingClientRect().top);
+  expect(recorderTop).toBeLessThan(remindersTop);
+});
+
+test('relations workspace uses a split desktop layout and stacks on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="relations"]').click();
+  const desktop = await page.locator('.relations-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns);
+  expect(desktop.trim().split(/\s+/).length).toBe(2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobile = await page.locator('.relations-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns);
+  expect(mobile.trim().split(/\s+/).length).toBe(1);
+});
+
+test('modal dialog manages keyboard focus, Escape, and return focus', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="entities"]').click();
+  const opener = page.locator('#entities .toolbar button.primary');
+  await opener.click();
+  const modal = page.locator('#modal');
+  await expect(modal).toBeVisible();
+  await expect(modal.locator('[role="dialog"]')).toHaveAttribute('aria-modal', 'true');
+  await expect(page.locator('#newName')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(modal.locator('.close')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(modal).toBeHidden();
+  await expect(opener).toBeFocused();
+});
+
+test('entity detail supports event-sourced rename and preserves new name in list', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.locator('.nav[data-page="entities"]').click();
+  await page.locator('#entities .toolbar button.primary').click();
+  await page.locator('#newName').fill('Plant A');
+  await page.locator('#newType').fill('plant');
+  await page.locator('#modal button.primary').click();
+  await page.locator('#entityList button').filter({ hasText: 'Deschide' }).click();
+  await page.getByRole('button', { name: 'Redenumește' }).click();
+  await page.locator('#renameEntityName').fill('Plant A renamed');
+  await page.locator('#modal button.primary').click();
+  await expect(page.locator('#entityList')).toContainText('Plant A renamed');
+  await expect(page.locator('#entityList')).toContainText('Cronologie');
+  await expect(page.locator('#entityDetailTitle')).toBeFocused();
+});
+
+test('Work is the primary capture workspace on desktop and mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/index-server.html');
+  await expect(page.locator('#assistant')).toHaveClass(/active/);
+  const order = await page.locator('#assistant > .panel').evaluateAll(els => els.map(el => getComputedStyle(el).order));
+  expect(order).toEqual(['1','2','0','3']); // Recall is intentionally interleaved after capture panels.
+  const columns = await page.locator('#assistant').evaluate(el => getComputedStyle(el).gridTemplateColumns);
+  expect(columns.trim().split(/\s+/).length).toBe(1);
+  await expect(page.locator('#audioRecordStart')).toBeVisible();
+  await expect(page.locator('#commandInput')).toBeVisible();
+  await expect(page.locator('#reminderForm')).toBeVisible();
+});
+
+test('Work draft autosaves locally, restores on reload, and clear requires confirmation', async ({ page }) => {
+ await page.goto('/index-server.html');
+ const input=page.locator('#commandInput');
+ await input.fill('Observație: B3 are pH 6.4');
+ await expect(page.locator('#workDraftStatus')).toContainText('salvat local automat');
+ await page.reload();
+ await expect(input).toHaveValue('Observație: B3 are pH 6.4');
+ page.once('dialog', dialog => dialog.accept());
+ await page.locator('#clearWorkDraft').click();
+ await expect(input).toHaveValue('');
+ await expect(page.locator('#workDraftStatus')).toContainText('Draft șters');
+});
+
+test('Work quick templates insert into the text field without committing an event', async ({ page }) => {
+ await page.goto('/index-server.html');
+ const input=page.locator('#commandInput');
+ await page.locator('[data-command-template="Observație: "]').click();
+ await expect(input).toHaveValue('Observație: ');
+ await expect(page.locator('[data-command-template^="Înregistrează "]')).toBeVisible();
+ await expect(page.locator('[data-command-template^="Am vândut "]')).toBeVisible();
+ await expect(page.locator('#eventCount')).toHaveText('0');
+});
+
+test('Work draft also autosaves text inserted by voice capture', async ({ page }) => {
+ await page.goto('/index-server.html');
+ const input=page.locator('#commandInput');
+ await input.evaluate(el => { el.value='Observație: dictare test'; el.dispatchEvent(new Event('input',{bubbles:true})); });
+ await page.reload();
+ await expect(input).toHaveValue('Observație: dictare test');
+});

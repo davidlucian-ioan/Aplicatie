@@ -59,6 +59,26 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
+test('Basic offline păstrează Work, Core local și jurnal fără acces AI cloud',async({page})=>{
+ let aiRequests=0;
+ await page.route('**/api/ai/interpret',async route=>{aiRequests++;await route.fulfill({status:503,body:'not available'})});
+ await createEntity(page,'Collector Basic offline','generic');
+ await page.locator('.nav[data-page="assistant"]').click();
+ await page.locator('#commandInput').fill('Observație: test local fără abonament');
+ await page.locator('#parseCommand').click();
+ await expect(page.locator('#commandResult')).toContainText('Observație');
+ await expect(page.locator('#workDraftStatus')).toContainText('salvat local');
+ await page.reload();
+ await page.locator('.nav[data-page="assistant"]').click();
+ await expect(page.locator('#commandInput')).toHaveValue('Observație: test local fără abonament');
+ const stored=await page.evaluate(()=>{const db=JSON.parse(localStorage.getItem('collector_mvp_v2'));return {entity:db.entities.some(e=>e.name==='Collector Basic offline'),events:db.events.map(e=>e.type),draft:localStorage.getItem('collector_work_command_draft_v1')}});
+ expect(stored.entity).toBe(true);
+ expect(stored.events.some(type=>String(type).toLowerCase().includes('note'))).toBe(false,'parse-only note command must not auto-commit');
+ expect(stored.draft).toContain('test local fără abonament');
+ expect(aiRequests).toBe(0,'local mode must not call AI endpoint');
+ await expect(page.locator('#parseWithAI')).toBeDisabled();
+});
+
 test('mută și vinde stoc, apoi păstrează soldurile după refresh', async ({ page }) => {
   await createLocation(page, 'B1');
   await createLocation(page, 'B2');
@@ -195,6 +215,32 @@ test('Replay din interfață reconstruiește proiecțiile fără avertismente', 
   expect(after.warnings).toEqual([]);
 });
 
+test('Collector Basic fără entitlement păstrează funcțiile locale și exportul', async ({ page }) => {
+  // Browser platform has no RevenueCat entitlement; local functionality must not depend on Pro.
+  await createEntity(page, 'Entitate Basic păstrată', 'plant');
+  const before = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return { entityCount: db.entities.length, eventCount: db.events.length, names: db.entities.map(e => e.name) };
+  });
+  expect(before.entityCount).toBe(1);
+  expect(before.eventCount).toBeGreaterThan(0);
+  expect(before.names).toContain('Entitate Basic păstrată');
+
+  await page.locator('.nav[data-page="audit"]').click();
+  await expect(page.locator('#audit')).toContainText('Jurnal:');
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export JSON' }).click()
+  ]);
+  const backup = JSON.parse(await require('node:fs/promises').readFile(await download.path(), 'utf8'));
+  expect(backup.db.entities.map(e => e.name)).toContain('Entitate Basic păstrată');
+  expect(backup.db.events.length).toBeGreaterThan(0);
+  expect(backup.db.schemaVersion).toBe(7);
+  expect(backup.format).toBe('collector-backup.v1');
+  expect(backup.audioIncluded).toBe(false);
+  expect(backup.audioNote).toContain('nu sunt incluse');
+});
+
 test('backup JSON valid poate fi exportat și restaurat fără datele adăugate ulterior', async ({ page }) => {
   await createEntity(page, 'Entitate backup originală', 'plant');
   await page.locator('.nav[data-page="audit"]').click();
@@ -206,6 +252,8 @@ test('backup JSON valid poate fi exportat și restaurat fără datele adăugate 
   const backupPath = await download.path();
   expect(backupPath).toBeTruthy();
   const backupBuffer = await require('node:fs/promises').readFile(backupPath);
+  const exportedBackup = JSON.parse(backupBuffer.toString('utf8'));
+  expect(exportedBackup.audioIncluded).toBe(false);
 
   await createEntity(page, 'Entitate adăugată după backup', 'plant');
   const currentCount = await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).entities.length);
@@ -233,6 +281,36 @@ test('backup JSON valid poate fi exportat și restaurat fără datele adăugate 
   expect(restored).toContain('Entitate backup originală');
   expect(restored).not.toContain('Entitate adăugată după backup');
   expect(restored).toHaveLength(1);
+});
+
+test('import malformed JSON și backup fără schema validă sunt respinse fără a modifica datele', async ({ page }) => {
+  await createEntity(page, 'Date locale protejate', 'generic');
+  const before = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return { events: db.events.map(event => event.id), names: db.entities.map(entity => entity.name), schemaVersion: db.schemaVersion };
+  });
+
+  await page.locator('.nav[data-page="audit"]').click();
+  const invalidFiles = [
+    { name: 'malformed.json', mimeType: 'application/json', buffer: Buffer.from('{broken-json') },
+    { name: 'missing-schema.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ entities: [{ id: 'injected', name: 'Injected' }], events: [] })) }
+  ];
+  const errors = [];
+  for (const file of invalidFiles) {
+    const dialogPromise = page.waitForEvent('dialog');
+    await page.locator('#importFile').setInputFiles(file);
+    const dialog = await dialogPromise;
+    errors.push(dialog.message());
+    await dialog.accept();
+  }
+  expect(errors).toHaveLength(2);
+  expect(errors.every(message => message.includes('Import eșuat'))).toBe(true);
+
+  const after = await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('collector_mvp_v2'));
+    return { events: db.events.map(event => event.id), names: db.entities.map(entity => entity.name), schemaVersion: db.schemaVersion };
+  });
+  expect(after).toEqual(before);
 });
 
 test('numele cu markup HTML sunt afișate ca text și nu execută scripturi', async ({ page }) => {
@@ -641,4 +719,67 @@ test('old storage key fără schemaVersion este migrat și verificat prin Replay
   expect(validation.entityNames).toContain('Legacy key plant');
   await page.locator('.nav[data-page="audit"]').click();
   await expect(page.locator('#auditSummary')).not.toContainText('MOD NUMAI CITIRE');
+});
+
+test('caută entități live după nume, tip și locație și permite resetarea filtrului', async ({ page }) => {
+  await createLocation(page, 'Greenhouse B3');
+  await createEntity(page, 'Fancy Tiger Red', 'shrimp');
+  await createEntity(page, 'Philodendron Micans', 'plant');
+  const ids = await page.evaluate(() => { const db=JSON.parse(localStorage.getItem('collector_mvp_v2')); return {location:db.entities.find(e=>e.name==='Greenhouse B3').id,plant:db.entities.find(e=>e.name==='Philodendron Micans').id}; });
+  await page.locator('.nav[data-page="relations"]').click();
+  await page.locator('#relations .toolbar button.primary').nth(1).click();
+  await page.locator('#relSource').selectOption(ids.plant);
+  await page.locator('#relType').selectOption('located_in');
+  await page.locator('#relTarget').selectOption(ids.location);
+  await page.locator('#modal button.primary').click();
+  await page.locator('.nav[data-page="entities"]').click();
+
+  const search = page.locator('#entitySearch');
+  await expect(search).toBeVisible();
+  await expect(page.locator('#entityList .row')).toHaveCount(3);
+
+  await search.fill('fancy');
+  await expect(page.locator('#entityList .row')).toHaveCount(1);
+  await expect(page.locator('#entityList')).toContainText('Fancy Tiger Red');
+  await expect(page.locator('#entityList')).not.toContainText('Philodendron Micans');
+  await expect(page.locator('#entitySearchCount')).toContainText('1 / 3');
+
+  await search.fill('shrimp');
+  await expect(page.locator('#entityList .row')).toHaveCount(1);
+  await expect(page.locator('#entityList')).toContainText('Fancy Tiger Red');
+
+  await search.fill('greenhouse');
+  await expect(page.locator('#entityList .row')).toHaveCount(2);
+  await expect(page.locator('#entityList')).toContainText('Philodendron Micans');
+  await expect(page.locator('#entityList')).toContainText('Greenhouse B3');
+  await expect(page.locator('#entityList')).not.toContainText('Fancy Tiger Red');
+
+  await search.fill('does-not-exist');
+  await expect(page.locator('#entityList')).toContainText('Nu există entități care corespund căutării.');
+  await expect(page.locator('#entitySearchCount')).toContainText('0 / 3');
+
+  await search.fill('');
+  await expect(page.locator('#entityList .row')).toHaveCount(3);
+  await expect(page.locator('#entitySearchCount')).toBeEmpty();
+});
+
+
+test('Work Recall caută memorie structurată și navighează la evenimentul sursă',async({page})=>{
+ await createEntity(page,'Pompa acvariu recall','object');
+ await page.locator('.nav[data-page="assistant"]').click();
+ await page.locator('#memoryRecallQuery').fill('Pompa acvariu recall');
+ await page.locator('#memoryRecallForm').getByRole('button',{name:'Caută în memorie'}).click();
+ await expect(page.locator('#memoryRecallStatus')).toContainText('dovezi găsite');
+ await expect(page.locator('#memoryRecallResults')).toContainText('Pompa acvariu recall');
+ const source=page.locator('[data-recall-open-event]').first();await expect(source).toBeVisible();
+ const eventId=await source.getAttribute('data-recall-open-event');
+ // Put a filter on the Events page, then return to Work and open the source.
+ await page.locator('.nav[data-page="events"]').click();
+ const eventFilter=page.locator('[data-filter-target="eventList"]');await eventFilter.fill('filter fara rezultat');
+ await page.locator('.nav[data-page="assistant"]').click();
+ const recallSource=page.locator('[data-recall-open-event="'+eventId+'"]');await expect(recallSource).toBeVisible();
+ await recallSource.click();
+ await expect(page.locator('#events')).toBeVisible();
+ await expect(eventFilter).toHaveValue('');
+ await expect(page.locator('#eventList > [data-event-id="'+eventId+'"]')).toBeVisible();
 });

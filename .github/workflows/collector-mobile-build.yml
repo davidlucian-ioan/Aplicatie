@@ -1,0 +1,152 @@
+name: Collector mobile build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - collector-v11/**
+      - .github/workflows/collector-mobile-build.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - collector-v11/**
+      - .github/workflows/collector-mobile-build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collector-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      COLLECTOR_API_BASE_URL: ${{ vars.COLLECTOR_API_BASE_URL }}
+      COLLECTOR_SUPABASE_URL: ${{ vars.COLLECTOR_SUPABASE_URL }}
+      COLLECTOR_SUPABASE_ANON_KEY: ${{ vars.COLLECTOR_SUPABASE_ANON_KEY }}
+      COLLECTOR_REVENUECAT_APPLE_API_KEY: ${{ vars.COLLECTOR_REVENUECAT_APPLE_API_KEY }}
+      COLLECTOR_REVENUECAT_GOOGLE_API_KEY: ${{ vars.COLLECTOR_REVENUECAT_GOOGLE_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install project dependencies
+        working-directory: collector-v11
+        run: npm ci --no-audit --no-fund
+      - name: Install Capacitor 8 toolchain
+        working-directory: collector-v11
+        run: npm run mobile:install-toolchain && npm run mobile:verify-toolchain && ./node_modules/.bin/cap --version
+      - name: Verify app and native plugin wiring
+        working-directory: collector-v11
+        run: npm test
+      - name: Build allowlisted web bundle
+        working-directory: collector-v11
+        run: npm run mobile:build && npm run mobile:verify-release-bundle
+      - name: Generate Android native project
+        working-directory: collector-v11
+        run: ./node_modules/.bin/cap add android
+      - name: Configure microphone permission
+        working-directory: collector-v11
+        run: node configure-native-projects.js android
+      - name: Sync Android native project
+        working-directory: collector-v11
+        run: ./node_modules/.bin/cap sync android
+      - name: Build Android debug APK (retry transient Maven throttling)
+        working-directory: collector-v11
+        shell: bash
+        run: |
+          set -uo pipefail
+          log_file="$(mktemp)"
+          trap 'rm -f "$log_file"' EXIT
+          for attempt in 1 2 3; do
+            echo "Android Gradle build attempt ${attempt}/3"
+            if (cd android && ./gradlew assembleDebug --no-daemon --max-workers=2) 2>&1 | tee "$log_file"; then
+              exit 0
+            fi
+            if ! grep -Eiq 'HTTP 429|status code 429|Too Many Requests|HTTP 5[0-9][0-9]|status code 5[0-9][0-9]' "$log_file"; then
+              echo "Build failed for a non-transient reason; not retrying."
+              exit 1
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Maven repository throttling persisted after three attempts."
+              exit 1
+            fi
+            sleep $((attempt * 30))
+            : > "$log_file"
+          done
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: collector-android-debug
+          path: collector-v11/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    name: iOS simulator build
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      COLLECTOR_API_BASE_URL: ${{ vars.COLLECTOR_API_BASE_URL }}
+      COLLECTOR_SUPABASE_URL: ${{ vars.COLLECTOR_SUPABASE_URL }}
+      COLLECTOR_SUPABASE_ANON_KEY: ${{ vars.COLLECTOR_SUPABASE_ANON_KEY }}
+      COLLECTOR_REVENUECAT_APPLE_API_KEY: ${{ vars.COLLECTOR_REVENUECAT_APPLE_API_KEY }}
+      COLLECTOR_REVENUECAT_GOOGLE_API_KEY: ${{ vars.COLLECTOR_REVENUECAT_GOOGLE_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Select Xcode
+        run: xcodebuild -version
+      - name: Install project dependencies
+        working-directory: collector-v11
+        run: npm ci --no-audit --no-fund
+      - name: Install Capacitor 8 toolchain
+        working-directory: collector-v11
+        run: npm run mobile:install-toolchain && npm run mobile:verify-toolchain && ./node_modules/.bin/cap --version
+      - name: Verify app and native plugin wiring
+        working-directory: collector-v11
+        run: npm test
+      - name: Build allowlisted web bundle
+        working-directory: collector-v11
+        run: npm run mobile:build
+      - name: Generate iOS native project
+        working-directory: collector-v11
+        run: ./node_modules/.bin/cap add ios
+      - name: Configure microphone usage description
+        working-directory: collector-v11
+        run: node configure-native-projects.js ios
+      - name: Sync iOS native project
+        working-directory: collector-v11
+        run: ./node_modules/.bin/cap sync ios
+      - name: Build iOS simulator app
+        working-directory: collector-v11
+        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
+      - name: Package iOS simulator app
+        working-directory: collector-v11
+        run: ditto -c -k --sequesterRsrc --keepParent ios/build/Build/Products/Debug-iphonesimulator/App.app collector-ios-simulator.zip
+      - name: Upload iOS simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: collector-ios-simulator
+          path: collector-v11/collector-ios-simulator.zip
+          if-no-files-found: error
+          retention-days: 14

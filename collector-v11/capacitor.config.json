@@ -1,0 +1,22 @@
+{
+  "appId": "ro.collector.mobile",
+  "appName": "Collector",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "banner",
+        "list"
+      ]
+    },
+    "CapacitorSQLite": {
+      "androidIsEncryption": false,
+      "iosIsEncryption": false
+    }
+  }
+}

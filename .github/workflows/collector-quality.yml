@@ -4,12 +4,12 @@ on:
   push:
     branches:
       - main
-      - 'feature/**'
     paths:
       - collector-v11/**
       - docs/**
       - README.md
       - .github/workflows/collector-quality.yml
+      - .github/workflows/import-collector-v11.yml
   pull_request:
     branches:
       - main
@@ -20,9 +20,14 @@ on:
       - .github/workflows/collector-quality.yml
   schedule:
     - cron: '17 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: collector-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   quality:

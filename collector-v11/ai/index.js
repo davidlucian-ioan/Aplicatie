@@ -7,5 +7,7 @@ module.exports = {
   ...require('./provider-mock'),
   ...require('./core-adapter'),
   ...require('./core-port'),
-  ...require('./orchestrator')
+  ...require('./orchestrator'),
+  ...require('./structured-memory'),
+  ...require('./structured-recall')
 };

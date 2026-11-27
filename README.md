@@ -32,4 +32,4 @@ Sau rulează tot setul cu `npm run test:all`. Coverage-ul actual este informativ
 - [Audit AI Foundation — Faza 0](docs/architecture/AI-FOUNDATION-PHASE0-AUDIT.md)
 - [Stare proiect și punct de continuare](docs/architecture/PROJECT-STATE-AND-CONTINUATION-v0.7.md)
 
-Notă: AI Foundation include în această etapă un provider mock; nu este conectat un furnizor AI real. Datele operaționale ale utilizatorului nu sunt incluse în repository.
+Providerul AI cloud ales este OpenAI API. Integrarea este dezvoltată pe branch-ul `feature/openai-provider-integration`; nu este încă integrată în `main`. Cheia API nu se stochează în repository. Datele operaționale ale utilizatorului nu sunt incluse în repository.

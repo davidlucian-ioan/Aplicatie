@@ -73,12 +73,13 @@ test('global action starts a local audio recording without committing an event',
 test('desktop navigation exposes the current section to assistive technology', async ({ page }) => {
   await page.goto('/index-server.html');
   await expect(page.getByRole('navigation', { name: 'Secțiuni Collector' })).toBeVisible();
-  await expect(page.locator('.nav[data-page="dashboard"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.nav[data-page="assistant"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('button', { name: 'Think' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Istoric' }).click();
   await expect(page.locator('#history')).toBeVisible();
   await expect(page.locator('.nav[data-page="history"]')).toHaveAttribute('aria-current', 'page');
-  await expect(page.locator('.nav[data-page="dashboard"]')).not.toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.nav[data-page="assistant"]')).not.toHaveAttribute('aria-current', 'page');
 });
 
 test('voice entry degrades to accessible text input when speech recognition is unavailable', async ({ page }) => {
@@ -111,12 +112,14 @@ test('voice session accumulates multiple phrases and previews one note without a
   await expect(page.locator('#voiceSessionButton')).toContainText('Oprește transcrierea');
   await page.evaluate(() => {
     const rec = window.__collectorRecognition;
-    const first = [{ transcript: 'B3 are pH 6.4' }]; first.isFinal = true;
+    const first = [{ transcript: 'Observație: B3 are pH 6.4' }]; first.isFinal = true;
     const second = [{ transcript: 'Temperatura este 22 de grade' }]; second.isFinal = true;
     rec.onresult({ resultIndex: 0, results: [first, second] });
   });
-  await expect(page.locator('#commandInput')).toHaveValue('B3 are pH 6.4 Temperatura este 22 de grade');
+  await expect(page.locator('#commandInput')).toHaveValue('Observație: B3 are pH 6.4 Temperatura este 22 de grade');
   await page.locator('#voiceSessionButton').click();
+  // AI cloud is intentionally unavailable in CI; validate the local Core preview fallback.
+  await page.locator('#parseCommand').click();
   await expect(page.locator('#confirmCoreCommand')).toBeVisible();
   await expect(page.locator('#commandResult')).toContainText('Observație');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
@@ -168,4 +171,89 @@ test('audio recorder reports denied microphone permission and keeps Core journal
   await expect(page.locator('#audioRecorderStatus')).toContainText('Accesul la microfon a fost refuzat');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
   expect(await page.evaluate(async () => (await window.CollectorAudioStore.list()).length)).toBe(0);
+});
+
+
+test('browser audio chunks survive reload and can be recovered from Work', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.evaluate(async () => {
+    const store = window.CollectorAudioStore;
+    await store.beginSession({
+      id: 'e2e-interrupted-audio',
+      createdAt: '2026-11-25T13:00:00.000Z',
+      mimeType: 'audio/webm'
+    });
+    await store.appendSessionChunk(
+      'e2e-interrupted-audio',
+      new Blob(['partial-audio-segment'], { type: 'audio/webm' }),
+      4200
+    );
+  });
+
+  await page.reload();
+  await expect(page.locator('#audioRecoverPending')).toBeVisible();
+  await page.locator('#audioRecoverPending').click();
+  await expect(page.locator('#audioRecorderStatus')).toContainText('recuperată din 1 fragmente');
+  await expect(page.locator('#audioRecordingList .audio-recording-row')).toHaveCount(1);
+
+  const saved = await page.evaluate(async () => {
+    const record = await window.CollectorAudioStore.get('e2e-interrupted-audio');
+    return {
+      text: await record.blob.text(),
+      durationMs: record.durationMs,
+      recovered: record.recovered,
+      remaining: (await window.CollectorAudioStore.listInterruptedSessions()).length
+    };
+  });
+  expect(saved.text).toBe('partial-audio-segment');
+  expect(saved.durationMs).toBe(4200);
+  expect(saved.recovered).toBe(true);
+  expect(saved.remaining).toBe(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('collector_mvp_v2')).events.length)).toBe(0);
+});
+
+test('full local-data erasure clears journal, Work draft, reminder metadata and audio checkpoints but preserves cloud opt-out', async ({ page }) => {
+  await page.goto('/index-server.html');
+  await page.evaluate(async () => {
+    await window.CollectorStorage.writeRaw('collector_mvp_v2', JSON.stringify(window.CollectorEngine.emptyState()));
+    await window.CollectorStorage.writeRaw('collector_work_command_draft_v1', 'draft local');
+    await window.CollectorStorage.writeRaw('collector_reminders_v1', JSON.stringify([{
+      id: 'reminder-test', notificationId: 7331, title: 'Local reminder',
+      at: new Date(Date.now() + 60_000).toISOString(), createdAt: new Date().toISOString()
+    }]));
+    localStorage.setItem('collector_cloud_opt_out', '1');
+    localStorage.setItem('collector-intent:test', 'pending');
+    localStorage.setItem('unrelated_app_key', 'keep');
+    await window.CollectorAudioStore.beginSession({
+      id: 'audio-checkpoint-test', createdAt: new Date().toISOString(), mimeType: 'audio/webm'
+    });
+    await window.CollectorAudioStore.appendSessionChunk('audio-checkpoint-test', new Blob(['partial audio'], { type: 'audio/webm' }), 1200);
+    await window.CollectorAudioStore.save({
+      id: 'audio-recording-test', createdAt: new Date().toISOString(), durationMs: 1200,
+      mimeType: 'audio/webm', blob: new Blob(['saved audio'], { type: 'audio/webm' })
+    });
+  });
+  await page.locator('.nav[data-page="audit"]').click();
+  page.on('dialog', dialog => dialog.accept());
+  await page.locator('#clearLocalData').click();
+  await expect(page.locator('#localDataClearStatus')).toContainText('Datele locale au fost șterse');
+  const result = await page.evaluate(async () => ({
+    journal: await window.CollectorStorage.readRaw('collector_mvp_v2'),
+    draft: await window.CollectorStorage.readRaw('collector_work_command_draft_v1'),
+    reminders: await window.CollectorStorage.readRaw('collector_reminders_v1'),
+    audio: await window.CollectorAudioStore.list(),
+    interrupted: await window.CollectorAudioStore.listInterruptedSessions(),
+    optOut: localStorage.getItem('collector_cloud_opt_out'),
+    intent: localStorage.getItem('collector-intent:test'),
+    unrelated: localStorage.getItem('unrelated_app_key')
+  }));
+  expect(result.journal).toBeNull();
+  expect(result.draft).toBeNull();
+  expect(result.reminders).toBeNull();
+  expect(result.audio).toHaveLength(0);
+  expect(result.interrupted).toHaveLength(0);
+  expect(result.optOut).toBe('1');
+  expect(result.intent).toBeNull();
+  expect(result.unrelated).toBe('keep');
+  await expect(page.locator('#entityCount')).toHaveText('0');
 });

@@ -5,6 +5,18 @@ const clone=x=>JSON.parse(JSON.stringify(x));
 const uid=()=>globalThis.crypto?.randomUUID?.()||('id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));
 const now=()=>new Date().toISOString();
 const validTimestamp=value=>{if(typeof value!=='string')return false;const match=value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/);if(!match||!Number.isFinite(Date.parse(value)))return false;const [,year,month,day,hour,minute,second,zone]=match;const y=Number(year),m=Number(month),d=Number(day),h=Number(hour),min=Number(minute),s=Number(second);const days=new Date(Date.UTC(y,m,0)).getUTCDate();if(m<1||m>12||d<1||d>days||h>23||min>59||s>59)return false;if(zone!=='Z'){const offset=zone.match(/^[+-](\d{2}):(\d{2})$/);if(!offset)return false;const hours=Number(offset[1]),minutes=Number(offset[2]);if(hours>14||minutes>59||(hours===14&&minutes!==0))return false;}return true;};
+const validFactTime=value=>{
+ if(typeof value!=='string'||!value.trim())return false;
+ const v=value.trim(),date=v.match(/^(\d{4})-(\d{2})-(\d{2})$/),timestamp=v.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/);
+ const parts=date||timestamp;if(!parts)return false;
+ const year=Number(parts[1]),month=Number(parts[2]),day=Number(parts[3]);
+ if(year<1||month<1||month>12||day<1||day>new Date(Date.UTC(year,month,0)).getUTCDate())return false;
+ if(date)return true;
+ const hour=Number(parts[4]),minute=Number(parts[5]),second=Number(parts[6]||0),zone=parts[7];
+ if(hour>23||minute>59||second>59||!Number.isFinite(Date.parse(v)))return false;
+ if(zone!=='Z'){const offset=zone.match(/^[+-](\d{2}):(\d{2})$/);if(!offset)return false;const h=Number(offset[1]),m=Number(offset[2]);if(h>14||m>59||(h===14&&m!==0))return false}
+ return true;
+};
 const emptyState=()=>({entities:[],attributes:[],relations:[],events:[],stock:[],finance:[],eventAttributes:[],schemaVersion:7,meta:{lastActivityAt:now(),activeContext:null,processedIntentKeys:[],replayWarnings:[]}});
 function normDb(raw){const db={...emptyState(),...(raw||{})};for(const k of ['entities','attributes','relations','events','stock','finance','eventAttributes'])if(!Array.isArray(db[k]))db[k]=[];db.meta={...emptyState().meta,...(db.meta||{})};if(!Array.isArray(db.meta.processedIntentKeys))db.meta.processedIntentKeys=[];if(!Array.isArray(db.meta.replayWarnings))db.meta.replayWarnings=[];return db;}
 function targetId(op){return op.entityId||op.target||op.data?.entityId||null}
@@ -13,7 +25,7 @@ case 'entity.create': case 'create': {const eid=id||uid();const existing=s.entit
 case 'entity.rename': {const e=s.entities.find(x=>x.id===id);if(!e)throw Error('Entitatea nu există.');if(!String(d.name||'').trim())throw Error('Numele nu poate fi gol.');const previousName=e.name;e.name=String(d.name).trim();(e.nameHistory||(e.nameHistory=[])).push({at:event.timestamp,previous:previousName,value:e.name,eventId:event.id});return;}
 case 'entity.rename.correct': {const e=s.entities.find(x=>x.id===id);if(!e)throw Error('Entitatea nu există.');const history=e.nameHistory||[];const row=history.find(x=>x.eventId===d.correctsEventId);if(!row)throw Error('Schimbarea numelui vizată nu există.');if(row.correctedByEventId)throw Error('Schimbarea numelui a fost deja corectată.');const isLatest=history[history.length-1]===row;if(isLatest&&e.name===row.value)e.name=row.previous;row.correctedByEventId=event.id;return;}
 case 'schimb atrib': return; // Legacy malformed operation: retain event in the journal without mutating projections.
-case 'attribute.set': case 'set_attribute': {const e=s.entities.find(x=>x.id===id);if(!e)throw Error('Entitatea atributului nu există.');const name=String(d.name||d.attribute||'').trim();if(!name)throw Error('Numele atributului lipsește.');const def=s.attributes.find(a=>a.name.toLowerCase()===name.toLowerCase());if(def?.required&&(d.value===null||d.value===''))throw Error(`Atributul „${name}” este obligatoriu.`);if(def?.type==='number'&&d.value!==''&&!Number.isFinite(Number(d.value)))throw Error(`„${name}” trebuie să fie numeric.`);const prev=e.attributes[name];if(prev!==undefined&&JSON.stringify(prev)===JSON.stringify(d.value)&&!d.forceHistory)return;e.attributes[name]=d.value;(e.attributeHistory[name]||(e.attributeHistory[name]=[])).push({at:event.timestamp,value:d.value,previous:prev,certainty:d.certainty||event.certainty||'certain',eventId:event.id});return;}
+case 'attribute.set': case 'set_attribute': {const e=s.entities.find(x=>x.id===id);if(!e)throw Error('Entitatea atributului nu există.');const name=String(d.name||d.attribute||'').trim();if(!name)throw Error('Numele atributului lipsește.');const def=s.attributes.find(a=>a.name.toLowerCase()===name.toLowerCase());if(def?.required&&(d.value===null||d.value===''))throw Error(`Atributul „${name}” este obligatoriu.`);if(def?.type==='number'&&d.value!==''&&!Number.isFinite(Number(d.value)))throw Error(`„${name}” trebuie să fie numeric.`);if(d.validAt!==undefined&&d.validAt!==null&&!validFactTime(d.validAt))throw Error('Data validării faptului trebuie să fie o dată ISO sau un timestamp cu fus orar valid.');const prev=e.attributes[name];if(prev!==undefined&&JSON.stringify(prev)===JSON.stringify(d.value)&&!d.forceHistory)return;e.attributes[name]=d.value;const historyRow={at:event.timestamp,value:d.value,previous:prev,certainty:d.certainty||event.certainty||'certain',eventId:event.id};if(d.validAt!==undefined&&d.validAt!==null)historyRow.validAt=d.validAt.trim();(e.attributeHistory[name]||(e.attributeHistory[name]=[])).push(historyRow);return;}
 case 'attribute.correct': {
  const e=s.entities.find(x=>x.id===id);if(!e)throw Error('Entitatea atributului nu există.');
  const name=String(d.name||d.attribute||'').trim();if(!name)throw Error('Numele atributului lipsește.');
@@ -150,8 +162,26 @@ function validateImport(raw){
  for(const key of ['entities','attributes','relations','stock','finance','eventAttributes']){
   const stored=Array.isArray(candidate[key])?candidate[key]:[];
   const projected=Array.isArray(rebuilt[key])?rebuilt[key]:[];
+  let comparable=stored;
+  if(key==='entities'){
+   // Schema v7 snapshots created before validAt projection omitted this derived field.
+   // Backfill only a missing property from its matching replayed event; never overwrite
+   // a stored value, so tampering or disagreement still fails validation.
+   comparable=clone(stored);
+   const replayedById=new Map(projected.map(entity=>[entity.id,entity]));
+   for(const entity of comparable){
+    const replayed=replayedById.get(entity.id),histories=entity.attributeHistory||{},replayedHistories=replayed?.attributeHistory||{};
+    for(const [name,rows] of Object.entries(histories)){
+     const replayRows=new Map((replayedHistories[name]||[]).filter(row=>row?.eventId).map(row=>[row.eventId,row]));
+     for(const row of Array.isArray(rows)?rows:[]){
+      const source=replayRows.get(row?.eventId);
+      if(source&&row.validAt===undefined&&source.validAt!==undefined)row.validAt=source.validAt;
+     }
+    }
+   }
+  }
   const stripGeneratedIds=rows=>['stock','finance','eventAttributes'].includes(key)?rows.map(({id,...row})=>row):rows;
-  if(stableJson(stripGeneratedIds(stored))!==stableJson(stripGeneratedIds(projected)))throw Error(`Import blocat: proiecția „${key}” nu corespunde jurnalului. Datele locale nu au fost înlocuite.`);
+  if(stableJson(stripGeneratedIds(comparable))!==stableJson(stripGeneratedIds(projected)))throw Error(`Import blocat: proiecția „${key}” nu corespunde jurnalului. Datele locale nu au fost înlocuite.`);
  }
  rebuilt.meta={...candidate.meta,...rebuilt.meta};
  rebuilt.schemaVersion=7;

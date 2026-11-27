@@ -199,3 +199,66 @@ PR #29 este înlocuit de PR #32 după integrarea PR #30. PR #32 păstrează guar
 **Stryker:** ultimul full-suite rămâne 65,81% (run #45237194442), raport istoric pre-PR #15–#38. Nu există scor complet nou pentru codul curent; testele PR nu rulează full Stryker, care rămâne nocturn. Triage semantic pentru finance, relații, atribute și Replay este în issue #5.
 
 **Următorii pași:** finalizează PR #38 numai după CI complet verde; apoi extinde protecția la redefinirea atributelor deja folosite în proiecțiile entity/relation/event și continuă trierea mutanților pe comportament real. Validarea manuală din issue #4 rămâne restantă; date sintetice, fără provider AI real și fără deploy.
+
+## Continuare checkpoint — 2026-11-25 (PR #55 / Work UX hardening)
+
+**Branch:** `feature/openai-provider-integration` · **PR #55 draft, target main**. Nu se face merge și nu se configurează servicii de producție fără aprobare explicită.
+
+### Modificări recente
+- Draft Work autosave folosește StorageAdapter (web/local, SQLite nativ), fără acces direct din app la localStorage.
+- Restore asincron este protejat de input race: draftul recuperat nu suprascrie textul introdus între timp.
+- Clear draft invalidează restore-ul pending chiar și când textarea este deja goală; eliminarea draftului este confirmată de storage/status.
+- Controls/template quick actions aliniate în toate cele 3 entry points: `index.html`, `index-server.html`, `Deschide-prin-dublu-click.html`.
+- Work draft status este aria-live; clear control și quick templates sunt vizibile, draftul nu este event până la preview/confirm.
+- Test static de wiring adăugat pentru controale și race guard.
+
+### CI
+- Head verificat după modificări: `ea653506ee3b428b5703083a9600822c54601f50` (CI în curs la momentul checkpointului).
+- O rundă quality a detectat o aserțiune regex incorect escapata în testul nou, nu defect în UI; aserțiunea a fost înlocuită cu verificare exactă `includes()` și runda nouă a fost pornită.
+- Cloud API pe head-ul anterior `72975b774e43910016537b5a3eaff415ea91eada` a trecut. Mobile și quality pentru head-ul curent trebuie confirmate complet, non-cancelled.
+- E2E existent acoperă autosave, reload/restore, clear-confirm și templates; trebuie urmărită runda CI nouă pentru rezultate.
+
+### Next actions
+1. Confirmă CI complet pe head curent; dacă runda este anulată de commits noi, verifică ultima rundă completă, nu cea anulată.
+2. Inspectează rapoartele Playwright/cross-browser și repară regresiile.
+3. Continuă Work: teste de draft race, audio/voice lifecycle, notificări și UX pentru confirmarea preview.
+4. Revizuire securitate cloud/billing și checklist de testare sandbox, fără deploy sau tranzacții reale.
+5. Păstrează PR #55 draft până la acceptanța manuală și aprobarea utilizatorului.
+
+## Launch hardening checkpoint — 2026-11-25 (PR #55)
+
+**Branch:** `feature/openai-provider-integration` · **HEAD:** `bef71efdc306f4db13554ba5931af2a53ab45a1b` · **PR #55 remains draft**.
+
+### Work / UI / recorder
+- All three HTML entry points (`index.html`, `index-server.html`, `Deschide-prin-dublu-click.html`) are aligned for Think page headers/filters and Work-first DOM order (recorder → command → reminders); subscriptions client is loaded in all three.
+- Fixed malformed CSS `repeat()` in finance metrics that caused browsers to ignore later Work layout rules. Removed a stray `</div>` from Work markup and normalized escaped line breaks in Work styles.
+- Fixed E2E navigation tests to open the mobile sidebar before selecting a Think page, verify filters only while their page is active, and target the actual Add Attribute action.
+- Browser audio checkpoint chunks are now persisted as ArrayBuffer, with MIME metadata and ordered recovery; recovery can still read the previous Blob row shape. This fixed WebKit IndexedDB rejection seen in the previous cross-browser run.
+- Native AAC checkpoint/recovery remains in place; recovery is best-effort if the OS terminates the recording process before a native URI/private file is available.
+
+### CI evidence on this HEAD
+- Collector Cloud API: **success**, run #402.
+- Collector Quality Suite: **success**, run #1601 — Core/unit/property/Replay/benchmark plus Chromium, Firefox and WebKit Playwright E2E.
+- Collector Mobile Build: Android debug APK job **success**, run #704; iOS simulator job is still queued/pending. Do not describe the whole mobile workflow as fully passed until iOS job succeeds.
+- Android artifact: `collector-android-debug`, APK debug only (not signed Play Store AAB). Artifact was downloaded for manual device testing.
+- Earlier WebKit run #1599 failed only in browser-chunk persistence; ArrayBuffer serialization was the targeted fix validated by the new #1601 E2E pass.
+- Earlier Chromium E2E failures were traced to bad test navigation/selector assumptions, malformed CSS and extra markup close tag; fixes are covered by tests.
+
+### Additional launch risk identified
+- There is no unified in-app “erase all local data” flow in the inspected app. Current capabilities include export/import, individual record deletion, Work draft clearing and separate cloud account deletion, but deleting the cloud account explicitly leaves device-local data. Treat a documented and tested full-local-erasure workflow (Core journal, drafts, audio files/checkpoints, reminder metadata and native notifications) as a **P0 privacy launch gate**. Do not imply the current UI already provides it.
+- SQLite is still configured with `encrypted:false` / `no-encryption`. Do not toggle it without secure-key management and a tested migration path for existing databases.
+- Supabase/RevenueCat production projects, Cloud API HTTPS deployment, production secrets, real webhook configuration, purchase/restore/refund sandbox tests and account lifecycle verification remain unconfigured/unverified.
+- Android artifact is debug. Signed AAB/Play App Signing and signed iOS Archive/IPA/TestFlight are not complete.
+- No real-device acceptance has been performed for Android/iOS audio interruption/background, Bluetooth routing, native notifications/Doze/Focus, upgrade/migration and storage-full cases.
+- Privacy/Terms docs remain internal drafts with operator/contact/vendor/region/retention/legal-review placeholders. Do not publish them.
+- Multi-device sync/cloud backup is not implemented and must not be marketed as available.
+- Mobile dependency versions are directly pinned in the workflow but the full native toolchain/transitive graph is not yet locked in the main package-lock; deterministic mobile installs remain a reproducibility task.
+
+### Next actions
+1. Confirm iOS simulator build for run #704; Android debug passed, but the mobile workflow is not fully green while iOS is queued.
+2. Install the debug APK on a real Android phone and run audio capture/playback/recovery, app restart, notification permissions, Doze/background and upgrade/migration checks with synthetic data.
+3. Implement and test a full local-data erasure flow before public beta; include reminders/native notifications and audio files, with explicit irreversible confirmation and clear cloud-subscription separation.
+4. Design/implement encrypted SQLite storage using secure key storage and non-destructive migration; verify recovery and uninstall/reinstall behavior.
+5. Configure staging Supabase/Cloud API/RevenueCat/OpenAI and complete sandbox purchase/restore/refund/expiry tests before production keys/deploy.
+6. Produce signed Android/iOS store artifacts, publish reviewed privacy/terms/support URLs, and complete store data-safety declarations.
+7. Keep PR #55 draft; no merge, production deployment, real billing or public store release without explicit approval.

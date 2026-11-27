@@ -2,7 +2,7 @@
 
 const CONTRACT_VERSION = 'collector.command.v1';
 const INTENTS = new Set(['answer', 'propose', 'clarify', 'refuse', 'model_extension']);
-const CORE_STATUSES = new Set(['preview_ok', 'committed', 'duplicate', 'rejected', 'conflict', 'unavailable']);
+const CORE_STATUSES = new Set(['preview_ok', 'committed', 'duplicate', 'rejected', 'conflict', 'unavailable', 'stale_preview']);
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
