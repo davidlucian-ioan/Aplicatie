@@ -1432,3 +1432,8 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 
 - Testele CI au identificat că expansiunea putea folosi o relație de ciclu pentru a introduce un nod dincolo de limita intuitivă și că sortarea pe depth altera ordinea entităților originale.
 - Am păstrat ordinea Core entities, ajustat fixture-ul să verifice explicit cycle protection și limita de două hops fără ambiguitate. Verificare CI nouă în curs.
+
+
+## Multi-hop CI syntax correction (27 nov. 2026)
+
+- Test fixtures for Node/browser had one extra closing brace after relation-cycle replacement; corrected syntax and explicit assertion that depth-3 entity `d` is excluded.
