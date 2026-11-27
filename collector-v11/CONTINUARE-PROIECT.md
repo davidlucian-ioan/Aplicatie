@@ -1446,3 +1446,13 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Diagnostic include currentValue, valori, validAt, at, certainty și eventId; nu mută, nu rescrie și nu decide automat valoarea corectă.
 - Node/browser parity, test pentru separare temporală și conflict fără dată, precum și sanitizer cloud allowlist. UI Recall afișează diagnostic separat. Prompt AI cere să nu aleagă automat winner și să propună clarificare doar la cerere.
 - HEAD bază: 8f1ddd7b1e1fe45f8582b5abd1b715e22be71f62 (CI complet PASS). Batch nou necesită CI.
+
+
+## Batch: AI-assisted memory correction proposal (27 nov. 2026)
+
+- Exposed Core's existing `attribute.correct` journal operation to the OpenAI Structured Output contract and Browser Core Port allowlist.
+- Marked corrections as high-risk: confirmation is required even if a caller omits the generic flag.
+- Prompt requires explicit user intent to correct, exact entity ID and exact historical `correctsEventId` from evidence. A detected possible conflict alone cannot trigger a mutation; no guessing IDs.
+- The operation edits the targeted historical measurement through Core's correction semantics and keeps the journal event/history; preview remains non-persistent and execution requires confirmation.
+- Added provider contract/prompt coverage and Core Port preview-confirm regression test.
+- This batch needs CI verification on the new HEAD. PR #55 remains draft; do not merge.
