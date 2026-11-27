@@ -185,3 +185,19 @@ test('Browser Core Port can discard a cancelled preview without retaining stale 
   const result=await x.port.execute(pending);
   assert.equal(result.status,'committed');
 });
+
+
+test('attribute.correct is preview-only until explicit confirmation and preserves journal history', async()=>{
+ const x=setup();const seed={...cmd('Pompa'),idempotencyKey:'seed-correction',operations:[
+  {operation:'entity.create',target:'pump-1',data:{name:'Pompa',type:'object'}},
+  {operation:'attribute.set',target:'pump-1',data:{name:'condition',value:'broken',forceHistory:true}}
+ ]};
+ const seeded=await x.port.execute(seed);assert.equal(seeded.status,'committed');
+ const original=x.state.entities.find(e=>e.id==='pump-1').attributeHistory.condition[0];
+ const correction={...cmd(),idempotencyKey:'correct-condition',intent:'attribute.correct',requiresConfirmation:true,
+  operations:[{operation:'attribute.correct',target:'pump-1',data:{name:'condition',correctsEventId:original.eventId,value:'repaired',certainty:'certain'}}]};
+ const preview=await x.port.preview(correction);assert.equal(preview.status,'preview_ok');assert.equal(x.state.entities.find(e=>e.id==='pump-1').attributes.condition,'broken');
+ const unconfirmed=await x.port.execute(correction);assert.equal(unconfirmed.status,'rejected');assert.equal(x.state.entities.find(e=>e.id==='pump-1').attributes.condition,'broken');
+ const confirmed=await x.port.execute(correction,{confirmed:true});assert.equal(confirmed.status,'committed');
+ const history=x.state.entities.find(e=>e.id==='pump-1').attributeHistory.condition;assert.equal(history.length,1);assert.equal(history[0].value,'repaired');assert.ok(history[0].correctedByEventId);assert.equal(x.state.entities.find(e=>e.id==='pump-1').attributes.condition,'repaired');
+});
