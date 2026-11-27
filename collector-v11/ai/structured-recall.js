@@ -44,7 +44,13 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  });
  const eventSeedIds=new Set(matchingEvents.flatMap(event=>[...eventEntityRefs(event)]));
  const seedIds=new Set([...directIds,...eventSeedIds]);
- const relevantRelations=relations.filter(relation=>seedIds.has(relation.sourceId)||seedIds.has(relation.targetId));
+ const relevantRelations=relations.filter(relation=>{
+  if(!seedIds.has(relation.sourceId)&&!seedIds.has(relation.targetId))return false;
+  const start=Date.parse(relation.startedAt||relation.createdAt||''),end=Date.parse(relation.endedAt||'');
+  if(toTime!==null&&Number.isFinite(start)&&start>toTime)return false;
+  if(fromTime!==null&&Number.isFinite(end)&&end<fromTime)return false;
+  return true;
+ });
  const relationIdsByEntity=new Map();for(const relation of relevantRelations){for(const endpoint of [relation.sourceId,relation.targetId]){if(!relationIdsByEntity.has(endpoint))relationIdsByEntity.set(endpoint,[]);relationIdsByEntity.get(endpoint).push(relation.id)}}
  const expandedIds=new Set([...seedIds,...relevantRelations.flatMap(relation=>[relation.sourceId,relation.targetId])]);
  const entityById=new Map(entities.map(entity=>[entity.id,entity]));

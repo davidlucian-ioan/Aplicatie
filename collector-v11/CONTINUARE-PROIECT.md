@@ -1385,3 +1385,5 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Graph recall expansion respects requested date windows when deriving event seeds; regression covers out-of-window events not expanding the graph.
 
 - Fix diferență Node/browser: browser recall filtrează evenimentele pe `expandedIds`, identic cu Node; referința veche la `matchedIds` eliminată.
+
+- Filtrarea temporală a relațiilor respectă intervalul: exclude relațiile începute după `to` și relațiile încheiate înainte de `from`; testul temporal a fost corectat să folosească o relație istorică cu timestamp-uri explicite.
