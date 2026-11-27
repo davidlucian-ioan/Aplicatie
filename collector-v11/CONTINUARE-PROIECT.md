@@ -1377,3 +1377,5 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Sinteza AI poate cita evidence pentru entități conectate și istoricul atributelor; UI afișează explicit aceste contexte.
 - Teste de regresie Node + Browser pentru expandarea grafului și dovezi temporale.
 - CI la HEAD anterior: Quality Suite, Cloud API, Android Debug APK și iOS Simulator au toate PASS. Acest batch necesită un nou CI.
+
+- Verificare statică de regresie: am eliminat declarațiile duplicate ale setului de event-attributes din recall Node/browser înainte de rularea CI.
