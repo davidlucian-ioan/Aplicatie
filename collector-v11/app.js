@@ -229,7 +229,7 @@ function renderTasks(){
  if(count)count.textContent=tasks.length+' '+({completed:'finalizate',cancelled:'anulate',in_progress:'în lucru',open:'deschise'}[statusFilter]||'active');
  if(!tasks.length){box.innerHTML='<div class="empty">'+(statusFilter==='completed'?'Nu există task-uri finalizate.':statusFilter==='cancelled'?'Nu există task-uri anulate.':'Nu ai task-uri active. Spune în Work „Creează un task…” pentru a adăuga unul.')+'</div>';return}
  box.innerHTML=tasks.slice(0,20).map(task=>{
-  const a=task.attributes||{},status=a.status==='in_progress'?'În lucru':'Deschis';
+  const a=task.attributes||{},status={open:'Deschis',in_progress:'În lucru',completed:'Finalizat',cancelled:'Anulat'}[a.status||'open']||'Deschis';
   const due=a.dueDate?(a.dueDate+(a.dueTime?' · '+a.dueTime+' '+(a.timezone||''):'')):'Fără termen';
   const priority={urgent:'Urgentă',high:'Ridicată',normal:'Normală',low:'Scăzută'}[a.priority]||'Normală';
   const blockers=(db.relations||[]).filter(relation=>relation.type==='depends_on'&&relation.sourceId===task.id&&!relation.endedAt).map(relation=>db.entities.find(entity=>entity.id===relation.targetId)).filter(dependency=>!dependency||dependency.attributes?.status!=='completed');
