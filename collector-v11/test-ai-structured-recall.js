@@ -166,7 +166,7 @@ test('Recall flags possible attribute conflicts but separates dated changes and 
 test('Recall ranks event evidence by semantic match and entity anchoring instead of selecting only the newest tail',()=>{
  const events=[{id:'old-exact',timestamp:'2026-11-01T00:00:00Z',payload:{summary:'Pump filter was replaced',entityIds:{pump:'p'}},operations:[]},{id:'new-linked',timestamp:'2026-11-27T00:00:00Z',payload:{summary:'General workshop update',entityIds:{pump:'p'}},operations:[]}];
  const fixture={entities:[{id:'p',name:'Pump',type:'object',attributes:{}}],relations:[],events,eventAttributes:[]};
- const result=searchStructuredMemory(fixture,'pump filter replaced',{limit:2});
+ const result=searchStructuredMemory(fixture,'pump filter replaced',{limit:30});
  assert.deepEqual(result.events.map(event=>event.id),['old-exact','new-linked']);
  assert.ok(result.evidence.find(row=>row.id==='old-exact').relevance>result.evidence.find(row=>row.id==='new-linked').relevance);
 });
