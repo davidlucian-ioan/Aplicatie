@@ -7,7 +7,7 @@ const ALLOWED_OPERATIONS = [
   'entity.create','entity.rename','attribute.set','attribute.define',
   'relation.create','relation.close','relation.move','stock.change',
   'stock.adjust','finance.record','event.note','event.attribute.set',
-  'relation.attribute.set'
+  'relation.attribute.set','attribute.correct'
 ];
 
 const INTERPRETATION_SCHEMA = {
@@ -135,8 +135,8 @@ class OpenAIProvider {
             'Operațiile permise și formele lor de date: entity.create: target=null, data {name,type}; entity.rename: target=entityId, data {name}; attribute.set: target=entityId, data {name,value,certainty?}; attribute.define: target=null, data {name,type,role?,nature?,identifying?,required?,historyEnabled?};',
             'relation.create: target=null, data {sourceId,targetId,type,customTypeName?}; relation.close: target=null, data {relationId}; relation.move: target=null, data {sourceId,targetId} unde targetId este o entitate de tip location;',
             'stock.change: target=null, data {populationId,quantity,action,locationId?,destinationId?,disposition?}, action fiind add, sell, dispose sau move_out; stock.adjust: target=null, data {changes:[{populationId,locationId?,quantity,disposition?}],correctsEventId?};',
-            'finance.record: target=null, data {amount,quantity?,kind,currency,entityId?,description}; event.note: target=null, data {description}; event.attribute.set: target=null, data {eventId,name,value}; relation.attribute.set: target=null, data {relationId,name,value}.',
-            'Nu inventa ID-uri: target și toate câmpurile care referă entități/relații/evenimente trebuie să folosească ID-uri exacte din context sau să ceri clarificare. Pentru operații fără date suficiente, nu propune execuția.',
+            'finance.record: target=null, data {amount,quantity?,kind,currency,entityId?,description}; event.note: target=null, data {description}; event.attribute.set: target=null, data {eventId,name,value}; relation.attribute.set: target=null, data {relationId,name,value}; attribute.correct: target=entityId, data {name,correctsEventId,value,certainty?}.',
+            'attribute.correct este permisă numai când utilizatorul cere explicit corectarea unei înregistrări; correctsEventId trebuie să fie eventId-ul exact al valorii istorice din dovezi, iar target trebuie să fie entityId-ul acelei valori. Nu corecta pe baza unei contradicții doar detectate și nu ghici evenimentul. Corecțiile cer requires_confirmation=true și trebuie să păstreze valoarea/istoricul corectat, nu să șteargă jurnalul. Nu inventa ID-uri: target și toate câmpurile care referă entități/relații/evenimente trebuie să folosească ID-uri exacte din context sau să ceri clarificare. Pentru operații fără date suficiente, nu propune execuția.',
             'Pentru operații cu efect asupra stocului, relațiilor sau banilor setează requires_confirmation=true.',
             'Răspunde în limba utilizatorului. Câmpurile nefolosite trebuie completate cu șiruri goale, array gol sau valori implicite.',
             'payload_json și data_json trebuie să fie obiecte JSON serializate ca text.'
