@@ -63,6 +63,7 @@ function safeContext(input) {
     }))
   };
   if(Array.isArray(source.recallEvidence))safe.recallEvidence=safeRecallEvidence(source.recallEvidence);
+  if(Array.isArray(source.correctionEvidence))safe.correctionEvidence=safeRecallEvidence(source.correctionEvidence);
   return safe;
 }
 
