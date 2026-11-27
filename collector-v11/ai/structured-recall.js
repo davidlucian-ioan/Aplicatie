@@ -36,7 +36,12 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  const eventAttributeMatches=eventAttributes.filter(attribute=>terms.some(term=>normalizeName([attribute.name,attribute.value].join(' ')).includes(term)));
  const eventAttributeIds=new Set(eventAttributeMatches.map(attribute=>attribute.eventId));
 
- const matchingEvents=events.filter(event=>eventAttributeIds.has(event.id)||terms.some(term=>normalizeName(JSON.stringify({payload:event.payload,operations:event.operations})).includes(term)));
+ const matchingEvents=events.filter(event=>{
+  const timestamp=Date.parse(event.timestamp||'');
+  if(fromTime!==null&&(!Number.isFinite(timestamp)||timestamp<fromTime))return false;
+  if(toTime!==null&&(!Number.isFinite(timestamp)||timestamp>toTime))return false;
+  return eventAttributeIds.has(event.id)||terms.some(term=>normalizeName(JSON.stringify({payload:event.payload,operations:event.operations})).includes(term));
+ });
  const eventSeedIds=new Set(matchingEvents.flatMap(event=>[...eventEntityRefs(event)]));
  const seedIds=new Set([...directIds,...eventSeedIds]);
  const relevantRelations=relations.filter(relation=>seedIds.has(relation.sourceId)||seedIds.has(relation.targetId));

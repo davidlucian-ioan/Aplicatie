@@ -132,3 +132,10 @@ test('recall expands one-hop relationship context and includes historical attrib
  assert.ok(result.evidence.some(row=>row.kind==='linked_entity'&&row.id==='l1'));
  assert.ok(result.evidence.some(row=>row.kind==='historical_attribute'&&row.sourceId==='attribute-history:o1:condition:ev-h1'));
 });
+
+test('recall graph expansion obeys requested temporal window',()=>{
+ const graph={entities:[{id:'p1',name:'Mihai',type:'person',attributes:{}},{id:'o1',name:'Pump',type:'object',attributes:{}},{id:'x1',name:'Old unrelated linked entity',type:'object',attributes:{}}],relations:[{id:'r1',sourceId:'p1',targetId:'o1',type:'brings'},{id:'r-old',sourceId:'p1',targetId:'x1',type:'mentioned_with'}],events:[{id:'ev-new',timestamp:'2026-11-26T12:00:00Z',payload:{summary:'Mihai brings Pump',entityIds:{p:'p1',o:'o1'}},operations:[]},{id:'ev-old',timestamp:'2026-11-10T12:00:00Z',payload:{summary:'Mihai mentioned old entity',entityIds:{p:'p1',x:'x1'}},operations:[]}],eventAttributes:[]};
+ const result=searchStructuredMemory(graph,'Mihai',{from:'2026-11-25T00:00:00Z'});
+ assert.ok(!result.entities.some(entity=>entity.id==='x1'));
+ assert.ok(!result.relations.some(relation=>relation.id==='r-old'));
+});
