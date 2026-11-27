@@ -1389,3 +1389,5 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Filtrarea temporală a relațiilor respectă intervalul: exclude relațiile începute după `to` și relațiile încheiate înainte de `from`; testul temporal a fost corectat să folosească o relație istorică cu timestamp-uri explicite.
 
 - Recall păstrează task list-ul pentru potrivirile directe; task-urile de dependență rămân în contextul relațional și în `blockedBy`, evitând dublarea/umflarea listelor de task-uri.
+
+- Recall sanitizer/API audit: `linked_entity` și `historical_attribute` sunt acum allowlisted și trimise către OpenAI cu provenance și temporal fields; raw audio/transcript și alte câmpuri arbitrare sunt strip-uite. Promptul AI explică diferența `validAt` vs `at` și tratarea valorilor corectate.

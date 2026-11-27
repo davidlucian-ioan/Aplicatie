@@ -443,3 +443,18 @@ test('Cloud Recall route passes canonical task evidence through bounded sanitize
   assert.equal(Object.hasOwn(received.context,'privateField'),false);
  });
 });
+
+
+test('recall sanitizer forwards linked entities and historical attribute evidence while dropping raw capture data',async()=>{
+ let received;
+ const sourceEntity='entity:pump',sourceHistory='attribute-history:pump:condition:evt-1';
+ await withServer({env:baseEnv,fetchImpl:authFetch(),providerFactory:()=>({model:'test-model',interpret:async value=>{received=value;return {intent:'answer',answer:'Pompa a fost reparată.',answerSources:[sourceHistory]}}})},async base=>{
+  const response=await fetch(base+'/api/ai/interpret',{method:'POST',headers:{Authorization:'Bearer valid-token','Content-Type':'application/json'},body:JSON.stringify({text:'Cum a evoluat pompa?',context:{recallEvidence:[
+   {kind:'linked_entity',sourceId:sourceEntity,label:'Pompa',type:'object',linkedBy:['relation:r1'],rawAudio:'strip'},
+   {kind:'historical_attribute',sourceId:sourceHistory,entityId:'pump',entityName:'Pompa',name:'condition',value:'repaired',at:'2026-11-26T10:00:00Z',validAt:'2026-11-26',certainty:'certain',eventId:'evt-1',correctedByEventId:null,transcript:'strip'},
+   {kind:'unknown',sourceId:'bad',secret:'strip'}]}})});
+  assert.equal(response.status,200);assert.equal(received.context.recallEvidence.length,2);
+  assert.deepEqual(received.context.recallEvidence[0],{kind:'linked_entity',sourceId:sourceEntity,label:'Pompa',type:'object',linkedBy:['relation:r1']});
+  assert.deepEqual(received.context.recallEvidence[1],{kind:'historical_attribute',sourceId:sourceHistory,entityId:'pump',entityName:'Pompa',name:'condition',value:'repaired',at:'2026-11-26T10:00:00Z',validAt:'2026-11-26',certainty:'certain',eventId:'evt-1',correctedByEventId:''});
+ });
+});
