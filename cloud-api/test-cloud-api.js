@@ -454,7 +454,7 @@ test('recall sanitizer forwards linked entities and historical attribute evidenc
    {kind:'historical_attribute',sourceId:sourceHistory,entityId:'pump',entityName:'Pompa',name:'condition',value:'repaired',at:'2026-11-26T10:00:00Z',validAt:'2026-11-26',certainty:'certain',eventId:'evt-1',correctedByEventId:null,transcript:'strip'},
    {kind:'unknown',sourceId:'bad',secret:'strip'}]}})});
   assert.equal(response.status,200);assert.equal(received.context.recallEvidence.length,2);
-  assert.deepEqual(received.context.recallEvidence[0],{kind:'linked_entity',sourceId:sourceEntity,label:'Pompa',type:'object',linkedBy:['relation:r1']});
+  assert.deepEqual(received.context.recallEvidence[0],{kind:'linked_entity',sourceId:sourceEntity,label:'Pompa',type:'object',relevance:0,linkedBy:['relation:r1']});
   assert.deepEqual(received.context.recallEvidence[1],{kind:'historical_attribute',sourceId:sourceHistory,entityId:'pump',entityName:'Pompa',name:'condition',value:'repaired',at:'2026-11-26T10:00:00Z',validAt:'2026-11-26',certainty:'certain',eventId:'evt-1',correctedByEventId:''});
  });
 });
