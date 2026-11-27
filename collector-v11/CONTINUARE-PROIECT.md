@@ -1417,3 +1417,12 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Potrivirile directe sunt ordonate determinist după scor; evidence este ordonat cu task-uri și potriviri directe înaintea contextului conectat. Scorul este transmis ca metadata bounded către Cloud sanitizer.
 - Promptul Recall explică ordonarea și interzice interpretarea scorului drept probabilitate; modelul trebuie să citeze doar evidence care susține afirmația.
 - Teste Node și browser pentru ordonare, scor și parity. Batch-ul necesită CI complet pe noul HEAD.
+
+
+## Recall batch — bounded multi-hop graph provenance (27 nov. 2026)
+
+- Recall traversează graful Core până la 2 hop-uri, cu plafon de 50 entități și 100 relații per query; expandarea este deterministică după ID și protejată de cicluri.
+- Fiecare entity/relation context include depth și path-ul relation IDs, astfel încât AI și UI pot distinge context direct vs indirect și pot urmări proveniența.
+- Filtrarea temporală se aplică înaintea traversal-ului, pentru a evita expandarea prin relații care nu intersectează fereastra cerută.
+- Node și browser au test parity pentru 2-hop, cycle și respingerea unui al treilea hop.
+- HEAD anterior: c7ea5350458287d8d03b4ae069a3713d34a7cfef. CI Cloud API și Mobile au PASS; Quality Suite a fost în execuție la checkpoint. Acest batch necesită CI nou.

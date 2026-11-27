@@ -49,18 +49,38 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  });
  const eventSeedIds=new Set(matchingEvents.flatMap(event=>[...eventEntityRefs(event)]));
  const seedIds=new Set([...directIds,...eventSeedIds]);
- const relevantRelations=relations.filter(relation=>{
-  if(!seedIds.has(relation.sourceId)&&!seedIds.has(relation.targetId))return false;
+ const MAX_GRAPH_HOPS=2,MAX_GRAPH_ENTITIES=50,MAX_GRAPH_RELATIONS=100;
+ const entityById=new Map(entities.map(entity=>[entity.id,entity]));
+ const relationIsInWindow=relation=>{
   const start=Date.parse(relation.startedAt||relation.createdAt||''),end=Date.parse(relation.endedAt||'');
   if(toTime!==null&&Number.isFinite(start)&&start>toTime)return false;
   if(fromTime!==null&&Number.isFinite(end)&&end<fromTime)return false;
   return true;
- });
+ };
+ const graphRelations=relations.filter(relationIsInWindow).slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+ const expandedIds=new Set(seedIds),depthByEntity=new Map([...seedIds].map(id=>[id,0])),pathByEntity=new Map([...seedIds].map(id=>[id,[]]));
+ const relevantRelations=[],relationDepth=new Map(),relationPath=new Map();
+ let frontier=new Set(seedIds);
+ for(let depth=1;depth<=MAX_GRAPH_HOPS&&frontier.size&&expandedIds.size<MAX_GRAPH_ENTITIES&&relevantRelations.length<MAX_GRAPH_RELATIONS;depth++){
+  const nextFrontier=new Set();
+  for(const relation of graphRelations){
+   if(relevantRelations.some(item=>item.id===relation.id))continue;
+   if(![relation.sourceId,relation.targetId].some(id=>frontier.has(id)))continue;
+   if(relevantRelations.length>=MAX_GRAPH_RELATIONS)break;
+   relevantRelations.push(relation);relationDepth.set(relation.id,depth);
+   const anchor=[relation.sourceId,relation.targetId].find(id=>frontier.has(id));
+   relationPath.set(relation.id,[...(pathByEntity.get(anchor)||[]),relation.id]);
+   for(const endpoint of [relation.sourceId,relation.targetId]){
+    if(expandedIds.has(endpoint)||expandedIds.size>=MAX_GRAPH_ENTITIES)continue;
+    expandedIds.add(endpoint);depthByEntity.set(endpoint,depth);
+    pathByEntity.set(endpoint,[...(pathByEntity.get(anchor)||[]),relation.id]);nextFrontier.add(endpoint);
+   }
+  }
+  frontier=nextFrontier;
+ }
  const relationIdsByEntity=new Map();for(const relation of relevantRelations){for(const endpoint of [relation.sourceId,relation.targetId]){if(!relationIdsByEntity.has(endpoint))relationIdsByEntity.set(endpoint,[]);relationIdsByEntity.get(endpoint).push(relation.id)}}
- const expandedIds=new Set([...seedIds,...relevantRelations.flatMap(relation=>[relation.sourceId,relation.targetId])]);
- const entityById=new Map(entities.map(entity=>[entity.id,entity]));
- const expandedEntities=entities.filter(entity=>expandedIds.has(entity.id));
- const relationEvidence=relevantRelations.map(relation=>({...relation,sourceName:entityById.get(relation.sourceId)?.name||relation.sourceId,targetName:entityById.get(relation.targetId)?.name||relation.targetId,sourceMatched:directIds.has(relation.sourceId),targetMatched:directIds.has(relation.targetId),certainty:relation.attributes?.certainty||relation.certainty||'unknown',history:relation.attributeHistory||{},temporalStatus:relation.endedAt?'ended':'active'}));
+ const expandedEntities=entities.filter(entity=>expandedIds.has(entity.id)).sort((a,b)=>(depthByEntity.get(a.id)||0)-(depthByEntity.get(b.id)||0)||String(a.id).localeCompare(String(b.id)));
+ const relationEvidence=relevantRelations.map(relation=>({...relation,sourceName:entityById.get(relation.sourceId)?.name||relation.sourceId,targetName:entityById.get(relation.targetId)?.name||relation.targetId,sourceMatched:directIds.has(relation.sourceId),targetMatched:directIds.has(relation.targetId),graphDepth:relationDepth.get(relation.id)||1,graphPath:relationPath.get(relation.id)||[relation.id],certainty:relation.attributes?.certainty||relation.certainty||'unknown',history:relation.attributeHistory||{},temporalStatus:relation.endedAt?'ended':'active'}));
  const filteredEvents=events.filter(event=>{
   const timestamp=Date.parse(event.timestamp||'');
   if(fromTime!==null&&(!Number.isFinite(timestamp)||timestamp<fromTime))return false;
@@ -85,8 +105,8 @@ function searchStructuredMemory(state,query,{limit=30,from=null,to=null}={}){
  const selectedEventAttributes=eventAttributes.filter(attribute=>matchedEventIds.has(attribute.eventId));
  const evidence=[
   ...taskRows.slice(0,boundedLimit).map(task=>({kind:'task',id:task.id,sourceId:'task:'+task.id,taskKind:task.taskKind,taskId:task.taskId,reminderId:task.reminderId,title:task.title,status:task.status,dueAt:task.dueAt,dueDate:task.dueDate,dueTime:task.dueTime,timezone:task.timezone,priority:task.priority,sourceRef:task.sourceId,scheduleState:task.scheduleState,successorReminderId:task.successorReminderId,successorTaskId:task.successorTaskId,successorDueAt:task.successorDueAt,dependencyIds:task.dependencyIds,blockedBy:task.blockedBy})),
-  ...visibleEntities.slice(0,boundedLimit).map(entity=>({kind:directIds.has(entity.id)?'entity':'linked_entity',id:entity.id,sourceId:'entity:'+entity.id,label:entity.name,type:entity.type,matched:directIds.has(entity.id),relevance:relevanceByEntity.get(entity.id)||0,linkedBy:relationIdsByEntity.get(entity.id)||[]})),
-  ...relationEvidence.slice(0,boundedLimit).map(relation=>({kind:'relation',id:relation.id,sourceId:'relation:'+relation.id,source:relation.sourceName,type:relation.type,target:relation.targetName,at:relation.startedAt||relation.createdAt||null,startedAt:relation.startedAt||null,endedAt:relation.endedAt||null,certainty:relation.certainty,temporalStatus:relation.temporalStatus,attributes:relation.attributes||{},history:relation.history||{}})),
+  ...visibleEntities.slice(0,boundedLimit).map(entity=>({kind:directIds.has(entity.id)?'entity':'linked_entity',id:entity.id,sourceId:'entity:'+entity.id,label:entity.name,type:entity.type,matched:directIds.has(entity.id),relevance:relevanceByEntity.get(entity.id)||0,graphDepth:depthByEntity.get(entity.id)||0,graphPath:pathByEntity.get(entity.id)||[],linkedBy:relationIdsByEntity.get(entity.id)||[]})),
+  ...relationEvidence.slice(0,boundedLimit).map(relation=>({kind:'relation',id:relation.id,sourceId:'relation:'+relation.id,source:relation.sourceName,type:relation.type,target:relation.targetName,at:relation.startedAt||relation.createdAt||null,startedAt:relation.startedAt||null,endedAt:relation.endedAt||null,graphDepth:relation.graphDepth,graphPath:relation.graphPath,certainty:relation.certainty,temporalStatus:relation.temporalStatus,attributes:relation.attributes||{},history:relation.history||{}})),
   ...filteredEvents.map(event=>({kind:'event',id:event.id,sourceId:'event:'+event.id,at:event.timestamp,summary:event.payload?.summary||event.payload?.description||event.operations?.find(operation=>operation.operation==='event.note')?.data?.description||event.type,certainty:event.certainty,status:event.status})),
   ...attributeRows.slice(0,boundedLimit).map(attribute=>({kind:'attribute',sourceId:'attribute:'+attribute.entityId+':'+attribute.name,entityId:attribute.entityId,entityName:attribute.entityName,name:attribute.name,value:attribute.value,certainty:attribute.certainty,validAt:attribute.validAt,eventId:attribute.eventId,matched:attribute.matched})),
   ...historicalAttributeRows.slice(0,boundedLimit).map(attribute=>({kind:'historical_attribute',sourceId:'attribute-history:'+attribute.entityId+':'+attribute.name+':'+(attribute.eventId||attribute.at||'unknown'),entityId:attribute.entityId,entityName:attribute.entityName,name:attribute.name,value:attribute.value,at:attribute.at,validAt:attribute.validAt,certainty:attribute.certainty,eventId:attribute.eventId,correctedByEventId:attribute.correctedByEventId,matched:attribute.matched})),
