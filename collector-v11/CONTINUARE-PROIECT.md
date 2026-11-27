@@ -1362,3 +1362,8 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Test regresie verifică wiring-ul UI și sursa Core a istoricului.
 
 - Task-urile terminale afișează statusul corect și au acțiunea Redeschide; nu mai oferă finalizare/anulare suplimentară până la redeschidere.
+
+## Task lifecycle integrity — timestamp-uri terminale exclusive
+
+- Finalizarea șterge markerul de anulare, anularea șterge markerul de finalizare, iar redeschiderea curăță ambele timestamp-uri terminale și păstrează `reopenedAt`. Proiecția Core nu mai poate afișa simultan două rezultate terminale stale.
+- Test regresie pentru completion/cancellation/reopen metadata.

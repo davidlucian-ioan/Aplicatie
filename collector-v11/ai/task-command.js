@@ -86,9 +86,9 @@
   }
   const operations=[{operation:'attribute.set',target:id,data:{name:'status',value:next,forceHistory:true}},
    {operation:'attribute.set',target:id,data:{name:'updatedAt',value:occurredAt,forceHistory:true}}];
-  if(next==='completed')operations.push({operation:'attribute.set',target:id,data:{name:'completedAt',value:occurredAt,forceHistory:true}});
-  if(next==='cancelled')operations.push({operation:'attribute.set',target:id,data:{name:'cancelledAt',value:occurredAt,forceHistory:true}});
-  if(next==='open'&&['completed','cancelled'].includes(previous))operations.push({operation:'attribute.set',target:id,data:{name:'reopenedAt',value:occurredAt,forceHistory:true}});
+  if(next==='completed'){operations.push({operation:'attribute.set',target:id,data:{name:'completedAt',value:occurredAt,forceHistory:true}});operations.push({operation:'attribute.set',target:id,data:{name:'cancelledAt',value:null,forceHistory:true}});}
+  if(next==='cancelled'){operations.push({operation:'attribute.set',target:id,data:{name:'cancelledAt',value:occurredAt,forceHistory:true}});operations.push({operation:'attribute.set',target:id,data:{name:'completedAt',value:null,forceHistory:true}});}
+  if(next==='open'&&['completed','cancelled'].includes(previous)){operations.push({operation:'attribute.set',target:id,data:{name:'completedAt',value:null,forceHistory:true}});operations.push({operation:'attribute.set',target:id,data:{name:'cancelledAt',value:null,forceHistory:true}});operations.push({operation:'attribute.set',target:id,data:{name:'reopenedAt',value:occurredAt,forceHistory:true}});}
   return command('task.transition',input.idempotencyKey,a.taskId,
    {domain:'task',taskKind:'user',taskId:a.taskId,entityId:id,previousStatus:previous,status:next,occurredAt},operations);
  }
