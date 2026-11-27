@@ -1360,3 +1360,5 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Rândurile au identificator stabil pentru navigarea sigură către istoricul task-ului.
 - Count/empty-state reflectă filtrul selectat, inclusiv terminal statuses.
 - Test regresie verifică wiring-ul UI și sursa Core a istoricului.
+
+- Task-urile terminale afișează statusul corect și au acțiunea Redeschide; nu mai oferă finalizare/anulare suplimentară până la redeschidere.
