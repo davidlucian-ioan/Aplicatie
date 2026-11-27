@@ -18,7 +18,7 @@ function safeRecallEvidence(input){
     const sourceId=String(row.sourceId||row.id||'').trim().slice(0,240);
     if(!sourceId) return [];
     if(row.kind==='entity'||row.kind==='linked_entity'){
-      return [{kind:row.kind,sourceId,label:String(row.label||'').slice(0,160),type:String(row.type||'generic').slice(0,64),linkedBy:row.kind==='linked_entity'&&Array.isArray(row.linkedBy)?row.linkedBy.slice(0,20).map(id=>String(id).slice(0,180)):[]}];
+      return [{kind:row.kind,sourceId,label:String(row.label||'').slice(0,160),type:String(row.type||'generic').slice(0,64),relevance:Number.isFinite(row.relevance)?Math.max(0,Math.min(100,row.relevance)):0,linkedBy:row.kind==='linked_entity'&&Array.isArray(row.linkedBy)?row.linkedBy.slice(0,20).map(id=>String(id).slice(0,180)):[]}];
     }
     if(row.kind==='relation'){
       const attributes={};

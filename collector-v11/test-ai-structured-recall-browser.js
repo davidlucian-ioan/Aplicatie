@@ -31,6 +31,11 @@ test('browser recall includes event attributes only when their event is in the r
  assert.equal(searchStructuredMemory(state,'unrelated').eventAttributes.length,0);
 });
 
+test('browser recall ranks exact direct matches ahead of weaker direct matches and linked context',()=>{
+ const graph={entities:[{id:'a',name:'Pump',type:'object',attributes:{}},{id:'b',name:'Pump maintenance notes',type:'document',attributes:{}},{id:'c',name:'Workshop',type:'location',attributes:{}}],relations:[{id:'r',sourceId:'a',targetId:'c',type:'stored_at'}],events:[],eventAttributes:[]};
+ const result=searchStructuredMemory(graph,'pump');const direct=result.evidence.filter(row=>row.kind==='entity');assert.equal(result.evidence[0].id,'a');assert.ok(direct[0].relevance>direct[1].relevance);
+});
+
 test('browser recall expands relationship context and exposes historical facts as AI evidence',()=>{
  const graph={entities:[{id:'p1',name:'Mihai',type:'person',attributes:{role:'supplier'}},{id:'o1',name:'Pompa',type:'object',attributes:{condition:'broken'},attributeHistory:{condition:[{at:'2026-11-25T10:00:00Z',validAt:'2026-11-25',value:'broken',previous:'working',certainty:'certain',eventId:'ev-h1'}]}},{id:'l1',name:'Atelier',type:'location',attributes:{address:'Sibiu'}}],relations:[{id:'r1',sourceId:'p1',targetId:'o1',type:'brings'},{id:'r2',sourceId:'o1',targetId:'l1',type:'located_at'}],events:[{id:'ev1',timestamp:'2026-11-26T12:00:00Z',payload:{summary:'Mihai brings pump',entityIds:{person:'p1',object:'o1'}},operations:[]}],eventAttributes:[]};
  const result=searchStructuredMemory(graph,'Mihai');

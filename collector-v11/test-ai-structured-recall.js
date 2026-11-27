@@ -55,6 +55,13 @@ test('Node and browser structured recall return identical projections and eviden
  }
 });
 
+test('Recall ranks direct exact/name matches ahead of linked context and exposes relevance',()=>{
+ const graph={entities:[{id:'a',name:'Pump',type:'object',attributes:{}},{id:'b',name:'Pump maintenance notes',type:'document',attributes:{}},{id:'c',name:'Workshop',type:'location',attributes:{}}],relations:[{id:'r',sourceId:'a',targetId:'c',type:'stored_at'}],events:[],eventAttributes:[]};
+ const result=searchStructuredMemory(graph,'pump');const direct=result.evidence.filter(row=>row.kind==='entity');
+ assert.equal(direct[0].id,'a');assert.ok(direct[0].relevance>direct[1].relevance);assert.equal(result.evidence[0].id,'a');
+ require('./ai/structured-recall-browser.js');assert.deepEqual(globalThis.CollectorStructuredRecall.searchStructuredMemory(graph,'pump'),result);
+});
+
 test('Recall evidence exposes stable source identifiers for every evidence kind',()=>{
  const r=searchStructuredMemory(state,'Mihai pump');
  for(const evidence of r.evidence)assert.equal(typeof evidence.sourceId,'string');

@@ -1409,3 +1409,11 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Test Cloud API pentru provenance și câmpuri temporale; transcript/audio brut nu trece prin sanitizer.
 
 - Actualizare test de contract sanitizer: evidence pentru atribut include acum `certainty`, `validAt`, `eventId`; testul de siguranță verifică noua formă și continuă să respingă valori non-scalar/raw fields.
+
+
+## Recall batch — relevance ranking (27 nov. 2026)
+
+- Recall Node/browser calculează un scor heuristic de relevanță pentru potrivirile directe, combinând match exact de nume, prefix, substring și match în atribute/aliasuri.
+- Potrivirile directe sunt ordonate determinist după scor; evidence este ordonat cu task-uri și potriviri directe înaintea contextului conectat. Scorul este transmis ca metadata bounded către Cloud sanitizer.
+- Promptul Recall explică ordonarea și interzice interpretarea scorului drept probabilitate; modelul trebuie să citeze doar evidence care susține afirmația.
+- Teste Node și browser pentru ordonare, scor și parity. Batch-ul necesită CI complet pe noul HEAD.
