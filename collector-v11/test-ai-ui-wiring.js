@@ -532,3 +532,14 @@ test('Think task dependency modal previews and confirms before committing a cycl
  const board=app.slice(app.indexOf('function renderTasks'),app.indexOf('function addTaskDependency'));
  assert.ok(board.includes('data-task-dependency'));
 });
+
+
+test('Work trimite dovezi de corecție bounded și afișează valoarea veche, nouă și sursa înainte de confirmare',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ assert.ok(app.includes('context.correctionEvidence'));
+ assert.ok(app.includes('Corecție propusă:'));
+ assert.ok(app.includes('Valoare anterioară:'));
+ assert.ok(app.includes('Valoare nouă:'));
+ assert.ok(app.includes('Eveniment-sursă:'));
+ assert.ok(app.includes('correctsEventId'));
+});
