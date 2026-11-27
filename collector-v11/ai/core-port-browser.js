@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
-  const ALLOWED = new Set(['entity.create','entity.rename','attribute.set','attribute.define','relation.create','relation.close','relation.move','stock.change','stock.adjust','finance.record','event.note','event.attribute.set','relation.attribute.set']);
-  const HIGH_RISK = new Set(['relation.close','relation.move','stock.change','stock.adjust','finance.record']);
+  const ALLOWED = new Set(['entity.create','entity.rename','attribute.set','attribute.define','relation.create','relation.close','relation.move','stock.change','stock.adjust','finance.record','event.note','event.attribute.set','relation.attribute.set','attribute.correct']);
+  const HIGH_RISK = new Set(['relation.close','relation.move','stock.change','stock.adjust','finance.record','attribute.correct']);
   const clone = value => structuredClone(value);
   const MAX_PENDING_PREVIEWS=10;
   function validate(command) {
