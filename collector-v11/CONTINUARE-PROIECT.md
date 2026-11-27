@@ -1399,3 +1399,11 @@ Comanda `task.edit` persistă assignedTo/recurrence prin Core journal, cu previe
 - Fact-urile curente expun certainty, validAt și eventId, iar sanitizer-ul cloud transmite numai câmpurile allowlisted.
 - Promptul de recall cere să distingă relațiile active/închise și istoricul de valoarea curentă.
 - Test Cloud API pentru provenance și câmpuri temporale; transcript/audio brut nu trece prin sanitizer.
+
+
+## Recall relation provenance hardening — 27 nov. 2026
+
+- Relațiile furnizează intervalul `startedAt/endedAt`, status temporal, certainty, atribute și istoricul atributelor.
+- Fact-urile curente expun certainty, validAt și eventId, iar sanitizer-ul cloud transmite numai câmpurile allowlisted.
+- Promptul de recall cere să distingă relațiile active/închise și istoricul de valoarea curentă.
+- Test Cloud API pentru provenance și câmpuri temporale; transcript/audio brut nu trece prin sanitizer.
